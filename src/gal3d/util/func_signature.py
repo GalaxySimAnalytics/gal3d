@@ -6,13 +6,51 @@ from functools import cached_property
 
 
 class MySignature(inspect.Signature):
+    """
+    A custom signature class that extends `inspect.Signature` to provide additional functionality
+    for analyzing function parameters.
+
+    This class provides methods to determine whether a function accepts keyword arguments,
+    positional arguments, and to filter parameters based on their kind and default values.
+
+    Attributes
+    ----------
+    params : dict
+        A dictionary mapping parameter names to their kind and default values.
+    kwargs : bool
+        True if the function accepts keyword arguments, False otherwise.
+    args : bool
+        True if the function accepts positional arguments, False otherwise.
+
+    Methods
+    -------
+    get_params(positional=0, keyword=0, empty=0)
+        Filters and returns parameters based on their kind and default values.
+    """
     
     @cached_property
     def params(self) -> dict:
+        """
+        Returns a dictionary mapping parameter names to their kind and default values.
+
+        Returns
+        -------
+        dict
+            A dictionary where keys are parameter names and values are tuples of
+            (parameter kind, default value).
+        """
         return {i: (self.parameters[i].kind,self.parameters[i].default) for i in self.parameters}
     
     @cached_property
     def kwargs(self) -> bool:
+        """
+        Determines whether the function accepts keyword arguments.
+
+        Returns
+        -------
+        bool
+            True if the function accepts keyword arguments, False otherwise.
+        """
         for i in self.params:
             if self.params[i][0] == 4:
                 return True
@@ -20,40 +58,61 @@ class MySignature(inspect.Signature):
     
     @cached_property
     def args(self) -> bool:
+        """
+        Determines whether the function accepts positional arguments.
+
+        Returns
+        -------
+        bool
+            True if the function accepts positional arguments, False otherwise.
+        """
         for i in self.params:
             if self.params[i][0] == 2:
                 return True
         return False
     
     def get_params(self, positional: int = 0,keyword: int = 0, empty: int = 0) -> dict:
-        '''Give the required paramter name of a function
-        
-        Parameters:
-            positional: int, optional
-                0: anything; 1: parameters can be positional; 2: only positional. Default 0.
-            keyword: int, optional
-                0: anything; 1: parameter can be keyword; 2: only keyword. Default 0.
-            empty: int, optional
-                0: anything; 1: parameter default values is empty; 2: parameter default values is not empty. Default 0.             
-        
-        Return:
-            params: dict
-                key is the param name, value is its default value in the function.
-        
-        Examples:
-            get the empty parameters:
-                args: get_params(positional=2,keyword=0,empty=1,)
-                kwargs: get_params(positional=0,keyword=1,empty=1,)
-            or:
-                args: get_params(positional=1,keyword=0,empty=1,)
-                kwargs: get_params(positional=0,keyword=2,empty=1,)
-        Notes:
-            POSITIONAL_ONLY 0
-            POSITIONAL_OR_KEYWORD 1
-            VAR_POSITIONAL 2
-            KEYWORD_ONLY 3
-            VAR_KEYWORD 4
-        '''
+        """
+        Filters and returns parameters based on their kind and default values.
+
+        Parameters
+        ----------
+        positional : int, optional
+            Specifies the type of positional parameters to include:
+            - 0: Include all parameters (default).
+            - 1: Include parameters that can be positional.
+            - 2: Include only strictly positional parameters.
+        keyword : int, optional
+            Specifies the type of keyword parameters to include:
+            - 0: Include all parameters (default).
+            - 1: Include parameters that can be keyword.
+            - 2: Include only strictly keyword parameters.
+        empty : int, optional
+            Specifies the type of default values to include:
+            - 0: Include all parameters (default).
+            - 1: Include parameters with no default value.
+            - 2: Include parameters with a default value.
+
+        Returns
+        -------
+        dict
+            A dictionary where keys are parameter names and values are their default values.
+
+        Examples
+        --------
+        To get parameters with no default value:
+            - For positional parameters: `get_params(positional=2, keyword=0, empty=1)`
+            - For keyword parameters: `get_params(positional=0, keyword=1, empty=1)`
+
+        Notes
+        -----
+        Parameter kinds:
+            - POSITIONAL_ONLY: 0
+            - POSITIONAL_OR_KEYWORD: 1
+            - VAR_POSITIONAL: 2
+            - KEYWORD_ONLY: 3
+            - VAR_KEYWORD: 4
+        """
         avaiable = [0,1,3]
         
         levels = [0,1,2]
@@ -91,7 +150,23 @@ class MySignature(inspect.Signature):
     
 
 def update_dict_value(origin: dict, other: dict, **kwargs)->dict:
-    
+    """
+    Updates the values in `origin` dictionary with values from `other` dictionary and `kwargs`.
+
+    Parameters
+    ----------
+    origin : dict
+        The original dictionary to be updated.
+    other : dict
+        A dictionary containing values to update `origin`.
+    **kwargs : dict
+        Additional key-value pairs to update `origin`.
+
+    Returns
+    -------
+    dict
+        A new dictionary with updated values.
+    """
     ret = origin.copy()
     same_key = ret.keys() & other.keys()
     for i in same_key:

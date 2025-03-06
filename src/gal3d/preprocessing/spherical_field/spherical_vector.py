@@ -20,26 +20,36 @@ class Sphere_vector():
     
     def __init__(self,N_sample=512, method = 'fibonacci'):
         '''
+        Initialize the Sphere_vector class with N points uniformly distributed on the unit sphere.
+
         Parameters:
-            N_sample: int, default 512,
-                the numble of points 
-            method: str, optional, 'muller' or 'fibonacci', default 'fibonacci'
-                the method to generate points on the sphere
-                
+        -----------
+        N_sample : int, optional, default 512
+            The number of points to generate on the unit sphere.
+        
+        method : str, optional, default 'fibonacci'
+            The method used to generate points on the sphere. Options are 'fibonacci' or 'muller'.
+
         Attributes:
-            num: int, 
-                equal to N_sample,the numble of points 
-            pos: ndarray, shape (n,3)
-                coordinates of each point (x,y,z)
-            sph: ndarray, shape (n,3)
-                spherical coordinates of each point (r,phi,theta)
-            voronoi: SphericalVoronoi
-                Voronoi diagrams on the surface of a sphere. 
-                see scipy.spatial.SphericalVoronoi
-            area: SphericalVoronoi.calculate_areas
-                the areas of the Voronoi regions
-            uniformity: float
-                the ratio of variance to mean of areas
+        -----------
+        num : int
+            The number of points on the sphere, equal to N_sample.
+        
+        pos : ndarray, shape (n, 3)
+            Cartesian coordinates (x, y, z) of each point on the unit sphere.
+        
+        sph : ndarray, shape (n, 3)
+            Spherical coordinates (r, phi, theta) of each point on the unit sphere.
+        
+        voronoi : SphericalVoronoi
+            Voronoi diagrams on the surface of the sphere. This is an instance of `scipy.spatial.SphericalVoronoi`.
+        
+        area : ndarray
+            The areas of the Voronoi regions on the sphere.
+        
+        uniformity : float
+            The ratio of the standard deviation to the mean of the Voronoi region areas, 
+            which measures the uniformity of the point distribution on the sphere.
         '''
         
         METHOD = {'fibonacci': self.fibonacci_sampling,
@@ -55,6 +65,19 @@ class Sphere_vector():
         
         
     def assign_points(self,pos):
+        '''
+        Assign each point in `pos` to the nearest point on the sphere.
+
+        Parameters:
+        -----------
+        pos : ndarray, shape (m, 3)
+            Cartesian coordinates (x, y, z) of the points to be assigned to the nearest point on the sphere.
+
+        Returns:
+        --------
+        indices : ndarray, shape (m,)
+            The indices of the nearest points on the sphere for each point in `pos`.
+        '''
         pos_uni = unit_vector3d(pos)
         
         batchsize = 200000      # prevent memory overflow
@@ -70,11 +93,20 @@ class Sphere_vector():
     @staticmethod
     def fibonacci_sampling(Num_sampling: int = 256):
         '''
-        Parameters: 
-            Num_sampling: int, default 256,
-                the numble of points 
+        Generate points on the unit sphere using the Fibonacci sphere sampling method.
+
+        Parameters:
+        -----------
+        Num_sampling : int, optional, default 256
+            The number of points to generate on the unit sphere.
+
+        Returns:
+        --------
+        pos : ndarray, shape (n, 3)
+            Cartesian coordinates (x, y, z) of each point on the unit sphere.
         
-        Return: [x,y,z],[r,phi,theta]
+        sph : ndarray, shape (n, 3)
+            Spherical coordinates (r, phi, theta) of each point on the unit sphere.
         '''
         logger.info(f"Sampling {Num_sampling} random points on the sphere by fibonacci method")
         return fibonacci_sampling(Num_sampling)
@@ -82,11 +114,20 @@ class Sphere_vector():
     @staticmethod
     def muller_sampling(Num_sampling=256):
         '''
-        Parameters: 
-            Num_sampling: int, default 256,
-                the numble of points 
+        Generate points on the unit sphere using the Muller method.
+
+        Parameters:
+        -----------
+        Num_sampling : int, optional, default 256
+            The number of points to generate on the unit sphere.
+
+        Returns:
+        --------
+        pos : ndarray, shape (n, 3)
+            Cartesian coordinates (x, y, z) of each point on the unit sphere.
         
-        Return: [x,y,z],[r,phi,theta]
+        sph : ndarray, shape (n, 3)
+            Spherical coordinates (r, phi, theta) of each point on the unit sphere.
         '''
         logger.info(f"Sampling {Num_sampling} random points on the sphere by muller method")
         

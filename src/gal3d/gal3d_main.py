@@ -17,48 +17,56 @@ from .fitting.result import Result
 
 
 class Galaxy3d(Particles):
+    """
+    The main class to fit a 3D galaxy model using particle data.
+
+    This class provides functionality to fit an equal density surface to a 3D galaxy model
+    using particle positions and weights. It supports various shape functions, coordinate systems,
+    and error functions for optimization.
+
+    Parameters
+    ----------
+    pos : array-like, shape (N, 3)
+        The positions of N particles in 3D Cartesian coordinates (x, y, z).
+    weight : array-like, shape (N,)
+        The property of N particles, such as mass or density.
+    parameter_mode : str, optional, default='Density'
+        Determines how to calculate the target parameter. Options: {'Density', 'Mean'}.
+    num_near : int, optional, default=32
+        The number of nearest neighbors used in KDTree to estimate the target parameter.
+    kdtree_options : dict, optional, default={}
+        Additional options for building and querying the KDTree.
+    verbose : bool, optional, default=True
+        Controls verbosity of the class.
+
+    Returns
+    -------
+    Galaxy3d
+        An instance of the Galaxy3d class.
+    """
     
     def __init__(self,pos,weight,parameter_mode: str = 'Density', num_near: int = 32, kdtree_options=dict(),verbose=True):
-        '''
-        The main class to fit Galaxy 3D model.
-        
-        
-        
-        Parameter:
-            pos: array (N,3),
-                the position of N particles, in 3D cartis.. (x,y,z) coordinate,
-            weight: array (N,)
-                the property of N particles, such as mass ...
-            parameter_mode: str, 
-                {'Density','Mean'}, determine how to calcualte the target parameter.
-            num_near: int,
-                used in KDtree, determine how much num of nerighbors to estimate the target parameter.
-            kdtree_options: dict,
-                the options used to build KDtree and KDtree.query.
-            verbose: bool,
-                verbose control
-        
-        
-        '''
         super().__init__(pos=pos,weight=weight,parameter_mode=parameter_mode,num_near=num_near,verbose=verbose,**kdtree_options)
         
             
     def set_structure_options(self,coordinate_class='Coordinate3D',shape_class='Ellipsoid',error_func='isodensity_sums_fdev_rscale',**kwargs):
-        '''
-        set the structure options, used for fit.
-        
-        Parameter:
-            coordinate_class: str,
-                {'Coordinate3D'},the coordinate system used for model fitting.
-            shape_class: str,
-                {'Ellipsoid','Ellipsoid_S'}, the structure shape for model fitting.
-            error_func: str,
-                use available error, determine the minimize function used in model fitting.
-        
-        Return:
-            Galaxy3d
-        
-        '''
+        """
+        Set the structure options for model fitting.
+
+        Parameters
+        ----------
+        coordinate_class : str, optional, default='Coordinate3D'
+            The coordinate system used for model fitting. Options: {'Coordinate3D'}.
+        shape_class : str, optional, default='Ellipsoid'
+            The shape function used for model fitting. Options: {'Ellipsoid', 'Ellipsoid_S'}.
+        error_func : str, optional, default='isodensity_sums_fdev_rscale'
+            The error function used for optimization. Determines the minimize function for fitting.
+
+        Returns
+        -------
+        Galaxy3d
+            The instance with updated structure options.
+        """
         
         self._structure = Structure_3D_fitter(coordinate_class=coordinate_class,shape_class=shape_class,error_func=error_func,**kwargs)
         
@@ -77,42 +85,45 @@ class Galaxy3d(Particles):
 
     
     def set_optimizer_options(self,algorithm,algo_options = dict()):
-        '''
-        set the optimizer and its options for fitting model.
-        
-        Parameter:
-            algorithm: str,
-                the algorithm name, used for optimize, see available algo.
-            algo_options: dict,
-                set the optimizer options
-        
-        Return:
-            Galaxy3d
-        
-        '''
-        
-        
-        
-        
+        """
+        Set the optimizer and its options for model fitting.
+
+        Parameters
+        ----------
+        algorithm : str
+            The optimization algorithm name. See available algorithms for options.
+        algo_options : dict, optional, default={}
+            Additional options for the optimizer.
+
+        Returns
+        -------
+        Galaxy3d
+            The instance with updated optimizer options.
+        """
         
         self._optimizer = Optimizer(algorithm=algorithm,algo_options=algo_options)
         return self
     
     def get_structure(self, r: float | Iterable = np.geomspace(1,10,200), **kwargs):
-        '''
-        Parameter
-            r: float | Iterable,
-                the maximun radius of the structure
-        
-        kwargs:
-            var_a, the variation of a,
-            
-            data_level = 0
-        
-        Return:
-            Result
-        
-        '''
+        """
+        Fit the galaxy structure at a given radius or a range of radii.
+
+        Parameters
+        ----------
+        r : float or Iterable, optional, default=np.geomspace(1, 10, 200)
+            The maximum radius or a range of radii for fitting the structure.
+        **kwargs : dict
+            Additional fitting options:
+            - var_a : float, optional
+                The variation of the semi-major axis `a`.
+            - data_level : int, optional, default=0
+                The level of data to use for fitting.
+
+        Returns
+        -------
+        Result
+            The fitting result for the given radius or radii.
+        """
         get_one_structure = self._get_one_ell_structure
         
         if not isinstance(r,Iterable):
@@ -141,6 +152,34 @@ class Galaxy3d(Particles):
                            shape_class='Ellipsoid',
                            error_func='isodensity_sums_fdev_rscale',
                            init_parameters=dict(),upper_bounds=dict(),lower_bounds=dict(),**kwargs):
+        """
+        Fit a single structure at a given radius.
+
+        Parameters
+        ----------
+        r : float
+            The radius for fitting the structure.
+        coordinate_class : str, optional, default='Coordinate3D'
+            The coordinate system for fitting.
+        shape_class : str, optional, default='Ellipsoid'
+            The shape function for fitting.
+        error_func : str, optional, default='isodensity_sums_fdev_rscale'
+            The error function for optimization.
+        init_parameters : dict, optional, default={}
+            Initial parameters for fitting.
+        upper_bounds : dict, optional, default={}
+            Upper bounds for fitting parameters.
+        lower_bounds : dict, optional, default={}
+            Lower bounds for fitting parameters.
+        **kwargs : dict
+            Additional fitting options.
+
+        Returns
+        -------
+        Result
+            The fitting result for the given radius.
+        """
+
         structure = Structure_3D_fitter(coordinate_class=coordinate_class,shape_class=shape_class,error_func=error_func)
         
         params = structure.parameters
@@ -189,9 +228,29 @@ class Galaxy3d(Particles):
     
     
     def _get_one_ell_structure(self,a,**kwargs):
-        '''
-        fit Ellipsoid and Ellipsoid_S shape
-        '''
+        """
+        Fit an ellipsoid or generalized ellipsoid (Ellipsoid_S) structure.
+
+        Parameters
+        ----------
+        a : float
+            The semi-major axis for fitting.
+        **kwargs : dict
+            Additional fitting options:
+            - var_a : float, optional
+                The variation of the semi-major axis `a`.
+            - init_parameters : dict, optional
+                Initial parameters for fitting.
+            - upper_bounds : dict, optional
+                Upper bounds for fitting parameters.
+            - lower_bounds : dict, optional
+                Lower bounds for fitting parameters.
+
+        Returns
+        -------
+        Result
+            The fitting result for the given semi-major axis.
+        """
         
         var_a = kwargs.get('var_a',0)
         var_a = min(var_a,0.99)
@@ -285,10 +344,24 @@ class Galaxy3d(Particles):
         return res
     
         
-    def __isodensity_data(self,a,**kwargs):
-        '''
-        Providing isodensity data when fitting isodensity.
-        '''
+    def __isodensity_data(self,r,**kwargs):
+        """
+        Generate isodensity data for fitting.
+
+        Parameters
+        ----------
+        a : float
+            The radius for generating isodensity data.
+        **kwargs : dict
+            Additional options:
+            - data_level : int, optional, default=0
+                The level of data to use for fitting.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the isodensity data.
+        """
         
         
         data_level = kwargs.get('data_level',0) # 0: [(0,0)], 1: (0,(1,0,-1)), 2: ((1,0,-1),0), 3: (1,0,-1),(1,0,-1)
@@ -297,7 +370,7 @@ class Galaxy3d(Particles):
                  4:[(0,1),(0,-1),(1,0),(1,-1),(1,1),(1,-1),(-1,1),(-1,-1)]}
         
                 
-        fitdata = self.field.generate(a,level= (0,0))
+        fitdata = self.field.generate(r,level= (0,0))
         fitdata['pos'] = fitdata['pos'][~np.isnan(fitdata['r'])]
         fitdata['r'] = fitdata['r'][~np.isnan(fitdata['r'])]
            # fitdata['r'] = fitdata['r']/np.sqrt(np.sum(fitdata['r']**2)/len(fitdata['r']))   #  normalization as this used for calculate error
@@ -306,7 +379,7 @@ class Galaxy3d(Particles):
         if data_level !=0:
             le = Level[data_level]
             for i in le:
-                other = self.field.generate(a,level= i)
+                other = self.field.generate(r,level= i)
                 other['pos'] = other['pos'][~np.isnan(other['r'])]
                 other['r'] = other['r'][~np.isnan(other['r'])]
                 
@@ -318,9 +391,19 @@ class Galaxy3d(Particles):
         return fitdata
     
     def __shell_data(self,a):
-        '''
-        Providing shell data when fitting by original particles.
-        '''
+        """
+        Generate shell data for fitting.
+
+        Parameters
+        ----------
+        a : float
+            The radius for generating shell data.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the shell data.
+        """
         
         
         fitdata={'pos': self.pos, 'pa': self.parameter}
@@ -328,9 +411,21 @@ class Galaxy3d(Particles):
     
     
     def __grid_data(self,a,logscale = True):
-        '''
-        Providing grid data when fitting by grid.
-        '''
+        """
+        Generate grid data for fitting.
+
+        Parameters
+        ----------
+        a : float
+            The radius for generating grid data.
+        logscale : bool, optional, default=True
+            Whether to use logarithmic scaling for the parameter.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the grid data.
+        """
 
         fitdata={'pos': self.grid.grid_pos,'volumn': self.grid.grid_volumn} # using log10 pa ?? #TODO
         fitdata['parameter'] = np.log10(self.grid.grid_denpa) if logscale else self.grid.grid_denpa
@@ -339,21 +434,61 @@ class Galaxy3d(Particles):
     
     @property
     def available_shape(self):
+        """
+        Get the available shape functions.
+
+        Returns
+        -------
+        list
+            A list of available shape functions.
+        """
         return list(Structure_3D._shape_3d_fn.keys())
     
     @property
     def available_coordinate(self):
+        """
+        Get the available coordinate systems.
+
+        Returns
+        -------
+        list
+            A list of available coordinate systems.
+        """
         return list(Structure_3D._coordinate_fn.keys())
     
     @property
     def available_error(self):
+        """
+        Get the available error functions.
+
+        Returns
+        -------
+        list
+            A list of available error functions.
+        """
         return list(Structure_3D_fitter._error_fcall_fn.keys())
 
     @property
     def available_algorithm(self):
+        """
+        Get the available optimization algorithms.
+
+        Returns
+        -------
+        dict
+            A dict of available optimization algorithms.
+        """
         return Optimizer._algos.copy()
 
     def __repr__(self):
+        """
+        Get a string representation of the Galaxy3d instance.
+
+        Returns
+        -------
+        str
+            A formatted string representation of the instance.
+        """
         lin1 = "< Galaxy3d | " +  "N_particles = "+str(len(self.pos)) + " | "+self.pa_mode+ " >"
 
         if hasattr(self,"_structure"):

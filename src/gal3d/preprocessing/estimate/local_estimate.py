@@ -23,26 +23,36 @@ class Local_est():
         '''
         Parameters:
             pos: ndarray, shape(n,3)
-                the coordinates (x,y,z) of the n data points
+                The coordinates (x, y, z) of the n data points.
             weight: array, shape(n,)
-                the property of the n points
+                The property of the n points (e.g., mass, luminosity, etc.).
             parameter_mode: str, optional
-                if 'Density', default, estimation of the density, 
-                for example: input pa is mass, then return density 
-                if 'Mean':, return the average value
-            num_near: int, default 64,
-                nearest points of this number are used to estimate the target parameter
+                The mode of parameter estimation. 
+                - If 'Density' (default), the function estimates the density. 
+                  For example, if the input `weight` is mass, the function returns density.
+                - If 'Mean', the function returns the average value of the `weight` property.
+            num_near: int, default 32
+                The number of nearest points used to estimate the target parameter.
+            **kwargs: dict, optional
+                Additional keyword arguments passed to the KDTree constructor and query methods.
+
         Attributes:
-            pos: equal to input pos
-            weight: equal to input weight
-            r: the radius of input points
+            pos: ndarray, shape(n,3)
+                The coordinates (x, y, z) of the n data points, sorted by their distance from the origin.
+            weight: array, shape(n,)
+                The property of the n points, sorted by their distance from the origin.
+            r: array, shape(n,)
+                The radial distance of each point from the origin.
             tree: scipy.spatial.KDTree
-            pa_mode: equal to parameter_mode
+                A KDTree object constructed from the input positions.
+            pa_mode: str
+                The parameter estimation mode ('Density' or 'Mean').
+
         Methods:
-            get_pa(target_pos[x,y,z]) 
-                estimate the parameter for the target position
-            get_gradient(target_pos[x,y,z]) 
-                estimate the get_gradient for the target position
+            get_parameter(target_pos)
+                Estimate the parameter value at the target positions.
+            get_gradient(target_pos)
+                Estimate the gradient of the parameter at the target positions.
         '''
         self.__generate_kd_options(num_near,**kwargs)
         pos = self._shape_check(pos)
@@ -60,13 +70,26 @@ class Local_est():
         
     @cached_property
     def parameter(self):
+        '''Cached property that returns the parameter values at the input positions.'''
         return self.get_parameter(self.pos)
     
     @cached_property
     def gradient(self):
+        '''Cached property that returns the gradient of the parameter at the input positions.'''
         return self.get_gradient(self.pos)
     
     def _shape_check(self,pos):
+        '''
+        Ensure the input positions have the correct shape (n, 3).
+
+        Parameters:
+            pos: ndarray
+                The input positions to be checked and reshaped if necessary.
+
+        Returns:
+            pos: ndarray, shape(n,3)
+                The reshaped positions.
+        '''
         if len(np.shape(pos))!=2:
             logger.info(f"pos is 1d array with shape={np.shape(pos)}, so we reshape it")
             pos = np.array(pos).reshape(-1,3)
@@ -81,12 +104,17 @@ class Local_est():
     
     def get_parameter(self, target_pos, **kwargs):
         '''
+        Estimate the parameter value at the target positions.
+
         Parameters:
-            target_pos: ndarray, shape(n,3)
-            the target positions (x,y,z) where the parameter values are to be estimated
-        Return:
-            results: array shape (n,)
-                the estimated parameter values
+            target_pos: ndarray, shape(m,3)
+                The target positions (x, y, z) where the parameter values are to be estimated.
+            **kwargs: dict, optional
+                Additional keyword arguments passed to the KDTree query method.
+
+        Returns:
+            results: array, shape(m,)
+                The estimated parameter values at the target positions.
         '''
         target_pos = self._shape_check(target_pos)
         query_options = update_dict_value(self._tree_query_options,kwargs)
@@ -96,6 +124,21 @@ class Local_est():
         return self._cal_pa(n_d,n_index)
         
     def get_gradient(self,target_pos, **kwargs):
+        '''
+        Estimate the gradient of the parameter at the target positions.
+
+        Parameters:
+            target_pos: ndarray, shape(m,3)
+                The target positions (x, y, z) where the gradient is to be estimated.
+            **kwargs: dict, optional
+                Additional keyword arguments passed to the KDTree query method.
+
+        Returns:
+            gradient: tuple of tuples
+                A tuple containing two tuples:
+                - The first tuple contains the upward gradient magnitude and direction.
+                - The second tuple contains the downward gradient magnitude and direction.
+        '''
         target_pos = self._shape_check(target_pos)
         query_options = update_dict_value(self._tree_query_options,kwargs)
         
@@ -126,6 +169,19 @@ class Local_est():
         return ((up_gradient,unit_vector3d(up_vect)),(lo_gradient,unit_vector3d(lo_vect)))
     
     def _cal_pa(self,n_d,n_index):
+        '''
+        Calculate the parameter value based on the nearest neighbors.
+
+        Parameters:
+            n_d: ndarray, shape(m, num_near)
+                The distances to the nearest neighbors for each target position.
+            n_index: ndarray, shape(m, num_near)
+                The indices of the nearest neighbors for each target position.
+
+        Returns:
+            fit_pa: array, shape(m,)
+                The estimated parameter values based on the nearest neighbors.
+        '''
         n_d_max = n_d[:,-1]
         if self.pa_mode == 'Density':
             n_pain = np.sum(self.weight[n_index], axis=1)
@@ -140,6 +196,15 @@ class Local_est():
     
     
     def __generate_kd_options(self,num_near,**kwargs):
+        '''
+        Generate options for KDTree construction and query.
+
+        Parameters:
+            num_near: int
+                The number of nearest neighbors to consider.
+            **kwargs: dict, optional
+                Additional keyword arguments passed to the KDTree constructor and query methods.
+        '''
         
         self._tree_build_options = func_optional_key(KDTree)
         self._tree_query_options = func_optional_key(KDTree.query)

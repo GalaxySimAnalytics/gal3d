@@ -14,6 +14,27 @@ logger = logging.getLogger("gal3d.preprocessing.ray.monotonic_profile")
 
 
 def inverse_interpolate(y,x,y_de,interpolate,extrapolate=False):
+    """
+    Perform inverse interpolation on the given data.
+
+    Parameters
+    ----------
+    y : array-like
+        The dependent variable values.
+    x : array-like
+        The independent variable values.
+    y_de : bool
+        If True, the y values are in decreasing order; otherwise, they are in increasing order.
+    interpolate : callable
+        The interpolation function to use.
+    extrapolate : bool, optional
+        If True, allow extrapolation beyond the range of the data. Default is False.
+
+    Returns
+    -------
+    callable
+        A function that performs the inverse interpolation.
+    """
     if y_de:
         y_temp = y[::-1]
         x_temp = x[::-1]
@@ -25,7 +46,49 @@ def inverse_interpolate(y,x,y_de,interpolate,extrapolate=False):
     return interpolate(y_temp[sel],x_temp[sel],extrapolate=extrapolate)
 
 class SG_Mono:
-    
+    """
+    A class for smoothing and interpolating profiles using Savitzky-Golay filter.
+
+    Parameters
+    ----------
+    x : array-like
+        The independent variable values.
+    y : array-like
+        The dependent variable values.
+    smooth_log : bool, optional
+        If True, apply smoothing in log space. Default is True.
+    window_length_max_frac : float, optional
+        The maximum fraction of the data length to use as the window length for smoothing. Default is 0.1.
+    y_de : bool, optional
+        If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
+    throw : bool, optional
+        If True, throw away points that do not meet the monotonicity condition. Default is True.
+    interpolate_mode : str, optional
+        The interpolation mode to use. Options are 'Pchip' and 'Akima'. Default is 'Pchip'.
+    polyorder : int, optional
+        The order of the polynomial used in the Savitzky-Golay filter. Default is 1.
+    mode : str, optional
+        The mode parameter for the Savitzky-Golay filter. Default is 'nearest'.
+    **kwargs : dict
+        Additional keyword arguments passed to the Savitzky-Golay filter.
+
+    Attributes
+    ----------
+    f_value : callable
+        The main interpolation function.
+    inv_f : callable
+        The inverse interpolation function.
+    f_lower : callable
+        The lower bound interpolation function.
+    f_upper : callable
+        The upper bound interpolation function.
+    inv_f_value : callable
+        The inverse interpolation function for the main values.
+    inv_f_lower : callable
+        The inverse interpolation function for the lower bound.
+    inv_f_upper : callable
+        The inverse interpolation function for the upper bound.
+    """
     savgol_filter_options = func_optional_key(savgol_filter)
     
     def __init__(self,x,y,smooth_log = True,window_length_max_frac = 0.1,y_de = True,throw=True,interpolate_mode='Pchip',polyorder: int = 1, mode:str = 'nearest',**kwargs):
@@ -61,7 +124,37 @@ class SG_Mono:
 
 
 class LU_Mono:
-    
+    """
+    A class for smoothing and interpolating profiles using lower and upper bounds.
+
+    Parameters
+    ----------
+    x : array-like
+        The independent variable values.
+    y : array-like
+        The dependent variable values.
+    y_de : bool, optional
+        If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
+    interpolate_mode : str, optional
+        The interpolation mode to use. Options are 'Pchip' and 'Akima'. Default is 'Pchip'.
+    re_sample_ord : int, optional
+        The order of resampling. If less than 1, no resampling is performed. Default is 0.
+
+    Attributes
+    ----------
+    f_lower : callable
+        The lower bound interpolation function.
+    f_upper : callable
+        The upper bound interpolation function.
+    f_value : callable
+        The main interpolation function.
+    inv_f_value : callable
+        The inverse interpolation function for the main values.
+    inv_f_lower : callable
+        The inverse interpolation function for the lower bound.
+    inv_f_upper : callable
+        The inverse interpolation function for the upper bound.
+    """
     def __init__(self,x, y, y_de = True,interpolate_mode='Pchip', re_sample_ord = 0):
         INTERPOLATE = {'Pchip': MyPchipInterpolator,'Akima':MyAkima1DInterpolator}
         interpolate = INTERPOLATE[interpolate_mode]
@@ -105,6 +198,21 @@ class LU_Mono:
         
     @staticmethod
     def profile_boundary(y,mono_de = True):
+        """
+        Determine the lower and upper boundaries of the profile.
+
+        Parameters
+        ----------
+        y : array-like
+            The dependent variable values.
+        mono_de : bool, optional
+            If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the lower and upper boundary indices.
+        """
         def sel_lower(arr):
             sel = np.zeros(len(arr),dtype=bool)
             vamax = arr[0]

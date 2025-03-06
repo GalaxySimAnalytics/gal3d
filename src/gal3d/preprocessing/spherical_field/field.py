@@ -15,14 +15,20 @@ logger = logging.getLogger("gal3d.preprocessing.spherical_field.field")
 class Field:
     def __init__(self,Base,inner=0.5, outer=95, inner_mode='dist', outer_mode='pct'):
         '''
+        Initialize the Field class for calculating parameters at various distances in a 3D galaxy model.
+
         Parameters
-            inner: float,
-            
-            outer: float,
-            
-            inner_mode: str,
-            
-            outer_mode: str,
+        ----------
+        Base : Galaxy3D
+            An instance of the Galaxy3D class used to compute parameters at specific positions.
+        inner : float, optional
+            The inner boundary value. Default is 0.5.
+        outer : float, optional
+            The outer boundary value. Default is 95.
+        inner_mode : str, optional
+            The mode for calculating the inner boundary. Options are 'dist', 'pct', or 'value'. Default is 'dist'.
+        outer_mode : str, optional
+            The mode for calculating the outer boundary. Options are 'dist', 'pct', or 'value'. Default is 'pct'.
         '''
         self.__bound_method = {'dist': self.__bound_dist,
                                'pct': self.__bound_pct,
@@ -36,6 +42,14 @@ class Field:
         
     
     def check_boundary(self):
+        '''
+        Check if the outer boundaries are greater than the inner boundaries.
+
+        Raises
+        ------
+        ValueError
+            If any outer boundary is not greater than the corresponding inner boundary.
+        '''
         if not all(self.outer_r > self.inner_r):
             logger.error('The outer boundaries need to be greater than the inner boundaries')
             raise ValueError('The outer boundaries need to be greater than the inner boundaries')
@@ -44,6 +58,23 @@ class Field:
     
     
     def build_sample(self,base: Local_est, num_p:int = 500, step_mode: str = 'log',):
+        '''
+        Build a sample of points along the rays for parameter calculation.
+
+        Parameters
+        ----------
+        base : Local_est
+            An instance of the Local_est class used to compute parameters.
+        num_p : int, optional
+            The number of points to sample along each ray. Default is 500.
+        step_mode : str, optional
+            The mode for spacing the points. Options are 'lin' for linear spacing or 'log' for logarithmic spacing. Default is 'log'.
+
+        Raises
+        ------
+        ValueError
+            If the base is not an instance of Local_est.
+        '''
         if not isinstance(base,Local_est):
             raise ValueError(f"base shoud be Local_est")
         
@@ -59,6 +90,20 @@ class Field:
     
     
     def build_interpolate(self,interpolator_method = 'LU',f_de=True,interpolator_kwargs=dict(),**kwargs):
+        '''
+        Build interpolators for the sampled points.
+
+        Parameters
+        ----------
+        interpolator_method : str, optional
+            The method used for interpolation. Default is 'LU'.
+        f_de : bool, optional
+            Whether to use density estimation. Default is True.
+        interpolator_kwargs : dict, optional
+            Additional keyword arguments for the interpolator. Default is an empty dictionary.
+        **kwargs : dict
+            Additional keyword arguments.
+        '''
         self.rays_func = [Ray(self.points_r[i],self.points_parameter[i],f_de=f_de,
                               interpolator_method=interpolator_method,interpolator_kwargs=interpolator_kwargs,**kwargs) 
                           for i in range(len(self.points_parameter))]
@@ -66,6 +111,24 @@ class Field:
         
     
     def build_isoprofile(self,Base,method: str = 'pair', from_rays_func = False,res_b=0.2,res_c=0.1,**kwargs):
+        '''
+        Build isoprofiles for the galaxy model.
+
+        Parameters
+        ----------
+        Base : Galaxy3D
+            An instance of the Galaxy3D class used to compute parameters.
+        method : str, optional
+            The method used for building isoprofiles. Options are 'moi' or 'pair'. Default is 'pair'.
+        from_rays_func : bool, optional
+            Whether to use the ray functions for building isoprofiles. Default is False.
+        res_b : float, optional
+            Resolution parameter for the isoprofile. Default is 0.2.
+        res_c : float, optional
+            Resolution parameter for the isoprofile. Default is 0.1.
+        **kwargs : dict
+            Additional keyword arguments.
+        '''
     
         self.set_isosphere(Base=Base,from_rays_func=from_rays_func,**kwargs)
         
@@ -80,6 +143,18 @@ class Field:
 
         
     def set_isosphere(self,Base,from_rays_func = False,**kwargs):
+        '''
+        Set the isosphere for the galaxy model.
+
+        Parameters
+        ----------
+        Base : Galaxy3D
+            An instance of the Galaxy3D class used to compute parameters.
+        from_rays_func : bool, optional
+            Whether to use the ray functions for setting the isosphere. Default is False.
+        **kwargs : dict
+            Additional keyword arguments.
+        '''
         num_p = kwargs.get('num_p',self.points_r.shape[1])
         
         if from_rays_func:
@@ -100,6 +175,21 @@ class Field:
             
             
     def generate(self, r: Iterable | float, level: tuple = (0,0))->dict:
+        '''
+        Generate the equivalent surface for a given radius.
+
+        Parameters
+        ----------
+        r : Iterable | float
+            The radius or radii for which to generate the equivalent surface.
+        level : tuple, optional
+            The level of the equivalent surface. Default is (0, 0).
+
+        Returns
+        -------
+        dict
+            A dictionary containing the positions, parameters, and radii of the equivalent surface.
+        '''
         
         ftarget = self.query_iso_f(r, which =level[0])   
         
@@ -120,7 +210,21 @@ class Field:
     
     
     def generate_by_f(self, f: Iterable | float, level: tuple = (0,0))->dict:
-        
+        '''
+        Generate the equivalent surface for a given parameter value.
+
+        Parameters
+        ----------
+        f : Iterable | float
+            The parameter value or values for which to generate the equivalent surface.
+        level : tuple, optional
+            The level of the equivalent surface. Default is (0, 0).
+
+        Returns
+        -------
+        dict
+            A dictionary containing the positions, radii, and isoradii of the equivalent surface.
+        '''
         rtarget = self.query_rays_r(f,which=level[1]) 
         
         if isinstance(f,Iterable):
@@ -138,7 +242,21 @@ class Field:
               
         
     def query_rays_f(self,r, which=0):
-        
+        '''
+        Query the parameter value at a given radius along the rays.
+
+        Parameters
+        ----------
+        r : float
+            The radius at which to query the parameter value.
+        which : int, optional
+            The level of the query. Default is 0.
+
+        Returns
+        -------
+        np.ndarray
+            The parameter values at the given radius.
+        '''
         if which > 0:
             return np.array([i.upper(r,inv = False) for i in self.rays_func])
         if which < 0:
@@ -148,6 +266,21 @@ class Field:
     
     
     def query_rays_r(self,f, which = 0):
+        '''
+        Query the radius for a given parameter value along the rays.
+
+        Parameters
+        ----------
+        f : float
+            The parameter value for which to query the radius.
+        which : int, optional
+            The level of the query. Default is 0.
+
+        Returns
+        -------
+        np.ndarray
+            The radii corresponding to the given parameter value.
+        '''
         if which > 0:
             return np.array([i.upper(f,inv = True) for i in self.rays_func])
         if which < 0:
@@ -157,6 +290,21 @@ class Field:
     
     
     def query_iso_f(self,r,which=0):
+        '''
+        Query the parameter value at a given radius for the isoprofile.
+
+        Parameters
+        ----------
+        r : float
+            The radius at which to query the parameter value.
+        which : int, optional
+            The level of the query. Default is 0.
+
+        Returns
+        -------
+        float
+            The parameter value at the given radius.
+        '''
         if which > 0:
             return self.iso_pro_func.upper(r,inv=False)
         if which < 0:
@@ -166,6 +314,21 @@ class Field:
     
     
     def query_iso_r(self,f,which=0):
+        '''
+        Query the radius for a given parameter value for the isoprofile.
+
+        Parameters
+        ----------
+        f : float
+            The parameter value for which to query the radius.
+        which : int, optional
+            The level of the query. Default is 0.
+
+        Returns
+        -------
+        float
+            The radius corresponding to the given parameter value.
+        '''
         if which > 0:
             return self.iso_pro_func.upper(f,inv=True)
         if which < 0:
@@ -176,11 +339,69 @@ class Field:
     
     
     def __bound_dist(self, value, Base,**kwargs):
+        '''
+        Calculate the boundary based on a fixed distance.
+
+        Parameters
+        ----------
+        value : float
+            The distance value.
+        Base : Galaxy3D
+            An instance of the Galaxy3D class.
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        np.ndarray
+            The boundary values.
+        '''
         return value*np.ones(Base.rays.num)
     def __bound_pct(self, value, Base,**kwargs):
+        '''
+        Calculate the boundary based on a percentile.
+
+        Parameters
+        ----------
+        value : float
+            The percentile value.
+        Base : Galaxy3D
+            An instance of the Galaxy3D class.
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        np.ndarray
+            The boundary values.
+        '''
         return np.array([np.percentile(Base.r_ray_n(i), value) for i in range(Base.rays.num)])
     
     def __bound_value(self,value,Base,mode='max',**kwargs):
+        '''
+        Calculate the boundary based on a parameter value.
+
+        Parameters
+        ----------
+        value : float
+            The parameter value.
+        Base : Galaxy3D
+            An instance of the Galaxy3D class.
+        mode : str, optional
+            The mode for calculating the boundary. Options are 'max' or 'min'. Default is 'max'.
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        np.ndarray
+            The boundary values.
+
+        Raises
+        ------
+        ValueError
+            If the mode is not 'max' or 'min'.
+        '''
         if mode =='max':
     
             return np.array([np.max(Base.r_ray_n(i)[Base.parameter_ray_n(i)>value]) for i in range(Base.rays.num)])
@@ -190,6 +411,32 @@ class Field:
     
     
     def __point_lin(self,num_p):
+        '''
+        Generate linearly spaced points between the inner and outer boundaries.
+
+        Parameters
+        ----------
+        num_p : int
+            The number of points to generate.
+
+        Returns
+        -------
+        np.ndarray
+            The generated points.
+        '''
         return np.linspace(self.inner_r, self.outer_r, num_p).T
     def __point_log(self,num_p):
+        '''
+        Generate logarithmically spaced points between the inner and outer boundaries.
+
+        Parameters
+        ----------
+        num_p : int
+            The number of points to generate.
+
+        Returns
+        -------
+        np.ndarray
+            The generated points.
+        '''
         return np.geomspace(self.inner_r, self.outer_r,num_p).T 

@@ -3,6 +3,44 @@ import numpy as np
 
 
 def ellipsoid_fit(X):
+    """
+    Fit an ellipsoid to a set of 3D points using least squares.
+
+    Parameters
+    ----------
+    X : numpy.ndarray
+        A 2D array of shape (n, 3) where each row represents a 3D point (x, y, z).
+
+    Returns
+    -------
+    center : numpy.ndarray
+        A 1D array of shape (3,) representing the center of the fitted ellipsoid.
+    evecs : numpy.ndarray
+        A 2D array of shape (3, 3) representing the eigenvectors of the ellipsoid.
+    radii : numpy.ndarray
+        A 1D array of shape (3,) representing the radii of the ellipsoid along each eigenvector.
+    v : numpy.ndarray
+        A 1D array of shape (10,) representing the coefficients of the ellipsoid equation.
+
+    Notes
+    -----
+    The function fits an ellipsoid to a set of 3D points by solving a least squares problem.
+    The ellipsoid is represented by the equation:
+
+    v[0]*x^2 + v[1]*y^2 + v[2]*z^2 + 2*v[3]*x*y + 2*v[4]*x*z + 2*v[5]*y*z + 2*v[6]*x + 2*v[7]*y + 2*v[8]*z + v[9] = 0
+
+    The function returns the center, eigenvectors, radii, and coefficients of the fitted ellipsoid.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> X = np.random.rand(100, 3)  # Random 3D points
+    >>> center, evecs, radii, v = ellipsoid_fit(X)
+    >>> print("Center:", center)
+    >>> print("Eigenvectors:", evecs)
+    >>> print("Radii:", radii)
+    >>> print("Coefficients:", v)
+    """
     x = X[:, 0]
     y = X[:, 1]
     z = X[:, 2]

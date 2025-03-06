@@ -83,9 +83,8 @@ class Structure_3D:
             coord_pa = self._coordinate.init_parameters(**kwargs)
             shape_pa = self._shape.init_parameters(**kwargs)
             return self._shape(**shape_pa)(self._coordinate(**coord_pa)(pos))
-        if self.parameters:
-            return self._shape(**self.parameters)(self._coordinate(**self.parameters)(pos))
-        raise KeyError("Need a parameters' tuple or dict, or set parameters")
+        return self._shape(**self.parameters)(self._coordinate(**self.parameters)(pos))
+
     
     
     def quick_call(self, *args,pos,**kwargs):

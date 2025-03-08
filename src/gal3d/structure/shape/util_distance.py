@@ -366,18 +366,18 @@ def DistanceRayPointsEllipsoid(a, b, c, pos):
 
 @jit(float64(float64,float64,float64,float64,float64,float64,float64),fastmath=True)
 def _iter_f_DistanceRayPointEllipsoid_S(d,Sa,Sb,Sc,Ex,Ey,Ez):
-    # g= f*f
+    # g= f* 
     dd = d*d
     ExddSa = Ex*dd**Sa
     EyddSb = Ey*dd**Sb
     EzddSc = Ez*dd**Sc
     f = ExddSa + EyddSb + EzddSc - 1
     df = 2*(Sa*ExddSa+Sb*EyddSb+Sc*EzddSc)/d
-    ddf = 2*((Sa*(2*Sa-1)*ExddSa)+(Sb*(2*Sb-1)*EyddSb)+(Sc*(2*Sc-1)*EzddSc))/dd
-    half_dg = f*df
-    half_ddg = (df*df+f*ddf)
-    
-    return -half_dg/half_ddg
+    #ddf = 2*((Sa*(2*Sa-1)*ExddSa)+(Sb*(2*Sb-1)*EyddSb)+(Sc*(2*Sc-1)*EzddSc))/dd
+    #half_dg = f*df
+    #half_ddg = (df*df+f*ddf)
+    #return -half_dg/half_ddg
+    return -f/df
 
 @jit(types.Tuple((float64,float64,float64,float64,float64))(float64, float64, float64, float64, float64, float64,
     float64, float64, float64,int32),fastmath=True,)
@@ -392,12 +392,13 @@ def DistanceRayPointEllipsoid_S(a, b, c, Sa, Sb, Sc, x, y, z, maxIterations: int
     Ey = ((yi/b)**2)**Sb
     Ez = ((zi/c)**2)**Sc
     
-    epsilon = 1e-10
+    epsilon = 1e-10      # 1e-10 is ok ?
     i = 0
     d0 = (a+c)/2
     while True:
         if i > maxIterations:
-            print("maximum number of iterations exceeded!")
+            delta = _iter_f_DistanceRayPointEllipsoid_S(d0,Sa,Sb,Sc,Ex,Ey,Ez)
+            print(f"maximum number of iterations exceeded!, next iter: {delta}")
             break
         d1 = d0 + _iter_f_DistanceRayPointEllipsoid_S(d0,Sa,Sb,Sc,Ex,Ey,Ez)
         if abs(d1-d0)<epsilon:

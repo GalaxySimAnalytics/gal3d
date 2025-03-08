@@ -257,7 +257,7 @@ class Ellipsoid_S:
         """
         b = a*(1-eps_ab)
         c = b*(1-eps_bc)
-        return d_shaped_ellipsoid(a,b,c,sa,sb,sc,pos,100)
+        return d_shaped_ellipsoid(a,b,c,sa,sb,sc,pos,300)
     
     @staticmethod
     def quick_call_raydistance(a,eps_ab,eps_bc,sa,sb,sc,pos):
@@ -288,7 +288,7 @@ class Ellipsoid_S:
         """
         b = a*(1-eps_ab)
         c = b*(1-eps_bc)
-        return DistanceRayPointsEllipsoid_S(float(a),b,c,sa,sb,sc,pos,100)[1]
+        return DistanceRayPointsEllipsoid_S(float(a),b,c,sa,sb,sc,pos,300)[1]
     
     @staticmethod
     def f_shaped_ellipsoid(a,b,c,sa,sb,sc,pos):
@@ -341,7 +341,7 @@ class Ellipsoid_S:
             pos = np.float64(pos)
         if len(np.shape(pos))==1:
             pos = np.float64([pos])
-        return DistanceRayPointsEllipsoid_S(self['a'],self['b'],self['c'],self['sa'],self['sb'],self['sc'], pos, 100)
+        return DistanceRayPointsEllipsoid_S(self['a'],self['b'],self['c'],self['sa'],self['sb'],self['sc'], pos, 300)
     
     @staticmethod
     def DistanceRayPointsEllipsoid_S(a,b,c,sa,sb,sc,pos):
@@ -370,7 +370,7 @@ class Ellipsoid_S:
         array_like
             The computed distances between points and ray points on the ellipsoid.
         """
-        return DistanceRayPointsEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos,100)
+        return DistanceRayPointsEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos,300)
     
     @staticmethod
     def f_shaped_ellipsoid_jacobian(a,b,c,sa,sb,sc,pos):

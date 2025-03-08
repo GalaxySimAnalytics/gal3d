@@ -7,7 +7,7 @@ import numpy as np
 
 from ..structure.structure_main import Structure_3D,Structure_3D_fitter
 from .parameter import Parameters
-
+from .util import save_model_hdf5
 
 
 logger = logging.getLogger("gal3d.fitting.result")
@@ -358,3 +358,8 @@ class Result:
             The number of parameter sets.
         """
         return len(self._parameters)
+
+
+def model_to_hdf5(model: Result,hdf5_file_name:str,shape_name:str,error_name:str,all_header='/',other_info=dict()):
+    
+    save_model_hdf5(model,hdf5_file_name,shape_name,error_name,all_header,other_info)

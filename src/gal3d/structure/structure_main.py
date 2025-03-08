@@ -279,31 +279,30 @@ class Structure_3D:
                 coord_pa = {i:coord_parameters[i] for i in self._coordinate_quick_params}
                 shape_pa = {i:shape_parameters[i] for i in self._shape_quick_params}
             return self._shape.quick_call(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos=pos))
-        if self.parameters:
-            coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
-            shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
-            return self._shape.quick_call(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
+
+        coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
+        shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
+        return self._shape.quick_call(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
         
-        raise KeyError("Need a parameters' tuple or dict, or set parameters")
     
     
     def quick_call_d(self, *args,pos,**kwargs):
         '''
-        Quick evaluation of the derivative of the structure at the given position.
+        Quick evaluation of the distance fraction of the structure at the given position.
 
         Parameters
         ----------
         *args : tuple
             Positional arguments for the quick evaluation.
         pos : array_like
-            The position at which to evaluate the derivative.
+            The position at which to evaluate the distance fraction.
         **kwargs : dict
             Additional keyword arguments for the evaluation.
 
         Returns
         -------
         array_like
-            The quick evaluated derivative at the given position.
+            The quick evaluated distance fraction at the given position.
 
         Raises
         ------
@@ -324,12 +323,10 @@ class Structure_3D:
                 coord_pa = {i:coord_parameters[i] for i in self._coordinate_quick_params}
                 shape_pa = {i:shape_parameters[i] for i in self._shape_quick_params}
             return self._shape.quick_call_d(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos=pos))
-        if self.parameters:
-            coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
-            shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
-            return self._shape.quick_call_d(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
+        coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
+        shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
+        return self._shape.quick_call_d(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
         
-        raise KeyError("Need a parameters' tuple or dict, or set parameters")
     
     def quick_call_dist(self, *args,pos,**kwargs):
         '''
@@ -368,12 +365,10 @@ class Structure_3D:
                 coord_pa = {i:coord_parameters[i] for i in self._coordinate_quick_params}
                 shape_pa = {i:shape_parameters[i] for i in self._shape_quick_params}
             return self._shape.quick_call_raydistance(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos=pos))
-        if self.parameters:
-            coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
-            shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
-            return self._shape.quick_call_raydistance(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
+        coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
+        shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
+        return self._shape.quick_call_raydistance(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
         
-        raise KeyError("Need a parameters' tuple or dict, or set parameters")
     
         
     def check_boundary(self,params_list,mode='periodic'):
@@ -430,7 +425,6 @@ class Structure_3D:
         points, _ = self._shape(**shape_pa).ray_point(cpos)
         
         return self._coordinate(**coord_pa).inverse(points)
-        
         
         
     

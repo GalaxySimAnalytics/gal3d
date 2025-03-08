@@ -110,12 +110,14 @@ def show_image_model_residual(
     which_pos_all = [(0,1),(0,2)],
     cmap='turbo',
     title_text = ['Face','Edge'],
+    titlesize = 25,
     ylabel_all = ["Data","Model","Residual"],
     xlabel_all = ["R [kpc]","R [kpc]","R [kpc]","R [kpc]"],
+    labelsize = 13,
     savefile=None
 ):
     
-    fig = plt.figure(dpi=300,figsize=(16,12))
+    fig = plt.figure(dpi=300,figsize=(17,13))
     gs = fig.add_gridspec(3,4,hspace=0,wspace=0)
     axes = [[plt.subplot(gs[i,j]) for j in range(4)] for i in range(3)]
     cmap='turbo'
@@ -163,13 +165,13 @@ def show_image_model_residual(
     for i in range(2):
         position1 = axes[0][2*i].get_position()
         position2 = axes[0][2*i+1].get_position()
-        fig.text((position1.x0+position2.x1)/2,0.95,title_text[i],fontsize=30,va='center',ha='center')
+        fig.text((position1.x0+position2.x1)/2,0.95,title_text[i],fontsize=titlesize,va='center',ha='center')
 
     for i in range(3):
-        axes[i][0].set_ylabel(ylabel_all[i],fontsize=20,)
+        axes[i][0].set_ylabel(ylabel_all[i],fontsize=labelsize,)
 
     for i in range(4):
-        axes[-1][i].set_xlabel(xlabel_all[i],fontsize=20,)
+        axes[-1][i].set_xlabel(xlabel_all[i],fontsize=labelsize,)
         
     if savefile is not None:
         plt.savefig(savefile, bbox_inches='tight')

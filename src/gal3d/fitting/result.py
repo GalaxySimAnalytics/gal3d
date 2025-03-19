@@ -293,7 +293,7 @@ class Result:
             return np.array([i[k] for i in self._parameters])
         
         if isinstance(k,int):
-            return self._structure.from_parameters(**self._parameters[k])
+            return self._structure.from_parameters(**self._parameters[k].structure_parameters)
         raise KeyError(f"{k} is not a valid key")
     
         

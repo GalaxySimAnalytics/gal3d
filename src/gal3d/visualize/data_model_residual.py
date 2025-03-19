@@ -158,8 +158,10 @@ def show_image_model_residual(
 
 
     for i in range(3):
-        plot_zoom(axes[i][0],axes[i][1],xy=(-5,-5),length=10,height=10,linewidth=2,arrowwidth=1.5,arrowstyle='->')
-        plot_zoom(axes[i][2],axes[i][3],xy=(-5,-5),length=10,height=10,linewidth=2,arrowwidth=1.5,arrowstyle='->')
+        plot_zoom(axes[i][0],axes[i][1],xy=(zoom_x_range[0],zoom_y_range[0]),
+                  length=(zoom_x_range[1]-zoom_x_range[0]),height=(zoom_y_range[1]-zoom_y_range[0]),linewidth=2,arrowwidth=1.5,arrowstyle='->')
+        plot_zoom(axes[i][2],axes[i][3],xy=(zoom_x_range[0],zoom_y_range[0]),
+                  length=(zoom_x_range[1]-zoom_x_range[0]),height=(zoom_y_range[1]-zoom_y_range[0]),linewidth=2,arrowwidth=1.5,arrowstyle='->')
 
 
     for i in range(2):

@@ -1,6 +1,7 @@
 
 import copy
 import logging
+from functools import wraps
 
 import numpy as np
 from scipy import optimize
@@ -218,6 +219,11 @@ class Parameters():
         self._derived = {}
         self._info = {}
         
+        self.__equal_constraints = {}
+        self.__constraints_parameters={}
+        
+        self._parameter_names = list(self.__parameters.keys())
+        
     def new(self,*args,**kwargs):
         """
         Creates a new instance of Parameters with updated values and bounds.
@@ -238,6 +244,9 @@ class Parameters():
 
         new._derived = self._derived.copy()
         new._info = self._info.copy()
+        new.__equal_constraints = self.__equal_constraints.copy()
+        
+        new._parameter_names = self._parameter_names.copy()
         new.set_lb(**self.lb)
         new.set_ub(**self.ub)
         if args:
@@ -274,7 +283,7 @@ class Parameters():
         set
             A set of all available keys.
         """
-        return self.keys() | self._derived.keys() | self._info.keys()
+        return self.keys() | self.__equal_constraints.keys() | self._derived.keys() | self._info.keys()
     
     def keys(self):
         """
@@ -384,6 +393,8 @@ class Parameters():
         """
         if k in self.__parameters:
             return self.__parameters[k]
+        elif k in self.__equal_constraints:
+            return self.__equal_constraints[k](self.__parameters)
         elif k in self._derived:
             return self._derived[k](self)
         elif k in self._info:
@@ -425,6 +436,7 @@ class Parameters():
                     self.__parameters[i] = self.__parameters[i].assign_value(other[i])
                 else:
                     self.__parameters[i] = Parameter(other[i])
+                    self._parameter_names.append(i)
             return 
     
     def set_value(self,*args,**kwargs):
@@ -550,12 +562,15 @@ class Parameters():
             h1.update(h2)
             h1._derived.update(h2._derived)
             h1._info.update(h2._info)
+            h1.__equal_constraints.update(h2.__equal_constraints)
+            h1._parameter_names = h1._parameter_names + h2._parameter_names
             return h1
         if isinstance(other,dict):
             logger.info(f"merge {self} and {other}")
             
             h1 = copy.copy(self)
             h1.update(other)
+            h1._parameter_names = h1._parameter_names + list(other.keys())
             return h1
         logger.error(f"{other} is not a dict")
         raise TypeError("Must be dict")
@@ -583,3 +598,45 @@ class Parameters():
             A dictionary of additional information to add to the Parameters instance.
         """
         self._info.update(kwargs)
+    
+    @property
+    def structure_parameters(self):
+        
+        return {i: self[i] for i in self._parameter_names}
+        
+    def add_equal_constraints(self,**kwargs):
+        for i in kwargs:
+            if callable(kwargs[i]):
+                if i not in self.__equal_constraints:
+                    self.__constraints_parameters[i] = self.__parameters.pop(i)
+                self.__equal_constraints[i] = kwargs[i]
+            else:
+                raise ValueError(f"The constraint of {i} must be callable")
+
+    def del_equal_constraints(self,name):
+        if name in self.__equal_constraints:
+            if name in self.__constraints_parameters:
+                self.__parameters[name] = self.__constraints_parameters.pop(name)
+                self.__equal_constraints.pop(name)
+
+                # retain the parameters order
+                ordername = list(filter(lambda x: x in self.__parameters, self._parameter_names))
+                self.__parameters = {i: self.__parameters[i] for i in ordername}
+            else:
+                raise ValueError(f"The parameter {name} was not recorded by __constraints_parameters")
+        else:
+            raise ValueError(f"No constraints on the parameter {name}")
+    
+    def decorate_func_contraints(self,function):
+        
+        if self.__equal_constraints:
+            wraps(function)
+            def wrapper(params, kwargs):
+                inputdic = dict(zip(list(self.keys()),params))
+                new_params = [inputdic[i] if i in inputdic else self.__equal_constraints[i](inputdic) for i in self._parameter_names]
+                
+                result = function(new_params, kwargs)
+                return result
+            return wrapper
+        else:
+            return function

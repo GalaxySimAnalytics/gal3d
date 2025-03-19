@@ -259,13 +259,14 @@ class Galaxy3d(Particles):
         init_parameters = kwargs.get('init_parameters',dict())
         upper_bounds=kwargs.get('upper_bounds',dict())
         lower_bounds=kwargs.get('lower_bounds',dict())
+        fitonce = kwargs.get('fitonce',False)
         
         fitdata = self.data_generator(a,**kwargs)
         
-        if self._structure._shape_name == 'Ellipsoid':
+        if (self._structure._shape_name == 'Ellipsoid') or (self._structure._shape_name == 'Ellipsoid_S' and fitonce):
             
-            fun = self._structure.error
             parameters_set = self.params.new()
+            fun = parameters_set.decorate_func_contraints(self._structure.error)
             
             if 'info' in fitdata:
                 parameters_set.add_info(**fitdata['info'])
@@ -329,7 +330,7 @@ class Galaxy3d(Particles):
             
             parameters_set.add_info(parent_fun = parent_res.res['fun'][0])
             
-            fun = self._structure.error
+            fun = parameters_set.decorate_func_contraints(self._structure.error)
 
             if 'info' in fitdata:
                 parameters_set.add_info(**fitdata['info'])

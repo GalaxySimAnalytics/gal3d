@@ -2,12 +2,9 @@ import copy
 
 import numpy as np
 
-if __name__=='__main__':
-    from util_fcall import *
-    from util_distance import *
-else:
-    from .util_fcall import *
-    from .util_distance import *
+
+from .util_fcall import *
+from .util_distance import *
     
     
 from ..structure_main import Structure_3D, Parameters
@@ -66,6 +63,8 @@ class Ellipsoid_S:
     PA = ('a','eps_ab','eps_bc','sa','sb','sc')   ## not use set !!!##
     LB = {'a':0.1,'eps_ab':0.01,'eps_bc':0.01,'sa':0.2,'sb':0.2,'sc':0.2}
     UB = {'a':np.inf,'eps_ab':0.99,'eps_bc':0.99,'sa':2,'sb':2,'sc':2}
+    MaxIterationDist = 100
+    MaxIterationLine = 100
     def __init__(self,**kwargs):
         """
         Initializes the Ellipsoid_S instance with given parameters.
@@ -257,7 +256,7 @@ class Ellipsoid_S:
         """
         b = a*(1-eps_ab)
         c = b*(1-eps_bc)
-        return d_shaped_ellipsoid(a,b,c,sa,sb,sc,pos,300)
+        return d_shaped_ellipsoid(a,b,c,sa,sb,sc,pos,Ellipsoid_S.MaxIterationDist)
     
     @staticmethod
     def quick_call_raydistance(a,eps_ab,eps_bc,sa,sb,sc,pos):
@@ -288,7 +287,13 @@ class Ellipsoid_S:
         """
         b = a*(1-eps_ab)
         c = b*(1-eps_bc)
-        return DistanceRayPointsEllipsoid_S(float(a),b,c,sa,sb,sc,pos,300)[1]
+        return DistanceRayPointsEllipsoid_S(float(a),b,c,sa,sb,sc,pos,Ellipsoid_S.MaxIterationDist)[1]
+    
+    @staticmethod
+    def quick_call_lineintersect(a,eps_ab,eps_bc,sa,sb,sc,pos1,pos2):
+        b = a*(1-eps_ab)
+        c = b*(1-eps_bc)
+        return IntersectLinesEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos1,pos2,Ellipsoid_S.MaxIterationLine)
     
     @staticmethod
     def f_shaped_ellipsoid(a,b,c,sa,sb,sc,pos):
@@ -341,7 +346,21 @@ class Ellipsoid_S:
             pos = np.float64(pos)
         if len(np.shape(pos))==1:
             pos = np.float64([pos])
-        return DistanceRayPointsEllipsoid_S(self['a'],self['b'],self['c'],self['sa'],self['sb'],self['sc'], pos, 300)
+        return DistanceRayPointsEllipsoid_S(self['a'],self['b'],self['c'],self['sa'],self['sb'],self['sc'], pos, Ellipsoid_S.MaxIterationDist)
+    
+    def line_points(self,pos1,pos2):
+        if (len(np.shape(pos1))==2) and (np.shape(pos1)[1] == 3):
+            pos1 = np.float64(pos1)
+        if len(np.shape(pos1))==1:
+            pos1 = np.float64([pos1])
+        if (len(np.shape(pos2))==2) and (np.shape(pos2)[1] == 3):
+            pos2 = np.float64(pos2)
+        if len(np.shape(pos2))==1:
+            pos2 = np.float64([pos2])
+        
+        return IntersectLinesEllipsoid_S(self['a'],self['b'],self['c'],self['sa'],self['sb'],self['sc'],pos1,pos2,Ellipsoid_S.MaxIterationLine)
+    
+    
     
     @staticmethod
     def DistanceRayPointsEllipsoid_S(a,b,c,sa,sb,sc,pos):
@@ -370,7 +389,12 @@ class Ellipsoid_S:
         array_like
             The computed distances between points and ray points on the ellipsoid.
         """
-        return DistanceRayPointsEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos,300)
+        return DistanceRayPointsEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos,Ellipsoid_S.MaxIterationDist)
+    
+    @staticmethod
+    def IntersectLinesEllipsoid_S(a,b,c,sa,sb,sc,pos1,pos2):
+        
+        return IntersectLinesEllipsoid_S(float(a),float(b),float(c),float(sa),float(sb),float(sc),pos1,pos2,Ellipsoid_S.MaxIterationLine)
     
     @staticmethod
     def f_shaped_ellipsoid_jacobian(a,b,c,sa,sb,sc,pos):

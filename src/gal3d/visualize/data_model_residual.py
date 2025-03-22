@@ -2,14 +2,26 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+#from scipy.spatial.transform import Rotation
 
 from .hist2d import hist_2d,show_image,show_contour,add_colorbar
 from ..gal3d_main import Galaxy3d
-from .visualize_model import VisualModel
+from .visualize_model import VisualModel_IntegrateLine,VisualModel_SphGrid,AbstractBaseVisualize
 
 
-def show_data_model(axes,model,data,which_pos=(0,1),
-                    x_range=(-15,15),y_range=(-15,15),nbins=200,logscale=True,
+def which_pos_to_rotation(which_pos):
+    order = list(which_pos)
+    for i in [0,1,2]:
+        if i not in order:
+            order.append(i)
+            break
+    h1 = np.zeros((3,3),dtype=np.float64)
+    for i in range(3):
+        h1[i] = np.eye(3)[int(order[i])]
+    return h1.T
+
+def show_data_model(axes,model: AbstractBaseVisualize, data,which_pos=(0,1),
+                    x_range=(-15,15),y_range=(-15,15),z_range=(-20,20),nbins=200,logscale=True,
                     cmap='turbo',nlevels=20,linewidth=0.8,color='k',linestyle='-'
                     ):
     data_image,xs,ys=hist_2d(data.pos[:,which_pos[0]],data.pos[:,which_pos[1]], weights=data.weight,
@@ -22,9 +34,9 @@ def show_data_model(axes,model,data,which_pos=(0,1),
                               linestyle=linestyle,
                               logscale=logscale)
     
-    
-    model_image,xs,ys=hist_2d(model.pos[:,which_pos[0]],model.pos[:,which_pos[1]], weights=model.weight,
-                   x_range=x_range,y_range=y_range,density=True,nbins=nbins)
+    rota = which_pos_to_rotation(which_pos)
+        
+    model_image,xs,ys=model.image(x_range=x_range,y_range=y_range,nbins=nbins,z_range=z_range,rotation=rota)
     
     model_im = show_image(model_image,axesObj=axes[1],extent=(*x_range,*y_range),logscale=logscale,cmap=cmap,
                         vmin=data_im.colorizer.vmin,vmax=data_im.colorizer.vmax,)
@@ -98,11 +110,12 @@ def plot_zoom(main_axs,zoom_axs,xy=(0,0),length=10,height=10,
 
 def show_image_model_residual(
     data:Galaxy3d,
-    model:VisualModel,
+    model: AbstractBaseVisualize,
     large_box_x_range=(-15,15),
     large_box_y_range=(-15,15),
     zoom_x_range=(-5,5),
     zoom_y_range=(-5,5),
+    depth_z_range= (-20,20),
     nbins_large = 200,
     nbins_zoom = 100,
     nlevels_large = 13,
@@ -126,10 +139,10 @@ def show_image_model_residual(
     allpanels=[]
     for i in range(2):
         h1 = show_data_model([axes[0][2*i],axes[1][2*i],axes[2][2*i]],which_pos=which_pos_all[i],cmap=cmap,
-            model=model,data=data,x_range=large_box_x_range,y_range=large_box_y_range,nbins=nbins_large,nlevels=nlevels_large)
+            model=model,data=data,x_range=large_box_x_range,y_range=large_box_y_range,z_range=depth_z_range,nbins=nbins_large,nlevels=nlevels_large)
         allpanels.append(h1)
         h2 = show_data_model([axes[0][2*i+1],axes[1][2*i+1],axes[2][2*i+1]],which_pos=which_pos_all[i],cmap=cmap,
-                model=model,data=data,x_range=zoom_x_range,y_range=zoom_y_range,nbins=nbins_zoom,nlevels=nlevels_zoom)
+                model=model,data=data,x_range=zoom_x_range,y_range=zoom_y_range,z_range=depth_z_range,nbins=nbins_zoom,nlevels=nlevels_zoom)
         allpanels.append(h2)
         
 
@@ -154,7 +167,7 @@ def show_image_model_residual(
         cb_ax = fig.add_axes([position.x0, position.y1, position.x1-position.x0, (1-position.y1)/6]) #设置colarbar位置
         cb_ax.set_visible(False)
         cb=add_colorbar(allpanels[i][0][0],ax=cb_ax,loc='top',size="100%",pad=-(1-position.y1)/12)
-        cb.set_label(r"$\rho_{*}\ [M_{\odot}/\mathrm{kpc^2}]$",fontsize=10)
+        cb.set_label(r"$\Sigma_{*}\ [M_{\odot}/\mathrm{kpc^2}]$",fontsize=10)
 
 
     for i in range(3):

@@ -18,8 +18,10 @@ DISTANCEPARA = True
 import numpy as np
 import math
 
+from ...util.array_operate import unit_vector3d, vector_length3d
+
 __all__ = ['DistancePointsEllipsoid','DistancePointsEllipse','DistancePointEllipsoid','DistancePointEllipse',
-           "DistanceRayPointsEllipsoid","DistanceRayPointsEllipsoid_S"]
+           "DistanceRayPointsEllipsoid","DistanceRayPointsEllipsoid_S","IntersectLinesEllipsoid","IntersectLinesEllipsoid_S"]
 
 
 
@@ -373,10 +375,6 @@ def _iter_f_DistanceRayPointEllipsoid_S(d,Sa,Sb,Sc,Ex,Ey,Ez):
     EzddSc = Ez*dd**Sc
     f = ExddSa + EyddSb + EzddSc - 1
     df = 2*(Sa*ExddSa+Sb*EyddSb+Sc*EzddSc)/d
-    #ddf = 2*((Sa*(2*Sa-1)*ExddSa)+(Sb*(2*Sb-1)*EyddSb)+(Sc*(2*Sc-1)*EzddSc))/dd
-    #half_dg = f*df
-    #half_ddg = (df*df+f*ddf)
-    #return -half_dg/half_ddg
     return -f/df
 
 @jit(types.Tuple((float64,float64,float64,float64,float64))(float64, float64, float64, float64, float64, float64,
@@ -392,13 +390,13 @@ def DistanceRayPointEllipsoid_S(a, b, c, Sa, Sb, Sc, x, y, z, maxIterations: int
     Ey = ((yi/b)**2)**Sb
     Ez = ((zi/c)**2)**Sc
     
-    epsilon = 1e-10      # 1e-10 is ok ?
+    epsilon = 1e-9      # 1e-9 is ok ?
     i = 0
     d0 = (a+c)/2
     while True:
         if i > maxIterations:
             delta = _iter_f_DistanceRayPointEllipsoid_S(d0,Sa,Sb,Sc,Ex,Ey,Ez)
-            print(f"maximum number of iterations exceeded!, next iter: {delta}")
+            print("maximum number of iterations exceeded!, next iter: ",delta)
             break
         d1 = d0 + _iter_f_DistanceRayPointEllipsoid_S(d0,Sa,Sb,Sc,Ex,Ey,Ez)
         if abs(d1-d0)<epsilon:
@@ -418,6 +416,135 @@ def DistanceRayPointsEllipsoid_S(a, b, c, Sa, Sb, Sc, pos, maxIterations):
                                                 a,b,c,Sa,Sb,Sc,
                                                 pos[i,0],pos[i,1],pos[i,2],maxIterations)
     return tarpos,L-d
+
+
+@jit(float64[:](float64,float64,float64,float64[:],float64[:]),fastmath=True,)
+def IntersectLineEllipsoid(a,b,c,pos1,vect):
+
+    ts = -np.ones(2,dtype=np.float64)
+    a2,b2,c2 = a**2,b**2,c**2
+    ell11 = vect[0]**2/a2 + vect[1]**2/b2 + vect[2]**2/c2
+    ell01 = vect[0]*pos1[0]/a2 + vect[1]*pos1[1]/b2 + vect[2]*pos1[2]/c2
+    ell00 = pos1[0]**2/a2 + pos1[1]**2/b2 + pos1[2]**2/c2
+    
+    D = ell01**2 - ell11*(ell00-1)
+    if D>0:
+        ts[0] = (-ell01-math.sqrt(D))/ell11
+        ts[1] = (-ell01+math.sqrt(D))/ell11
+        return ts
+    if D==0:
+        ts[0] = (-ell01)/ell11
+        ts[1] = ts[0]
+        return ts
+    
+    return ts
+
+@jit(float64[:,:](float64,float64,float64,float64[:,:],float64[:,:]),nogil=True,parallel=DISTANCEPARA,fastmath=True,)
+def IntersectLinesEllipsoid(a,b,c,pos1,pos2):
+    vects = unit_vector3d(pos2 - pos1)
+    ts = np.ones((len(pos1),2),dtype=np.float64)
+    
+    for i in prange(len(ts)):
+        ts[i] = IntersectLineEllipsoid(a,b,c,pos1[i],vects[i])
+    
+    return ts
+
+@jit(types.Tuple((float64,float64))(float64[:],float64[:],float64,float64,float64,float64,float64,float64,float64,int32,float64,float64),fastmath=True,)
+def _iter_IntersectLineEllipsoid_S(pos1,vect,t0,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut):
+    i=0
+    posi = pos1 + t0*vect
+    while True:
+        Ex,Ey,Ez = ((posi[0]/a)**2)**Sa,((posi[1]/b)**2)**Sb,((posi[2]/c)**2)**Sc
+        f = Ex+Ey+Ez - 1
+        
+        if abs(f)<epsilon:       # this position is already at the target positon
+            break
+        
+        df_x = Ex*Sa*vect[0]/posi[0] if posi[0]!=0 else 0.
+        df_y = Ey*Sb*vect[1]/posi[1] if posi[1]!=0 else 0.
+        df_z = Ez*Sc*vect[2]/posi[2] if posi[2]!=0 else 0.
+        df = 4*(df_x+df_y+df_z)
+
+        delta = -f/df
+        delta = min(delta_cut,delta)        # avoid large update
+        delta = max(-delta_cut,delta)
+        t0 = t0+ delta
+        posi = pos1 + t0*vect
+        i = i+1
+        
+        if abs(delta)<epsilon:
+            break
+        if i >maxIteration:
+            break
+    Ex,Ey,Ez = ((posi[0]/a)**2)**Sa,((posi[1]/b)**2)**Sb,((posi[2]/c)**2)**Sc
+    f = Ex+Ey+Ez - 1
+    return t0,f
+
+@jit(float64[:](float64,float64,float64,float64,float64,float64,float64[:],float64[:],float64,int32),fastmath=True,)
+def IntersectLineEllipsoid_S(a,b,c,Sa,Sb,Sc,pos1,vect,tmax,maxIteration):
+    
+    delta_cut = abs(10*tmax/maxIteration)
+    ts = -np.ones(2)
+    epsilon = 1e-9                      # 1e-9 is ok ?
+    
+    # From both ends of the line segment  
+    t0,f0 = _iter_IntersectLineEllipsoid_S(pos1,vect,epsilon,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut)
+    t1,f1 = _iter_IntersectLineEllipsoid_S(pos1,vect,tmax,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut)
+    
+    if (abs(t0-t1)<=10*epsilon):                            # converge at the same positon, maybe one zero position, or no zero position
+        if (abs(f0)>=10*epsilon) and (abs(f1)>=10*epsilon):
+            return ts
+        else:
+            ts[0] = t0
+            ts[1] = t1
+            return ts
+        
+    if (abs(f0)<=10*epsilon) and (abs(f1)<=10*epsilon):     # converge at two positons, two zero positions
+        ts[0] = t0
+        ts[1] = t1
+        return ts
+
+    if (abs(f0)<=10*epsilon) or (abs(f1)<=10*epsilon):                 # one is not at the target position, will expore t0 -> t1
+        ti_min = t0
+        ti_max = t1
+        delta_cut = abs(10*(t1-t0)/maxIteration)
+        while True:
+            if (abs(f0)>10*epsilon):
+                t2,f2 = _iter_IntersectLineEllipsoid_S(pos1,vect,ti_min+(ti_max-ti_min)/3,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut)    
+            else:
+                t2,f2 = _iter_IntersectLineEllipsoid_S(pos1,vect,ti_min+2*(ti_max-ti_min)/3,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut)
+                
+            if (abs(t2-ti_min)>=10*epsilon) and (abs(t2-ti_max) >= 10*epsilon) and (abs(f2)<=10*epsilon):
+                break
+            
+            if (abs(f0)>10*epsilon):
+                ti_min = ti_min+(ti_max-ti_min)/3
+            else:
+                ti_max = ti_min+2*(ti_max-ti_min)/3
+                
+            if abs(ti_min-ti_max)<10*epsilon:
+                break
+            
+        if (abs(f0)<=10*epsilon):
+            ts[0] = t0
+            ts[1] = t2
+            return ts
+        ts[0] = t2
+        ts[1] = t1
+        return ts
+    
+    return ts
+
+@jit(float64[:,:](float64,float64,float64,float64,float64,float64,float64[:,:],float64[:,:],int32),nogil=True,parallel=DISTANCEPARA,fastmath=True,)
+def IntersectLinesEllipsoid_S(a,b,c,Sa,Sb,Sc,pos1,pos2,maxIteration):
+    vects = unit_vector3d(pos2 - pos1)
+    tmax = vector_length3d(pos2 - pos1)
+    
+    ts = np.ones((len(pos1),2),dtype=np.float64)
+    for i in prange(len(ts)):
+        ts[i] = IntersectLineEllipsoid_S(a,b,c,Sa,Sb,Sc,pos1[i],vects[i],tmax[i],maxIteration)
+    
+    return ts
 
 if __name__ == "__main__":
     pass

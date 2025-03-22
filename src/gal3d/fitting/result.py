@@ -315,7 +315,7 @@ class Result:
         lins = [lin1,lin2]
         result = ''.join([i.center(lenmax," ")+ "\n" for i in lins])
         
-        return result[:-2]
+        return result
     
     
     def __add__(self,other):

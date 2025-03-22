@@ -369,7 +369,34 @@ class Structure_3D:
         shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
         return self._shape.quick_call_raydistance(**shape_pa,pos = self._coordinate.quick_call(**coord_pa,pos = pos))
         
-    
+    def quick_call_intersect(self,*args,pos1,pos2,**kwargs):
+        
+        pos1 = np.asarray(pos1)
+        pos2 = np.asarray(pos2)
+        if args:
+            return self._shape.quick_call_lineintersect(
+                *args[self.__coor_pa_num:],
+                pos1 = self._coordinate.quick_call(*args[:self.__coor_pa_num],pos=pos1),
+                pos2 = self._coordinate.quick_call(*args[:self.__coor_pa_num],pos=pos2))
+        if kwargs:
+            try:
+                coord_pa = {i:coord_parameters[i] for i in self._coordinate_quick_params}
+                shape_pa = {i:shape_parameters[i] for i in self._shape_quick_params}
+            except:
+                coord_parameters = self._coordinate.init_parameters(**kwargs)
+                shape_parameters = self._shape.init_parameters(**kwargs)
+                coord_pa = {i:coord_parameters[i] for i in self._coordinate_quick_params}
+                shape_pa = {i:shape_parameters[i] for i in self._shape_quick_params}
+            return self._shape.quick_call_lineintersect(
+                **shape_pa,
+                pos1 = self._coordinate.quick_call(**coord_pa,pos=pos1),
+                pos2 = self._coordinate.quick_call(**coord_pa,pos=pos2),)
+        coord_pa = {i:self.parameters[i] for i in self._coordinate_quick_params}
+        shape_pa = {i:self.parameters[i] for i in self._shape_quick_params}
+        return self._shape.quick_call_lineintersect(
+            **shape_pa,
+            pos1 = self._coordinate.quick_call(**coord_pa,pos = pos1),
+            pos2 = self._coordinate.quick_call(**coord_pa,pos = pos2))
         
     def check_boundary(self,params_list,mode='periodic'):
         '''

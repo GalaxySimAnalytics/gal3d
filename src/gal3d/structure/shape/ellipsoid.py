@@ -3,12 +3,9 @@ import copy
 
 import numpy as np
 
-if __name__=='__main__':
-    from util_fcall import *
-    from util_distance import *
-else:
-    from .util_fcall import *
-    from .util_distance import *
+
+from .util_fcall import *
+from .util_distance import *
 from ..structure_main import Structure_3D, Parameters
 
 
@@ -324,6 +321,12 @@ class Ellipsoid:
         return DistanceRayPointsEllipsoid(float(a),b,c,pos)[1]
     
     @staticmethod
+    def quick_call_lineintersect(a,eps_ab,eps_bc,pos1,pos2):
+        b = a*(1-eps_ab)
+        c = b*(1-eps_bc)
+        return IntersectLinesEllipsoid(float(a),float(b),float(c),pos1,pos2)
+    
+    @staticmethod
     def f_ellipsoid(a,b,c,pos):
         """
         Evaluate the ellipsoid function with given parameters and positions.
@@ -350,6 +353,17 @@ class Ellipsoid:
             pos = np.float64([pos])
         return f_ellipsoid(float(a),float(b),float(c), pos)
     
+    def line_points(self,pos1,pos2):
+        if (len(np.shape(pos1))==2) and (np.shape(pos1)[1] == 3):
+            pos1 = np.float64(pos1)
+        if len(np.shape(pos1))==1:
+            pos1 = np.float64([pos1])
+        if (len(np.shape(pos2))==2) and (np.shape(pos2)[1] == 3):
+            pos2 = np.float64(pos2)
+        if len(np.shape(pos2))==1:
+            pos2 = np.float64([pos2])
+        
+        return IntersectLinesEllipsoid(self['a'],self['b'],self['c'],pos1,pos2)
     
     @staticmethod
     def DistancePointsEllipsoid(a,b,c,pos, maxIterations: int = 100):

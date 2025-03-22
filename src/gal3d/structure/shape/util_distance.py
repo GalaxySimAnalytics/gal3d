@@ -366,7 +366,7 @@ def DistanceRayPointsEllipsoid(a, b, c, pos):
     return tarpos,L-d
 
 
-@jit(float64(float64,float64,float64,float64,float64,float64,float64),fastmath=True)
+@jit(float64(float64,float64,float64,float64,float64,float64,float64),fastmath=True,cache=True)
 def _iter_f_DistanceRayPointEllipsoid_S(d,Sa,Sb,Sc,Ex,Ey,Ez):
     # g= f* 
     dd = d*d
@@ -378,7 +378,7 @@ def _iter_f_DistanceRayPointEllipsoid_S(d,Sa,Sb,Sc,Ex,Ey,Ez):
     return -f/df
 
 @jit(types.Tuple((float64,float64,float64,float64,float64))(float64, float64, float64, float64, float64, float64,
-    float64, float64, float64,int32),fastmath=True,)
+    float64, float64, float64,int32),fastmath=True,cache=True)
 def DistanceRayPointEllipsoid_S(a, b, c, Sa, Sb, Sc, x, y, z, maxIterations: int):
     # a >= b >= c > 0, 
     L = RobustLength3d(x,y,z)   #x, y, z,
@@ -406,7 +406,7 @@ def DistanceRayPointEllipsoid_S(a, b, c, Sa, Sb, Sc, x, y, z, maxIterations: int
     return d0*xi,d0*yi,d0*zi,d0,L
 
 @jit(types.Tuple((float64[:,:],float64[:]))(float64, float64, float64,float64, float64, float64, float64[:,:],int32),
-     nogil=True,parallel=DISTANCEPARA,fastmath=True)
+     nogil=True,parallel=DISTANCEPARA,fastmath=True,cache=True)
 def DistanceRayPointsEllipsoid_S(a, b, c, Sa, Sb, Sc, pos, maxIterations):
     tarpos = np.zeros((len(pos),3))
     d = np.zeros(len(pos))
@@ -439,7 +439,7 @@ def IntersectLineEllipsoid(a,b,c,pos1,vect):
     
     return ts
 
-@jit(float64[:,:](float64,float64,float64,float64[:,:],float64[:,:]),nogil=True,parallel=DISTANCEPARA,fastmath=True,)
+@jit(float64[:,:](float64,float64,float64,float64[:,:],float64[:,:]),nogil=True,parallel=DISTANCEPARA,fastmath=True,cache=True)
 def IntersectLinesEllipsoid(a,b,c,pos1,pos2):
     vects = unit_vector3d(pos2 - pos1)
     ts = np.ones((len(pos1),2),dtype=np.float64)
@@ -449,7 +449,7 @@ def IntersectLinesEllipsoid(a,b,c,pos1,pos2):
     
     return ts
 
-@jit(types.Tuple((float64,float64))(float64[:],float64[:],float64,float64,float64,float64,float64,float64,float64,int32,float64,float64),fastmath=True,)
+@jit(types.Tuple((float64,float64))(float64[:],float64[:],float64,float64,float64,float64,float64,float64,float64,int32,float64,float64),fastmath=True,cache=True)
 def _iter_IntersectLineEllipsoid_S(pos1,vect,t0,a,b,c,Sa,Sb,Sc,maxIteration,epsilon,delta_cut):
     i=0
     posi = pos1 + t0*vect
@@ -535,7 +535,7 @@ def IntersectLineEllipsoid_S(a,b,c,Sa,Sb,Sc,pos1,vect,tmax,maxIteration):
     
     return ts
 
-@jit(float64[:,:](float64,float64,float64,float64,float64,float64,float64[:,:],float64[:,:],int32),nogil=True,parallel=DISTANCEPARA,fastmath=True,)
+@jit(float64[:,:](float64,float64,float64,float64,float64,float64,float64[:,:],float64[:,:],int32),nogil=True,parallel=DISTANCEPARA,fastmath=True,cache=True)
 def IntersectLinesEllipsoid_S(a,b,c,Sa,Sb,Sc,pos1,pos2,maxIteration):
     vects = unit_vector3d(pos2 - pos1)
     tmax = vector_length3d(pos2 - pos1)

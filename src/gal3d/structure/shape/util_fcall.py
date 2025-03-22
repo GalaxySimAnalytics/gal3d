@@ -106,7 +106,7 @@ def f_shaped_ellipsoids(a,b,c,Sa,Sb,Sc,pos):
 
 
 @jit(float64[:](float64, float64, float64,float64, float64, float64, float64[:,:],int32),
-     nogil=True,parallel=FCALPARA,fastmath=True)
+     nogil=True,parallel=FCALPARA,fastmath=True,cache=True)
 def d_shaped_ellipsoid(a, b, c, Sa, Sb, Sc, pos, maxIterations: int):
     tarpos = np.zeros((len(pos),3))
     d = np.zeros(len(pos))

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from .hist2d import hist_2d,show_image,show_contour,add_colorbar
 from ..gal3d_main import Galaxy3d
 from .visualize_model import VisualModel_IntegrateLine,VisualModel_SphGrid,AbstractBaseVisualize
-
+from ..util.array_operate import Rotate
 
 def which_pos_to_rotation(which_pos):
     order = list(which_pos)
@@ -20,11 +20,12 @@ def which_pos_to_rotation(which_pos):
         h1[i] = np.eye(3)[int(order[i])]
     return h1.T
 
-def show_data_model(axes,model: AbstractBaseVisualize, data,which_pos=(0,1),
+def show_data_model(axes,model: AbstractBaseVisualize, data,which_pos=(0,1),rotation_matrix=np.eye(3),
                     x_range=(-15,15),y_range=(-15,15),z_range=(-20,20),nbins=200,logscale=True,
                     cmap='turbo',nlevels=20,linewidth=0.8,color='k',linestyle='-'
                     ):
-    data_image,xs,ys=hist_2d(data.pos[:,which_pos[0]],data.pos[:,which_pos[1]], weights=data.weight,
+    pos = Rotate(data.pos,rotation_matrix.T)
+    data_image,xs,ys=hist_2d(pos[:,which_pos[0]],pos[:,which_pos[1]], weights=data.weight,
     x_range=x_range,y_range=y_range,density=True,nbins=nbins)
     
     data_im = show_image(data_image,axesObj=axes[0],extent=(*x_range,*y_range),logscale=logscale,cmap=cmap)
@@ -35,7 +36,7 @@ def show_data_model(axes,model: AbstractBaseVisualize, data,which_pos=(0,1),
                               logscale=logscale)
     
     rota = which_pos_to_rotation(which_pos)
-        
+    rota = Rotate(rotation_matrix,rota.T)
     model_image,xs,ys=model.image(x_range=x_range,y_range=y_range,nbins=nbins,z_range=z_range,rotation=rota)
     
     model_im = show_image(model_image,axesObj=axes[1],extent=(*x_range,*y_range),logscale=logscale,cmap=cmap,
@@ -121,6 +122,7 @@ def show_image_model_residual(
     nlevels_large = 13,
     nlevels_zoom = 17,
     which_pos_all = [(0,1),(0,2)],
+    rotation_matrix = np.eye(3),
     cmap='turbo',
     title_text = ['Face','Edge'],
     titlesize = 25,
@@ -133,15 +135,14 @@ def show_image_model_residual(
     fig = plt.figure(dpi=300,figsize=(17,13))
     gs = fig.add_gridspec(3,4,hspace=0,wspace=0)
     axes = [[plt.subplot(gs[i,j]) for j in range(4)] for i in range(3)]
-    cmap='turbo'
 
 
     allpanels=[]
     for i in range(2):
-        h1 = show_data_model([axes[0][2*i],axes[1][2*i],axes[2][2*i]],which_pos=which_pos_all[i],cmap=cmap,
+        h1 = show_data_model([axes[0][2*i],axes[1][2*i],axes[2][2*i]],which_pos=which_pos_all[i],rotation_matrix=rotation_matrix,cmap=cmap,
             model=model,data=data,x_range=large_box_x_range,y_range=large_box_y_range,z_range=depth_z_range,nbins=nbins_large,nlevels=nlevels_large)
         allpanels.append(h1)
-        h2 = show_data_model([axes[0][2*i+1],axes[1][2*i+1],axes[2][2*i+1]],which_pos=which_pos_all[i],cmap=cmap,
+        h2 = show_data_model([axes[0][2*i+1],axes[1][2*i+1],axes[2][2*i+1]],which_pos=which_pos_all[i],rotation_matrix=rotation_matrix,cmap=cmap,
                 model=model,data=data,x_range=zoom_x_range,y_range=zoom_y_range,z_range=depth_z_range,nbins=nbins_zoom,nlevels=nlevels_zoom)
         allpanels.append(h2)
         

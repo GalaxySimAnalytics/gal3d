@@ -72,7 +72,7 @@ def hist_2d(x,y,weights=None,parameters=None,density=True,
 
 
 def show_image( imageData,extent=None,axesObj=None,  logscale=True, vmin=None,vmax=None, cmap="jet",noErase=False):
-    
+    imageData = np.asarray(imageData)
     if logscale:
         vmin = np.min(imageData[imageData > 0]) if vmin is None else vmin
         vmax = np.max(imageData[imageData > 0]) if vmax is None else vmax

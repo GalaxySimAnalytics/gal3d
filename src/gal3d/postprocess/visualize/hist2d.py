@@ -1,4 +1,5 @@
 
+# see https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py,
 
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -6,7 +7,6 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from scipy.ndimage import gaussian_filter
 
-# see https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py, many useful func to plot
 
 
 def hist_2d(x,y,weights=None,parameters=None,density=True,

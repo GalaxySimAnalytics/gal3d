@@ -36,7 +36,15 @@ class Field:
         
         
         self.inner_r = self.__bound_method[inner_mode](inner, Base,mode='min')
+        r_in_min = np.min(self.inner_r)
+        r_in_max = np.max(self.inner_r)
+        logger.info(f"Field inner boundaries range {r_in_min:.2f} to {r_in_max:.2f}")
+        
         self.outer_r = self.__bound_method[outer_mode](outer, Base,mode='max')
+        r_ou_min = np.min(self.outer_r)
+        r_ou_max = np.max(self.outer_r)
+        logger.info(f"Field outer boundaries range {r_ou_min:.2f} to {r_ou_max:.2f}")
+        
         self.rays_vect = Base.rays.pos
         self.check_boundary()
         
@@ -51,7 +59,9 @@ class Field:
             If any outer boundary is not greater than the corresponding inner boundary.
         '''
         if not all(self.outer_r > self.inner_r):
-            logger.error('The outer boundaries need to be greater than the inner boundaries')
+            ind = np.arange(len(self.outer_r))
+            ind = ind[(self.outer_r < self.inner_r)]
+            logger.error(f'The outer boundaries need to be greater than the inner boundaries. Check Ray {ind}')
             raise ValueError('The outer boundaries need to be greater than the inner boundaries')
         return 
     
@@ -129,7 +139,7 @@ class Field:
         **kwargs : dict
             Additional keyword arguments.
         '''
-    
+        
         self.set_isosphere(Base=Base,from_rays_func=from_rays_func,**kwargs)
         
         Method = {'moi':iso_profile_by_moi,'pair':iso_profile_by_pair}

@@ -1,7 +1,7 @@
 
 
 from functools import partial
-
+import logging
 
 import numpy as np
 from scipy import optimize
@@ -11,6 +11,9 @@ from optimagic.optimizers.scipy_optimizers import process_scipy_result
 import nlopt
 
 from .util import nlopt_wrap
+
+
+logger = logging.getLogger("gal3d.optimization.parameter")
 
 '''
 fun like this (params, kwargs), params is the tuple of parameters, kwargs is any thing depend on how you use this in the fun.
@@ -102,10 +105,13 @@ class Optimizer:
             If the specified algorithm is not valid or available.
         """
         if algorithm in self._algos['optimagic']:
+            logger.info(f"{algorithm} in optimagic")
             return 
         if algorithm in self._algos['scipy']:
+            logger.info(f"{algorithm} in scipy")
             return 
         if algorithm in self._algos['nlopt']:
+            logger.info(f"{algorithm} in nlopt")
             return
         if algorithm in om.algos.AllNames:
             raise ValueError(f"{algorithm} is not a valid value, you should pip install related packages,\n" 

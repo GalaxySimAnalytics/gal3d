@@ -1,6 +1,7 @@
 
 from functools import wraps
 import time
+import logging
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
@@ -11,6 +12,7 @@ from .spherical_field.spherical_vector import Sphere_vector
 from .spherical_field.field import Field
 
 
+logger = logging.getLogger('gal3d.preprocess.precessor')
 
 def ray_method(fun):
     '''
@@ -88,15 +90,10 @@ def timer(fun):
     name = fun.__name__
     @wraps(fun)
     def wrapper(*args,**kwargs):
-        self = args[0]
-        if (hasattr(self,'_verbose')) and self._verbose:
-            s =  time.time()
-            print(name.replace('_',' ').capitalize()+': ',end='')
+        s =  time.time()
         result = fun(*args,**kwargs)
-        
-        if (hasattr(self,'_verbose')) and self._verbose:
-            e =  time.time()
-            print(f"{(e-s):.5f} sec")
+        e =  time.time()
+        logger.info(name.replace('_',' ').capitalize()+': '+f"{(e-s):.5f} sec")
         return result
     
     return wrapper
@@ -128,27 +125,23 @@ class Particles(Local_est,Global_prop):
         self : Particles
             The initialized Particles object.
         '''
-
-        
-        self._verbose = verbose
-        
+        loggerh = logging.getLogger('gal3d.preprocess')
         if verbose:
-            s= time.time()
-            print("Init global property: ",end='')
-        
-        Global_prop.__init__(self,pos,weight)
-        
-        if verbose:
-            e = time.time()
-            print(f"{(e-s):.5f} seconds")
-            print("Init local estimator: ",end='')
+            loggerh.setLevel(20)
+          #  logger.setLevel(20)
+        else:
+            loggerh.setLevel(30)
             
+        s= time.time()
+        Global_prop.__init__(self,pos,weight)
+        e = time.time()
+        logger.info("Init global property: "+f"{(e-s):.5f} seconds")
+        
         Local_est.__init__(self,pos,weight,parameter_mode=parameter_mode,num_near=num_near,**kwargs)
         
+        f = time.time()
+        logger.info("Init local estimator: "+f"{(f-e):.5f} seconds")
 
-        if verbose:
-            f = time.time()
-            print(f"{(f-e):.5f} seconds")
     
     
     
@@ -174,12 +167,14 @@ class Particles(Local_est,Global_prop):
         self.rays = Sphere_vector(N_ray,method)
         self.rays_index = self.rays.assign_points(self.pos)
         self.rays_points_num = np.bincount(self.rays_index)
-        if self._verbose:
-            print(f"Ray {np.argmin(self.rays_points_num)} has the minimum particle count of {np.min(self.rays_points_num)}.  "
-                  ,end='')
-        if np.min(self.rays_points_num)<3:
-            print(f"Ray {np.argmin(self.rays_points_num)} has {np.min(self.rays_points_num)} particles. ")
-            print(f"It should be > 2, so please make the ray num smaller.  ")
+        
+        max_num_dex = np.argmax(self.rays_points_num)
+        logger.info(f"Ray {max_num_dex} has the maximum particle count of {self.rays_points_num[max_num_dex]}. ")
+        
+        min_num_dex = np.argmin(self.rays_points_num)
+        logger.info(f"Ray {min_num_dex} has the minimum particle count of {self.rays_points_num[min_num_dex]}. ")
+        if self.rays_points_num[min_num_dex]<3:
+            logger.error(f"It should be > 2, so please make the ray num smaller. ")
 
         ind = [[] for _ in range(N_ray)]
         for i,j in enumerate(self.rays_index):

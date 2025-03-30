@@ -10,7 +10,7 @@ from scipy import optimize
 from .util import truncate
 
 
-logger = logging.getLogger("gal3d.fitter.parameter")
+logger = logging.getLogger("gal3d.optimization.parameter")
 
 
 __all__ = ['Parameters']
@@ -555,7 +555,7 @@ class Parameters():
             If `other` is not a dictionary or Parameters instance.
         """
         if isinstance(other,Parameters):
-            logger.info(f"merge {self} and {other}")
+            logger.debug(f"merge {self} and {other}")
             
             h1 = copy.copy(self)
             h2 = copy.copy(other)
@@ -566,7 +566,7 @@ class Parameters():
             h1._parameter_names = h1._parameter_names + h2._parameter_names
             return h1
         if isinstance(other,dict):
-            logger.info(f"merge {self} and {other}")
+            logger.debug(f"merge {self} and {other}")
             
             h1 = copy.copy(self)
             h1.update(other)

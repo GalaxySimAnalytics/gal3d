@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import numpy as np
 
@@ -13,7 +14,7 @@ from ..structure_main import Structure_3D, Parameters
 __all__ =["Ellipsoid_S"]
 
 
-
+logger = logging.getLogger('gal3d.structure.shape.ellipsoid_s')
 @Structure_3D.shape_func
 class Ellipsoid_S:
     """

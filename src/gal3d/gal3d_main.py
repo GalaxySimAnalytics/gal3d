@@ -2,17 +2,17 @@
 
 from collections.abc import Iterable
 import time
-
+import logging
 
 import numpy as np
 from tqdm import tqdm
 
-from .preprocessing.processor import Particles
+from .preprocess.processor import Particles
 from .structure.structure_main import Structure_3D,Structure_3D_fitter
-from .fitting.optimizer import Optimizer
-from .fitting.result import Result
+from .optimization.optimizer import Optimizer
+from .optimization.result import Result
 
-
+logger = logging.getLogger('gal3d.gal3d_main')
 
 
 
@@ -140,7 +140,7 @@ class Galaxy3d(Particles):
                     res = get_one_structure(i,**kwargs)
                     resall.append(res)
                 except Exception as e:
-                    print(f'Exception: skip fitting at radius {i:.2f} : {e}')
+                    logger.warning(f'Exception: skip fitting at radius {i:.2f} : {e}')
             if len(resall)>0:
                 return sum(resall[1:],resall[0])
             else:

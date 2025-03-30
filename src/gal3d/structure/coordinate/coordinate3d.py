@@ -1,5 +1,6 @@
 
 import copy
+import logging
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -12,7 +13,7 @@ from ..structure_main import Structure_3D, Parameters
 
 __all__ = ["Rotation3D","Coordinate3D"]
 
-
+logger = logging.getLogger('gal3d.structure.coordinate.coordinate3d')
 class Rotation3D(Rotation):
     """
     A class to handle 3D rotations using Euler angles.

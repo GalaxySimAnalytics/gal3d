@@ -63,6 +63,7 @@ class Local_est():
         self.weight = weight[ind]
         self.r = r[ind]
         
+        logger.info(f"Build KDtree with options {self._tree_build_options}")
         self.tree = KDTree(self.pos,**self._tree_build_options)
         self.pa_mode = parameter_mode
         
@@ -189,7 +190,7 @@ class Local_est():
         elif self.pa_mode == 'Mean':
             fit_pa = np.mean(self.weight[n_index], axis=1)
         else:
-            logger.error("KeyError: No such method, use parameter_mode = Density")
+            logger.warning("KeyError: No such method, use parameter_mode = Density")
             n_pain = np.sum(self.weight[n_index], axis=1)
             fit_pa = n_pain/(4/3*np.pi*np.power(n_d_max, 3))
         return fit_pa

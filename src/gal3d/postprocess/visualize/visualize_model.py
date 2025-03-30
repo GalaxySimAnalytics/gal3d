@@ -1,15 +1,17 @@
 
 import abc
 from functools import wraps
+import logging
 
 import numpy as np
 from tqdm import tqdm
 import scipy.integrate as integrate
 
 from .hist2d import hist_2d
-from ..preprocessing.spherical_field.spherical_vector import Sphere_vector
-from ..util.array_operate import Rotate
+from ...preprocess.spherical_field.spherical_vector import Sphere_vector
+from ...util.array_operate import Rotate
 
+logger = logging.getLogger('gal3d.postprocess.visualize.visualize_model')
 
 class AbstractBaseVisualize(abc.ABC):
     
@@ -78,40 +80,38 @@ class VisualModel_SphGrid(AbstractBaseVisualize):
     @AbstractBaseVisualize.ImageCache
     def image(self,x_range,y_range,nbins: int = 100, z_range=(-20,20),  rotation=np.eye(3)):
         
-       # recod = (x_range[0],x_range[1],y_range[0],y_range[1],nbins,z_range[0],z_range[1],rotation.tobytes())
-       # if recod in self._image_cache:
-       #     return self._image_cache[recod]
-        
         
         new_pos = Rotate(self.pos,rotation)
         sel = (new_pos[:,2] > z_range[0]) & (new_pos[:,2] < z_range[1])
         model_image,xs,ys=hist_2d(new_pos[:,0][sel],new_pos[:,1][sel], weights=self.weight[sel],
                    x_range=x_range,y_range=y_range,density=True,nbins=nbins)
         
-      #  self._image_cache[(x_range[0],x_range[1],y_range[0],y_range[1],nbins,z_range[0],z_range[1],rotation.tobytes())] = (model_image,xs,ys)
         
         return model_image,xs,ys
         
 class VisualModel_IntegrateLine(AbstractBaseVisualize):
-    def __init__(self, model, model_cric,**kwargs):
+    def __init__(self, model, model_cric = None,**kwargs):
         
         super().__init__()
         sel = kwargs.get("sel",None)
         
         self.model = model
         self.model_cric = model_cric
-        if sel is not None:
-            self.model_sel = np.arange(len(self.model.res['fun']))[(np.array(self.model.res['fun'])<self.model_cric)&sel]
-        else:
-            self.model_sel = np.arange(len(self.model.res['fun']))[(np.array(self.model.res['fun'])<self.model_cric)]
+        self.model_sel = np.arange(len(self.model['parameter']))
+        
+        if (self.model_cric is not None) or (sel is not None):
+            if sel is None:
+                sel = (np.array(self.model.res['fun'])<self.model_cric)
+            else:
+                if self.model_cric is not None:
+                    sel = (sel&(np.array(self.model.res['fun'])<self.model_cric))
+            
+            self.model_sel = self.model_sel[sel]
+
             
     @AbstractBaseVisualize.ImageCache
     def image(self,x_range,y_range,nbins: int = 100, z_range=(-20,20),  rotation=np.eye(3)):
         
-     #   recod = (x_range[0],x_range[1],y_range[0],y_range[1],nbins,z_range[0],z_range[1],rotation.tobytes())
-        
-     #   if recod in self._image_cache:
-     #       return self._image_cache[recod]
         
         deproject_array = np.ones((nbins,nbins),dtype=np.float64)
         cen_indices = np.array(deproject_array.shape)/2 - 0.5
@@ -146,15 +146,15 @@ class VisualModel_IntegrateLine(AbstractBaseVisualize):
         
         alll = self.model[int(model_sel[-1])].quick_call_intersect(pos1=pos1,pos2=pos2)
         ind = np.arange(len(pos1))
-        ind_in = ind[(alll[:,0]>0.)&(alll[:,1]>0.)]
+        ind_in = ind[(alll[:,0]>0.)]
         ind_total = ind_in.copy()
 
         para = self.model['parameter']
         for i in tqdm(model_sel[::-1]):
             
             sec = self.model[int(i)].quick_call_intersect(pos1=pos1[ind_in],pos2=pos2[ind_in])
-            tar = ind_in[(sec[:,0]>0.)&(sec[:,1]>0.)]
-            sec = sec[(sec[:,0]>0.)&(sec[:,1]>0.)]
+            tar = ind_in[(sec[:,0]>0.)]
+            sec = sec[(sec[:,0]>0.)]
 
             for j in range(len(tar)):
                 project_profile[tar[j]][0].append(sec[j][0])
@@ -171,7 +171,6 @@ class VisualModel_IntegrateLine(AbstractBaseVisualize):
             deproject_array[tuple(indices[i])] = inte
         
         
-      #  self._image_cache[(x_range[0],x_range[1],y_range[0],y_range[1],nbins,z_range[0],z_range[1],rotation.tobytes())] = (deproject_array.T,xs,ys)
         
         return deproject_array.T,xs,ys
     

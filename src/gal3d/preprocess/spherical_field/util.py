@@ -1,4 +1,5 @@
 
+import math
 
 from numba import (
     int32,
@@ -12,11 +13,8 @@ from numba import (
     prange,
     types,
 )
-    
-
-
 import numpy as np
-import math
+
 
 
 from ..estimate.util import abc_vect
@@ -24,7 +22,6 @@ from ...util.array_operate import vector_length3d,unit_vector3d,trans_to_Spheric
 
 
 __all__=['trans_to_Spherical_coordinates','trans_to_Cartesian_coordinates','fibonacci_sampling','vector_length3d','unit_vector3d','Matmul']
-
 
 
 @jit(types.Tuple((float64[:,:],float64[:,:]))(int64),nogil=True, parallel=True,fastmath=True,cache=True,)
@@ -48,9 +45,6 @@ def fibonacci_sampling( Num_sampling: int =256):
     return sampling_pos, sampling_sphere_coor
 
 
-
-
-
 @njit(float64[:](float64[:,:],float64[:,:],float64,float64),fastmath=True,parallel=True,nogil=True,)
 def iso_profile_by_moi(points,pas,res_b,res_c):
     
@@ -70,6 +64,7 @@ def iso_profile_by_moi(points,pas,res_b,res_c):
         iso_pro_pa[i] = np.mean(pas[:,i][(sel1)&(sel2)])
 
     return iso_pro_pa
+
 
 @njit(float64[:](float64[:,:],float64[:,:],float64,float64),fastmath=True,parallel=True,nogil=True,)
 def iso_profile_by_pair(points,pas,res_b,res_c):

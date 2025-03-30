@@ -2,9 +2,11 @@
 
 import os
 from functools import wraps
+import logging
 
 import h5py
 
+logger = logging.getLogger('gal3d.optimization.util')
 
 def nlopt_wrap(function):
     wraps(function)
@@ -31,6 +33,7 @@ def save_dict_to_hdf5(file: h5py.File | h5py.Group | str,data_dict=dict()):
     if isinstance(file,str):
         if not os.path.exists(file):
             f = h5py.File(file,'w')
+            logger.info(f"Create {file}")
             f.close()
         with h5py.File(file,'r+') as f:
             for i in data_dict:

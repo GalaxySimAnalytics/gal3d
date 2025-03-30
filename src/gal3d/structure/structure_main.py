@@ -1,19 +1,20 @@
 
+import logging
+import copy
 
 import numpy as np
 import optimagic as om
 from scipy import optimize,spatial
-import copy
 
 from .util import ellipsoid_fit
-from ..fitting.parameter import Parameters
+from ..optimization.parameter import Parameters
 from ..util.func_signature import func_required_key
 
-from ..preprocessing.spherical_field.util import fibonacci_sampling, vector_length3d
+from ..preprocess.spherical_field.util import fibonacci_sampling, vector_length3d
 
 __all__ = ['Structure_3D','Structure_3D_fitter']
 
-
+logger = logging.getLogger('gal3d.structure.structure_main')
 class Structure_3D:
     '''
     A class to represent a 3D structure, combining coordinate and shape information.

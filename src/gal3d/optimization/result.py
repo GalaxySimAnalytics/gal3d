@@ -10,7 +10,7 @@ from .parameter import Parameters
 from .util import save_model_hdf5
 
 
-logger = logging.getLogger("gal3d.fitting.result")
+logger = logging.getLogger("gal3d.optimization.result")
 
 
 

@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 #from scipy.spatial.transform import Rotation
 
 from .hist2d import hist_2d,show_image,show_contour,add_colorbar
-from ..gal3d_main import Galaxy3d
+from ...gal3d_main import Galaxy3d
 from .visualize_model import VisualModel_IntegrateLine,VisualModel_SphGrid,AbstractBaseVisualize
-from ..util.array_operate import Rotate
+from ...util.array_operate import Rotate
 
 def which_pos_to_rotation(which_pos):
     order = list(which_pos)

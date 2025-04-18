@@ -8,12 +8,7 @@ import h5py
 
 logger = logging.getLogger('gal3d.optimization.util')
 
-def nlopt_wrap(function):
-    wraps(function)
-    def wrapper(*args, **kwargs):
-        result = function(params =args[0])
-        return result
-    return wrapper
+
 
 def truncate(num,n):
     return float(int(num*(10**n))/10**n)

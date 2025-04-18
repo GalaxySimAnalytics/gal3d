@@ -1,9 +1,8 @@
-import typing
 import inspect
+import textwrap
+from typing import Dict, Type
 from collections.abc import Callable
 from functools import cached_property
-
-
 
 class MySignature(inspect.Signature):
     """
@@ -178,3 +177,121 @@ def update_dict_value(origin: dict, other: dict, **kwargs)->dict:
     
 func_optional_key = lambda x: MySignature.from_callable(x).get_params(positional=0,keyword=1,empty=2,)
 func_required_key = lambda x: MySignature.from_callable(x).get_params(positional=0,keyword=0,empty=1,)
+
+
+
+
+def fromat_signature(func):
+    sig = inspect.signature(func)
+    return f"{func.__name__}{sig}"
+
+def format_docstring(docstring,indent=4):
+    if not docstring:
+        return ""
+    lines = textwrap.indent('"""\n'+docstring.strip()+'\n"""'," "*indent)
+    return lines
+
+def is_static_or_class_method(cls,attr_name):
+    attr = cls.__dict__.get(attr_name)
+    if isinstance(attr,staticmethod):
+        return "@staticmethod"
+    elif isinstance(attr,classmethod):
+        return "@classmethod"
+    return None
+
+def generate_plugin_stub(base,abc, plugins: Dict[str, Type], output_path: str):
+    lines = [
+        "import typing",
+        "from typing import overload, Type, Literal, List, NoReturn, Union, Any",
+        "import numpy",
+        f"from {abc.__module__} import {abc.__name__}",
+        *[
+            f"from {cls.__module__} import {cls.__name__}"
+            for cls in plugins.values()
+        ],
+        "",]
+    
+    
+    lines.append(f"class {abc.__name__}:")
+    lines.append("")
+    for name, func in abc.__dict__.items():
+        if isinstance(func,(staticmethod,classmethod)):
+            func = func.__func__
+        elif inspect.isfunction(func):
+            pass
+        else:
+            continue
+        deco = is_static_or_class_method(abc,name)
+        if not deco is None:
+            lines.append(f"    {deco}")
+        docstring = inspect.getdoc(func)
+        sig = inspect.signature(func)
+        ret = func.__annotations__.get('return','None')
+        ret_type = ret.__name__ if hasattr(ret,'__name__') else str(ret)
+        if docstring:
+            if '->' in str(sig):
+                lines.append(f"    def {name}{sig}:")
+            else:
+                lines.append(f"    def {name}{sig} -> None:")
+            lines.append(format_docstring(docstring,indent=8))
+            lines.append(f"        ...")
+        else:
+            if '->' in str(sig):
+                lines.append(f"    def {name}{sig}: ...")
+            else:
+                lines.append(f"    def {name}{sig} -> None: ...")
+        lines.append("")
+    
+    lines.append(f"class {base.__name__}:")
+    lines.append("")
+    for name, func in base.__dict__.items():
+        if isinstance(func,(staticmethod,classmethod)):
+            func = func.__func__
+        elif inspect.isfunction(func):
+            pass
+        else:
+            continue
+        if name == "get_plugin":
+            get_plugin_deco = is_static_or_class_method(base,name)
+
+            get_plugin_sig = inspect.signature(func)
+            get_plugin_docstring = inspect.getdoc(func)
+            continue
+        deco = is_static_or_class_method(base,name)
+        if not deco is None:
+            lines.append(f"    {deco}")
+        docstring = inspect.getdoc(func)
+        sig = inspect.signature(func)
+        ret = func.__annotations__.get('return','None')
+        ret_type = ret.__name__ if hasattr(ret,'__name__') else str(ret)
+        if docstring:
+            lines.append(f"    def {name}{sig} -> {ret_type}:")
+            lines.append(format_docstring(docstring,indent=8))
+            lines.append(f"        ...")
+        else:
+            lines.append(f"    def {name}{sig} -> {ret_type}: ...")
+        lines.append("")
+
+
+    if not get_plugin_deco is None:
+            lines.append(f"    {get_plugin_deco}")
+    lines.append(f"    @overload")
+    if get_plugin_docstring:
+        lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:")
+        lines.append(format_docstring(get_plugin_docstring,indent=8))
+        lines.append(f"        ...")
+    else:
+        lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:...")
+        
+    lines.append("")
+    for plugin_key, plugin_cls in plugins.items():
+        if not get_plugin_deco is None:
+            lines.append(f"    {get_plugin_deco}")
+        plugin_name = plugin_cls.__name__
+        lines.append(f"    @overload")
+        lines.append(f"    def get_plugin(plugin: Literal['{plugin_key}']) -> Type[{plugin_name}]:...")
+        lines.append("")
+    
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write("\n".join(lines))

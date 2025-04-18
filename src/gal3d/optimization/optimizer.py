@@ -1,198 +1,97 @@
 
-
-from functools import partial
+import os
 import logging
+from abc import ABC,abstractmethod
+from typing import List
 
-import numpy as np
-from scipy import optimize
-import optimagic as om
-from optimagic.optimizers.nlopt_optimizers import _process_nlopt_results
-from optimagic.optimizers.scipy_optimizers import process_scipy_result
-import nlopt
-
-from .util import nlopt_wrap
+from ..util.func_signature import generate_plugin_stub
+from ..util.func_decorator import classproperty
 
 
-logger = logging.getLogger("gal3d.optimization.parameter")
 
-'''
-fun like this (params, kwargs), params is the tuple of parameters, kwargs is any thing depend on how you use this in the fun.
+Update_plugin_stub = True
 
-'''
+__all__ = ['Optimizer','OptimizerBase']
 
+logger = logging.getLogger("gal3d.optimization.optimizer")
 
-class Optimizer:
-    """
-    A class to handle optimization algorithms for fitting 3D galaxy morphologies.
+_OptimizerPlugins=dict()
 
-    This class provides an interface to various optimization algorithms from different libraries
-    such as `scipy`, `optimagic`, and `nlopt`. It allows users to select an algorithm and configure
-    its options for minimizing a given objective function.
+_current_path = os.path.realpath(__file__)
+_current_dir = os.path.dirname(__file__)
+_current_file_name = os.path.basename(_current_path)
+_pyi_name = _current_file_name.replace('.py','.pyi')
 
-    Attributes
-    ----------
-    _algos : dict
-        A dictionary containing the available optimization algorithms from different libraries.
-        The keys are `'scipy'`, `'optimagic'`, and `'nlopt'`, and the values are lists of algorithm names.
-
-    algo_name : str
-        The name of the selected optimization algorithm.
-
-    algo_options : dict
-        A dictionary of options specific to the selected optimization algorithm.
-
-    Methods
-    -------
-    __init__(algorithm, algo_options)
-        Initializes the Optimizer with the specified algorithm and options.
-
-    check_algorithm(algorithm)
-        Checks if the specified algorithm is valid and available.
-
-    fitting(fun, x0, bounds, args)
-        Performs the optimization using the selected algorithm.
-
-    available_algorithm
-        Returns a copy of the available algorithms.
-
-    """
-    
-    # `__algos` contains keys `'scipy'`, `'optimagic'`, and `'nlopt'`, each
-        # associated with a list of optimization algorithm names.
-    _algos = {}
-    _algos['scipy']=['Nelder-Mead','Powell','CG','BFGS','Newton-CG','L-BFGS-B','TNC','COBYLA','COBYQA'
-                        'SLSQP','trust-constr','dogleg','trust-ncg','trust-exact','trust-krylov']
-    _algos['optimagic'] = om.algos.AvailableNames
-    _algos['nlopt'] = list(filter(lambda x: x[:3] in ['GN_','GD_','LN_','LD_'],dir(nlopt)))
-    def __init__(self,algorithm,algo_options):
-        """
-        Initializes the Optimizer with the specified algorithm and options.
-
-        Parameters
-        ----------
-        algorithm : str
-            The name of the optimization algorithm to use.
-
-        algo_options : dict
-            A dictionary of options specific to the selected optimization algorithm.
-
-        Raises
-        ------
-        ValueError
-            If the specified algorithm is not valid or available.
-        """
+class OptimizerBase(ABC):
         
-        self.check_algorithm(algorithm)
+        
+    def __init__(self,algorithm: str, algo_options: dict | None = None):
+        
+        if not self.has_algorim(algorithm):
+            raise ValueError(f"{algorithm} is not a valid algorithm name.\n")
         
         self.algo_name = algorithm
-        self.algo_options = algo_options
+
+        self.algo_options = algo_options or {}
         
+    def __init_subclass__(cls, **kwargs):
+        _OptimizerPlugins[cls.__name__] = cls
+        logger.info(f"Find OptimizerPlugin: {cls.__name__} and load successfully")
+        if Update_plugin_stub:
+            output_path = os.path.join(_current_dir, _pyi_name)
+            generate_plugin_stub(Optimizer,OptimizerBase,_OptimizerPlugins, output_path)
+            logger.info(f"✅ Updated stub: {output_path}")
         
-        
-        
-    def check_algorithm(self,algorithm):
+    @abstractmethod
+    def fitting(self, fun, x0, bounds, func_args: tuple | None = None, func_kwargs: dict | None = None,**kwargs):
+        pass
+    
+
+    def set_options(self, **kwargs):
+        self.algo_options.update(**kwargs)
+
+    
+    def has_algorim(self, algorithm: str ) -> bool:
+        if algorithm in self.available_algorithm:
+            return True        
+        return False
+    
+    @classproperty
+    @abstractmethod
+    def available_algorithm(self) -> List[str]:
+        pass
+    
+class Optimizer:
+    """ Optimizer """
+    
+    @staticmethod
+    def _updata_plugin_stub():
+        output_path = os.path.join(_current_dir, _pyi_name)
+        generate_plugin_stub(Optimizer,OptimizerBase,_OptimizerPlugins, output_path)
+        logger.info(f"✅ Updated stub: {output_path}")
+    
+    @staticmethod
+    def get_plugin(plugin: str | None) -> OptimizerBase:
         """
-        Checks if the specified algorithm is valid and available.
+        Get an optimizer plugin
+        
+        Parameters:
+        plugin: str,
+            the name of plugin, available see available_plugins
 
-        Parameters
-        ----------
-        algorithm : str
-            The name of the optimization algorithm to check.
-
-        Raises
-        ------
-        ValueError
-            If the specified algorithm is not valid or available.
+        Returns:
+            available_plugins of OptimizerBase
         """
-        if algorithm in self._algos['optimagic']:
-            logger.info(f"{algorithm} in optimagic")
-            return 
-        if algorithm in self._algos['scipy']:
-            logger.info(f"{algorithm} in scipy")
-            return 
-        if algorithm in self._algos['nlopt']:
-            logger.info(f"{algorithm} in nlopt")
-            return
-        if algorithm in om.algos.AllNames:
-            raise ValueError(f"{algorithm} is not a valid value, you should pip install related packages,\n" 
-                             "see optimagic document for more details.")
-        raise ValueError(f"{algorithm} is not a valid algorithm name.\n"
-                         f"valid algorithm names:\n" 
-                         f"scipy.optimize.minimize: {self._algos['scipy']} \n optimagic.minimize: {om.algos.AvailableNames}")
+        assert ((isinstance(plugin,str)) or (plugin is None))
         
-    def fitting(self,fun,x0,bounds,args,):
-        """
-        Performs the optimization using the selected algorithm.
-
-        Parameters
-        ----------
-        fun : callable
-            The objective function to minimize.
-
-        x0 : list or array-like
-            The initial guess of the parameters for the optimization.
-
-        bounds : scipy.optimize.Bounds
-            Lower and upper bounds on the parameters.
-
-        args : tuple
-            Additional arguments for the objective function.
-
-        Returns
-        -------
-        result : object
-            The result of the optimization, which may vary depending on the selected algorithm.
-
-        Raises
-        ------
-        ValueError
-            If the specified algorithm is not valid or available.
-        """
-        algorithm = self.algo_name 
-        algo_options = self.algo_options
-        
-        if algorithm in self._algos['optimagic']:
-            res = om.minimize(fun=fun,params=np.asarray(x0),algorithm=algorithm,bounds=bounds,
-                              fun_kwargs={'kwargs':args}, algo_options=algo_options,)
-            return res
-        
-        if algorithm in self._algos['scipy']:
-            res = optimize.minimize(fun=fun,x0=x0,args=args, method=algorithm,bounds=bounds,options=algo_options)
-            return process_scipy_result(res)
-        
-        if algorithm in self._algos['nlopt']:
-            is_global = (algorithm[0]=='G')
-            opt  = nlopt.opt(getattr(nlopt,algorithm),len(x0))
-            warp_fun = nlopt_wrap(partial(fun,kwargs=args))
-            opt.set_min_objective(warp_fun)
-            opt.set_lower_bounds(bounds.lb)
-            opt.set_upper_bounds(bounds.ub)
- 
-            opt.set_ftol_abs(algo_options.get('ftol_abs',0))
-           # opt.set_ftol_rel(algo_options.get('ftol_res',0))
-            opt.set_xtol_rel(algo_options.get('xtol_rel',1e-5))
-            opt.set_xtol_abs(algo_options.get('xtol_abs',0))
-            opt.set_maxeval(algo_options.get('maxeval',len(x0)*1000))
-
-            xopt = opt.optimize(x0)
+        if plugin is None:
+            return OptimizerBase
             
-            return _process_nlopt_results(opt, xopt, is_global)
-
-        if algorithm in om.algos.AllNames:
-            raise ValueError(f"{algorithm} is not a valid value, you should pip install related packages,\n" 
-                             "see optimagic document for more details.")
-        raise ValueError(f"{algorithm} is not a valid algorithm name.\n"
-                         f"valid algorithm names:\n" 
-                         f"scipy.optimize.minimize: {self._algos['scipy']} \n optimagic.minimize: {om.algos.AvailableNames}")
+        return _OptimizerPlugins[plugin] 
         
-    @property
-    def available_algorithm(self):
-        """
-        Returns a copy of the available algorithms.
-
-        Returns
-        -------
-        dict
-            A dictionary containing the available optimization algorithms from different libraries.
-        """
-        return self._algos.copy()
+        
+    @classproperty
+    def available_plugins(cls) -> List[str]:
+        return list(_OptimizerPlugins.keys())
+    
+from .optimizer_plugins  import *

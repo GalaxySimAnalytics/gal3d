@@ -15,7 +15,32 @@ from numba import (
 import numpy as np
 import math
 
-__all__ = ['Shift','Rotate','Matmul','Hadamard','Dot','vector_length3d','unit_vector3d','trans_to_Spherical_coordinates','trans_to_Cartesian_coordinates']
+__all__ = ['Shift','Rotate','Matmul','Hadamard','Dot','vector_length3d','unit_vector3d','trans_to_Spherical_coordinates','trans_to_Cartesian_coordinates',
+           'RobustLength2d','RobustLength3d']
+
+
+@jit(float64(float64,float64),fastmath=True,cache=True )
+def RobustLength2d(v0,v1):
+    '''avoiding floating-point overflow that could occur normally when computing'''
+    v0 = v0 if v0>0 else -v0
+    v1 = v1 if v1>0 else -v1
+    if v0>v1:
+        return v0*math.sqrt(1+v1*v1/v0/v0)
+    else:
+        return v1*math.sqrt(1+v0*v0/v1/v1)
+    
+@jit(float64(float64,float64,float64),fastmath=True,cache=True )
+def RobustLength3d(v0,v1,v2):
+    '''avoiding floating-point overflow that could occur normally when computing'''
+    v0 = v0 if v0>0 else -v0
+    v1 = v1 if v1>0 else -v1
+    v2 = v2 if v2>0 else -v2
+    if (v0>v1) and (v0>v2):
+        return v0*math.sqrt(1+v1*v1/v0/v0+v2*v2/v0/v0)
+    elif (v2>v0) and (v2>v1):
+        return v2*math.sqrt(1+v1*v1/v2/v2+v0*v0/v2/v2)
+    else:
+        return v1*math.sqrt(1+v0*v0/v1/v1+v2*v2/v1/v1)
 
 @jit(float64[:,:](float64[:,:],float64[:]),nogil=True, parallel=True,fastmath=True,cache=True,)
 def Shift(pos,cen):

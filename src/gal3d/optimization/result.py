@@ -5,7 +5,7 @@ from dataclasses import is_dataclass
 
 import numpy as np
 
-from ..structure.structure_main import Structure_3D,Structure_3D_fitter
+from ..shape import Structure3D
 from .parameter import Parameters
 from .util import save_model_hdf5
 
@@ -17,7 +17,7 @@ logger = logging.getLogger("gal3d.optimization.result")
 
 
 
-class OptimizeResults:
+class OptimizeResult:
     """
     A class to store and manage the results of optimization processes.
 
@@ -43,11 +43,11 @@ class OptimizeResults:
     __contains__(key)
         Checks if a key is present in the fields of the first optimization result.
     __repr__()
-        Returns a string representation of the OptimizeResults object.
+        Returns a string representation of the OptimizeResult object.
     __getitem__(key)
         Retrieves the values associated with a specific key across all results.
     __add__(other)
-        Combines the results of two OptimizeResults objects if they are compatible.
+        Combines the results of two OptimizeResult objects if they are compatible.
 
     Raises
     ------
@@ -107,14 +107,14 @@ class OptimizeResults:
     
     def __repr__(self):
         """
-        Returns a string representation of the OptimizeResults object.
+        Returns a string representation of the OptimizeResult object.
 
         Returns
         -------
         str
-            A string representation of the OptimizeResults object.
+            A string representation of the OptimizeResult object.
         """
-        return f"<|OptimizeResults| {len(self._results)} |>"
+        return f"<|OptimizeResult| {len(self._results)} |>"
 
     def __getitem__(self,key):
         """
@@ -142,26 +142,26 @@ class OptimizeResults:
 
     def __add__(self,other):
         """
-        Combines the results of two OptimizeResults objects if they are compatible.
+        Combines the results of two OptimizeResult objects if they are compatible.
 
         Parameters
         ----------
-        other : OptimizeResults or dataclass
-            Another OptimizeResults object or a dataclass to combine with.
+        other : OptimizeResult or dataclass
+            Another OptimizeResult object or a dataclass to combine with.
 
         Returns
         -------
-        OptimizeResults
-            The combined OptimizeResults object.
+        OptimizeResult
+            The combined OptimizeResult object.
 
         Raises
         ------
         ValueError
             If the objects are not compatible for combination.
         TypeError
-            If the input is not a dataclass or OptimizeResults object.
+            If the input is not a dataclass or OptimizeResult object.
         """
-        if isinstance(other,OptimizeResults):
+        if isinstance(other,OptimizeResult):
             if self.keys() <= other.keys():
                 self._results = self._results + other._results
                 return self
@@ -178,14 +178,14 @@ class OptimizeResults:
 
 
 
-class Result:
+class ModelResult:
     """
     A class to store and manage the results of a 3D galaxy morphology fitting process.
 
     Parameters
     ----------
-    structure : Structure_3D_fitter
-        An instance of the `Structure_3D_fitter` class that defines the 3D structure model.
+    structure : Structure3D
+        An instance of the `Structure3D` class that defines the 3D structure model.
     optimize_result : dict or OptimizeResult
         The result of the optimization process, typically returned by a fitting algorithm.
     parameters : Parameters
@@ -195,10 +195,10 @@ class Result:
 
     Attributes
     ----------
-    _structure : Structure_3D_fitter
+    _structure : Structure3D
         The 3D structure model used for fitting.
-    res : OptimizeResults
-        The optimization results, wrapped in an `OptimizeResults` instance.
+    res : OptimizeResult
+        The optimization results, wrapped in an `OptimizeResult` instance.
     _parameters : list of Parameters
         A list containing the fitted parameters. Initially, it contains a single `Parameters` instance.
 
@@ -217,13 +217,13 @@ class Result:
     __len__()
         Returns the number of parameter sets stored in the `Result` object.
     """
-    def __init__(self,structure: Structure_3D_fitter,optimize_result,parameters:Parameters,**kwargs):
+    def __init__(self,structure: Structure3D, optimize_result , parameters: Parameters,**kwargs):
         """
         Initializes the `Result` class with the given structure, optimization result, and parameters.
 
         Parameters
         ----------
-        structure : Structure_3D_fitter
+        structure : Structure3D
             The 3D structure model used for fitting.
         optimize_result : dict or OptimizeResult
             The result of the optimization process.
@@ -233,7 +233,7 @@ class Result:
             Additional keyword arguments.
         """
         self._structure = structure
-        self.res = OptimizeResults(optimize_result)
+        self.res = OptimizeResult(optimize_result)
         
         self._parameters = [parameters]
 
@@ -277,11 +277,11 @@ class Result:
         ----------
         k : str or int
             If `k` is a string, returns the corresponding parameter value from all parameter sets.
-            If `k` is an integer, returns the `Structure_3D_fitter` instance initialized with the k-th parameter set.
+            If `k` is an integer, returns the `Structure3D` instance initialized with the k-th parameter set.
 
         Returns
         -------
-        numpy.ndarray or Structure_3D_fitter
+        numpy.ndarray or Structure3D
             The requested parameter values or the initialized structure model.
 
         Raises
@@ -307,8 +307,8 @@ class Result:
             A formatted string describing the `Result` object.
         """
         coor = self._structure._coordinate_name
-        shape = self._structure._shape_name
-        error = self._structure._error_name
+        shape = self._structure._geometry_name
+        error = self._structure._error_method_name
         lin1 = "<Resullt| num="+str(len(self._parameters))+" | "+coor+" | "+shape+" | "+error+" |>"
         lin2 = "Parameters: "+str(list(self.keys()))
         lenmax = max(len(lin1),len(lin2))
@@ -339,7 +339,7 @@ class Result:
         TypeError
             If `other` is not an instance of `Result`.
         """
-        if isinstance(other,Result):
+        if isinstance(other,ModelResult):
             if self._structure == other._structure:
                 self.res = self.res + other.res
                 self._parameters = self._parameters + other._parameters
@@ -360,6 +360,6 @@ class Result:
         return len(self._parameters)
 
 
-def model_to_hdf5(model: Result,hdf5_file_name:str,shape_name:str,error_name:str,all_header='/',other_info=dict()):
+def model_to_hdf5(model: ModelResult,hdf5_file_name:str,shape_name:str,error_name:str,all_header='/',other_info=dict()):
     
     save_model_hdf5(model,hdf5_file_name,shape_name,error_name,all_header,other_info)

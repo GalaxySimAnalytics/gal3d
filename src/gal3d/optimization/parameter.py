@@ -459,13 +459,13 @@ class Parameters():
             params = dict(zip(self.__parameters.keys(),*args))
             for i in params:
                 if i not in self.__parameters:
-                    print(f"{i} is not a parameter name")
+                    logger.warning(f"Assigning value failed. {i} is not a parameter name")
                 else:
                     self.__parameters[i] = self.__parameters[i].assign_value(params[i])
         
         for i in kwargs:
             if i not in self.__parameters:
-                print(f"{i} is not a parameter name")
+                logger.warning(f"Assigning value failed. {i} is not a parameter name")
             else:
                 self.__parameters[i] = self.__parameters[i].assign_value(kwargs[i])
                 
@@ -487,7 +487,7 @@ class Parameters():
         """
         for i in kwargs:
             if i not in self.__parameters:
-                print(f"{i} is not a parameter name")
+                logger.warning(f"Setting upper bound failed. {i} is not a parameter name.")
             else:
                 self.__parameters[i].ub = kwargs[i]
         return self
@@ -507,7 +507,7 @@ class Parameters():
         """
         for i in kwargs:
             if i not in self.__parameters:
-                print(f"{i} is not a parameter name")
+                logger.warning(f"Setting lower bound failed. {i} is not a parameter name.")
             else:
                 self.__parameters[i].lb = kwargs[i]
         return self
@@ -631,11 +631,11 @@ class Parameters():
         
         if self.__equal_constraints:
             wraps(function)
-            def wrapper(params, kwargs):
+            def wrapper(params,*args, **kwargs):
                 inputdic = dict(zip(list(self.keys()),params))
                 new_params = [inputdic[i] if i in inputdic else self.__equal_constraints[i](inputdic) for i in self._parameter_names]
                 
-                result = function(new_params, kwargs)
+                result = function(new_params, *args,**kwargs)
                 return result
             return wrapper
         else:

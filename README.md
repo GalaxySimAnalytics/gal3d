@@ -45,6 +45,7 @@ $$f = (\frac{x}{a})^2+(\frac{y}{b})^2+(\frac{z}{c})^2,\ \ \ \ \ \ \ \ c \leq b \
 * Ellipsoid_S:
 
 $$[(\frac{x}{a})^2]^{S_a}+[(\frac{y}{b})^2]^{S_b}+[(\frac{z}{c})^2]^{S_c}=1$$
+
 where
 $$0.2\leq S_a,S_b,S_c \leq 2,\ \ \ c \leq b \leq a$$
 The shape of the equal density surface is characterized by 

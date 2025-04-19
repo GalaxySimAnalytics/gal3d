@@ -1,5 +1,5 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any
+from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
 import numpy
 from gal3d.shape.geometry import GeometryBase
 from gal3d.shape.geomtry_plugins.ellipsoid import Ellipsoid

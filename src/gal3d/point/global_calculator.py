@@ -45,7 +45,6 @@ class GlobalCalculator:
     abc_vector(pos, mass)
         Static method to compute the principal axes (a, b, c).
     """
-    __slots__ = ["pos","mass","r"]
     
     def __init__(self,pos,mass):
         """

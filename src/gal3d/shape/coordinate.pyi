@@ -1,5 +1,5 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any
+from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
 import numpy
 from gal3d.shape.coordinate import CoordinateBase
 from gal3d.shape.coordinate_plugins.euler_shift import EulerShift

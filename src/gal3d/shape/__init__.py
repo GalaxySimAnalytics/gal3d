@@ -1,6 +1,5 @@
 
 from typing import Callable, Self, Tuple, Dict
-from functools import partial
 from types import MethodType
 
 import numpy as np 
@@ -74,7 +73,7 @@ class Structure3D:
         Structure3D
             A new Structure3D instance with the given parameters.
         '''
-        ret = Structure3D(coordinate=self._coordinate,geometry=self._geometry,error_func=self._error_func)
+        ret = Structure3D(coordinate=self._coordinate,geometry=self._geometry,error_func=self._error_func,error_method=self._error_method)
         ret.set_parameters(*args,**kwargs)
         return ret
     
@@ -256,7 +255,7 @@ class Structure3D:
 
         coord_pa,geoty_pa = self._generate_quick(**kwargs)
             
-        return self._geometry(**geoty_pa).quick_line_intersect(pos1 =self._coordinate(**coord_pa)(pos1), pos2=self._coordinate(**coord_pa)(pos2))
+        return self._geometry.quick_line_intersect(**geoty_pa,pos1 =self._coordinate(**coord_pa)(pos1), pos2=self._coordinate(**coord_pa)(pos2))
     
     
     def _generate_normal(self,**kwargs) -> Tuple[dict,dict]:
@@ -306,7 +305,7 @@ class Structure3D:
         
         coord_pa,geoty_pa = self._generate_quick()
         
-        points, _ = self._geometry(**geoty_pa).ray_point(cpos)
+        points = self._geometry(**geoty_pa).ray_point(cpos)
         
         return self._coordinate(**coord_pa).inverse(points)
     

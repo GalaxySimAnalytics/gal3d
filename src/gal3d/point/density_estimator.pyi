@@ -1,12 +1,12 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any
+from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
 import numpy
 from gal3d.point.density_estimator import DensityEstimatorBase
 from gal3d.point.density_estimator_plugins.estimator_knn import DensityEstimatorKNN
 
 class DensityEstimatorBase:
 
-    def __init__(self, pos, mass, parameter_mode: str = 'Density') -> None:
+    def __init__(self, pos, mass, parameter_mode: str = 'Density', kernel: None = None) -> None:
         """
         Initialize self.  See help(type(self)) for accurate signature.
         """

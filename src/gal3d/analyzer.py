@@ -37,14 +37,14 @@ class Gal3DAnalyzer:
         else:
             resall = []
             for i in tqdm(r):
-              #  try:
-                if resall:
-                    res_value = {i:resall[-1][i][0] for i in resall[-1].keys()}
-                    kwargs['init_parameters'] = res_value
-                res = work(self, i,**kwargs)
-                resall.append(res)
-              #  except Exception as e:
-               #     logger.warning(f'Exception: skip fitting at radius {i:.2f} : {e}')
+                try:
+                    if resall:
+                        res_value = {i:resall[-1][i][0] for i in resall[-1].keys()}
+                        kwargs['init_parameters'] = res_value
+                    res = work(self, i,**kwargs)
+                    resall.append(res)
+                except Exception as e:
+                    logger.error(f'Skip fitting at radius {i:.2f}, for error {e}')
                     
             if len(resall)>0:
                 return sum(resall[1:],resall[0])

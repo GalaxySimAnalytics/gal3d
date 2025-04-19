@@ -317,7 +317,7 @@ class Parameters():
         int
             The number of parameters.
         """
-        return len(self.data)
+        return len(self.__parameters)
     def __contains__(self, key):
         """
         Checks if a key is in the parameters.

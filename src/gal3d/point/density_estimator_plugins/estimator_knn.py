@@ -23,7 +23,7 @@ __all__ =['DensityEstimatorKNN']
 
 class DensityEstimatorKNN(DensityEstimatorBase):
     '''Estimate the parameter value at any position by kd-tree'''
-    def __init__(self, pos, mass, parameter_mode: str = 'Density', num_near: int = 32,**kwargs):
+    def __init__(self, pos, mass, parameter_mode: str = 'Density',kernel = None, k_nearest: int = 32, r_cut: float | None = None, **kwargs):
         '''
         Parameters:
             pos: ndarray, shape(n,3)
@@ -35,7 +35,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
                 - If 'Density' (default), the function estimates the density. 
                   For example, if the input `mass` is mass, the function returns density.
                 - If 'Mean', the function returns the average value of the `mass` property.
-            num_near: int, default 32
+            k_nearest: int, default 32
                 The number of nearest points used to estimate the target parameter.
             **kwargs: dict, optional
                 Additional keyword arguments passed to the KDTree constructor and query methods.
@@ -58,9 +58,9 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             get_gradient(target_pos)
                 Estimate the gradient of the parameter at the target positions.
         '''
-        super().__init__(pos,mass,parameter_mode)
+        super().__init__(pos,mass,parameter_mode,kernel)
         
-        self.__generate_kd_options(num_near,**kwargs)
+        self.__generate_kd_options(k_nearest,r_cut,**kwargs)
 
         logger.info(f"Build KDtree with options {self._tree_build_options}")
         self.tree = KDTree(self.pos,**self._tree_build_options)
@@ -170,12 +170,12 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return fit_pa
     
     
-    def __generate_kd_options(self,num_near,**kwargs):
+    def __generate_kd_options(self,k_nearest,r_cut,**kwargs):
         '''
         Generate options for KDTree construction and query.
 
         Parameters:
-            num_near: int
+            k_nearest: int
                 The number of nearest neighbors to consider.
             **kwargs: dict, optional
                 Additional keyword arguments passed to the KDTree constructor and query methods.
@@ -184,9 +184,11 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self._tree_build_options = func_optional_key(KDTree)
         self._tree_query_options = func_optional_key(KDTree.query)
         
-        self._tree_build_options['leafsize'] = num_near
+        self._tree_build_options['leafsize'] = k_nearest
         self._tree_query_options['workers'] = os.cpu_count()
-        self._tree_query_options['k'] = num_near
+        self._tree_query_options['k'] = k_nearest
+        if r_cut:
+            self._tree_query_options['distance_upper_bound'] = r_cut
         
         logger.info(f"cpu nums: {self._tree_query_options['workers']}")
         

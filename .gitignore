@@ -9,3 +9,8 @@ src/test.py
 **/__pycache__
 
 **/gal3d.log
+
+tests/test_data
+**/.coverage
+
+.pytest_cache

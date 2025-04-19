@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from .hist2d import hist_2d,show_image,show_contour,add_colorbar
 from ..point import Particles
-from .model_projector import VisualModel_IntegrateLine,VisualModel_SphGrid,AbstractBaseVisualize
+from .model_projector import ModelProjectorBase
 from ..util.array_operate import Rotate
 
 def which_pos_to_rotation(which_pos):
@@ -19,7 +19,7 @@ def which_pos_to_rotation(which_pos):
         h1[i] = np.eye(3)[int(order[i])]
     return h1.T
 
-def show_data_model(axes,model: AbstractBaseVisualize, data,which_pos=(0,1),rotation_matrix=np.eye(3),
+def show_data_model(axes,model: ModelProjectorBase, data,which_pos=(0,1),rotation_matrix=np.eye(3),
                     x_range=(-15,15),y_range=(-15,15),z_range=(-20,20),nbins=200,logscale=True,
                     cmap='turbo',nlevels=20,linewidth=0.8,color='k',linestyle='-'
                     ):
@@ -110,7 +110,7 @@ def plot_zoom(main_axs,zoom_axs,xy=(0,0),length=10,height=10,
 
 def show_image_model_residual(
     data: Particles,
-    model: AbstractBaseVisualize,
+    model: ModelProjectorBase,
     large_box_x_range=(-15,15),
     large_box_y_range=(-15,15),
     zoom_x_range=(-5,5),

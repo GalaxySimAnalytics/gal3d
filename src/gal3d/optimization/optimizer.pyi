@@ -1,5 +1,5 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any
+from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
 import numpy
 from gal3d.optimization.optimizer import OptimizerBase
 from gal3d.optimization.optimizer_plugins.optimize_nlopt import OptimizerNLopt

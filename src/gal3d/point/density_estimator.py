@@ -8,8 +8,7 @@ import numpy as np
 
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
-
-Update_plugin_stub = True
+from .. import config
 
 __all__ = ['DensityEstimator','DensityEstimatorBase']
 
@@ -24,21 +23,22 @@ _current_dir = os.path.dirname(__file__)
 _current_file_name = os.path.basename(_current_path)
 _pyi_name = _current_file_name.replace('.py','.pyi')
 
-
+#TODO kernel
 class DensityEstimatorBase(ABC):
     
     
-    def __init__(self, pos, mass, parameter_mode: str = 'Density'):
+    def __init__(self, pos, mass, parameter_mode: str = 'Density', kernel: None = None):
     
         self.pos = self._shape_check(pos)
         self.mass = mass
 
         self.pa_mode = parameter_mode
+        self.kernel = kernel
         
     def __init_subclass__(cls, **kwargs):
         _DensityEstimatorPlugins[cls.__name__] = cls
         logger.info(f"Find DensityEstimatorPlugin: {cls.__name__} and load successfully")
-        if Update_plugin_stub:
+        if config['update_stub']:
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(DensityEstimator,DensityEstimatorBase,_DensityEstimatorPlugins, output_path)
             logger.info(f"✅ Updated stub: {output_path}")

@@ -10,10 +10,7 @@ from numpy.typing import ArrayLike,NDArray
 from .with_parameter import WithParameter, abstractmethod, Parameters
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
-
-
-
-Update_plugin_stub = True
+from .. import config
 
 __all__ = ['Geometry','GeometryBase']
 
@@ -43,7 +40,7 @@ class GeometryBase(WithParameter):
             
         _GeometryPlugins[cls.__name__] = cls
         logger.info(f"Find GeometryPlugin: {cls.__name__} and load successfully")
-        if Update_plugin_stub:
+        if config['update_stub']:
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(Geometry,GeometryBase,_GeometryPlugins, output_path)
             logger.info(f"✅ Updated stub: {output_path}")
@@ -129,14 +126,13 @@ class GeometryBase(WithParameter):
 
 
 class Geometry:
+    
+    
     @staticmethod
     def _updata_plugin_stub():
         output_path = os.path.join(_current_dir, _pyi_name)
         generate_plugin_stub(Geometry,GeometryBase,_GeometryPlugins, output_path)
         logger.info(f"✅ Updated stub: {output_path}")
-    
-    
-    
     
     @staticmethod
     def get_plugin(plugin: str | None) -> GeometryBase:

@@ -202,7 +202,7 @@ def is_static_or_class_method(cls,attr_name):
 def generate_plugin_stub(base,abc, plugins: Dict[str, Type], output_path: str):
     lines = [
         "import typing",
-        "from typing import overload, Type, Literal, List, NoReturn, Union, Any",
+        "from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence",
         "import numpy",
         f"from {abc.__module__} import {abc.__name__}",
         *[

@@ -65,7 +65,7 @@ class ProjectorLineIntegration(ModelProjectorBase):
         project_profile = [list([list(),list()]) for _ in range(len(pos1))]
         model_sel = self.model_sel
         
-        alll = self.model[int(model_sel[-1])].quick_call_intersect(pos1=pos1,pos2=pos2)
+        alll = self.model[int(model_sel[-1])].quick_line_intersect(pos1=pos1,pos2=pos2)
         ind = np.arange(len(pos1))
         ind_in = ind[(alll[:,0]>0.)]
         ind_total = ind_in.copy()
@@ -73,7 +73,7 @@ class ProjectorLineIntegration(ModelProjectorBase):
         para = self.model['parameter']
         for i in tqdm(model_sel[::-1]):
             
-            sec = self.model[int(i)].quick_call_intersect(pos1=pos1[ind_in],pos2=pos2[ind_in])
+            sec = self.model[int(i)].quick_line_intersect(pos1=pos1[ind_in],pos2=pos2[ind_in])
             tar = ind_in[(sec[:,0]>0.)]
             sec = sec[(sec[:,0]>0.)]
 

@@ -1,8 +1,6 @@
 from collections import OrderedDict
 
 
-
-
 # https://gist.github.com/davesteele/44793cd0348f59f8fadd49d7799bd306
 class CacheDict(OrderedDict):
     """Dict with a limited length, ejecting LRUs as needed."""
@@ -26,4 +24,3 @@ class CacheDict(OrderedDict):
         super().move_to_end(key)
 
         return val
-    

@@ -1,11 +1,11 @@
-
 import copy
 import logging
 from functools import wraps
 
 import numpy as np
 from scipy import optimize
-#from optimagic import Bounds
+
+# from optimagic import Bounds
 
 from .util import truncate
 
@@ -45,9 +45,10 @@ class Parameter(float):
     ub.setter
         Property setter for the upper bound.
     """
-    
-    __slots__ = ["_lb","_ub"]
-    def __new__(cls,value,**kwargs):
+
+    __slots__ = ["_lb", "_ub"]
+
+    def __new__(cls, value, **kwargs):
         """
         Creates a new instance of the Parameter class.
 
@@ -68,17 +69,17 @@ class Parameter(float):
         Parameter
             A new instance of the Parameter class.
         """
-        instance = float.__new__(cls,value)
-        
-        if isinstance(value,Parameter):
-            object.__setattr__(instance,'_lb',kwargs.get('lb',value.lb))
-            object.__setattr__(instance,'_ub',kwargs.get('ub',value.ub))
+        instance = float.__new__(cls, value)
+
+        if isinstance(value, Parameter):
+            object.__setattr__(instance, '_lb', kwargs.get('lb', value.lb))
+            object.__setattr__(instance, '_ub', kwargs.get('ub', value.ub))
             return instance
-        object.__setattr__(instance,'_lb',kwargs.get('lb',-np.inf))
-        object.__setattr__(instance,'_ub',kwargs.get('ub',np.inf))
+        object.__setattr__(instance, '_lb', kwargs.get('lb', -np.inf))
+        object.__setattr__(instance, '_ub', kwargs.get('ub', np.inf))
         return instance
-    
-    def assign_value(self,value):
+
+    def assign_value(self, value):
         """
         Assigns a new value to the parameter while preserving the bounds.
 
@@ -92,9 +93,9 @@ class Parameter(float):
         Parameter
             A new instance of the Parameter class with the updated value and the same bounds.
         """
-        inst = self.__class__.__new__(self.__class__,value,lb=self.lb,ub=self.ub)
+        inst = self.__class__.__new__(self.__class__, value, lb=self.lb, ub=self.ub)
         return inst
-        
+
     @property
     def lb(self):
         """
@@ -106,7 +107,7 @@ class Parameter(float):
             The lower bound of the parameter.
         """
         return self._lb
-    
+
     @property
     def ub(self):
         """
@@ -118,9 +119,9 @@ class Parameter(float):
             The upper bound of the parameter.
         """
         return self._ub
-    
+
     @ub.setter
-    def ub(self,value):
+    def ub(self, value):
         """
         Set the upper bound of the parameter.
 
@@ -130,9 +131,9 @@ class Parameter(float):
             The new upper bound of the parameter.
         """
         self._ub = value
-        
+
     @lb.setter
-    def lb(self,value):
+    def lb(self, value):
         """
         Set the lower bound of the parameter.
 
@@ -144,8 +145,7 @@ class Parameter(float):
         self._lb = value
 
 
-
-class Parameters():
+class Parameters:
     """
     A class representing a collection of parameters with bounds and derived values.
 
@@ -206,7 +206,8 @@ class Parameters():
     add_info(**kwargs)
         Adds additional information to the Parameters instance.
     """
-    def __init__(self,**kwargs):
+
+    def __init__(self, **kwargs):
         """
         Initializes the Parameters class with a set of parameters.
 
@@ -215,16 +216,18 @@ class Parameters():
         **kwargs : dict
             A dictionary of parameter names and their initial values.
         """
-        self.__parameters = dict(**{key: Parameter(value) for key, value in kwargs.items()})    
+        self.__parameters = dict(
+            **{key: Parameter(value) for key, value in kwargs.items()}
+        )
         self._derived = {}
         self._info = {}
-        
+
         self.__equal_constraints = {}
-        self.__constraints_parameters={}
-        
+        self.__constraints_parameters = {}
+
         self._parameter_names = list(self.__parameters.keys())
-        
-    def new(self,*args,**kwargs):
+
+    def new(self, *args, **kwargs):
         """
         Creates a new instance of Parameters with updated values and bounds.
 
@@ -245,19 +248,19 @@ class Parameters():
         new._derived = self._derived.copy()
         new._info = self._info.copy()
         new.__equal_constraints = self.__equal_constraints.copy()
-        
+
         new._parameter_names = self._parameter_names.copy()
         new.set_lb(**self.lb)
         new.set_ub(**self.ub)
         if args:
-            params = dict(zip(self.keys(),*args))
+            params = dict(zip(self.keys(), *args))
             new.set_value(**params)
         if kwargs:
             new.set_value(**kwargs)
-        
+
         return new
-    
-    def truncate_dict(self,n=3):
+
+    def truncate_dict(self, n=3):
         """
         Truncates the parameter values to `n` decimal places.
 
@@ -271,9 +274,8 @@ class Parameters():
         dict
             A dictionary of parameter names and their truncated values.
         """
-        return {i:truncate(self.__parameters[i],n) for i in self.__parameters}
-        
-        
+        return {i: truncate(self.__parameters[i], n) for i in self.__parameters}
+
     def available_keys(self):
         """
         Returns a set of all available keys, including parameter keys, derived keys, and info keys.
@@ -283,8 +285,13 @@ class Parameters():
         set
             A set of all available keys.
         """
-        return self.keys() | self.__equal_constraints.keys() | self._derived.keys() | self._info.keys()
-    
+        return (
+            self.keys()
+            | self.__equal_constraints.keys()
+            | self._derived.keys()
+            | self._info.keys()
+        )
+
     def keys(self):
         """
         Returns the keys of the parameters.
@@ -295,7 +302,7 @@ class Parameters():
             The keys of the parameters.
         """
         return self.__parameters.keys()
-    
+
     def derived(self, f):
         """
         Adds a derived parameter function to the collection.
@@ -306,8 +313,7 @@ class Parameters():
             A function that computes a derived parameter.
         """
         self._derived[f.__name__] = f
-        
-        
+
     def __len__(self):
         """
         Returns the number of parameters.
@@ -318,6 +324,7 @@ class Parameters():
             The number of parameters.
         """
         return len(self.__parameters)
+
     def __contains__(self, key):
         """
         Checks if a key is in the parameters.
@@ -333,7 +340,7 @@ class Parameters():
             True if the key is in the parameters, False otherwise.
         """
         return key in self.__parameters
-    
+
     def __repr__(self):
         """
         Returns a string representation of the Parameters instance.
@@ -344,8 +351,8 @@ class Parameters():
             A string representation of the Parameters instance.
         """
         dict_repr = repr(self.__parameters)
-        
-        return "Parameters( " +dict_repr[1:-1]+ " )"
+
+        return "Parameters( " + dict_repr[1:-1] + " )"
 
     def __setitem__(self, key, value):
         """
@@ -364,14 +371,14 @@ class Parameters():
             If the key is not in the parameters.
         """
         if key in self.__parameters:
-            if isinstance(value,Parameter):
+            if isinstance(value, Parameter):
                 self.__parameters[key] = value
-                return 
+                return
             else:
                 self.__parameters[key] = self.__parameters[key].assign_value(value)
-                return 
+                return
         raise KeyError(f"Only Parameter: {list(self.keys())} can be set values")
-    
+
     def __getitem__(self, k):
         """
         Gets the value of a parameter or derived parameter.
@@ -401,7 +408,7 @@ class Parameters():
             return self._info[k]
         else:
             raise KeyError(k)
-        
+
     def __copy__(self):
         """
         Creates a shallow copy of the Parameters instance.
@@ -414,8 +421,8 @@ class Parameters():
         inst = self.__class__.__new__(self.__class__)
         inst.__dict__.update(self.__dict__)
         return inst
-    
-    def update(self,other):
+
+    def update(self, other):
         """
         Updates the parameters with values from another Parameters instance or dictionary.
 
@@ -428,7 +435,7 @@ class Parameters():
         -------
         None
         """
-        if isinstance(other,Parameters):
+        if isinstance(other, Parameters):
             return self.__parameters.update(other)
         else:
             for i in other:
@@ -437,9 +444,9 @@ class Parameters():
                 else:
                     self.__parameters[i] = Parameter(other[i])
                     self._parameter_names.append(i)
-            return 
-    
-    def set_value(self,*args,**kwargs):
+            return
+
+    def set_value(self, *args, **kwargs):
         """
         Sets the values of multiple parameters.
 
@@ -456,22 +463,24 @@ class Parameters():
             The updated Parameters instance.
         """
         if args:
-            params = dict(zip(self.__parameters.keys(),*args))
+            params = dict(zip(self.__parameters.keys(), *args))
             for i in params:
                 if i not in self.__parameters:
-                    logger.warning(f"Assigning value failed. {i} is not a parameter name")
+                    logger.warning(
+                        f"Assigning value failed. {i} is not a parameter name"
+                    )
                 else:
                     self.__parameters[i] = self.__parameters[i].assign_value(params[i])
-        
+
         for i in kwargs:
             if i not in self.__parameters:
                 logger.warning(f"Assigning value failed. {i} is not a parameter name")
             else:
                 self.__parameters[i] = self.__parameters[i].assign_value(kwargs[i])
-                
+
         return self
-    
-    def set_ub(self,**kwargs):
+
+    def set_ub(self, **kwargs):
         """
         Sets the upper bounds of multiple parameters.
 
@@ -487,11 +496,14 @@ class Parameters():
         """
         for i in kwargs:
             if i not in self.__parameters:
-                logger.warning(f"Setting upper bound failed. {i} is not a parameter name.")
+                logger.warning(
+                    f"Setting upper bound failed. {i} is not a parameter name."
+                )
             else:
                 self.__parameters[i].ub = kwargs[i]
         return self
-    def set_lb(self,**kwargs):
+
+    def set_lb(self, **kwargs):
         """
         Sets the lower bounds of multiple parameters.
 
@@ -507,10 +519,13 @@ class Parameters():
         """
         for i in kwargs:
             if i not in self.__parameters:
-                logger.warning(f"Setting lower bound failed. {i} is not a parameter name.")
+                logger.warning(
+                    f"Setting lower bound failed. {i} is not a parameter name."
+                )
             else:
                 self.__parameters[i].lb = kwargs[i]
         return self
+
     @property
     def lb(self):
         """
@@ -521,7 +536,7 @@ class Parameters():
         dict
             A dictionary of parameter names and their lower bounds.
         """
-        return {i:j.lb for i,j in self.__parameters.items()}
+        return {i: j.lb for i, j in self.__parameters.items()}
 
     @property
     def ub(self):
@@ -533,9 +548,9 @@ class Parameters():
         dict
             A dictionary of parameter names and their upper bounds.
         """
-        return {i:j.ub for i,j in self.__parameters.items()}
-    
-    def __add__(self,other):
+        return {i: j.ub for i, j in self.__parameters.items()}
+
+    def __add__(self, other):
         """
         Merges two Parameters instances or a Parameters instance with a dictionary.
 
@@ -554,9 +569,9 @@ class Parameters():
         TypeError
             If `other` is not a dictionary or Parameters instance.
         """
-        if isinstance(other,Parameters):
+        if isinstance(other, Parameters):
             logger.debug(f"merge {self} and {other}")
-            
+
             h1 = copy.copy(self)
             h2 = copy.copy(other)
             h1.update(h2)
@@ -565,16 +580,16 @@ class Parameters():
             h1.__equal_constraints.update(h2.__equal_constraints)
             h1._parameter_names = h1._parameter_names + h2._parameter_names
             return h1
-        if isinstance(other,dict):
+        if isinstance(other, dict):
             logger.debug(f"merge {self} and {other}")
-            
+
             h1 = copy.copy(self)
             h1.update(other)
             h1._parameter_names = h1._parameter_names + list(other.keys())
             return h1
         logger.error(f"{other} is not a dict")
         raise TypeError("Must be dict")
-    
+
     @property
     def scipy_bounds(self):
         """
@@ -585,10 +600,12 @@ class Parameters():
         scipy.optimize.Bounds
             A Bounds object containing the lower and upper bounds of all parameters.
         """
-        return optimize.Bounds(lb=[i.lb for i in self.__parameters.values()],ub=[i.ub for i in self.__parameters.values()])
-    
-    
-    def add_info(self,**kwargs):
+        return optimize.Bounds(
+            lb=[i.lb for i in self.__parameters.values()],
+            ub=[i.ub for i in self.__parameters.values()],
+        )
+
+    def add_info(self, **kwargs):
         """
         Adds additional information to the Parameters instance.
 
@@ -598,13 +615,13 @@ class Parameters():
             A dictionary of additional information to add to the Parameters instance.
         """
         self._info.update(kwargs)
-    
+
     @property
     def structure_parameters(self):
-        
+
         return {i: self[i] for i in self._parameter_names}
-        
-    def add_equal_constraints(self,**kwargs):
+
+    def add_equal_constraints(self, **kwargs):
         for i in kwargs:
             if callable(kwargs[i]):
                 if i not in self.__equal_constraints:
@@ -613,30 +630,43 @@ class Parameters():
             else:
                 raise ValueError(f"The constraint of {i} must be callable")
 
-    def del_equal_constraints(self,name):
+    def del_equal_constraints(self, name):
         if name in self.__equal_constraints:
             if name in self.__constraints_parameters:
                 self.__parameters[name] = self.__constraints_parameters.pop(name)
                 self.__equal_constraints.pop(name)
 
                 # retain the parameters order
-                ordername = list(filter(lambda x: x in self.__parameters, self._parameter_names))
+                ordername = list(
+                    filter(lambda x: x in self.__parameters, self._parameter_names)
+                )
                 self.__parameters = {i: self.__parameters[i] for i in ordername}
             else:
-                raise ValueError(f"The parameter {name} was not recorded by __constraints_parameters")
+                raise ValueError(
+                    f"The parameter {name} was not recorded by __constraints_parameters"
+                )
         else:
             raise ValueError(f"No constraints on the parameter {name}")
-    
-    def decorate_func_contraints(self,function):
-        
+
+    def decorate_func_contraints(self, function):
+
         if self.__equal_constraints:
             wraps(function)
-            def wrapper(params,*args, **kwargs):
-                inputdic = dict(zip(list(self.keys()),params))
-                new_params = [inputdic[i] if i in inputdic else self.__equal_constraints[i](inputdic) for i in self._parameter_names]
-                
-                result = function(new_params, *args,**kwargs)
+
+            def wrapper(params, *args, **kwargs):
+                inputdic = dict(zip(list(self.keys()), params))
+                new_params = [
+                    (
+                        inputdic[i]
+                        if i in inputdic
+                        else self.__equal_constraints[i](inputdic)
+                    )
+                    for i in self._parameter_names
+                ]
+
+                result = function(new_params, *args, **kwargs)
                 return result
+
             return wrapper
         else:
             return function

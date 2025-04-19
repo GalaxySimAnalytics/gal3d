@@ -1,13 +1,19 @@
 from .global_calculator import GlobalCalculator
-from .density_estimator import DensityEstimator,DensityEstimatorBase
+from .density_estimator import DensityEstimator, DensityEstimatorBase
 
 
 class Particles(GlobalCalculator):
-    
+
     available_estimator = DensityEstimator.available_plugins
-    
-    def __init__(self, pos, mass, parameter_mode: str = 'Density',
-                 density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',estimator_kwargs: dict | None = None):
+
+    def __init__(
+        self,
+        pos,
+        mass,
+        parameter_mode: str = 'Density',
+        density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',
+        estimator_kwargs: dict | None = None,
+    ):
         '''
         Initialize the Particles class with particle positions, weights, and other parameters.
 
@@ -20,7 +26,7 @@ class Particles(GlobalCalculator):
         parameter_mode : str, optional
             {'Density', 'Mean'}, determines how to calculate the target parameter. Default is 'Density'.
         density_estimator:
-        
+
         estimator_kwargs : dict, optional
             Additional keyword arguments passed to `density_estimator`.
 
@@ -30,27 +36,32 @@ class Particles(GlobalCalculator):
             The initialized Particles object.
         '''
 
-        GlobalCalculator.__init__(self,pos,mass)
+        GlobalCalculator.__init__(self, pos, mass)
         estimator_kwargs = {} if estimator_kwargs is None else estimator_kwargs
-        
-        if isinstance(density_estimator,str):
-            self.estimator = DensityEstimator.get_plugin(density_estimator)(self.pos,self.mass,parameter_mode,**estimator_kwargs)
-        elif issubclass(density_estimator,DensityEstimatorBase):
-            self.estimator = density_estimator(self.pos,self.mass,parameter_mode,**estimator_kwargs)
+
+        if isinstance(density_estimator, str):
+            self.estimator = DensityEstimator.get_plugin(density_estimator)(
+                self.pos, self.mass, parameter_mode, **estimator_kwargs
+            )
+        elif issubclass(density_estimator, DensityEstimatorBase):
+            self.estimator = density_estimator(
+                self.pos, self.mass, parameter_mode, **estimator_kwargs
+            )
         else:
-            raise TypeError(f"{density_estimator} must be str or subclass of DensityEstimatorBase")
-        
-        
+            raise TypeError(
+                f"{density_estimator} must be str or subclass of DensityEstimatorBase"
+            )
+
     @property
     def parameter(self):
         '''Cached property that returns the parameter values at the input positions.'''
         return self.estimator.parameter
-    
+
     @property
     def gradient(self):
         '''Cached property that returns the gradient of the parameter at the input positions.'''
         return self.estimator.gradient
-    
+
     def get_parameter(self, target_pos, **kwargs):
         '''
         Estimate the parameter value at the target positions.
@@ -65,8 +76,7 @@ class Particles(GlobalCalculator):
             results: array, shape(m,)
                 The estimated parameter values at the target positions.
         '''
-        return self.estimator.get_parameter(target_pos,**kwargs)
-    
+        return self.estimator.get_parameter(target_pos, **kwargs)
 
     def get_gradient(self, target_pos, **kwargs):
         '''
@@ -84,5 +94,4 @@ class Particles(GlobalCalculator):
                 - The first tuple contains the upward gradient magnitude and direction.
                 - The second tuple contains the downward gradient magnitude and direction.
         '''
-        return self.estimator.get_gradient(target_pos,**kwargs)
-        
+        return self.estimator.get_gradient(target_pos, **kwargs)

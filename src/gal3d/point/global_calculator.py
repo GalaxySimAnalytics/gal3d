@@ -1,22 +1,19 @@
-
-
 import logging
 from functools import cached_property
 
 import numpy as np
 
 from .util import shrink_sphere_center as ssc
-from .util import center_of_mass,centroid,moment_of_inertia,abc_vect
+from .util import center_of_mass, centroid, moment_of_inertia, abc_vect
 from ..util.array_operate import vector_length3d
 
 
 logger = logging.getLogger('gal3d.particle.global_calculator')
 
 
-
 class GlobalCalculator:
     """
-    A class to compute and store global properties of a collection of particles, 
+    A class to compute and store global properties of a collection of particles,
     such as their center of mass, moment of inertia, and shape parameters.
 
     Attributes
@@ -45,8 +42,8 @@ class GlobalCalculator:
     abc_vector(pos, mass)
         Static method to compute the principal axes (a, b, c).
     """
-    
-    def __init__(self,pos,mass):
+
+    def __init__(self, pos, mass):
         """
         Parameters
         ----------
@@ -58,12 +55,11 @@ class GlobalCalculator:
         pos = self._shape_check(pos)
         r = vector_length3d(pos)
         ind = np.argsort(r)
-        
+
         self.pos = pos[ind]
         self.mass = mass[ind]
         self.r = r[ind]
-        
-        
+
     def _shape_check(self, pos):
         '''
         Ensure the input positions have the correct shape (n, 3).
@@ -76,17 +72,18 @@ class GlobalCalculator:
             pos: ndarray, shape(n,3)
                 The reshaped positions.
         '''
-        if len(np.shape(pos))!=2:
+        if len(np.shape(pos)) != 2:
             logger.info(f"pos is 1d array with shape={np.shape(pos)}, so we reshape it")
-            pos = np.array(pos).reshape(-1,3)
-        if np.shape(pos)[1]==3:
+            pos = np.array(pos).reshape(-1, 3)
+        if np.shape(pos)[1] == 3:
             return pos
-        if np.shape(pos)[0]==3:
+        if np.shape(pos)[0] == 3:
             logger.info(f"pos have the shape= {np.shape(pos)}, so we transpose it")
             return np.array(pos).T
-        logger.info(f"pos have the shape={np.shape(pos)}, target shape: (n,3), so we reshape this")
-        return np.array(pos).reshape(-1,3)
-
+        logger.info(
+            f"pos have the shape={np.shape(pos)}, target shape: (n,3), so we reshape this"
+        )
+        return np.array(pos).reshape(-1, 3)
 
     @cached_property
     def ssc_center(self):
@@ -98,8 +95,8 @@ class GlobalCalculator:
         numpy.ndarray
             A 1D array of shape (3,) representing the center of the particles.
         """
-        return self.shrink_sphere_center(self.pos,self.mass)
-    
+        return self.shrink_sphere_center(self.pos, self.mass)
+
     @cached_property
     def mass_center(self):
         """
@@ -110,8 +107,8 @@ class GlobalCalculator:
         numpy.ndarray
             A 1D array of shape (3,) representing the center of mass.
         """
-        return center_of_mass(self.pos,self.mass)
-    
+        return center_of_mass(self.pos, self.mass)
+
     @cached_property
     def shape_center(self):
         """
@@ -123,7 +120,7 @@ class GlobalCalculator:
             A 1D array of shape (3,) representing the centroid.
         """
         return centroid(self.pos)
-    
+
     @cached_property
     def moi(self):
         """
@@ -134,8 +131,8 @@ class GlobalCalculator:
         numpy.ndarray
             A 2D array of shape (3, 3) representing the moment of inertia tensor.
         """
-        return moment_of_inertia(self.pos,self.mass)
-    
+        return moment_of_inertia(self.pos, self.mass)
+
     @cached_property
     def abc(self):
         """
@@ -146,10 +143,12 @@ class GlobalCalculator:
         tuple
             A tuple of three floats representing the lengths of the principal axes.
         """
-        return abc_vect(self.pos,self.mass)
-    
+        return abc_vect(self.pos, self.mass)
+
     @staticmethod
-    def shrink_sphere_center(pos, mass, shrink_factor=0.7, begin_r = None, min_points=100, itermax = 100):
+    def shrink_sphere_center(
+        pos, mass, shrink_factor=0.7, begin_r=None, min_points=100, itermax=100
+    ):
         """
         Computes the center of the particles using the shrink-sphere method.
 
@@ -173,24 +172,33 @@ class GlobalCalculator:
         numpy.ndarray
             A 1D array of shape (3,) representing the center of the particles.
         """
-        begin_r = begin_r or (np.max(pos[:,0]) - np.min(pos[:,0]))/2
+        begin_r = begin_r or (np.max(pos[:, 0]) - np.min(pos[:, 0])) / 2
 
         logger.info(f"Using a begin_r= {begin_r:.2f}")
-        
-        
-        cen, final_r, v_r, iternum = ssc(np.array(pos),np.array(mass),min_points,0,shrink_factor,begin_r,itermax)
-        
+
+        cen, final_r, v_r, iternum = ssc(
+            np.array(pos),
+            np.array(mass),
+            min_points,
+            0,
+            shrink_factor,
+            begin_r,
+            itermax,
+        )
+
         logger.info(f"Iteration num= {iternum}")
-        
+
         if iternum > itermax:
-            logger.error(f"shrink_sphere_center failed to converge after {iternum} iterations")
-        
+            logger.error(
+                f"shrink_sphere_center failed to converge after {iternum} iterations"
+            )
+
         logger.info(f"After iteration, final_r= {final_r:.2f}")
-        
+
         return cen
-    
+
     @staticmethod
-    def moment_of_inertia(pos,mass):
+    def moment_of_inertia(pos, mass):
         """
         Computes the moment of inertia tensor of the particles.
 
@@ -206,10 +214,10 @@ class GlobalCalculator:
         numpy.ndarray
             A 2D array of shape (3, 3) representing the moment of inertia tensor.
         """
-        return moment_of_inertia(pos,mass)
-    
+        return moment_of_inertia(pos, mass)
+
     @staticmethod
-    def abc_vector(pos,mass):
+    def abc_vector(pos, mass):
         """
         Computes the principal axes (a, b, c) of the particles.
 
@@ -225,4 +233,4 @@ class GlobalCalculator:
         tuple
             A tuple of three floats representing the lengths of the principal axes.
         """
-        return abc_vect(pos,mass)
+        return abc_vect(pos, mass)

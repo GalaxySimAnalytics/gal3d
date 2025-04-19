@@ -13,16 +13,9 @@ from .optimization.optimizer import Optimizer
 from .optimization.result import ModelResult
 
 
-
 class Gal3DExecutor:
-    
-    
-    def __init__(self, pos, mass, config = None):
-        
+
+    def __init__(self, pos, mass, config=None):
+
         self.pos = pos
         self.mass = mass
-        
-        
-    
-        
-        

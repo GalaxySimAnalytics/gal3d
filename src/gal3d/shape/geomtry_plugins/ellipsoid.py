@@ -1,19 +1,20 @@
-
 import numpy as np
 from numpy.typing import ArrayLike
 
 from ._ellipsoid_util import *
-from ..geometry import GeometryBase,classproperty,Parameters
+from ..geometry import GeometryBase, classproperty, Parameters
 
 __all__ = ['Ellipsoid']
 
+
 class Ellipsoid(GeometryBase):
-    PN = ('a','eps_ab','eps_bc')        ### not use set !!!
-    LB = {'a':0.1,'eps_ab':0.01,'eps_bc':0.01}
-    UB = {'a':np.inf,'eps_ab':0.99,'eps_bc':0.99}
-    
+    PN = ('a', 'eps_ab', 'eps_bc')  ### not use set !!!
+    LB = {'a': 0.1, 'eps_ab': 0.01, 'eps_bc': 0.01}
+    UB = {'a': np.inf, 'eps_ab': 0.99, 'eps_bc': 0.99}
+
     MaxIterationClosed = 100
-    def __init__(self,*args,**kwargs):
+
+    def __init__(self, *args, **kwargs):
         """
         Initialize the ellipsoid with given parameters.
 
@@ -32,8 +33,7 @@ class Ellipsoid(GeometryBase):
         eps_bc = 1 - c/b : 0~1
         """
         self.parameters = self.init_parameters(**kwargs)
-        
-    
+
     @staticmethod
     def init_parameters(**kwargs):
         """
@@ -50,14 +50,20 @@ class Ellipsoid(GeometryBase):
             An instance of the Parameters class containing the ellipsoid parameters.
         """
         param = Parameters(**kwargs)
-        param._derived['eps_ab'] = lambda d: 1.-d['b']/d['a']
-        param._derived['eps_bc'] = lambda d: 1.-d['c']/d['b']
-        param._derived['eps_ac'] = lambda d: 1.-d['c']/d['a']
-        param._derived['b'] = lambda d: d['a']*(1-d['eps_ab']) if 'eps_ab' in d else d['c']/(1-d['eps_bc'])
-        param._derived['c'] = lambda d: d['b']*(1-d['eps_bc']) if 'eps_bc' in d else d['a']*(1-d['eps_ac'])
-        param._derived['a'] = lambda d: d['b']/(1-d['eps_ab']) if 'eps_ab' in d else d['c']/(1-d['eps_ac'])
-        
-        parameters = Parameters(**{i:param[i] for i in Ellipsoid.PN})
+        param._derived['eps_ab'] = lambda d: 1.0 - d['b'] / d['a']
+        param._derived['eps_bc'] = lambda d: 1.0 - d['c'] / d['b']
+        param._derived['eps_ac'] = lambda d: 1.0 - d['c'] / d['a']
+        param._derived['b'] = lambda d: (
+            d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
+        )
+        param._derived['c'] = lambda d: (
+            d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
+        )
+        param._derived['a'] = lambda d: (
+            d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
+        )
+
+        parameters = Parameters(**{i: param[i] for i in Ellipsoid.PN})
         parameters._derived.update(param._derived)
         parameters.set_lb(**Ellipsoid.LB)
         parameters.set_ub(**Ellipsoid.UB)
@@ -73,9 +79,8 @@ class Ellipsoid(GeometryBase):
         Parameters
             An instance of the Parameters class containing default ellipsoid parameters.
         """
-        return Ellipsoid.init_parameters(a=3.,eps_ab=0.2,eps_bc=0.5)
-    
-    
+        return Ellipsoid.init_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5)
+
     def __call__(self, pos):
         """
         Evaluate the ellipsoid function at given positions.
@@ -90,14 +95,13 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The value of the ellipsoid function at the given positions.
         """
-        if (len(np.shape(pos))==2) and (np.shape(pos)[1] == 3):
+        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
             pos = np.float64(pos)
-        if len(np.shape(pos))==1:
+        if len(np.shape(pos)) == 1:
             pos = np.float64([pos])
-        return f_ellipsoid(self['a'],self['b'],self['c'], pos)
-    
-    
-    def jacobian(self,pos) -> tuple:
+        return f_ellipsoid(self['a'], self['b'], self['c'], pos)
+
+    def jacobian(self, pos) -> tuple:
         """
         Compute the Jacobian of the ellipsoid function at given positions.
 
@@ -111,10 +115,9 @@ class Ellipsoid(GeometryBase):
         tuple
             The Jacobian matrix of the ellipsoid function at the given positions.
         """
-        return f_ellipsoid_jacobian(self['a'],self['b'],self['c'], pos)
-    
-    
-    def ray_intersect(self,pos):
+        return f_ellipsoid_jacobian(self['a'], self['b'], self['c'], pos)
+
+    def ray_intersect(self, pos):
         """
         Compute the distance between points and the ray point on the ellipsoid.
 
@@ -128,32 +131,31 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The distance between the points and the ray point on the ellipsoid.
         """
-        if (len(np.shape(pos))==2) and (np.shape(pos)[1] == 3):
+        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
             pos = np.float64(pos)
-        if len(np.shape(pos))==1:
+        if len(np.shape(pos)) == 1:
             pos = np.float64([pos])
-        return IntersectRaysEllipsoid(self['a'],self['b'],self['c'], pos)
-    
+        return IntersectRaysEllipsoid(self['a'], self['b'], self['c'], pos)
+
     def line_intersect(self, pos1, pos2):
-        
-        if (len(np.shape(pos1))==2) and (np.shape(pos1)[1] == 3):
+
+        if (len(np.shape(pos1)) == 2) and (np.shape(pos1)[1] == 3):
             pos1 = np.float64(pos1)
-        if len(np.shape(pos1))==1:
+        if len(np.shape(pos1)) == 1:
             pos1 = np.float64([pos1])
-        if (len(np.shape(pos2))==2) and (np.shape(pos2)[1] == 3):
+        if (len(np.shape(pos2)) == 2) and (np.shape(pos2)[1] == 3):
             pos2 = np.float64(pos2)
-        if len(np.shape(pos2))==1:
+        if len(np.shape(pos2)) == 1:
             pos2 = np.float64([pos2])
-        
-        return IntersectLinesEllipsoid(self['a'],self['b'],self['c'],pos1,pos2)
-    
-    
+
+        return IntersectLinesEllipsoid(self['a'], self['b'], self['c'], pos1, pos2)
+
     def f_ray_d(self, pos):
-        
-        return f_ray_ellipsoid(self['a'],self['b'],self['c'], pos)
-    
+
+        return f_ray_ellipsoid(self['a'], self['b'], self['c'], pos)
+
     @staticmethod
-    def quick_call(a,eps_ab,eps_bc,pos):
+    def quick_call(a, eps_ab, eps_bc, pos):
         """
         Quickly evaluate the ellipsoid function with given parameters and positions.
 
@@ -173,12 +175,12 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The value of the ellipsoid function at the given positions.
         """
-        b = a*(1.-eps_ab)
-        c = b*(1.-eps_bc)
-        return f_ellipsoid(float(a),b,c,pos)
-    
+        b = a * (1.0 - eps_ab)
+        c = b * (1.0 - eps_bc)
+        return f_ellipsoid(float(a), b, c, pos)
+
     @staticmethod
-    def quick_f_ray_d(a,eps_ab,eps_bc,pos):
+    def quick_f_ray_d(a, eps_ab, eps_bc, pos):
         """
         Quickly evaluate the distance fraction of the ellipsoid function with given parameters and positions.
 
@@ -198,12 +200,12 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The distance fraction of the ellipsoid function at the given positions.
         """
-        b = a*(1.-eps_ab)
-        c = b*(1.-eps_bc)
-        return f_ray_ellipsoid(float(a),b,c,pos)
-    
+        b = a * (1.0 - eps_ab)
+        c = b * (1.0 - eps_bc)
+        return f_ray_ellipsoid(float(a), b, c, pos)
+
     @staticmethod
-    def quick_ray_dist(a,eps_ab,eps_bc,pos):
+    def quick_ray_dist(a, eps_ab, eps_bc, pos):
         """
         Quickly compute the distance between points and the ray point on the ellipsoid.
 
@@ -223,19 +225,18 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The distance between the points and the ray point on the ellipsoid.
         """
-        b = a*(1.-eps_ab)
-        c = b*(1.-eps_bc)
-        return IntersectRaysEllipsoid(float(a),b,c,pos)[1]
-    
-    
+        b = a * (1.0 - eps_ab)
+        c = b * (1.0 - eps_bc)
+        return IntersectRaysEllipsoid(float(a), b, c, pos)[1]
+
     @staticmethod
-    def quick_line_intersect(a,eps_ab,eps_bc,pos1,pos2):
-        b = a*(1-eps_ab)
-        c = b*(1-eps_bc)
-        return IntersectLinesEllipsoid(float(a),float(b),float(c),pos1,pos2)
-    
+    def quick_line_intersect(a, eps_ab, eps_bc, pos1, pos2):
+        b = a * (1 - eps_ab)
+        c = b * (1 - eps_bc)
+        return IntersectLinesEllipsoid(float(a), float(b), float(c), pos1, pos2)
+
     @staticmethod
-    def quick_jacobian(a,b,c,pos):
+    def quick_jacobian(a, b, c, pos):
         """
         Compute the Jacobian of the ellipsoid function with given parameters and positions.
 
@@ -255,14 +256,13 @@ class Ellipsoid(GeometryBase):
         tuple
             The Jacobian matrix of the ellipsoid function at the given positions.
         """
-        if (len(np.shape(pos))==2) and (np.shape(pos)[1] == 3):
+        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
             pos = np.float64(pos)
-        if len(np.shape(pos))==1:
+        if len(np.shape(pos)) == 1:
             pos = np.float64([pos])
-        return f_ellipsoid_jacobian(float(a),float(b),float(c), pos)
-    
-    
-    def closed_point(self,pos) -> tuple:
+        return f_ellipsoid_jacobian(float(a), float(b), float(c), pos)
+
+    def closed_point(self, pos) -> tuple:
         """
         Compute the closest point on the ellipsoid to the given positions and the distance.
 
@@ -275,11 +275,18 @@ class Ellipsoid(GeometryBase):
         tuple
             A tuple containing the closest points on the ellipsoid and the distances.
         """
-        if (len(np.shape(pos))==2) and (np.shape(pos)[1] == 3):
+        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
             pos = np.float64(pos)
-        if len(np.shape(pos))==1:
+        if len(np.shape(pos)) == 1:
             pos = np.float64([pos])
-        x0,x1,x2,d = DistancePointsEllipsoid(self['a'],self['b'],self['c'],pos[:,0],pos[:,1],pos[:,2],Ellipsoid.MaxIterationClosed)
-        
-        return np.array([x0,x1,x2]).T,d
-        
+        x0, x1, x2, d = DistancePointsEllipsoid(
+            self['a'],
+            self['b'],
+            self['c'],
+            pos[:, 0],
+            pos[:, 1],
+            pos[:, 2],
+            Ellipsoid.MaxIterationClosed,
+        )
+
+        return np.array([x0, x1, x2]).T, d

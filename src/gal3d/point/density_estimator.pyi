@@ -5,8 +5,9 @@ from gal3d.point.density_estimator import DensityEstimatorBase
 from gal3d.point.density_estimator_plugins.estimator_knn import DensityEstimatorKNN
 
 class DensityEstimatorBase:
-
-    def __init__(self, pos, mass, parameter_mode: str = 'Density', kernel: None = None) -> None:
+    def __init__(
+        self, pos, mass, parameter_mode: str = 'Density', kernel: None = None
+    ) -> None:
         """
         Initialize self.  See help(type(self)) for accurate signature.
         """
@@ -14,7 +15,6 @@ class DensityEstimatorBase:
 
     @classmethod
     def __init_subclass__(cls, **kwargs) -> None: ...
-
     def _shape_check(self, pos) -> None:
         """
         Ensure the input positions have the correct shape (n, 3).
@@ -64,10 +64,8 @@ class DensityEstimatorBase:
         ...
 
 class DensityEstimator:
-
     @staticmethod
     def _updata_plugin_stub() -> None: ...
-
     @staticmethod
     @overload
     def get_plugin(plugin: None) -> DensityEstimatorBase:
@@ -85,4 +83,6 @@ class DensityEstimator:
 
     @staticmethod
     @overload
-    def get_plugin(plugin: Literal['DensityEstimatorKNN']) -> Type[DensityEstimatorKNN]:...
+    def get_plugin(
+        plugin: Literal['DensityEstimatorKNN'],
+    ) -> Type[DensityEstimatorKNN]: ...

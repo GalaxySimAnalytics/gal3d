@@ -1,10 +1,8 @@
 import numpy as np
 
 
-
-    
 class BarMs:
-    def __init__(self,a,eps,pa,**kwargs):
+    def __init__(self, a, eps, pa, **kwargs):
         '''
         Class for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
 
@@ -35,18 +33,18 @@ class BarMs:
         '''
         if (np.max(pa) - np.min(pa)) < 10:
             print("-WARNING, position angle may be not in deg!!!")
-        
+
         self.a = np.asarray(a)
         self.eps = np.asarray(eps)
         self.pa = np.asarray(pa)
         if kwargs:
             for i in kwargs:
                 if len(kwargs[i]) == len(self.a):
-                    setattr(self,i,np.asarray(kwargs[i]))
-        
-        
-    def measure_bar_epsfit(self,eps_con=0.25, rangemin=0.2,startmax = 3, angle_dev = 10 ,decre = 0.85):
+                    setattr(self, i, np.asarray(kwargs[i]))
 
+    def measure_bar_epsfit(
+        self, eps_con=0.25, rangemin=0.2, startmax=3, angle_dev=10, decre=0.85
+    ):
         '''
         Measure galaxy bar parameters using ellipticity profile analysis.
 
@@ -69,7 +67,7 @@ class BarMs:
             Dictionary containing bar parameters with keys:
             - 'Rin' : float
                 Start radius where eps >= eps_con
-            - 'Rou' : float  
+            - 'Rou' : float
                 End radius where eps >= eps_con
             - 'epsmax' : float
                 Maximum ellipticity in bar region
@@ -94,33 +92,40 @@ class BarMs:
         3. Peak ellipticity > eps_con
         4. Position angle stability within angle_dev
         '''
-    
+
         R_start, R_end = self.select_region(epscon=eps_con)
-        R_start, R_end = self.filter_region(R_start, R_end, startmax=startmax, rangemin=rangemin)
-        Rstart=R_start[0] if R_end.size > 0 else 0
-        Rend=R_end[0] if R_end.size > 0 else 0
-        
+        R_start, R_end = self.filter_region(
+            R_start, R_end, startmax=startmax, rangemin=rangemin
+        )
+        Rstart = R_start[0] if R_end.size > 0 else 0
+        Rend = R_end[0] if R_end.size > 0 else 0
+
         epsmax, Rmax, pamax = self.get_max_epsRpa(Rstart, Rend, Rcon=startmax)
-        
-        eps85, R85, feps_R = self.get_eps_decreR( Rmax, epsmax, decre=decre)
+
+        eps85, R85, feps_R = self.get_eps_decreR(Rmax, epsmax, decre=decre)
         epspa, Rpa = self.get_epspaR(Rmax, anglecon=angle_dev)
 
-        barflag=0
+        barflag = 0
         if (Rstart > 0) & (epsmax > eps_con) & ((Rpa - Rmax) > rangemin):
-            barflag=1
-        
-        result={'Rin': Rstart,
-                'Rou': Rend,
-                'epsmax': epsmax,
-                'Rmax': Rmax,
-                'eps': eps85,
-                'R': R85,
-                'epspa': epspa,
-                'Rpa': Rpa,
-                'barflag': barflag}
+            barflag = 1
+
+        result = {
+            'Rin': Rstart,
+            'Rou': Rend,
+            'epsmax': epsmax,
+            'Rmax': Rmax,
+            'eps': eps85,
+            'R': R85,
+            'epspa': epspa,
+            'Rpa': Rpa,
+            'barflag': barflag,
+        }
         return result
-        
-    def select_region(self, epscon=0.25, ):        
+
+    def select_region(
+        self,
+        epscon=0.25,
+    ):
         '''
         Identify regions with ellipticity above threshold.
 
@@ -146,18 +151,18 @@ class BarMs:
                     beginflag = False
             else:
                 if not beginflag:
-                    Rend = self.a[i-1]
+                    Rend = self.a[i - 1]
                     beginflag = True
                     R_start.append(Rstart)
                     R_end.append(Rend)
-            if (i == len(self.eps)-1) & (not beginflag):
+            if (i == len(self.eps) - 1) & (not beginflag):
                 R_start.append(Rstart)
                 R_end.append(self.a[i])
         R_start = np.array(R_start, dtype=np.float64)
         R_end = np.array(R_end, dtype=np.float64)
         return R_start, R_end
-        
-    def filter_region(self,R_start, R_end, startmax=3, rangemin=0.3):
+
+    def filter_region(self, R_start, R_end, startmax=3, rangemin=0.3):
         '''
         Filter regions based on spatial constraints.
 
@@ -166,7 +171,7 @@ class BarMs:
         R_start : array_like
             Region starting radii
         R_end : array_like
-            Region ending radii  
+            Region ending radii
         startmax : float, optional
             Maximum allowed starting radius (default: 3)
         rangemin : float, optional
@@ -179,15 +184,15 @@ class BarMs:
         R_end : ndarray
             Filtered ending radii
         '''
-        selstart=(R_start < startmax)
+        selstart = R_start < startmax
         R_start = R_start[selstart]
         R_end = R_end[selstart]
-        selrange = (R_end-R_start>rangemin)
+        selrange = R_end - R_start > rangemin
         R_start = R_start[selrange]
         R_end = R_end[selrange]
-        
+
         return R_start, R_end
-    
+
     def get_max_epsRpa(self, Rstart, Rend, Rcon=3):
         '''
         Find maximum ellipticity and corresponding parameters in a region.
@@ -211,26 +216,24 @@ class BarMs:
             Position angle at maximum ellipticity
         '''
         if Rstart != Rend:
-            rangecut=((self.a >= Rstart) & (self.a  <= Rend))
-            epsmax=np.max(self.eps[rangecut])
-            Rmax=self.a [rangecut][np.argmax(self.eps[rangecut])]
-            pamax=self.pa[rangecut][np.argmax(self.eps[rangecut])]
+            rangecut = (self.a >= Rstart) & (self.a <= Rend)
+            epsmax = np.max(self.eps[rangecut])
+            Rmax = self.a[rangecut][np.argmax(self.eps[rangecut])]
+            pamax = self.pa[rangecut][np.argmax(self.eps[rangecut])]
         else:
-            epsmax=np.max(self.eps[self.a <Rcon])
-            Rmax=self.a[np.argmax(self.eps[self.a <Rcon])]
-            pamax=self.pa[np.argmax(self.eps[self.a <Rcon])]
+            epsmax = np.max(self.eps[self.a < Rcon])
+            Rmax = self.a[np.argmax(self.eps[self.a < Rcon])]
+            pamax = self.pa[np.argmax(self.eps[self.a < Rcon])]
         return epsmax, Rmax, pamax
-    
-    
-    
-    def get_eps_decreR(self, Rmax, epsmax, decre = 0.85):
+
+    def get_eps_decreR(self, Rmax, epsmax, decre=0.85):
         '''
         Determine bar length using ellipticity decrease criterion.
 
         Parameters
         ----------
         Rmax : float
-            Radius of maximum ellipticity  
+            Radius of maximum ellipticity
         epsmax : float
             Maximum ellipticity value
         decre : float, optional
@@ -246,18 +249,19 @@ class BarMs:
             Ellipticity interpolator
         '''
         import scipy
-        feps_R = scipy.interpolate.PchipInterpolator(self.a,self.eps)
-        eps85=epsmax*decre
-        rangecut=(self.a >= epsmax) 
-        R_85=feps_R.solve(eps85,discontinuity=False,extrapolate=False)
-        if R_85[R_85>Rmax].size==0:
+
+        feps_R = scipy.interpolate.PchipInterpolator(self.a, self.eps)
+        eps85 = epsmax * decre
+        rangecut = self.a >= epsmax
+        R_85 = feps_R.solve(eps85, discontinuity=False, extrapolate=False)
+        if R_85[R_85 > Rmax].size == 0:
             eps85 = self.eps[rangecut][-1]
             R85 = self.a[rangecut][-1]
         else:
-            R85=R_85[R_85>Rmax][0]
+            R85 = R_85[R_85 > Rmax][0]
         return eps85, R85, feps_R
-    
-    def get_epspaR(self,Rmax, anglecon=10):
+
+    def get_epspaR(self, Rmax, anglecon=10):
         '''
         Find position angle deviation point.
 
@@ -275,23 +279,23 @@ class BarMs:
         Rpa : float
             Radius where angle deviation exceeds threshold
         '''
-        findout=False
-        selr = (self.a>=Rmax)
+        findout = False
+        selr = self.a >= Rmax
         if len(self.a[selr]) == 1:
             Rpa = self.a[selr][0]
             epspa = self.eps[selr][0]
-            return epspa, Rpa 
+            return epspa, Rpa
         for i in range(len(self.a[selr])):
             for j in range(i):
                 Rpa = self.a[selr][i]
                 epspa = self.eps[selr][i]
-                if BarMs.inter_angle(self.pa[selr][i],self.pa[selr][j]) > anglecon:
+                if BarMs.inter_angle(self.pa[selr][i], self.pa[selr][j]) > anglecon:
                     findout = True
                     break
             if findout:
                 break
         return epspa, Rpa
-    
+
     @staticmethod
     def distance_PBC_1d(a1, a2, b):
         '''
@@ -302,7 +306,7 @@ class BarMs:
         a1 : float
             First value
         a2 : float
-            Second value  
+            Second value
         b : float
             Periodic boundary length
 
@@ -313,8 +317,8 @@ class BarMs:
         '''
         d = abs(a2 - a1)
         d = d % b
-        return min(d, b-d)
-    
+        return min(d, b - d)
+
     @staticmethod
     def inter_angle(a1, a2):
         '''

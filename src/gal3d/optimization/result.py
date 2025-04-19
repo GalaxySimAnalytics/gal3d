@@ -1,4 +1,3 @@
-
 import copy
 import logging
 from dataclasses import is_dataclass
@@ -11,10 +10,6 @@ from .util import save_model_hdf5
 
 
 logger = logging.getLogger("gal3d.optimization.result")
-
-
-
-
 
 
 class OptimizeResult:
@@ -58,12 +53,12 @@ class OptimizeResult:
     KeyError
         If attempting to access a non-existent key.
     """
-    def __init__(self,optimize_result):
+
+    def __init__(self, optimize_result):
         if not is_dataclass(optimize_result):
-            raise(f'{optimize_result} is not a dataclass')
-        
+            raise (f'{optimize_result} is not a dataclass')
+
         self._results = [optimize_result]
-        
 
     def keys(self):
         """
@@ -75,8 +70,7 @@ class OptimizeResult:
             A list of keys representing the fields in the first optimization result.
         """
         return self._results[0].__dataclass_fields__.keys()
-    
-    
+
     def __len__(self):
         """
         Returns the number of optimization results stored.
@@ -87,8 +81,7 @@ class OptimizeResult:
             The number of optimization results stored in the object.
         """
         return len(self._results)
-    
-    
+
     def __contains__(self, key):
         """
         Checks if a key is present in the fields of the first optimization result.
@@ -104,7 +97,7 @@ class OptimizeResult:
             True if the key is present, False otherwise.
         """
         return key in self._results[0].__dataclass_fields__
-    
+
     def __repr__(self):
         """
         Returns a string representation of the OptimizeResult object.
@@ -116,7 +109,7 @@ class OptimizeResult:
         """
         return f"<|OptimizeResult| {len(self._results)} |>"
 
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         """
         Retrieves the values associated with a specific key across all results.
 
@@ -136,11 +129,11 @@ class OptimizeResult:
             If the key is not present in the fields of the first optimization result.
         """
         if key in self:
-            return [getattr(i,key) for i in self._results]
-        
+            return [getattr(i, key) for i in self._results]
+
         raise KeyError(key)
 
-    def __add__(self,other):
+    def __add__(self, other):
         """
         Combines the results of two OptimizeResult objects if they are compatible.
 
@@ -161,21 +154,20 @@ class OptimizeResult:
         TypeError
             If the input is not a dataclass or OptimizeResult object.
         """
-        if isinstance(other,OptimizeResult):
+        if isinstance(other, OptimizeResult):
             if self.keys() <= other.keys():
                 self._results = self._results + other._results
                 return self
-            
+
             raise ValueError(f'{other} is not the same dataclass')
-        
+
         if not is_dataclass(other):
             raise TypeError(f'{other} is not a dataclass')
-        
+
         if self.keys() <= other.__dataclass_fields__.keys():
             self._results.append(other)
             return self
         raise ValueError(f'{other} is not the same dataclass')
-
 
 
 class ModelResult:
@@ -217,7 +209,10 @@ class ModelResult:
     __len__()
         Returns the number of parameter sets stored in the `Result` object.
     """
-    def __init__(self,structure: Structure3D, optimize_result , parameters: Parameters,**kwargs):
+
+    def __init__(
+        self, structure: Structure3D, optimize_result, parameters: Parameters, **kwargs
+    ):
         """
         Initializes the `Result` class with the given structure, optimization result, and parameters.
 
@@ -234,10 +229,9 @@ class ModelResult:
         """
         self._structure = structure
         self.res = OptimizeResult(optimize_result)
-        
+
         self._parameters = [parameters]
 
-    
     def keys(self):
         """
         Returns the keys of the parameters stored in the first `Parameters` instance.
@@ -248,8 +242,8 @@ class ModelResult:
             A list of parameter keys.
         """
         return self._parameters[0].keys()
-    
-    def __call__(self,pos,*,item: int =0,**kwargs):
+
+    def __call__(self, pos, *, item: int = 0, **kwargs):
         """
         Evaluates the 3D structure model at the given position using the specified set of parameters.
 
@@ -267,8 +261,8 @@ class ModelResult:
         array-like
             The evaluated model values at the given position.
         """
-        return self[item](pos,**kwargs)
-    
+        return self[item](pos, **kwargs)
+
     def __getitem__(self, k):
         """
         Retrieves either a specific parameter or a specific set of parameters.
@@ -289,14 +283,15 @@ class ModelResult:
         KeyError
             If `k` is neither a valid string key nor an integer index.
         """
-        if isinstance(k,str):
+        if isinstance(k, str):
             return np.array([i[k] for i in self._parameters])
-        
-        if isinstance(k,int):
-            return self._structure.from_parameters(**self._parameters[k].structure_parameters)
+
+        if isinstance(k, int):
+            return self._structure.from_parameters(
+                **self._parameters[k].structure_parameters
+            )
         raise KeyError(f"{k} is not a valid key")
-    
-        
+
     def __repr__(self):
         """
         Returns a string representation of the `Result` object.
@@ -309,16 +304,25 @@ class ModelResult:
         coor = self._structure._coordinate_name
         shape = self._structure._geometry_name
         error = self._structure._error_method_name
-        lin1 = "<Resullt| num="+str(len(self._parameters))+" | "+coor+" | "+shape+" | "+error+" |>"
-        lin2 = "Parameters: "+str(list(self.keys()))
-        lenmax = max(len(lin1),len(lin2))
-        lins = [lin1,lin2]
-        result = ''.join([i.center(lenmax," ")+ "\n" for i in lins])
-        
+        lin1 = (
+            "<Resullt| num="
+            + str(len(self._parameters))
+            + " | "
+            + coor
+            + " | "
+            + shape
+            + " | "
+            + error
+            + " |>"
+        )
+        lin2 = "Parameters: " + str(list(self.keys()))
+        lenmax = max(len(lin1), len(lin2))
+        lins = [lin1, lin2]
+        result = ''.join([i.center(lenmax, " ") + "\n" for i in lins])
+
         return result
-    
-    
-    def __add__(self,other):
+
+    def __add__(self, other):
         """
         Combines two `Result` objects if they share the same structure.
 
@@ -339,15 +343,14 @@ class ModelResult:
         TypeError
             If `other` is not an instance of `Result`.
         """
-        if isinstance(other,ModelResult):
+        if isinstance(other, ModelResult):
             if self._structure == other._structure:
                 self.res = self.res + other.res
                 self._parameters = self._parameters + other._parameters
                 return self
             raise ValueError(f"{other} have a different structure")
         raise TypeError(f"{other} is not a Result type")
-                
-    
+
     def __len__(self):
         """
         Returns the number of parameter sets stored in the `Result` object.
@@ -360,6 +363,15 @@ class ModelResult:
         return len(self._parameters)
 
 
-def model_to_hdf5(model: ModelResult,hdf5_file_name:str,shape_name:str,error_name:str,all_header='/',other_info=dict()):
-    
-    save_model_hdf5(model,hdf5_file_name,shape_name,error_name,all_header,other_info)
+def model_to_hdf5(
+    model: ModelResult,
+    hdf5_file_name: str,
+    shape_name: str,
+    error_name: str,
+    all_header='/',
+    other_info=dict(),
+):
+
+    save_model_hdf5(
+        model, hdf5_file_name, shape_name, error_name, all_header, other_info
+    )

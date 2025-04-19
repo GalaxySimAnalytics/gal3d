@@ -1,12 +1,8 @@
-
-
 import numpy as np
 from scipy.special import sph_harm
 
 
-
-
-def spherical_harmonics_in_real(phi,theta,m,l) -> float:
+def spherical_harmonics_in_real(phi, theta, m, l) -> float:
     '''
     Calculate the real part of spherical harmonics for given angles and indices.
 
@@ -33,16 +29,16 @@ def spherical_harmonics_in_real(phi,theta,m,l) -> float:
     - For m > 0: Y_l^m = (-1)^m * sqrt(2) * real(Y_l^{|m|})
     - For m = 0: Y_l^0 = real(Y_l^0)
     '''
-    
-    if m<0:
-        return (-1)**m*np.sqrt(2)*np.imag(sph_harm(m,l,phi,theta))
-    elif m>0:
-        return (-1)**m*np.sqrt(2)*np.real(sph_harm(m,l,phi,theta))
-    else:
-        return np.real(sph_harm(m,l,phi,theta))
-                            
 
-def spherical_harmonics_dec(theta,phi,density,lmax=4) -> dict:
+    if m < 0:
+        return (-1) ** m * np.sqrt(2) * np.imag(sph_harm(m, l, phi, theta))
+    elif m > 0:
+        return (-1) ** m * np.sqrt(2) * np.real(sph_harm(m, l, phi, theta))
+    else:
+        return np.real(sph_harm(m, l, phi, theta))
+
+
+def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict:
     '''
     Perform spherical harmonics decomposition on a given density distribution.
 
@@ -69,11 +65,17 @@ def spherical_harmonics_dec(theta,phi,density,lmax=4) -> dict:
     distribution multiplied by the spherical harmonics over the sphere. The integration
     is approximated by a sum over the provided grid of theta and phi values.
     '''
-    
-    coef={}
-    for l in range(lmax+1):
-        coef[l]=[]
-        for m in np.linspace(l,-l,2*l+1):
-            coef[l].append(np.sum(density*spherical_harmonics_in_real(phi,theta,m,l)*np.sin(theta)))
+
+    coef = {}
+    for l in range(lmax + 1):
+        coef[l] = []
+        for m in np.linspace(l, -l, 2 * l + 1):
+            coef[l].append(
+                np.sum(
+                    density
+                    * spherical_harmonics_in_real(phi, theta, m, l)
+                    * np.sin(theta)
+                )
+            )
         coef[l] = np.array(coef[l])
     return coef

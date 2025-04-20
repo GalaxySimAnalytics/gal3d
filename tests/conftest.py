@@ -13,7 +13,7 @@ from gal3d.analyzer import Gal3DAnalyzer
 @pytest.fixture(scope='session')
 def point_data():
     _current_dir = os.path.dirname(__file__)
-    data = np.loadtxt(_current_dir+"/test_data/TNG50_Snap99_Subhalo229934_star.txt")
+    data = np.loadtxt(_current_dir+"/test_data/TNG50_Snap99_Subhalo282780_star.txt")
     pos = data[:,:3]
     mass =data[:,3]
     return pos,mass

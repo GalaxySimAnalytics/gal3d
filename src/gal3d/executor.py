@@ -1,21 +1,27 @@
-from collections.abc import Iterable
-import time
+
+import os
+import sys
+import json
 import logging
+from .util.string_format import string_formator
 
-import numpy as np
-from tqdm import tqdm
+logger = logging.getLogger('gal3d.executor')
+def print_info():
+    from ._plugins import load_plugins_info_json
+    plugins = load_plugins_info_json()
+    for i in plugins:
+        logger.log(2025,"\n - Available "+ string_formator(i,fg_color='cyan')+" plug-ins" +": ")
+        for name in plugins[i]:
+            logger.log(2025,"           '"+name['name']+ "'")
 
-from .point import Particles
-from .field import SphField
 
-from .shape import Structure3D
-from .optimization.optimizer import Optimizer
-from .optimization.result import ModelResult
+def main():        
+    
+    if len(sys.argv) == 1:
+        print_info()
+        return
 
+    #from gal3d.analyzer import Gal3DAnalyzer
 
-class Gal3DExecutor:
-
-    def __init__(self, pos, mass, config=None):
-
-        self.pos = pos
-        self.mass = mass
+if __name__ == "__main__":
+    main()

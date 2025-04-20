@@ -153,10 +153,19 @@ class ModelProjector:
 
         if plugin is None:
             return ModelProjectorBase
+        if not _ModelProjectorPlugins:
+            ModelProjector._load_plugin()
         return _ModelProjectorPlugins[plugin]
-
+    @staticmethod
+    def _load_plugin():
+        import importlib
+        importlib.import_module("gal3d.visualization.model_projector_plugins")
+        logger.info("Successfully loaded model projector plugins")
+        
     @classproperty
     def available_plugins(cls) -> List[str]:
+        if not _ModelProjectorPlugins:
+            cls._load_plugin()
         return list(_ModelProjectorPlugins.keys())
 
 

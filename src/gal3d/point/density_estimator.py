@@ -151,12 +151,19 @@ class DensityEstimator:
 
         if plugin is None:
             return DensityEstimatorBase
-
+        if not _DensityEstimatorPlugins:
+            DensityEstimator._load_plugin()
         return _DensityEstimatorPlugins[plugin]
 
+    @staticmethod
+    def _load_plugin():
+        import importlib
+        importlib.import_module("gal3d.point.density_estimator_plugins")
+        logger.info("Successfully loaded density estimator plugins")
+        
     @classproperty
     def available_plugins(cls) -> List[str]:
+        if not _DensityEstimatorPlugins:
+            cls._load_plugin()
         return list(_DensityEstimatorPlugins.keys())
 
-
-from .density_estimator_plugins import *

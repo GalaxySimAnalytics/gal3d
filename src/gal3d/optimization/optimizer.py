@@ -19,7 +19,6 @@ _current_dir = os.path.dirname(__file__)
 _current_file_name = os.path.basename(_current_path)
 _pyi_name = _current_file_name.replace('.py', '.pyi')
 
-
 class OptimizerBase(ABC):
 
     def __init__(self, algorithm: str, algo_options: dict | None = None):
@@ -32,6 +31,7 @@ class OptimizerBase(ABC):
         self.algo_options = algo_options or {}
 
     def __init_subclass__(cls, **kwargs):
+        
         _OptimizerPlugins[cls.__name__] = cls
         logger.info(f"Find OptimizerPlugin: {cls.__name__} and load successfully")
         if config['update_stub']:
@@ -92,12 +92,20 @@ class Optimizer:
 
         if plugin is None:
             return OptimizerBase
+        if not _OptimizerPlugins:
+            Optimizer._load_plugin()
 
         return _OptimizerPlugins[plugin]
 
+    @staticmethod
+    def _load_plugin():
+        import importlib
+        importlib.import_module("gal3d.optimization.optimizer_plugins")
+        logger.info("Successfully loaded optimizer plugins")
+    
     @classproperty
     def available_plugins(cls) -> List[str]:
+        if not _OptimizerPlugins:
+            cls._load_plugin()
         return list(_OptimizerPlugins.keys())
 
-
-from .optimizer_plugins import *

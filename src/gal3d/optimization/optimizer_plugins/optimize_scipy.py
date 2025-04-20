@@ -8,7 +8,10 @@ __all__ = ['OptimizerScipy']
 
 
 class OptimizerScipy(OptimizerBase):
-    """scipy"""
+    """
+    scipy,optimize.minimize
+    The minimize function provides a common interface to unconstrained and constrained minimization algorithms for multivariate scalar functions in scipy.optimize
+    """
 
     def __init__(self, algorithm, algo_options=dict()):
         super().__init__(algorithm, algo_options)

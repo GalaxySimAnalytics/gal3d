@@ -220,6 +220,7 @@ def generate_plugin_stub(base, abc, plugins: Dict[str, Type], output_path: str):
         "import typing",
         "from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence",
         "import numpy",
+        "import gal3d",
         f"from {abc.__module__} import {abc.__name__}",
         *[f"from {cls.__module__} import {cls.__name__}" for cls in plugins.values()],
         "",

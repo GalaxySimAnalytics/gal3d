@@ -105,12 +105,21 @@ class Coordinate:
 
         if plugin is None:
             return CoordinateBase
-
+        if not _CoordinatePlugins:
+            Coordinate._load_plugin()
         return _CoordinatePlugins[plugin]
+    
+    @staticmethod
+    def _load_plugin():
+        import importlib
+        importlib.import_module("gal3d.shape.coordinate_plugins")
+        logger.info("Successfully loaded coordinate plugins")
 
     @classproperty
     def available_plugins(cls) -> List[str]:
+        if not _CoordinatePlugins:
+            cls._load_plugin()
         return list(_CoordinatePlugins.keys())
 
 
-from .coordinate_plugins import *
+

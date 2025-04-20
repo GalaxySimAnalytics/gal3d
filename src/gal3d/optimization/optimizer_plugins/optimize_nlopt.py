@@ -7,7 +7,10 @@ __all__ = ['OptimizerNLopt']
 
 
 class OptimizerNLopt(OptimizerBase):
-    """nlopt"""
+    """
+    nlopt
+    NLopt is a free/open-source library for nonlinear optimization
+    """
 
     def __init__(self, algorithm, algo_options=dict()):
         super().__init__(algorithm, algo_options)

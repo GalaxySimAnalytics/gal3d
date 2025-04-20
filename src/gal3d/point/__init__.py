@@ -1,10 +1,9 @@
 from .global_calculator import GlobalCalculator
 from .density_estimator import DensityEstimator, DensityEstimatorBase
-
+from ..util.func_decorator import classproperty
 
 class Particles(GlobalCalculator):
 
-    available_estimator = DensityEstimator.available_plugins
 
     def __init__(
         self,
@@ -95,3 +94,6 @@ class Particles(GlobalCalculator):
                 - The second tuple contains the downward gradient magnitude and direction.
         '''
         return self.estimator.get_gradient(target_pos, **kwargs)
+    @classproperty
+    def available_estimator(cls):
+        return DensityEstimator.available_plugins

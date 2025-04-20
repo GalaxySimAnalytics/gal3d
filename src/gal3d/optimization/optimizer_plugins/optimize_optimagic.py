@@ -7,7 +7,10 @@ __all__ = ['OptimizerOptimagic']
 
 
 class OptimizerOptimagic(OptimizerBase):
-    """optimagic"""
+    """
+    optimagic
+    optimagic is a Python package for numerical optimization.
+    """
 
     def __init__(self, algorithm, algo_options=dict()):
         super().__init__(algorithm, algo_options)

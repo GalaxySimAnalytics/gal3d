@@ -5,46 +5,45 @@ from gal3d.shape.coordinate import CoordinateBase
 from gal3d.shape.coordinate_plugins.euler_shift import EulerShift
 
 class CoordinateBase:
+
     @classmethod
     def __init_subclass__(cls, **kwargs) -> None: ...
-    def __call__(
-        self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]
-    ) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+
+    def __call__(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
         """
         Evaluates the coordinate function at the given positions.
         """
         ...
 
-    def jacobian(
-        self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]
-    ) -> tuple:
+    def jacobian(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> tuple:
         """
         Computes the Jacobian of the coordinate function at the given positions for each parameters.
         """
         ...
 
-    def inverse(
-        self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]
-    ) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def inverse(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
         """
         Inverse transform the given positions using the current translation and rotation parameters.
         """
         ...
 
     @staticmethod
-    def quick_call(
-        *args, **kwargs
-    ) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]: ...
+    def quick_call(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]: ...
+
     @staticmethod
     def quick_jacobian(*args, **kwargs) -> tuple: ...
+
     @staticmethod
-    def quick_inverse(
-        *args, **kwargs
-    ) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]: ...
+    def quick_inverse(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]: ...
 
 class Coordinate:
+
     @staticmethod
     def _updata_plugin_stub() -> None: ...
+
+    @staticmethod
+    def _load_plugin() -> None: ...
+
     @staticmethod
     @overload
     def get_plugin(plugin: None) -> CoordinateBase:
@@ -62,4 +61,4 @@ class Coordinate:
 
     @staticmethod
     @overload
-    def get_plugin(plugin: Literal['EulerShift']) -> Type[EulerShift]: ...
+    def get_plugin(plugin: Literal['EulerShift']) -> Type[EulerShift]:...

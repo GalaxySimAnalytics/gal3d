@@ -138,12 +138,19 @@ class Geometry:
 
         if plugin is None:
             return GeometryBase
-
+        if not _GeometryPlugins:
+            Geometry._load_plugin()
+            
         return _GeometryPlugins[plugin]
-
+    @staticmethod
+    def _load_plugin():
+        import importlib 
+        importlib.import_module("gal3d.shape.geomtry_plugins")
+        logger.info("Successfully loaded geomtry plugins")
+        
     @classproperty
     def available_plugins(cls) -> List[str]:
+        if not _GeometryPlugins:
+            cls._load_plugin()
         return list(_GeometryPlugins.keys())
 
-
-from .geomtry_plugins import *

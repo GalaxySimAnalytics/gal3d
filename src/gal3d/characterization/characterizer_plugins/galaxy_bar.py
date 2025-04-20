@@ -1,8 +1,10 @@
 import numpy as np
+from ..characterizer import CharacterizerBase
 
+__all__ = ['Bar']
 
-class BarMs:
-    def __init__(self, a, eps, pa, **kwargs):
+class Bar(CharacterizerBase):
+    def __init__(self, data,):
         '''
         Class for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
 
@@ -31,18 +33,13 @@ class BarMs:
         - Automatically converts inputs to numpy arrays
         - Checks position angle range consistency (warns if <10 deg variation)
         '''
-        if (np.max(pa) - np.min(pa)) < 10:
-            print("-WARNING, position angle may be not in deg!!!")
+        super().__init__(data)
+        
+        self.a = self.data['a']
+        self.eps = self.data['eps']
+        self.pa = self.data['pa']
 
-        self.a = np.asarray(a)
-        self.eps = np.asarray(eps)
-        self.pa = np.asarray(pa)
-        if kwargs:
-            for i in kwargs:
-                if len(kwargs[i]) == len(self.a):
-                    setattr(self, i, np.asarray(kwargs[i]))
-
-    def measure_bar_epsfit(
+    def measure(
         self, eps_con=0.25, rangemin=0.2, startmax=3, angle_dev=10, decre=0.85
     ):
         '''
@@ -289,7 +286,7 @@ class BarMs:
             for j in range(i):
                 Rpa = self.a[selr][i]
                 epspa = self.eps[selr][i]
-                if BarMs.inter_angle(self.pa[selr][i], self.pa[selr][j]) > anglecon:
+                if Bar.inter_angle(self.pa[selr][i], self.pa[selr][j]) > anglecon:
                     findout = True
                     break
             if findout:
@@ -336,4 +333,4 @@ class BarMs:
         float
             Minimum angular difference (0-90 degrees)
         '''
-        return BarMs.distance_PBC_1d(a1, a2, b=180)
+        return Bar.distance_PBC_1d(a1, a2, b=180)

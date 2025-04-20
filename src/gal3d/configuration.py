@@ -37,10 +37,10 @@ class ColorFormatter(logging.Formatter):
                 string_formator(
                     "[%(asctime)s.%(msecs)03d] ",
                     italics=True,
-                ),
+                ),"< ",
                 string_formator(
-                    "< %(filename)s >", fg_color='bright_blue', underline=True
-                ),
+                    "%(name)s", fg_color='bright_blue', underline=True
+                )," >",
                 string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
@@ -52,10 +52,10 @@ class ColorFormatter(logging.Formatter):
             [
                 string_formator(
                     "[%(asctime)s.%(msecs)03d] ", italics=True, underline=False
-                ),
+                ),"< ",
                 string_formator(
-                    "< %(filename)s >", fg_color='bright_blue', underline=True
-                ),
+                    "%(name)s", fg_color='bright_blue', underline=True
+                )," >",
                 "\n",
                 "  >>>  ",
                 string_formator("| %(levelname)s | ", fg_color='green', bold=True),
@@ -69,10 +69,10 @@ class ColorFormatter(logging.Formatter):
                     fg_color='yellow',
                     italics=True,
                     underline=False,
-                ),
+                ),"< ",
                 string_formator(
-                    "< %(filename)s >", fg_color='bright_blue', underline=True
-                ),
+                    "%(filename)s", fg_color='bright_blue', underline=True
+                )," >",
                 string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
@@ -87,10 +87,10 @@ class ColorFormatter(logging.Formatter):
                     fg_color='red',
                     italics=True,
                     underline=False,
-                ),
+                ),"< ",
                 string_formator(
-                    "< %(filename)s >", fg_color='bright_blue', underline=True
-                ),
+                    "%(filename)s", fg_color='bright_blue', underline=True
+                )," >",
                 string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
@@ -144,7 +144,7 @@ class NoColorFormatter(logging.Formatter):
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
-        if record.levelno == 25:
+        if record.levelno not in [10,20,30,40,50]:
             return self.ANSI_ESCAPE.sub('', formatter.format(record))
         return formatter.format(record)
 
@@ -157,13 +157,13 @@ def _setup_logging(config_parser):
 
     ch.setFormatter(ColorFormatter())
     logger.addHandler(ch)
-
-    fh = logging.FileHandler("./gal3d.log", mode='w', encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(NoColorFormatter())
-    logger.addHandler(fh)
-
-    logging.getLevelName
+    
+    file_handle = config_parser.getboolean('general', 'logger_file', fallback=True)
+    if file_handle:
+        fh = logging.FileHandler("./gal3d.log", mode='w', encoding="utf-8")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(NoColorFormatter())
+        logger.addHandler(fh)
 
     logger.setLevel(config_parser.getint("general", "logger_level", fallback=20))
     return logger
@@ -177,35 +177,8 @@ def set_logging_level(level=logging.INFO):
     logger.setLevel(level)
 
 
-logo = f"""
-                                         .--,-``-.                    
-    ,----..                    ,--,     /   /     '.       ,---,      
-   /   /   \                 ,--.'|    / ../        ;    .'  .' `\    
-  |   :     :                |  | :    \ ``\  .`-    ' ,---.'     \   
-  .   |  ;. /                :  : '     \___\/   \   : |   |  .`\  |  
-  .   ; /--`      ,--.--.    |  ' |          \   :   | :   : |  '  |  
-  ;   | ;  __    /       \   '  | |          /  /   /  |   ' '  ;  :  
-  |   : |.' .'  .--.  .-. |  |  | :          \  \   \  '   | ;  .  |  
-  .   | '_.' :   \__\/: . .  '  : |__    ___ /   :   | |   | :  |  '  
-  '   ; : \  |   ," .--.; |  |  | '.'|  /   /\   /   : '   : | /  ;   
-  '   | '/  .'  /  /  ,.  |  ;  :    ; / ,,/  ',-    . |   | '` ,/    
-  |   :    /   ;  :   .'   \ |  ,   /  \ ''\        ;  ;   :  .'      
-   \   \ .'    |  ,     .-./  ---`-'    \   \     .'   |   ,.'        
-    `---`       `--`---'                 `--`-,,-'     '---'          """
-logo_color = "\n".join(
-    [
-        string_formator(
-            logo.split('\n')[i],
-            bg_color=(0 + 5 * i, 0 + 5 * i, 0 + 5 * i),
-            fg_color='white',
-            bold=True,
-            italics=True,
-        )
-        for i in range(len(logo.split('\n')))
-    ]
-)
 
 config_parser = _get_config_parser_with_defaults()
 config = _get_basic_config_from_parser(config_parser)
 logger = _setup_logging(config_parser)
-logger.log(25, logo_color)
+

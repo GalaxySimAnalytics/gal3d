@@ -9,20 +9,19 @@ __all__ = ['timer', 'classproperty', 'lru_cache']
 
 
 def timer(logger):
-    '''
-    Decorator to measure the execution time of a function.
+    """
+    Decorator to measure the execution time of a function and log it.
 
     Parameters
     ----------
-    logger:
-
-    fun : function
-        The function to be wrapped.
+    logger : logging.Logger
+        Logger instance used to log the timing information.
 
     Returns
     -------
-    wrapper : function
-    '''
+    _timer : callable
+        A decorator that wraps the target function to log its execution time.
+    """
     logger = logger
 
     def _timer(fun):
@@ -42,6 +41,9 @@ def timer(logger):
 
 
 class classproperty(object):
+    """
+    Descriptor for creating read-only class-level properties.
+    """
     def __init__(self, f):
         self.f = f
 
@@ -55,11 +57,41 @@ HashSet = type('HashSet', (set,), {'__hash__': lambda self: hash(json_hash(self)
 
 
 def json_hash(o, *args, **kwargs):
+    """
+    Generate a JSON-based hash for an object.
+
+    Parameters
+    ----------
+    o : object
+        The object to be hashed.
+    *args :
+        Positional arguments passed to `json.dumps`.
+    **kwargs :
+        Keyword arguments passed to `json.dumps`.
+
+    Returns
+    -------
+    str
+        JSON string representation of the object used for hashing.
+    """
     return json.dumps(o, *args, **dict({"sort_keys": True, "default": repr}, **kwargs))
 
 
 @functools.singledispatch
 def to_hash_object(obj):
+    """
+    Convert an object to a hashable form.
+
+    Parameters
+    ----------
+    obj : object
+        The input object.
+
+    Returns
+    -------
+    object
+        The object wrapped in a hashable container if applicable.
+    """
     return obj
 
 
@@ -85,6 +117,23 @@ def _(obj: np.ndarray):
 
 # https://luoruiqing.github.io/blog/2021/12/09/Python%E7%BC%93%E5%AD%98%E5%87%BD%E6%95%B0/
 def lru_cache(*lru_args, **lru_kwargs):
+    """
+    A variant of `functools.lru_cache` that supports unhashable types by
+    converting them into hashable forms.
+
+    Parameters
+    ----------
+    *lru_args :
+        Arguments passed to `functools.lru_cache`, such as `maxsize`.
+    **lru_kwargs :
+        Keyword arguments passed to `functools.lru_cache`.
+
+    Returns
+    -------
+    callable
+        A decorator that wraps a function with an LRU cache supporting
+        dict, list, set, and NumPy array types.
+    """
     def wrapper_cache(func):
         func = functools.lru_cache(*lru_args, **lru_kwargs)(func)
 

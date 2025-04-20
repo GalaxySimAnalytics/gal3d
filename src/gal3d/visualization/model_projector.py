@@ -55,10 +55,10 @@ class ModelProjectorBase(abc.ABC):
                 rotation.tobytes(),
             )
             if recod in self._image_cache:
-                logger.info(f"Get image from cache for config: {recod}")
+                logger.info(f"Get image from cache for input hash: {recod}")
                 return self._image_cache[recod]
             else:
-                logger.info(f"Cache image, register config: {recod}")
+                logger.info(f"Cache image, register input hash: {recod}")
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )

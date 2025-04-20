@@ -1,9 +1,22 @@
+
+"""
+Module for computing centers, inertia tensors, principal axes, and density estimations using Numba-accelerated routines.
+
+This module provides several functions for working with particles' positions and masses,
+including calculating the geometric center, mass-weighted center of mass, the moment of inertia tensor,
+the principal axes of particle distributions, and density estimators.
+"""
+# kernel #TODO
+
 from .global_calculator import GlobalCalculator
 from .density_estimator import DensityEstimator, DensityEstimatorBase
 from ..util.func_decorator import classproperty
 
-class Particles(GlobalCalculator):
 
+class Particles(GlobalCalculator):
+    """
+    A particle container with density estimation and parameter gradient capabilities.
+    """
 
     def __init__(
         self,
@@ -13,7 +26,7 @@ class Particles(GlobalCalculator):
         density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',
         estimator_kwargs: dict | None = None,
     ):
-        '''
+        """
         Initialize the Particles class with particle positions, weights, and other parameters.
 
         Parameters
@@ -28,12 +41,7 @@ class Particles(GlobalCalculator):
 
         estimator_kwargs : dict, optional
             Additional keyword arguments passed to `density_estimator`.
-
-        Returns
-        -------
-        self : Particles
-            The initialized Particles object.
-        '''
+        """
 
         GlobalCalculator.__init__(self, pos, mass)
         estimator_kwargs = {} if estimator_kwargs is None else estimator_kwargs
@@ -46,23 +54,25 @@ class Particles(GlobalCalculator):
             self.estimator = density_estimator(
                 self.pos, self.mass, parameter_mode, **estimator_kwargs
             )
+        elif isinstance(density_estimator,DensityEstimatorBase):
+            self.estimator = density_estimator
         else:
             raise TypeError(
-                f"{density_estimator} must be str or subclass of DensityEstimatorBase"
-            )
+    f"density_estimator must be either a string (plugin name), "
+    f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead.")
 
     @property
     def parameter(self):
-        '''Cached property that returns the parameter values at the input positions.'''
+        """Cached property that returns the parameter values at the input positions."""
         return self.estimator.parameter
 
     @property
     def gradient(self):
-        '''Cached property that returns the gradient of the parameter at the input positions.'''
+        """Cached property that returns the gradient of the parameter at the input positions."""
         return self.estimator.gradient
 
     def get_parameter(self, target_pos, **kwargs):
-        '''
+        """
         Estimate the parameter value at the target positions.
 
         Parameters:
@@ -74,11 +84,11 @@ class Particles(GlobalCalculator):
         Returns:
             results: array, shape(m,)
                 The estimated parameter values at the target positions.
-        '''
+        """
         return self.estimator.get_parameter(target_pos, **kwargs)
 
     def get_gradient(self, target_pos, **kwargs):
-        '''
+        """
         Estimate the gradient of the parameter at the target positions.
 
         Parameters:
@@ -92,8 +102,11 @@ class Particles(GlobalCalculator):
                 A tuple containing two tuples:
                 - The first tuple contains the upward gradient magnitude and direction.
                 - The second tuple contains the downward gradient magnitude and direction.
-        '''
+        """
         return self.estimator.get_gradient(target_pos, **kwargs)
     @classproperty
     def available_estimator(cls):
+        """
+        Returns a list of available density estimator plugin names.
+        """
         return DensityEstimator.available_plugins

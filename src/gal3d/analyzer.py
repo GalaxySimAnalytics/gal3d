@@ -16,6 +16,22 @@ logger = logging.getLogger("gal3d.analyzer")
 
 
 class Gal3DAnalyzer:
+    """
+    An analyzer for fitting galaxy 3D structures using particle, field, and shape information.
+
+    Attributes
+    ----------
+    fit_workflow : dict of str to tuple of (Callable, Callable)
+        A registry for fitting workflow conditions and their corresponding functions.
+    particle : Particles
+        The input particle data.
+    field : SphField
+        The spherical field generator.
+    structure : Structure3D
+        The 3D geometric structure model to fit.
+    optimizer : Optimizer
+        The optimization engine used for fitting.
+    """
 
     fit_workflow: Dict[str, Tuple[Callable, Callable]] = {}
 
@@ -33,7 +49,21 @@ class Gal3DAnalyzer:
         self.optimizer = optimizer
 
     def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs):
+        """
+        Fit the model to a single radius or a sequence of radii.
 
+        Parameters
+        ----------
+        r : float or iterable of float, optional
+            The radius or sequence of radii at which to perform the fit.
+            Defaults to log-spaced radii from 1 to 10.
+        **kwargs : dict
+            Additional keyword arguments passed to the fitting workflow.
+
+        Returns
+        -------
+        ModelResult 
+        """
         work = self.get_work()
 
         if not isinstance(r, Iterable):
@@ -58,7 +88,19 @@ class Gal3DAnalyzer:
                 return resall
 
     def get_work(self):
+        """
+        Determine which registered workflow to use based on its condition.
 
+        Returns
+        -------
+        Callable
+            The fitting workflow function to be used.
+
+        Raises
+        ------
+        TypeError
+            If no valid workflow condition is satisfied.
+        """
         for i, j in self.fit_workflow.items():
             if j[0](self):
                 logger.info(f"Use {i} workflow")
@@ -68,6 +110,20 @@ class Gal3DAnalyzer:
 
     @staticmethod
     def fit_workflow_registry(fn_or_name: str | Callable) -> Callable:
+        """
+        Register a new workflow function with an optional condition.
+
+        Parameters
+        ----------
+        fn_or_name : str or Callable
+            If a string is given, it's used as the name for a future decorator.
+            If a function is given, it's registered immediately.
+
+        Returns
+        -------
+        Callable
+            A decorator or the function with an attached `.set_condition` method.
+        """
 
         assert isinstance(fn_or_name, str) or callable(fn_or_name)
 
@@ -113,7 +169,31 @@ class Gal3DAnalyzer:
 @Gal3DAnalyzer.fit_workflow_registry
 def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     """
-    Fit an ellipsoid or generalized ellipsoid (Ellipsoid_S) structure.
+    Fit an ellipsoidal or generalized ellipsoidal structure at a given semi-major axis `a`.
+
+    Parameters
+    ----------
+    self : Gal3DAnalyzer
+        The analyzer instance.
+    a : float
+        The semi-major axis at which the structure is fitted.
+    **kwargs : dict
+        Optional arguments:
+        - var_a : float
+            Variance allowed for 'a' when setting parameter bounds.
+        - init_parameters : dict
+            Initial guess for parameters.
+        - upper_bounds : dict
+            Upper bounds for parameters.
+        - lower_bounds : dict
+            Lower bounds for parameters.
+        - fitonce : bool
+            If True and the geometry is `Ellipsoid_S`, fit only once.
+
+    Returns
+    -------
+    ModelResult
+        The result of the fitting process, including parameter values and optimizer output.
     """
 
     var_a = kwargs.get('var_a', 0)
@@ -235,5 +315,12 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
 
 @get_ell_structure.set_condition
 def ell_condition(self: Gal3DAnalyzer):
+    """
+    Condition for selecting the ellipsoidal fitting workflow.
 
+    Returns
+    -------
+    bool
+        True if the structure is either 'Ellipsoid' or 'Ellipsoid_S'.
+    """
     return self.structure._geometry_name in ['Ellipsoid', 'Ellipsoid_S']

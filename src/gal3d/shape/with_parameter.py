@@ -12,8 +12,27 @@ required_type = [tuple, dict, dict]
 
 
 class WithParameter(ABC):
+    """
+    Abstract base class for parameterized geometry or model components.
+
+    Subclasses must define the following class attributes:
+    - `PN` : tuple
+        Names of parameters.
+    - `UB` : dict
+        Upper bounds of parameters.
+    - `LB` : dict
+        Lower bounds of parameters.
+    """
 
     def __init_subclass__(cls, **kwargs) -> bool:
+        """
+        Validates that the subclass defines required attributes.
+
+        Returns
+        -------
+        bool
+            True if all required attributes are correctly defined, False otherwise.
+        """
         for key, typ in zip(required_attrs, required_type):
             if not hasattr(cls, key):
                 logger.warning(
@@ -30,17 +49,39 @@ class WithParameter(ABC):
     @staticmethod
     @abstractmethod
     def init_parameters(**kwargs) -> Parameters:
-        """Initializes and returns the parameters with derived values."""
+        """
+        Initialize and return a Parameters instance using the provided keyword arguments.
+
+        Returns
+        -------
+        Parameters
+            A new Parameters object initialized with derived values.
+        """
 
         pass
 
     @staticmethod
     @abstractmethod
     def get_parameters() -> Parameters:
-        """Returns a default set of parameters."""
+        """
+        Return a default Parameters instance.
+
+        Returns
+        -------
+        Parameters
+            The default Parameters object for this component.
+        """
         pass
 
     def __repr__(self) -> str:
+        """
+        Return a string representation of the object.
+
+        Returns
+        -------
+        str
+            String showing the class name and parameter values.
+        """
 
         param_repr = repr(self.parameters)
 
@@ -48,7 +89,7 @@ class WithParameter(ABC):
 
     def __getitem__(self, item):
         """
-        Returns the value of the specified parameter.
+        Get the value of a specific parameter.
 
         Parameters
         ----------
@@ -58,12 +99,12 @@ class WithParameter(ABC):
         Returns
         -------
         float
-            The value of the specified parameter.
+            The value of the parameter.
 
         Raises
         ------
         KeyError
-            If the specified parameter is not valid.
+            If the parameter name is invalid.
         """
         try:
             return self.parameters[item]
@@ -71,9 +112,30 @@ class WithParameter(ABC):
             raise KeyError(f'{item} is not a valid key')
 
     def keys(self):
+        """
+        Return a list of parameter names.
+
+        Returns
+        -------
+        list of str
+            List of keys in the Parameters object.
+        """
 
         return list(self.parameters.keys())
 
     def __contains__(self, item):
+        """
+        Check if a parameter exists.
+
+        Parameters
+        ----------
+        item : str
+            The name of the parameter to check.
+
+        Returns
+        -------
+        bool
+            True if the parameter exists, False otherwise.
+        """
 
         return item in self.parameters

@@ -6,11 +6,37 @@ __all__ = ['string_formator']
 
 @singledispatch
 def escape_codes_color_fg(color):
+    """
+    Generate an ANSI escape code for the foreground color.
+
+    Parameters
+    ----------
+    color : int
+        The color code for the foreground color.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the foreground color.
+    """
     return f"\033[{color}m"
 
 
 @escape_codes_color_fg.register
 def _(color: str):
+    """
+    Generate an ANSI escape code for the foreground color from a string.
+
+    Parameters
+    ----------
+    color : str
+        The color name (e.g., "red", "blue", "bright_black").
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the foreground color.
+    """
     color_fg = {
         "black": 30,
         "red": 31,
@@ -34,21 +60,73 @@ def _(color: str):
 
 @escape_codes_color_fg.register
 def _(color: tuple):
+    """
+    Generate an ANSI escape code for the foreground color from a tuple of RGB values.
+
+    Parameters
+    ----------
+    color : tuple of int
+        A tuple containing the RGB values (e.g., (255, 0, 0) for red).
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the foreground color.
+    """
     return f"\033[38;2;{color[0]};{color[1]};{color[2]}m"
 
 
 @escape_codes_color_fg.register
 def _(color: int):
+    """
+    Generate an ANSI escape code for the foreground color from a 256-color code.
+
+    Parameters
+    ----------
+    color : int
+        The 256-color code.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the foreground color.
+    """
     return f"\033[38;5;{color}m"
 
 
 @singledispatch
 def escape_codes_color_bg(color):
+    """
+    Generate an ANSI escape code for the background color.
+
+    Parameters
+    ----------
+    color : int
+        The color code for the background color.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the background color.
+    """
     return f"\033[{color}m"
 
 
 @escape_codes_color_bg.register
 def _(color: str):
+    """
+    Generate an ANSI escape code for the background color from a string.
+
+    Parameters
+    ----------
+    color : str
+        The color name (e.g., "red", "blue", "bright_black").
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the background color.
+    """
     color_bg = {
         "black": 40,
         "red": 41,
@@ -72,15 +150,59 @@ def _(color: str):
 
 @escape_codes_color_bg.register
 def _(color: tuple):
+    """
+    Generate an ANSI escape code for the background color from a tuple of RGB values.
+
+    Parameters
+    ----------
+    color : tuple of int
+        A tuple containing the RGB values (e.g., (255, 0, 0) for red).
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the background color.
+    """
     return f"\033[48;2;{color[0]};{color[1]};{color[2]}m"
 
 
 @escape_codes_color_bg.register
 def _(color: int):
+    """
+    Generate an ANSI escape code for the background color from a 256-color code.
+
+    Parameters
+    ----------
+    color : int
+        The 256-color code.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the background color.
+    """
     return f"\033[48;5;{color}m"
 
 
 def foreground_color(*args):
+    """
+    Generate the ANSI escape code for the foreground color.
+
+    Parameters
+    ----------
+    *args : (str | int | tuple)
+        The foreground color as a string, integer, or tuple of RGB values.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the foreground color.
+
+    Raises
+    ------
+    TypeError
+        If the input format is invalid.
+    """
     if len(args) == 1:
         return escape_codes_color_fg(args[0])
     elif len(args) == 3 and all(isinstance(a, int) for a in args):
@@ -90,6 +212,24 @@ def foreground_color(*args):
 
 
 def background_color(*args):
+    """
+    Generate the ANSI escape code for the background color.
+
+    Parameters
+    ----------
+    *args : (str | int | tuple)
+        The background color as a string, integer, or tuple of RGB values.
+
+    Returns
+    -------
+    str
+        The ANSI escape code for the background color.
+
+    Raises
+    ------
+    TypeError
+        If the input format is invalid.
+    """
     if len(args) == 1:
         return escape_codes_color_bg(args[0])
     elif len(args) == 3 and all(isinstance(a, int) for a in args):
@@ -101,6 +241,21 @@ def background_color(*args):
 def color(
     bg_color: str | int | tuple | None = None, fg_color: str | int | tuple | None = None
 ) -> str:
+    """
+    Combine background and foreground color escape codes.
+
+    Parameters
+    ----------
+    bg_color : str | int | tuple, optional
+        The background color as a string, integer, or tuple of RGB values.
+    fg_color : str | int | tuple, optional
+        The foreground color as a string, integer, or tuple of RGB values.
+
+    Returns
+    -------
+    str
+        The combined ANSI escape codes for the background and foreground colors.
+    """
     bg_color = bg_color and background_color(bg_color) or ""
     fg_color = bg_color and background_color(fg_color) or ""
 
@@ -114,6 +269,27 @@ def fontformat(
     underline: bool = False,
     strikethrough: bool = False,
 ) -> str:
+    """
+    Generate ANSI escape codes for font formatting.
+
+    Parameters
+    ----------
+    bold : bool, optional
+        Whether to apply bold formatting. Default is False.
+    thin : bool, optional
+        Whether to apply thin formatting. Default is False.
+    italics : bool, optional
+        Whether to apply italics formatting. Default is False.
+    underline : bool, optional
+        Whether to apply underline formatting. Default is False.
+    strikethrough : bool, optional
+        Whether to apply strikethrough formatting. Default is False.
+
+    Returns
+    -------
+    str
+        The ANSI escape codes for the font formatting.
+    """
     bold = bold and "\033[1m" or ""
     thin = thin and "\033[2m" or ""
     italics = italics and "\033[3m" or ""
@@ -133,7 +309,33 @@ def string_formator(
     underline: bool = False,
     strikethrough: bool = False,
 ) -> str:
+    """
+    Format a string with background and foreground colors and font styles.
 
+    Parameters
+    ----------
+    string : str
+        The input string to format.
+    bg_color : str | int | tuple, optional
+        The background color as a string, integer, or tuple of RGB values.
+    fg_color : str | int | tuple, optional
+        The foreground color as a string, integer, or tuple of RGB values.
+    bold : bool, optional
+        Whether to apply bold formatting. Default is False.
+    thin : bool, optional
+        Whether to apply thin formatting. Default is False.
+    italics : bool, optional
+        Whether to apply italics formatting. Default is False.
+    underline : bool, optional
+        Whether to apply underline formatting. Default is False.
+    strikethrough : bool, optional
+        Whether to apply strikethrough formatting. Default is False.
+
+    Returns
+    -------
+    str
+        The formatted string with ANSI escape codes.
+    """
     bg_color = bg_color and background_color(bg_color) or ""
     fg_color = fg_color and foreground_color(fg_color) or ""
     font = fontformat(bold, thin, italics, underline, strikethrough)

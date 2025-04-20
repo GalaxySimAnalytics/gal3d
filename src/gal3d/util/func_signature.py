@@ -170,7 +170,7 @@ def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
     Returns
     -------
     dict
-        A new dictionary with updated values.
+        A new dictionary with updated values, merging `origin`, `other`, and `kwargs`.
     """
     ret = origin.copy()
     same_key = ret.keys() & other.keys()
@@ -195,11 +195,39 @@ func_required_key = lambda x: MySignature.from_callable(x).get_params(
 
 
 def fromat_signature(func):
+    """
+    Returns the formatted string representation of a function's signature.
+
+    Parameters
+    ----------
+    func : callable
+        The function whose signature is to be formatted.
+
+    Returns
+    -------
+    str
+        A string representing the function name and its signature.
+    """
     sig = inspect.signature(func)
     return f"{func.__name__}{sig}"
 
 
 def format_docstring(docstring, indent=4):
+    """
+    Formats a docstring with the specified indentation.
+
+    Parameters
+    ----------
+    docstring : str
+        The docstring to be formatted.
+    indent : int, optional
+        The number of spaces to indent the docstring, by default 4.
+
+    Returns
+    -------
+    str
+        The formatted docstring with the specified indentation.
+    """
     if not docstring:
         return ""
     lines = textwrap.indent('"""\n' + docstring.strip() + '\n"""', " " * indent)
@@ -207,6 +235,22 @@ def format_docstring(docstring, indent=4):
 
 
 def is_static_or_class_method(cls, attr_name):
+    """
+    Determines if the given attribute of the class is a static method or class method.
+
+    Parameters
+    ----------
+    cls : type
+        The class to check.
+    attr_name : str
+        The attribute name to check within the class.
+
+    Returns
+    -------
+    str or None
+        Returns '@staticmethod' or '@classmethod' if the attribute is a static or class method,
+        respectively. Returns None otherwise.
+    """
     attr = cls.__dict__.get(attr_name)
     if isinstance(attr, staticmethod):
         return "@staticmethod"
@@ -216,6 +260,28 @@ def is_static_or_class_method(cls, attr_name):
 
 
 def generate_plugin_stub(base, abc, plugins: Dict[str, Type], output_path: str):
+    """
+    Generates a plugin stub that includes the base class, abstract class, and plugin classes.
+
+    The generated code includes method stubs with docstrings for the methods in the base and abstract
+    classes, and overloads for the `get_plugin` method for each plugin class.
+
+    Parameters
+    ----------
+    base : type
+        The base class for the plugin system.
+    abc : type
+        The abstract base class for the plugin system.
+    plugins : dict
+        A dictionary where keys are plugin names and values are plugin classes.
+    output_path : str
+        The path to save the generated plugin stub file.
+
+    Returns
+    -------
+    None
+        The function writes the generated plugin stub to the specified `output_path`.
+    """
     lines = [
         "import typing",
         "from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence",

@@ -169,15 +169,14 @@ class DensityEstimatorKNN(DensityEstimatorBase):
                 The estimated parameter values based on the nearest neighbors.
         '''
         n_d_max = n_d[:, -1]
-        if self.pa_mode == 'Density':
-            n_pain = np.sum(self.mass[n_index], axis=1)
-            fit_pa = n_pain / (4 / 3 * np.pi * np.power(n_d_max, 3))
-        elif self.pa_mode == 'Mean':
+        if self.pa_mode == 'Mean':
             fit_pa = np.mean(self.mass[n_index], axis=1)
         else:
-            logger.warning("KeyError: No such method, use parameter_mode = Density")
-            n_pain = np.sum(self.mass[n_index], axis=1)
-            fit_pa = n_pain / (4 / 3 * np.pi * np.power(n_d_max, 3))
+            if self.pa_mode != 'Density':
+                logger.warning(f"Unsupported parameter_mode '{self.pa_mode}', defaulting to 'Density'")
+            n_mass = np.sum(self.mass[n_index], axis=1)
+            fit_pa = n_mass / (4 / 3 * np.pi * np.power(n_d_max, 3))
+            
         return fit_pa
 
     def __generate_kd_options(self, k_nearest, r_cut, **kwargs):

@@ -14,44 +14,21 @@ logger = logging.getLogger('gal3d.particle.global_calculator')
 class GlobalCalculator:
     """
     A class to compute and store global properties of a collection of particles,
-    such as their center of mass, moment of inertia, and shape parameters.
+    such as their center of mass, moment of inertia tensor, and principal axes.
 
     Attributes
     ----------
     pos : numpy.ndarray
-        A 2D array of shape (N, 3) representing the positions of N particles in 3D space.
+        Sorted particle positions based on their radius from origin.
     mass : numpy.ndarray
-        A 1D array of shape (N,) representing the masss (e.g., masses) of the particles.
+        Sorted particle masses corresponding to `pos`.
+    r : numpy.ndarray
+        Radial distances of particles from origin, sorted.
 
-    Methods
-    -------
-    ssc_center()
-        Computes the center of the particles using the shrink-sphere method.
-    mass_center()
-        Computes the center of mass of the particles.
-    shape_center()
-        Computes the centroid (geometric center) of the particles.
-    moi()
-        Computes the moment of inertia tensor of the particles.
-    abc()
-        Computes the principal axes (a, b, c) of the particles.
-    shrink_sphere_center(pos, mass, shrink_factor=0.7, begin_r=None, min_points=100, itermax=100)
-        Static method to compute the center using the shrink-sphere method.
-    moment_of_inertia(pos, mass)
-        Static method to compute the moment of inertia tensor.
-    abc_vector(pos, mass)
-        Static method to compute the principal axes (a, b, c).
     """
 
-    def __init__(self, pos, mass):
-        """
-        Parameters
-        ----------
-        pos : numpy.ndarray
-            A 2D array of shape (N, 3) representing the positions of N particles in 3D space.
-        mass : numpy.ndarray
-            A 1D array of shape (N,) representing the mass of the particles.
-        """
+    def __init__(self, pos: np.ndarray, mass: np.ndarray):
+
         pos = self._shape_check(pos)
         r = vector_length3d(pos)
         ind = np.argsort(r)
@@ -59,48 +36,55 @@ class GlobalCalculator:
         self.pos = pos[ind]
         self.mass = mass[ind]
         self.r = r[ind]
+        
+        if self.pos.shape[0] != self.mass.shape[0]:
+            raise ValueError(
+                f"Mismatch between number of positions ({self.pos.shape[0]}) and masses ({self.mass.shape[0]})."
+            )
 
     def _shape_check(self, pos):
-        '''
-        Ensure the input positions have the correct shape (n, 3).
+        """
+        Ensures the input position array has shape (N, 3).
 
-        Parameters:
-            pos: ndarray
-                The input positions to be checked and reshaped if necessary.
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            Input position array of arbitrary shape.
 
-        Returns:
-            pos: ndarray, shape(n,3)
-                The reshaped positions.
-        '''
+        Returns
+        -------
+        numpy.ndarray
+            Reshaped position array of shape (N, 3).
+        """
         if len(np.shape(pos)) != 2:
-            logger.info(f"pos is 1d array with shape={np.shape(pos)}, so we reshape it")
+            logger.info(f"pos is 1d array with shape={np.shape(pos)}, reshaping to (-1,3)")
             pos = np.array(pos).reshape(-1, 3)
         if np.shape(pos)[1] == 3:
             return pos
         if np.shape(pos)[0] == 3:
-            logger.info(f"pos have the shape= {np.shape(pos)}, so we transpose it")
+            logger.info(f"pos have the shape= {np.shape(pos)}, transposing it")
             return np.array(pos).T
         logger.info(
-            f"pos have the shape={np.shape(pos)}, target shape: (n,3), so we reshape this"
+            f"pos have the shape={np.shape(pos)}, target shape: (n,3), reshaping it"
         )
         return np.array(pos).reshape(-1, 3)
 
     @cached_property
     def ssc_center(self):
         """
-        Computes the center of the particles using the shrink-sphere method.
+        Computes the center using the shrink-sphere method.
 
         Returns
         -------
         numpy.ndarray
-            A 1D array of shape (3,) representing the center of the particles.
+            A 1D array of shape (3,) representing the computed center.
         """
         return self.shrink_sphere_center(self.pos, self.mass)
 
     @cached_property
-    def mass_center(self):
+    def mass_center(self) -> np.ndarray:
         """
-        Computes the center of mass of the particles.
+        Computes the mass-weighted center (center of mass).
 
         Returns
         -------
@@ -110,9 +94,9 @@ class GlobalCalculator:
         return center_of_mass(self.pos, self.mass)
 
     @cached_property
-    def shape_center(self):
+    def shape_center(self) -> np.ndarray:
         """
-        Computes the centroid (geometric center) of the particles.
+        Computes the geometric center (centroid) of the particles.
 
         Returns
         -------
@@ -122,9 +106,9 @@ class GlobalCalculator:
         return centroid(self.pos)
 
     @cached_property
-    def moi(self):
+    def moi(self) -> np.ndarray:
         """
-        Computes the moment of inertia tensor of the particles.
+        Computes the moment of inertia tensor of the particle distribution.
 
         Returns
         -------
@@ -136,12 +120,12 @@ class GlobalCalculator:
     @cached_property
     def abc(self):
         """
-        Computes the principal axes (a, b, c) of the particles.
+        Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
         Returns
         -------
-        tuple
-            A tuple of three floats representing the lengths of the principal axes.
+        tuple of numpy.ndarray
+            A tuple ([a, b, c], rotation_matrix), where a >= b >= c are the principal axis lengths.
         """
         return abc_vect(self.pos, self.mass)
 
@@ -150,7 +134,7 @@ class GlobalCalculator:
         pos, mass, shrink_factor=0.7, begin_r=None, min_points=100, itermax=100
     ):
         """
-        Computes the center of the particles using the shrink-sphere method.
+        Computes the center using the shrink-sphere method.
 
         Parameters
         ----------
@@ -198,16 +182,16 @@ class GlobalCalculator:
         return cen
 
     @staticmethod
-    def moment_of_inertia(pos, mass):
+    def moment_of_inertia(pos, mass) -> np.ndarray:
         """
-        Computes the moment of inertia tensor of the particles.
+        Computes the moment of inertia tensor.
 
         Parameters
         ----------
         pos : numpy.ndarray
-            A 2D array of shape (N, 3) representing the positions of N particles in 3D space.
+            Position array of shape (N, 3).
         mass : numpy.ndarray
-            A 1D array of shape (N,) representing the masss (e.g., masses) of the particles.
+            Mass array of shape (N,).
 
         Returns
         -------
@@ -217,20 +201,36 @@ class GlobalCalculator:
         return moment_of_inertia(pos, mass)
 
     @staticmethod
-    def abc_vector(pos, mass):
+    def compute_abc(pos, mass) -> tuple:
         """
-        Computes the principal axes (a, b, c) of the particles.
+        Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
         Parameters
         ----------
         pos : numpy.ndarray
-            A 2D array of shape (N, 3) representing the positions of N particles in 3D space.
+            Position array of shape (N, 3).
         mass : numpy.ndarray
-            A 1D array of shape (N,) representing the masss (e.g., masses) of the particles.
+            Mass array of shape (N,).
+            
+        Returns
+        -------
+        tuple of numpy.ndarray
+            A tuple ([a, b, c], rotation_matrix), where a >= b >= c are the principal axis lengths.
+        """
+        return abc_vect(pos, mass)
+    
+    def as_dict(self) -> dict:
+        """
+        Returns a dictionary of all computed global properties.
 
         Returns
         -------
-        tuple
-            A tuple of three floats representing the lengths of the principal axes.
+        dict
+            A dictionary containing the following keys:
+            'ssc_center', 'mass_center', 'shape_center', 'abc'
         """
-        return abc_vect(pos, mass)
+        return {"ssc_center": self.ssc_center.tolist(),
+                "mass_center": self.mass_center.tolist(),
+                "shape_center": self.shape_center.tolist(),
+                "abc": self.abc}
+        

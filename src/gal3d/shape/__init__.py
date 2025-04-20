@@ -12,6 +12,13 @@ from ..field.spherical_field.spherical_vector import fibonacci_sampling
 
 
 class Structure3D:
+    """
+    A 3D structure composed of a coordinate transformation and a geometry definition.
+    
+    This class combines a coordinate transformation (via `CoordinateBase`) and a 
+    shape definition (via `GeometryBase`). It also provides an error function from 
+    `MinimizeFunc` and an associated error evaluation method.
+    """
 
     _compute_error_method: Dict[str, Callable] = {}
 
@@ -22,6 +29,20 @@ class Structure3D:
         error_func: Callable | str,
         error_method: Callable | str,
     ):
+        """
+        Initialize a Structure3D instance.
+
+        Parameters
+        ----------
+        coordinate : CoordinateBase or str
+            Coordinate transformation class or registered plugin name.
+        geometry : GeometryBase or str
+            Geometry class or registered plugin name.
+        error_func : Callable or str
+            Error function or its name in `MinimizeFunc`.
+        error_method : Callable or str
+            Method for computing the error or its name in `_compute_error_method`.
+        """
 
         self._set_geometry(geometry)
         self._set_coordinate(coordinate)
@@ -33,6 +54,21 @@ class Structure3D:
         )
 
     def init_parameters(self, *args, **kwargs) -> Parameters:
+        """
+        Initialize parameters for coordinate and geometry.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional values to initialize parameters.
+        **kwargs : dict
+            Keyword arguments to initialize parameters.
+
+        Returns
+        -------
+        Parameters
+            Combined parameters from coordinate and geometry.
+        """
         if args:
             params = dict(zip(self.parameters.keys(), *args))
             return self._coordinate.init_parameters(
@@ -46,34 +82,34 @@ class Structure3D:
         return self._coordinate.get_parameters() + self._geometry.get_parameters()
 
     def set_parameters(self, *args, **kwargs):
-        '''
-        Sets the parameters for the structure.
+        """
+        Set the structure's parameters.
 
         Parameters
         ----------
         *args : tuple
-            Positional arguments to set parameters.
+            Positional arguments for parameters.
         **kwargs : dict
-            Keyword arguments to set parameters.
-        '''
+            Keyword arguments for parameters.
+        """
         self.parameters = self.parameters + self.init_parameters(*args, **kwargs)
 
     def from_parameters(self, *args, **kwargs) -> Self:
-        '''
-        Creates a new Structure3D instance with the given parameters.
+        """
+        Create a new Structure3D with given parameters.
 
         Parameters
         ----------
         *args : tuple
-            Positional arguments to initialize parameters.
+            Positional arguments for initialization.
         **kwargs : dict
-            Keyword arguments to initialize parameters.
+            Keyword arguments for initialization.
 
         Returns
         -------
         Structure3D
-            A new Structure3D instance with the given parameters.
-        '''
+            A new instance with specified parameters.
+        """
         ret = Structure3D(
             coordinate=self._coordinate,
             geometry=self._geometry,
@@ -139,14 +175,14 @@ class Structure3D:
         self._error_method_name = self._error_method.__name__
 
     def __repr__(self):
-        '''
-        Returns a string representation of the Structure_3D object.
+        """
+        Return string representation of Structure3D.
 
         Returns
         -------
         str
-            String representation of the object.
-        '''
+            Human-readable string of the coordinate and geometry.
+        """
         coor_repr = repr(self._coordinate(**self.parameters))
         geometry_repr = repr(self._geometry(**self.parameters))
         lin1 = [f"<{self.__class__.__name__}|: ", '\n']
@@ -155,19 +191,19 @@ class Structure3D:
         return ''.join(lin1 + lin2 + lin3)
 
     def __eq__(self, other):
-        '''
-        Checks equality with another Structure3D object.
+        """
+        Check equality with another Structure3D.
 
         Parameters
         ----------
         other : Structure3D
-            Another Structure3D object to compare with.
+            Object to compare against.
 
         Returns
         -------
         bool
-            True if the objects are equal, False otherwise.
-        '''
+            Whether the two objects are considered equal.
+        """
 
         if (
             isinstance(other, Structure3D)
@@ -181,21 +217,21 @@ class Structure3D:
         return False
 
     def __call__(self, pos, **kwargs):
-        '''
-        Evaluates the structure at the given position.
+        """
+        Evaluate the structure at a given position.
 
         Parameters
         ----------
         pos : array_like
-            The position at which to evaluate the structure.
+            Positions to evaluate.
         **kwargs : dict
-            Additional keyword arguments for the evaluation.
+            Additional keyword arguments for parameter override.
 
         Returns
         -------
-        array_like
-            The evaluated structure at the given position.
-        '''
+        np.ndarray
+            Evaluated structure value.
+        """
         pos = np.asarray(pos)
 
         coord_pa, geoty_pa = self._generate_normal(**kwargs)
@@ -203,6 +239,21 @@ class Structure3D:
         return self._geometry(**geoty_pa)(self._coordinate(**coord_pa)(pos))
 
     def f_ray_d(self, pos: ArrayLike, **kwargs) -> np.ndarray:
+        """
+        Compute the normalized ray distance; 1 indicates the surface.
+
+        Parameters
+        ----------
+        pos : array_like
+            Ray origin or position.
+        **kwargs : dict
+            Parameters to override.
+
+        Returns
+        -------
+        np.ndarray
+            normalized ray distance.
+        """
 
         pos = np.asarray(pos)
 
@@ -211,6 +262,21 @@ class Structure3D:
         return self._geometry(**geoty_pa).f_ray_d(self._coordinate(**coord_pa)(pos))
 
     def ray_intersect(self, pos, **kwargs) -> tuple:
+        """
+        Compute ray intersection with the structure.
+
+        Parameters
+        ----------
+        pos : array_like
+            Ray position.
+        **kwargs : dict
+            Optional parameters.
+
+        Returns
+        -------
+        tuple
+            Intersection result.
+        """
         pos = np.asarray(pos)
 
         coord_pa, geoty_pa = self._generate_normal(**kwargs)
@@ -220,6 +286,23 @@ class Structure3D:
         )
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike, **kwargs) -> np.ndarray:
+        """
+        Compute intersection of a line segment with the structure.
+
+        Parameters
+        ----------
+        pos1 : array_like
+            Starting point of the line.
+        pos2 : array_like
+            Ending point of the line.
+        **kwargs : dict
+            Additional parameters.
+
+        Returns
+        -------
+        np.ndarray
+            Intersection points or distances.
+        """
 
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
@@ -263,6 +346,16 @@ class Structure3D:
         )
 
     def quick_f_ray_d(self, *args, pos, **kwargs) -> np.ndarray:
+        """
+        Quick the normalized ray distance evaluation.
+
+        Same as `f_ray_d` but accepts direct parameter values.
+
+        Returns
+        -------
+        np.ndarray
+            Result of quick directional evaluation.
+        """
 
         pos = np.asarray(pos)
 
@@ -273,6 +366,14 @@ class Structure3D:
         )
 
     def quick_ray_dist(self, *args, pos, **kwargs) -> np.ndarray:
+        """
+        Quick ray distance evaluation.
+
+        Returns
+        -------
+        np.ndarray
+            Ray distances.
+        """
 
         pos = np.asarray(pos)
 
@@ -283,6 +384,14 @@ class Structure3D:
         )
 
     def quick_line_intersect(self, *args, pos1, pos2, **kwargs) -> np.ndarray:
+        """
+        Quickly compute intersection of a line with the structure.
+
+        Returns
+        -------
+        np.ndarray
+            Intersection points or indicators.
+        """
 
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
@@ -328,19 +437,19 @@ class Structure3D:
         return coord_pa, geoty_pa
 
     def generate_points(self, random_np: int = 1024):
-        '''
-        Generates random points on the surface of the structure.
+        """
+        Generate uniformly distributed points on the structure.
 
         Parameters
         ----------
         random_np : int, optional
-            Number of random points to generate (default is 1024).
+            Number of points to generate (default is 1024).
 
         Returns
         -------
-        array_like
-            Generated points on the surface of the structure.
-        '''
+        np.ndarray
+            Points on the surface.
+        """
         cpos, spos = fibonacci_sampling(random_np)
 
         coord_pa, geoty_pa = self._generate_quick()

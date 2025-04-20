@@ -26,8 +26,25 @@ _pyi_name = _current_file_name.replace('.py', '.pyi')
 
 
 class CoordinateBase(WithParameter):
+    """
+    Abstract base class for coordinate transformation plugins.
+
+    Defines the interface for forward/inverse transformations and Jacobians.
+
+    Methods:
+    -------
+    __call__(pos): 
+        Transforms the given position using the current coordinate system.
+    jacobian(pos): 
+        Computes the Jacobian of the transformation at the given positions.
+    inverse(pos): 
+        Inverse transforms the given position.
+    """
 
     def __init_subclass__(cls, **kwargs):
+        """
+        Register a new coordinate plugin subclass and update the plugin stub.
+        """
 
         if not super().__init_subclass__():
             logger.info(f"Find CoordinatePlugin: {cls.__name__} but fail to load")
@@ -45,41 +62,108 @@ class CoordinateBase(WithParameter):
     @abstractmethod
     def __call__(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
         """
-        Evaluates the coordinate function at the given positions.
+        Apply coordinate transformation.
+
+        Parameters
+        ----------
+        pos : ndarray of float64
+            The input positions.
+
+        Returns
+        -------
+        ndarray of float64
+            The transformed positions.
         """
         pass
 
     @abstractmethod
     def jacobian(self, pos: NDArray[np.float64]) -> tuple:
         """
-        Computes the Jacobian of the coordinate function at the given positions for each parameters.
+        Compute the Jacobian matrix of the transformation at a position.
+
+        Parameters
+        ----------
+        pos : ndarray of float64
+            The input positions.
+
+        Returns
+        -------
+        tuple
+            The Jacobian matrices.
         """
         pass
 
     @abstractmethod
     def inverse(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
         """
-        Inverse transform the given positions using the current translation and rotation parameters.
+        Perform the inverse coordinate transformation.
+
+        Parameters
+        ----------
+        pos : ndarray of float64
+            The transformed positions.
+
+        Returns
+        -------
+        ndarray of float64
+            The original (inverse-transformed) positions.
         """
         pass
 
     @staticmethod
     @abstractmethod
     def quick_call(*args, **kwargs) -> NDArray[np.float64]:
+        """
+        Fast version of the coordinate transformation.
+
+        Returns
+        -------
+        ndarray of float64
+            Transformed positions.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def quick_jacobian(*args, **kwargs) -> tuple:
+        """
+        Fast version of the Jacobian computation.
+
+        Returns
+        -------
+        tuple
+            Jacobian matrices.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def quick_inverse(*args, **kwargs) -> NDArray[np.float64]:
+        """
+        Fast version of the inverse coordinate transformation.
+
+        Returns
+        -------
+        ndarray of float64
+            Inverse-transformed positions.
+        """
         pass
 
 
 class Coordinate:
+    """
+    Factory class for accessing registered Coordinate plugins.
+
+    This class provides static methods to load and retrieve available
+    Coordinate plugins derived from `CoordinateBase`.
+
+    Methods
+    -------
+    get_plugin(plugin)
+        Retrieve a specific Coordinate plugin by name.
+    available_plugins
+        List all available Coordinate plugins.
+    """
 
     @staticmethod
     def _updata_plugin_stub():
@@ -92,7 +176,7 @@ class Coordinate:
     @staticmethod
     def get_plugin(plugin: str | None) -> CoordinateBase:
         """
-        Get an geometry plugin
+        Get an coordinate plugin
 
         Parameters:
         plugin: str,
@@ -117,6 +201,7 @@ class Coordinate:
 
     @classproperty
     def available_plugins(cls) -> List[str]:
+        """ A list of available Coordinate plugins. """
         if not _CoordinatePlugins:
             cls._load_plugin()
         return list(_CoordinatePlugins.keys())

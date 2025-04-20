@@ -1,3 +1,15 @@
+"""
+Module for computing centers, inertia tensors, and principal axes using Numba-accelerated routines.
+
+Functions
+---------
+- centroid(pos): Returns the geometric center of positions.
+- center_of_mass(pos, mass): Returns the mass-weighted center of mass.
+- shrink_sphere_center(...): Iteratively computes the center using the shrinking sphere method.
+- moment_of_inertia(pos, mass): Computes the inertia tensor.
+- abc_vect(pos, mass): Returns eigenvalues and eigenvectors of the inertia tensor (i.e., principal axes).
+"""
+
 import math
 import logging
 
@@ -20,6 +32,19 @@ import numpy as np
 
 @njit(float64[:](float64[:, :]), nogil=True, parallel=True, fastmath=True, cache=True)
 def centroid(pos):
+    """
+    Compute the geometric center of positions.
+
+    Parameters
+    ----------
+    pos : ndarray of shape (N, 3)
+        3D positions of particles.
+
+    Returns
+    -------
+    cenpos : ndarray of shape (3,)
+        Geometric center position.
+    """
     cenpos = np.zeros(3, dtype=np.float64)
     for i in prange(3):
         cenpos[i] = np.mean(pos[:, i])
@@ -45,6 +70,37 @@ def shrink_sphere_center(
     starting_rmax,
     itermax,
 ):
+    """
+    Iteratively estimate the center of mass using the shrink-sphere method.
+
+    Parameters
+    ----------
+    pos : ndarray of shape (N, 3)
+        3D positions of particles.
+    weight : ndarray of shape (N,)
+        Weights of the particles, typically their masses.
+    min_points : int
+        Minimum number of particles required to continue iterations.
+    particles_for_second_radius : int
+        Number of particles used to record the second-radius value.
+    shrink_factor : float
+        Factor by which the sphere radius shrinks in each iteration.
+    starting_rmax : float
+        Initial radius to start the shrinking process.
+    itermax : int
+        Maximum number of iterations allowed.
+
+    Returns
+    -------
+    com_x : ndarray of shape (3,)
+        Final estimated center of mass.
+    current_rmax : float
+        Final radius used in the last iteration.
+    second_radius : float
+        Radius at which particle count dropped below `particles_for_second_radius`.
+    iternum : int
+        Number of iterations performed.
+    """
 
     npart = len(pos)
     npart_all = len(pos)
@@ -117,6 +173,21 @@ def shrink_sphere_center(
     cache=True,
 )
 def center_of_mass(pos, mass):
+    """
+    Compute the center of mass using mass-weighted positions.
+
+    Parameters
+    ----------
+    pos : ndarray of shape (N, 3)
+        3D positions of particles.
+    mass : ndarray of shape (N,)
+        Masses of the particles.
+
+    Returns
+    -------
+    cenpos : ndarray of shape (3,)
+        Center of mass position.
+    """
     cenpos = np.zeros(3, dtype=np.float64)
     massum = np.sum(mass)
     for i in prange(3):
@@ -131,14 +202,46 @@ def center_of_mass(pos, mass):
     nogil=True,
 )
 def moment_of_inertia(pos, m):
+    """
+    Compute the moment of inertia tensor.
+
+    Parameters
+    ----------
+    pos : ndarray of shape (N, 3)
+        3D positions of particles.
+    mass : ndarray of shape (N,)
+        Masses of the particles.
+
+    Returns
+    -------
+    I : ndarray of shape (3, 3)
+        Moment of inertia tensor.
+    """
     return np.array(
         [[np.sum(m * pos[:, i] * pos[:, j]) for j in prange(3)] for i in prange(3)]
     ) / np.sum(m)
 
 
 @njit(types.Tuple((float64[:], float64[:, :]))(float64[:, :], float64[:]))
-def abc_vect(pos, pa):
-    D = np.linalg.eigh(moment_of_inertia(pos, pa))
+def abc_vect(pos, mass):
+    """
+    Compute the principal axes and corresponding eigenvalues of the inertia tensor.
+
+    Parameters
+    ----------
+    pos : ndarray of shape (N, 3)
+        3D positions of particles.
+    mass : ndarray of shape (N,)
+        Masses of the particles.
+
+    Returns
+    -------
+    abc : ndarray of shape (3,)
+        Eigenvalues of the inertia tensor (sorted descendingly).
+    rotation_matrix : ndarray of shape (3, 3)
+        Corresponding eigenvectors as a rotation matrix.
+    """
+    D = np.linalg.eigh(moment_of_inertia(pos, mass))
     align = np.argsort(D[0])[::-1]
     abc = D[0][align]
     axis = np.eye(3)

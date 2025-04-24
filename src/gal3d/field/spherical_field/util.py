@@ -86,7 +86,7 @@ def iso_profile_by_moi(points, pas, res_b, res_c):
 
     for i in prange(len(pas[0])):
         abc, rota = abc_vect(points, pas[:, i])
-        new_pos = Rotate(points, rota.T)
+        new_pos = Matmul(rota.T, points.T).T
         sel1 = (c_cos_min <= new_pos[:, 2]) & (new_pos[:, 2] <= c_cos_max)
         sel2 = (b_cos_max <= new_pos[:, 0]) | (new_pos[:, 0] <= b_cos_min)
         iso_pro_pa[i] = np.mean(pas[:, i][(sel1) & (sel2)])

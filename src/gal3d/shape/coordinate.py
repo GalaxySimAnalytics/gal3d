@@ -9,9 +9,8 @@ from .with_parameter import WithParameter, abstractmethod, Parameters
 from ..optimization.parameter import Parameters
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
-from .. import config
+from .. import config_parser
 
-Update_plugin_stub = True
 
 __all__ = ['Coordinate', 'CoordinateBase']
 
@@ -52,7 +51,7 @@ class CoordinateBase(WithParameter):
 
         _CoordinatePlugins[cls.__name__] = cls
         logger.info(f"Find CoordinatePlugin: {cls.__name__} and load successfully")
-        if config['update_stub']:
+        if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
                 Coordinate, CoordinateBase, _CoordinatePlugins, output_path

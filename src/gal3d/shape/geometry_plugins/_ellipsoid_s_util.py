@@ -147,8 +147,6 @@ def IntersectRayEllipsoid_S(a, b, c, Sa, Sb, Sc, x, y, z, maxIterations: int):
     d0 = (a + c) / 2
     while True:
         if i > maxIterations:
-            delta = _iter_f_IntersectRayEllipsoid_S(d0, Sa, Sb, Sc, Ex, Ey, Ez)
-            print("maximum number of iterations exceeded!, next iter: ", delta)
             break
         d1 = d0 + _iter_f_IntersectRayEllipsoid_S(d0, Sa, Sb, Sc, Ex, Ey, Ez)
         if abs(d1 - d0) < epsilon:
@@ -242,15 +240,14 @@ def _iter_IntersectLineEllipsoid_S(
         df = 4 * (df_x + df_y + df_z)
 
         delta = -f / df
-        delta = min(delta_cut, delta)  # avoid large update
-        delta = max(-delta_cut, delta)
+        if f < 2.:                          # when near target pos
+            delta = min(delta_cut, delta)  # avoid large update 
+            delta = max(-delta_cut, delta)
         t0 = t0 + delta
         posi = pos1 + t0 * vect
         i = i + 1
 
-        if abs(delta) < epsilon:
-            break
-        if i > maxIteration:
+        if abs(delta) < epsilon or i > maxIteration:
             break
     Ex, Ey, Ez = (
         ((posi[0] / a) ** 2) ** Sa,
@@ -278,7 +275,7 @@ def _iter_IntersectLineEllipsoid_S(
 )
 def IntersectLineEllipsoid_S(a, b, c, Sa, Sb, Sc, pos1, vect, tmax, maxIteration):
 
-    delta_cut = abs(10 * tmax / maxIteration)
+    delta_cut = c/2.
     ts = -np.ones(2)
     epsilon = 1e-9  # 1e-9 is ok ?
 
@@ -312,7 +309,7 @@ def IntersectLineEllipsoid_S(a, b, c, Sa, Sb, Sc, pos1, vect, tmax, maxIteration
     ):  # one is not at the target position, will expore t0 -> t1
         ti_min = t0
         ti_max = t1
-        delta_cut = abs(10 * (t1 - t0) / maxIteration)
+        delta_cut = c/4.
         while True:
             if abs(f0) > 10 * epsilon:
                 t2, f2 = _iter_IntersectLineEllipsoid_S(

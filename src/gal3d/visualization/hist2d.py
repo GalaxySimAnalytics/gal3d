@@ -173,7 +173,7 @@ def show_contour(
     withfilter : boolean, optional
         If True, use gaussian_filter. Default is False.
 
-    sigma: float, optional
+    sigma: float, optionalshow_image
         used in  gaussian_filter
 
     vmin : float, optional
@@ -206,12 +206,14 @@ def show_contour(
     if logscale:
         vmin = vmin or np.min(imageData[imageData > 0])
         vmax = vmax or np.max(imageData[imageData > 0])
-        levels = levels or np.logspace(np.log10(vmin), np.log10(vmax), nlevels)
+        if levels is None:
+            levels = np.logspace(np.log10(vmin), np.log10(vmax), nlevels)
         # cont_color = colors.LogNorm(vmin = vmin, vmax = vmax)
     else:
         vmin = vmin or np.min(imageData)
         vmax = vmax or np.max(imageData)
-        levels = levels or np.linspace(vmin, vmax, nlevels)
+        if levels is None:
+            levels = np.linspace(vmin, vmax, nlevels)
         # cont_color = colors.Normalize(vmin = vmin, vmax = vmax)
     levels = np.atleast_1d(levels)
     if withfilter:

@@ -9,7 +9,7 @@ from numpy.typing import ArrayLike, NDArray
 from .with_parameter import WithParameter, abstractmethod, Parameters
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
-from .. import config
+from .. import config_parser
 
 __all__ = ['Geometry', 'GeometryBase']
 
@@ -37,7 +37,7 @@ class GeometryBase(WithParameter):
 
         _GeometryPlugins[cls.__name__] = cls
         logger.info(f"Find GeometryPlugin: {cls.__name__} and load successfully")
-        if config['update_stub']:
+        if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(Geometry, GeometryBase, _GeometryPlugins, output_path)
             logger.info(f"✅ Updated stub: {output_path}")
@@ -276,8 +276,8 @@ class Geometry:
         Load geometry plugin modules dynamically.
         """
         import importlib 
-        importlib.import_module("gal3d.shape.geomtry_plugins")
-        logger.info("Successfully loaded geomtry plugins")
+        importlib.import_module("gal3d.shape.geometry_plugins")
+        logger.info("Successfully loaded geometry plugins")
         
     @classproperty
     def available_plugins(cls) -> List[str]:

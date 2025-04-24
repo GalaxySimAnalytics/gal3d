@@ -5,7 +5,7 @@ from typing import List
 
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
-from .. import config
+from .. import config_parser
 
 
 __all__ = ['Optimizer', 'OptimizerBase']
@@ -61,7 +61,7 @@ class OptimizerBase(ABC):
         """
         _OptimizerPlugins[cls.__name__] = cls
         logger.info(f"Find OptimizerPlugin: {cls.__name__} and load successfully")
-        if config['update_stub']:
+        if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
                 Optimizer, OptimizerBase, _OptimizerPlugins, output_path

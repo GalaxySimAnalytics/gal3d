@@ -5,6 +5,7 @@ import numpy as np
 from scipy.spatial import SphericalVoronoi
 
 from .util import *
+from ...configuration import config_parser
 
 
 logger = logging.getLogger('gal3d.preprocessing.spherical_field.spherical_vector')
@@ -60,9 +61,10 @@ class SphVector:
         self.voronoi = SphericalVoronoi(self.pos)
         self.voronoi.sort_vertices_of_regions()
         self.area = SphericalVoronoi.calculate_areas(self.voronoi)
-        self.uniformity = np.std(self.area) / np.mean(self.area)
+        target_area = 4*np.pi/N_sample
+        self.uniformity = 1 - np.mean(np.abs(self.area - target_area))/target_area
         logger.info(
-            f"{self.num} points on the sphere by {method} method have the uniformity of {self.uniformity:.2e}"
+            f"{self.num} points on the sphere by {method} method have the uniformity of {(self.uniformity*100):.3f}%"
         )
 
     def assign_points(self, pos):
@@ -81,11 +83,11 @@ class SphVector:
         '''
         pos_uni = unit_vector3d(pos)
 
-        batchsize = 200000  # prevent memory overflow
+        batchsize = config_parser['general'].getint('batchsize',fallback=200000)  # prevent memory overflow
         n_split = len(pos_uni) // batchsize
         n_split = max(n_split, 1)
 
-        logger.info(f"Splitting pos into {n_split} parts, prevent memory overflow")
+        logger.info(f"Splitting points into {n_split} parts, prevent memory overflow")
 
         target_pos_split = np.array_split(pos_uni, n_split, axis=0)
 
@@ -146,3 +148,13 @@ class SphVector:
         sampling_sphere_coor = trans_to_Spherical_coordinates(sampling_pos)
 
         return sampling_pos, sampling_sphere_coor
+    @staticmethod
+    def cal_uniformity(pos):
+        pos_uni = unit_vector3d(pos)
+        voronoi = SphericalVoronoi(pos_uni)
+        voronoi.sort_vertices_of_regions()
+        area = SphericalVoronoi.calculate_areas(voronoi)
+        #self.uniformity = np.std(self.area) / np.mean(self.area)
+        target_area = 4*np.pi/len(pos)
+        uniformity = 1-np.mean(np.abs(area - target_area))/target_area
+        return uniformity

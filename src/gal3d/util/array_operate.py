@@ -55,19 +55,22 @@ def RobustLength3d(v0, v1, v2):
         return v1 * math.sqrt(1 + v0 * v0 / v1 / v1 + v2 * v2 / v1 / v1)
 
 
-@jit(
-    float64[:, :](float64[:, :], float64[:]),
-    nogil=True,
-    parallel=True,
-    fastmath=True,
-    cache=True,
-)
-def Shift(pos, cen):
-    Np = len(pos)
-    for i in prange(Np):
-        pos[i] = pos[i] - cen
-    return pos
+#@jit(
+#    float64[:, :](float64[:, :], float64[:]),
+#    nogil=True,
+#    parallel=True,
+#    fastmath=True,
+#    cache=True,
+#)
+#def Shift(pos, cen):
+#    Np = len(pos)
+#    for i in prange(Np):
+#        
+#        pos[i] = pos[i] - cen
+#    return pos
 
+def Shift(pos,cen):
+    return pos - cen
 
 @jit(
     float64[:, :](float64[:, :], float64[:, :]),
@@ -117,14 +120,18 @@ def Dot(v0, v1):
     return dot
 
 
-@jit(
-    float64[:, :](float64[:, :], float64[:, :]),
-    nogil=True,
-    fastmath=True,
-    cache=True,
-)
-def Rotate(pos, mat):
-    return Matmul(mat, pos.T).T
+#@jit(
+#    float64[:, :](float64[:, :], float64[:, :]),
+#    nogil=True,
+#    fastmath=True,
+#    cache=True,
+#)
+#def Rotate(pos, mat):
+#    return Matmul(mat, pos.T).T
+
+def Rotate(pos,mat):
+    return np.matmul(pos,mat.T)
+
 
 
 @jit(

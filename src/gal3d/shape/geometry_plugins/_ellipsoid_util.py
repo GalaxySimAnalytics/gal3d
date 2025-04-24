@@ -447,13 +447,37 @@ def IntersectRayEllipsoid(a, b, c, x, y, z):
 )
 def IntersectRaysEllipsoid(a, b, c, pos):
 
-    tarpos = np.zeros((len(pos), 3))
-    d = np.zeros(len(pos))
-    L = np.zeros(len(pos))
-    for i in prange(len(pos)):
-        tarpos[i, 0], tarpos[i, 1], tarpos[i, 2], d[i], L[i] = IntersectRayEllipsoid(
-            a, b, c, pos[i, 0], pos[i, 1], pos[i, 2]
-        )
+    n = pos.shape[0]
+    tarpos = np.zeros((n, 3))
+    d = np.zeros(n)
+    L = np.zeros(n)
+    for i in prange(n):
+        x = pos[i, 0]
+        y = pos[i, 1]
+        z = pos[i, 2]
+        Li = RobustLength3d(x, y, z)
+        if Li>0:
+            xi = x / Li
+            yi = y / Li
+            zi = z / Li
+            denom = (xi / a) ** 2 + (yi / b) ** 2 + (zi / c) ** 2
+            di = np.sqrt(1.0 / denom)
+            tarpos[i, 0] = xi * di
+            tarpos[i, 1] = yi * di
+            tarpos[i, 2] = zi * di
+            d[i] = di
+            L[i] = Li
+        else:
+            # To avoid division by zero
+            tarpos[i, 0] = 0.0
+            tarpos[i, 1] = 0.0
+            tarpos[i, 2] = 0.0
+            d[i] = 0.0
+            L[i] = 0.0
+
+#        tarpos[i, 0], tarpos[i, 1], tarpos[i, 2], d[i], L[i] = IntersectRayEllipsoid(
+#            a, b, c, pos[i, 0], pos[i, 1], pos[i, 2]
+#        )
     return tarpos, L - d
 
 

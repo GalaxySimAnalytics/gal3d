@@ -22,6 +22,7 @@ class Particles(GlobalCalculator):
         self,
         pos,
         mass,
+        rmax: float | None = None,
         parameter_mode: str = 'Density',
         density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',
         estimator_kwargs: dict | None = None,
@@ -44,6 +45,11 @@ class Particles(GlobalCalculator):
         """
 
         GlobalCalculator.__init__(self, pos, mass)
+        if rmax:
+            sel = (self.r<rmax)
+            self.pos = self.pos[sel]
+            self.mass = self.mass[sel]
+            self.r = self.r[sel]
         estimator_kwargs = {} if estimator_kwargs is None else estimator_kwargs
 
         if isinstance(density_estimator, str):

@@ -89,12 +89,16 @@ class SphField:
         self.inner_r = self._bound_method[inner_mode](self, inner, mode='min')
         r_in_min = np.min(self.inner_r)
         r_in_max = np.max(self.inner_r)
-        logger.info(f"Field inner boundaries range {r_in_min:.2f} to {r_in_max:.2f}")
+        logger.info(f"Field inner boundaries range from {r_in_min:.2f} to {r_in_max:.2f}")
+        if r_in_min/r_in_max < 0.09:
+            logger.warning("The axial ratio of the inner boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
 
         self.outer_r = self._bound_method[outer_mode](self, outer, mode='max')
         r_ou_min = np.min(self.outer_r)
         r_ou_max = np.max(self.outer_r)
-        logger.info(f"Field outer boundaries range {r_ou_min:.2f} to {r_ou_max:.2f}")
+        logger.info(f"Field outer boundaries range from {r_ou_min:.2f} to {r_ou_max:.2f}")
+        if r_ou_min/r_ou_max < 0.09:
+            logger.warning("The axial ratio of the outer boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
 
         self.rays_vect = self.rays.pos
         self.check_boundary()
@@ -306,7 +310,7 @@ class SphField:
         Returns
         -------
         np.ndarray
-            The wemassghts of the points closest to the nth ray.
+            The mass of the points closest to the nth ray.
         '''
         return self.particles.mass[self.points_index[n]]
 

@@ -168,6 +168,21 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             fit_pa: array, shape(m,)
                 The estimated parameter values based on the nearest neighbors.
         '''
+        if np.isfinite(n_d).any():
+            valid_mask = np.isfinite(n_d)
+            mass_neighbors = np.zeros_like(n_index,dtype=float)
+            mass_neighbors[valid_mask] = self.mass[n_index[valid_mask]]
+            if self.pa_mode == 'Mean':
+                fit_pa = np.mean(mass_neighbors, axis=1)
+            else:
+                n_d_max = np.where(valid_mask,n_d,0).max(axis=1)
+                n_d_max[n_d_max==0] = self._tree_query_options['distance_upper_bound']
+                if self.pa_mode != 'Density':
+                    logger.warning(f"Unsupported parameter_mode '{self.pa_mode}', defaulting to 'Density'")
+                n_mass = np.sum(mass_neighbors, axis=1)
+                fit_pa = n_mass / (4 / 3 * np.pi * np.power(n_d_max, 3))
+            return fit_pa
+            
         n_d_max = n_d[:, -1]
         if self.pa_mode == 'Mean':
             fit_pa = np.mean(self.mass[n_index], axis=1)

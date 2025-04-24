@@ -74,8 +74,9 @@ class ProjectorLineIntegration(ModelProjectorBase):
             sec = self.model[int(i)].quick_line_intersect(
                 pos1=pos1[ind_in], pos2=pos2[ind_in]
             )
-            tar = ind_in[(sec[:, 0] > 0.0)]
-            sec = sec[(sec[:, 0] > 0.0)]
+            sel = (sec[:, 0] > 0.0)
+            tar = ind_in[sel]
+            sec = sec[sel]
 
             for j in range(len(tar)):
                 project_profile[tar[j]][0].append(sec[j][0])

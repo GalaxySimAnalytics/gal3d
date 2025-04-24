@@ -6,11 +6,12 @@ import numpy as np
 from tqdm import tqdm
 
 from .point import Particles
-from .field import SphField
-
+from .field import SphField, SphVector
 from .shape import Structure3D
 from .optimization.optimizer import Optimizer
 from .optimization.result import ModelResult
+
+from .configuration import _set_config_parser
 
 logger = logging.getLogger("gal3d.analyzer")
 
@@ -47,6 +48,13 @@ class Gal3DAnalyzer:
         self.field = field
         self.structure = structure
         self.optimizer = optimizer
+    
+    @staticmethod
+    def from_config(pos, mass, config_file: str):
+        cfg = _set_config_parser()
+        cfg.read(config_file)
+        pass
+        
 
     def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs):
         """
@@ -80,7 +88,7 @@ class Gal3DAnalyzer:
                     res = work(self, i, **kwargs)
                     resall.append(res)
                 except Exception as e:
-                    logger.error(f'Skip fitting at radius {i:.2f}, for error {e}')
+                    logger.error(f'Skip fitting at radius {i:.2f}, for error: {e}')
 
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])
@@ -196,9 +204,10 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
         The result of the fitting process, including parameter values and optimizer output.
     """
 
-    var_a = kwargs.get('var_a', 0)
+    var_a = kwargs.get('var_a', 0.1)
     var_a = min(var_a, 0.99)
     var_a = max(var_a, 0)
+    uniformity_cut =  kwargs.get('uniformity_cut', 0.75)
 
     init_parameters = kwargs.get('init_parameters', dict())
     upper_bounds = kwargs.get('upper_bounds', dict())
@@ -206,6 +215,13 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     fitonce = kwargs.get('fitonce', False)
 
     data = self.field.generate(a, for_fit=True)
+    N_p = len(data['pos'])
+    if N_p < 2:
+        raise ValueError(f"Generate {N_p} points < 2.")
+    if N_p < self.field.rays.num:
+        uni = SphVector.cal_uniformity(data['pos'])
+        if uni < uniformity_cut:
+            raise ValueError(f"Generate {N_p} points, with uniformity: {uni:.3f} < {uniformity_cut}")
 
     if (self.structure._geometry_name == 'Ellipsoid') or (
         self.structure._geometry_name == 'Ellipsoid_S' and fitonce

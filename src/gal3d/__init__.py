@@ -1,5 +1,5 @@
 import os
-from .configuration import logger, config, config_parser
+from .configuration import logger, config_parser
 from ._info import __version__,logo_color
 
 

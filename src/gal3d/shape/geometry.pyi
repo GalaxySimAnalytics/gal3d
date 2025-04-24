@@ -2,8 +2,8 @@ import typing
 from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
 import numpy
 from gal3d.shape.geometry import GeometryBase
-from gal3d.shape.geomtry_plugins.ellipsoid import Ellipsoid
-from gal3d.shape.geomtry_plugins.ellipsoid_s import Ellipsoid_S
+from gal3d.shape.geometry_plugins.ellipsoid import Ellipsoid
+from gal3d.shape.geometry_plugins.ellipsoid_s import Ellipsoid_S
 
 class GeometryBase:
 

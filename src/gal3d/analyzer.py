@@ -53,7 +53,32 @@ class Gal3DAnalyzer:
     def from_config(pos, mass, config_file: str):
         cfg = _set_config_parser()
         cfg.read(config_file)
-        pass
+        particle_cfg = cfg['Point']
+        particle = Particles(pos = pos,mass=mass,rmax=particle_cfg.getfloat("r_max"),
+                             estimator_kwargs={"k_nearest":particle_cfg.getint("k_nearest",fallback=32),
+                                               "r_cut": particle_cfg.getint("r_cut")})
+        
+        field_cfg = cfg['Field']
+        field = SphField(particle,num_ray=field_cfg.getint("n_ray",fallback=1024),ray_method=field_cfg.get("ray_method",fallback="fibonacci")
+            ).build_field_boundary(inner=field_cfg.getfloat("inner"),inner_mode=field_cfg.get("inner_mode"),
+                                   outer=field_cfg.getfloat("outer"),outer_mode=field_cfg.get("outer_mode")  # softening_length/2
+                                
+            ).build_profile_sample(num_p=field_cfg.getint("n_step"),step_mode=field_cfg.get("step_mode")
+            ).build_profile_interpolator(interpolator_method=field_cfg.get("interpolator"),
+            ).build_isodensity_profile(method=field_cfg.get("isodensity_method"),from_rays_func=field_cfg.getboolean("from_rays_func"),
+                                       res_b=field_cfg.getfloat("res_b"),res_c=field_cfg.getfloat("res_c"),num_p=field_cfg.getint("iso_step"),
+                                       interpolator_method=field_cfg.get("isodensity_interpolator"))
+        
+        shape_cfg = cfg["Shape"]
+        shape = Structure3D(coordinate=shape_cfg.get("coordinate"),
+                            geometry=shape_cfg.get("geometry"),
+                            error_func=shape_cfg.get("error_func"),
+                            error_method=shape_cfg.get("error_method"),)
+        
+        optimizer_cfg = cfg['Optimizer']
+        optimizer = Optimizer.get_plugin(plugin =optimizer_cfg.get("optimizer"))(algorithm=optimizer_cfg.get("algorithm")) # OptimizerScipy Powell
+        
+        return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
         
 
     def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs):
@@ -72,7 +97,7 @@ class Gal3DAnalyzer:
         -------
         ModelResult 
         """
-        work = self.get_work()
+        work = self.get_workflow()
 
         if not isinstance(r, Iterable):
 
@@ -95,7 +120,7 @@ class Gal3DAnalyzer:
             else:
                 return resall
 
-    def get_work(self):
+    def get_workflow(self):
         """
         Determine which registered workflow to use based on its condition.
 

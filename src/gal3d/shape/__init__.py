@@ -280,10 +280,13 @@ class Structure3D:
         pos = np.asarray(pos)
 
         coord_pa, geoty_pa = self._generate_normal(**kwargs)
-
-        return self._geometry(**geoty_pa).ray_intersect(
+        
+        pos_in,dist = self._geometry(**geoty_pa).ray_intersect(
             self._coordinate(**coord_pa)(pos)
         )
+        pos_in = self._coordinate(**coord_pa).inverse(pos_in)
+
+        return pos_in,dist
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike, **kwargs) -> np.ndarray:
         """

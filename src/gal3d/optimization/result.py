@@ -1,6 +1,7 @@
 import copy
 import logging
 from dataclasses import is_dataclass
+from typing import Union,overload
 
 import numpy as np
 
@@ -262,8 +263,16 @@ class ModelResult:
             The evaluated model values at the given position.
         """
         return self[item](pos, **kwargs)
+    
+    @overload
+    def __getitem__(self, k: int)-> Structure3D:
+        ...
+    
+    @overload
+    def __getitem__(self, k: str)-> np.ndarray:
+        ...
 
-    def __getitem__(self, k):
+    def __getitem__(self, k: Union[int,str]) -> Union[Structure3D, np.ndarray]:
         """
         Retrieves either a specific parameter or a specific set of parameters.
 

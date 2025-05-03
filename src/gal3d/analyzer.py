@@ -81,7 +81,7 @@ class Gal3DAnalyzer:
         return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
         
 
-    def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs):
+    def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
         """
         Fit the model to a single radius or a sequence of radii.
 

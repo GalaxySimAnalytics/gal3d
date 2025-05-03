@@ -460,6 +460,115 @@ class Structure3D:
         points = self._geometry(**geoty_pa).ray_point(cpos)
 
         return self._coordinate(**coord_pa).inverse(points)
+    
+    def generate_edge2D(self, n_angle_bins = 130, n_r_bins = 400,r_min=0.2,r_max=3,z_l=1.5,rotation=np.eye(3)):
+        """
+        Generate the 2D boundary of a shape's projection.
+
+        Parameters
+        ----------
+        n_angle_bins : int, optional
+            Number of bins for angles (default is 130).
+        n_r_bins : int, optional
+            Number of bins for radius (default is 400).
+        r_min : float, optional
+            Minimum radius value (default is 0.2).
+        r_max : float, optional
+            Maximum radius value (default is 3).
+        z_l : float, optional
+            The z-coordinate limit for the projection (default is 1.5).
+        rotation : ndarray, shape (3, 3), optional
+            A 3x3 rotation matrix for rotating the shape (default is the identity matrix).
+
+        Returns
+        -------
+        X : ndarray
+            X coordinates of the 2D boundary.
+        Y : ndarray
+            Y coordinates of the 2D boundary.
+
+        Notes
+        -----
+        For an edge view along the x-z plane, use:
+            rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
+
+        Visualize example:
+            plt.plot(X, Y)
+        """
+        ang_bins = np.linspace(0,2*np.pi,n_angle_bins)
+        r_bins = np.linspace(r_min,r_max,n_r_bins)
+
+        x = np.sin(ang_bins)
+        y = np.cos(ang_bins)
+
+        z0 = np.ones(len(x))*(-z_l)
+        z1 = np.ones(len(x))*(z_l)
+
+        pos0 = np.array([x,y,z0]).T
+        pos1 = np.array([x,y,z1]).T
+
+        pos0_all = np.einsum('ij,k->ikj',pos0,r_bins).reshape(n_angle_bins*n_r_bins,3)
+
+        pos0_all[:,2] = -z_l
+        pos1_all = np.einsum('ij,k->ikj',pos1,r_bins).reshape(n_angle_bins*n_r_bins,3)
+        pos1_all[:,2] = z_l
+        
+        pos0_all = np.matmul(pos0_all,rotation.T)
+        pos1_all = np.matmul(pos1_all,rotation.T)
+
+        lineinter = self.line_intersect(pos0_all,pos1_all)[:,0]
+        lineinter = lineinter.reshape(n_angle_bins,n_r_bins)
+        R_all = []
+        for i in range(n_angle_bins):
+            R_all.append(r_bins[lineinter[i]>0][-1])
+            
+        R_all = np.asarray(R_all)
+
+        X = R_all*x
+        Y = R_all*y
+        return X,Y
+    
+    def generate_edge3D(self, n_phi_bins: int = 120, n_theta_bins: int = 60):
+        """
+        Generate the 3D boundary of a shape.
+
+        Parameters
+        ----------
+        n_phi_bins : int, optional
+            Number of bins for the azimuthal angle (0~2pi) (default is 120).
+        n_theta_bins : int, optional
+            Number of bins for the polar angle (0~pi) (default is 60).
+
+        Returns
+        -------
+        X : ndarray
+            X coordinates of the 3D boundary.
+        Y : ndarray
+            Y coordinates of the 3D boundary.
+        Z : ndarray
+            Z coordinates of the 3D boundary.
+
+        Visualize example:
+            fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
+        """
+        u = np.linspace(0, 2 * np.pi, n_phi_bins)
+        v = np.linspace(0, np.pi, n_theta_bins)
+
+        x = np.outer(np.cos(u), np.sin(v))
+        y = np.outer(np.sin(u), np.sin(v))
+        z = np.outer(np.ones_like(u), np.cos(v))
+
+        pos = np.array([x.reshape(1,-1)[0],y.reshape(1,-1)[0],z.reshape(1,-1)[0]]).T
+        pos=self._coordinate(**self.parameters).inverse(pos)
+
+        pos_plot,_ =self.ray_intersect(pos)
+
+        X = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,0]
+        Y = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,1]
+        Z = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,2]
+        return X,Y,Z
 
     @staticmethod
     def compute_method_registry(fn: str | Callable) -> Callable:

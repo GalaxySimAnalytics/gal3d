@@ -1,1 +1,0 @@
-from .characterizer import Characterizer

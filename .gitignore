@@ -17,3 +17,4 @@ tests/test_data
 
 .pytest_cache
 dist/
+build/

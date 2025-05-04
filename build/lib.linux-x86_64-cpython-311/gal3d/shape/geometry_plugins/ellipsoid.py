@@ -1,13 +1,8 @@
 import numpy as np
 from numpy.typing import ArrayLike
-import logging
 
-logger = logging.getLogger("gal3d.shape.geomtry.ellipsoid")
-try:
-    from ._ellipsoid_util_cy import f_ellipsoid, f_ellipsoid_jacobian,IntersectRaysEllipsoid, f_ray_ellipsoid, IntersectLinesEllipsoid
-except:
-    logger.info("Load numba version of ellipsoid")
-    from ._ellipsoid_util import *
+#from ._ellipsoid_util import *
+from ._ellipsoid_util_cy import f_ellipsoid, f_ellipsoid_jacobian,IntersectRaysEllipsoid, f_ray_ellipsoid, IntersectLinesEllipsoid
 from ..geometry import GeometryBase, classproperty, Parameters
 
 __all__ = ['Ellipsoid']

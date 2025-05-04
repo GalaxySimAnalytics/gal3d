@@ -22,23 +22,7 @@ def _get_config_parser_with_defaults() -> configparser.RawConfigParser:
     config_parser.read(os.path.join(os.path.dirname(__file__), "default_config.ini"))
     return config_parser
 
-def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
-    config = {}
-    config['logger'] = {}
-    for i in ['level','stream_level','file_level']:
-        config['logger'][i] = config_parser['logger'].getint(i, fallback=20)
-    config['logger']["save_file"] = config_parser['logger'].getboolean("save_file", fallback=True)
-    config['logger']["file_name"] = config_parser['logger'].get("file_name", fallback="gal3d.log")
-    
-    config['general'] = {}
-    config['general']["update_stub"] = config_parser['general'].getboolean("update_stub", fallback=False)
-    config['general']["batchsize"] = config_parser['general'].getint("batchsize", fallback=200000)
-    
-    config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads')
 
-    if config['general']['number_of_threads']<0:
-        config['general']['number_of_threads']=os.cpu_count()
-    return config
 class ColorFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
 
@@ -160,20 +144,20 @@ class NoColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def _setup_logging(cfg: dict) -> logging.Logger:
+def _setup_logging(cfg: configparser.SectionProxy) -> logging.Logger:
     logger = logging.getLogger("gal3d")
-    logger.setLevel(cfg['level'])
+    logger.setLevel(cfg.getint("level", fallback=20))
     
     ch = logging.StreamHandler()
-    ch.setLevel(cfg['stream_level'])
+    ch.setLevel(cfg.getint("stream_level", fallback=20))
 
     ch.setFormatter(ColorFormatter())
     logger.addHandler(ch)
     
-    file_handle = cfg['save_file']
+    file_handle = cfg.getboolean("save_file", fallback=True)
     if file_handle:
-        fh = logging.FileHandler(cfg['file_name'], mode='w', encoding="utf-8")
-        fh.setLevel(cfg['file_level'])
+        fh = logging.FileHandler(cfg.get("file_name",fallback="gal3d.log"), mode='w', encoding="utf-8")
+        fh.setLevel(cfg.getint("file_level", fallback=20))
         fh.setFormatter(NoColorFormatter())
         logger.addHandler(fh)
 
@@ -190,6 +174,5 @@ def set_logging_level(level=logging.INFO):
 
 
 config_parser = _get_config_parser_with_defaults()
-config = _get_basic_config_from_parser(config_parser)
-logger = _setup_logging(config['logger'])
+logger = _setup_logging(config_parser['logger'])
 

@@ -9,8 +9,11 @@ docs/test.py
 **/__pycache__
 
 **/gal3d.log
+**/*.c
+**/*.so
 
 tests/test_data
 **/.coverage
 
 .pytest_cache
+dist/

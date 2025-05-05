@@ -648,18 +648,18 @@ class Parameters:
         else:
             raise ValueError(f"No constraints on the parameter {name}")
 
-    def decorate_func_contraints(self, function):
+    def decorate_func_constraints(self, function):
 
         if self.__equal_constraints:
             wraps(function)
 
             def wrapper(params, *args, **kwargs):
-                inputdic = dict(zip(list(self.keys()), params))
+                input_dict = dict(zip(list(self.keys()), params))
                 new_params = [
                     (
-                        inputdic[i]
-                        if i in inputdic
-                        else self.__equal_constraints[i](inputdic)
+                        input_dict[i]
+                        if i in input_dict
+                        else self.__equal_constraints[i](input_dict)
                     )
                     for i in self._parameter_names
                 ]

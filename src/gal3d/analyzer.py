@@ -253,7 +253,7 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     ):
 
         parameters_set = self.structure.parameters.new()
-        fun = parameters_set.decorate_func_contraints(self.structure._error_method)
+        fun = parameters_set.decorate_func_constraints(self.structure._error_method)
 
         if 'info' in data:
             parameters_set.add_info(**data['info'])
@@ -316,7 +316,7 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
 
         bounds = params_ell.scipy_bounds
 
-        fun = params_ell.decorate_func_contraints(ellipsoid._error_method)
+        fun = params_ell.decorate_func_constraints(ellipsoid._error_method)
 
         x0_dict = params_ell.truncate_dict(n=4)
         ell_res = self.optimizer.fitting(
@@ -338,7 +338,7 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
 
         parameters_set.add_info(parent_fun=ell_res.fun)
 
-        fun = parameters_set.decorate_func_contraints(self.structure._error_method)
+        fun = parameters_set.decorate_func_constraints(self.structure._error_method)
 
         if 'info' in data:
             parameters_set.add_info(**data['info'])

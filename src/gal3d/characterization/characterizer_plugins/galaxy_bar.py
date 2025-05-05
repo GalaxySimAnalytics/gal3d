@@ -1,4 +1,9 @@
+
+from typing import List
+
 import numpy as np
+from scipy.interpolate import PchipInterpolator
+
 from ..characterizer import CharacterizerBase
 
 __all__ = ['Bar']
@@ -38,7 +43,7 @@ class Bar(CharacterizerBase):
         self.pa = self.data['pa']*180/np.pi         # radians to degrees
 
     def measure(
-        self, eps_cond=0.25, range_min=0.2, start_max=3, angle_dev=10, dec=0.85, detail: bool = False,other_keys: dict | None =None):
+        self, eps_cond=0.25, range_min=0.2, start_max=3, angle_dev=10, dec=0.85, detail: bool = False,other_keys: List[str] | str | None =None ) -> dict:
         '''
         Measure galaxy bar parameters using ellipticity profile analysis.
 
@@ -112,6 +117,14 @@ class Bar(CharacterizerBase):
         if (R_start > 0) & (eps_max > eps_cond) & ((R_pa - R_max) > range_min):
             bar_flag = 1
         result = {"flag": bar_flag, "eps_max":eps_max, "R_max": R_max, "R_bar": min(R_dc,R_pa)}
+        
+        if other_keys:
+            if isinstance(other_keys,str):
+                other_keys = [other_keys]
+            for i in other_keys:
+                f_r = PchipInterpolator(self.a, self.data[i])
+                result[f"{i}_max"] = f_r(result['R_max'])
+                result[f"{i}_bar"] = f_r(result['R_bar'])
         
         if not detail:
             return result
@@ -253,9 +266,8 @@ class Bar(CharacterizerBase):
         f_eps_R : scipy.interpolate.PchipInterpolator
             Ellipticity interpolator
         '''
-        import scipy
 
-        f_eps_R = scipy.interpolate.PchipInterpolator(self.a, self.eps)
+        f_eps_R = PchipInterpolator(self.a, self.eps)
         eps_dc = eps_max * dec
         range_cut = self.a >= eps_max
         R_dc = f_eps_R.solve(eps_dc, discontinuity=False, extrapolate=False)

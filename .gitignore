@@ -5,6 +5,7 @@ docs/code_test.ipynb
 docs/code_for_save.py
 docs/test.py
 
+src/gal3d.egg-info
 
 **/__pycache__
 
@@ -15,6 +16,7 @@ docs/test.py
 tests/test_data
 **/.coverage
 
+.venc
 .pytest_cache
 dist/
 build/

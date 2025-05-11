@@ -260,7 +260,7 @@ class Parameters:
 
         return new
 
-    def truncate_dict(self, n=3):
+    def truncate_dict(self, n: int = 3) -> dict:
         """
         Truncates the parameter values to `n` decimal places.
 
@@ -273,8 +273,20 @@ class Parameters:
         -------
         dict
             A dictionary of parameter names and their truncated values.
+
+        Raises
+        ------
+        ValueError
+            If `n` is negative.
         """
-        return {i: truncate(self.__parameters[i], n) for i in self.__parameters}
+        if n < 0:
+            logger.error("Negative decimal places are not allowed: n=%d", n)
+            raise ValueError("Decimal places must be non-negative.")
+        try:
+            return {i: truncate(self.__parameters[i], n) for i in self.__parameters}
+        except Exception as e:
+            logger.error("Failed to truncate dictionary: %s", e, exc_info=True)
+            raise
 
     def available_keys(self):
         """
@@ -480,7 +492,7 @@ class Parameters:
 
         return self
 
-    def set_ub(self, **kwargs):
+    def set_ub(self, **kwargs) -> 'Parameters':
         """
         Sets the upper bounds of multiple parameters.
 
@@ -493,17 +505,33 @@ class Parameters:
         -------
         Parameters
             The updated Parameters instance.
+            
+        Examples
+        --------
+        >>> params = Parameters(a=1.0, b=2.0)
+        >>> params.set_ub(a=2.0, b=3.0)
+        Parameters( a=1.0, b=2.0 )  # with upper bounds set
         """
-        for i in kwargs:
-            if i not in self.__parameters:
-                logger.warning(
-                    f"Setting upper bound failed. {i} is not a parameter name."
-                )
-            else:
-                self.__parameters[i].ub = kwargs[i]
-        return self
+        try:
+            for i in kwargs:
+                if i not in self.__parameters:
+                    logger.warning(
+                        f"Setting upper bound failed. '{i}' is not a parameter name."
+                    )
+                else:
+                    # Validate the bound value
+                    if not np.isfinite(kwargs[i]) and kwargs[i] != np.inf:
+                        logger.warning(f"Non-finite upper bound for '{i}': {kwargs[i]}, using inf")
+                        self.__parameters[i].ub = np.inf
+                    else:
+                        self.__parameters[i].ub = kwargs[i]
+                        logger.debug(f"Set upper bound for '{i}' to {kwargs[i]}")
+            return self
+        except Exception as e:
+            logger.error(f"Error setting upper bounds: {e}", exc_info=True)
+            raise
 
-    def set_lb(self, **kwargs):
+    def set_lb(self, **kwargs) -> 'Parameters':
         """
         Sets the lower bounds of multiple parameters.
 
@@ -516,15 +544,31 @@ class Parameters:
         -------
         Parameters
             The updated Parameters instance.
+            
+        Examples
+        --------
+        >>> params = Parameters(a=1.0, b=2.0)
+        >>> params.set_lb(a=0.5, b=1.0)
+        Parameters( a=1.0, b=2.0 )  # with lower bounds set
         """
-        for i in kwargs:
-            if i not in self.__parameters:
-                logger.warning(
-                    f"Setting lower bound failed. {i} is not a parameter name."
-                )
-            else:
-                self.__parameters[i].lb = kwargs[i]
-        return self
+        try:
+            for i in kwargs:
+                if i not in self.__parameters:
+                    logger.warning(
+                        f"Setting lower bound failed. '{i}' is not a parameter name."
+                    )
+                else:
+                    # Validate the bound value
+                    if not np.isfinite(kwargs[i]) and kwargs[i] != -np.inf:
+                        logger.warning(f"Non-finite lower bound for '{i}': {kwargs[i]}, using -inf")
+                        self.__parameters[i].lb = -np.inf
+                    else:
+                        self.__parameters[i].lb = kwargs[i]
+                        logger.debug(f"Set lower bound for '{i}' to {kwargs[i]}")
+            return self
+        except Exception as e:
+            logger.error(f"Error setting lower bounds: {e}", exc_info=True)
+            raise
 
     @property
     def lb(self):
@@ -617,36 +661,99 @@ class Parameters:
         self._info.update(kwargs)
 
     @property
-    def structure_parameters(self):
+    def structure_parameters(self) -> dict:
+        """
+        Get a dictionary of the parameters needed for structure initialization.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the parameter names and values needed for structure initialization.
+            
+        Notes
+        -----
+        This is used to extract parameters that should be passed to Structure3D instances.
+        """
+        try:
+            return {i: self[i] for i in self._parameter_names}
+        except Exception as e:
+            logger.error(f"Failed to retrieve structure parameters: {e}", exc_info=True)
+            raise
 
-        return {i: self[i] for i in self._parameter_names}
-
-    def add_equal_constraints(self, **kwargs):
+    def add_equal_constraints(self, **kwargs) -> None:
+        """
+        Add equality constraints to parameters.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            A dictionary where keys are parameter names and values are constraint functions.
+            Each constraint function takes a dictionary of parameters and returns the constrained value.
+            
+        Raises
+        ------
+        ValueError
+            If any of the constraints is not callable.
+            
+        Examples
+        --------
+        >>> def constrain_c(params):
+        ...     return params['a'] * params['b']  # c = a*b
+        >>> params = Parameters(a=2.0, b=3.0, c=6.0)
+        >>> params.add_equal_constraints(c=constrain_c)
+        """
         for i in kwargs:
             if callable(kwargs[i]):
                 if i not in self.__equal_constraints:
+                    # Store original parameter before removing it from __parameters
                     self.__constraints_parameters[i] = self.__parameters.pop(i)
+                    logger.debug(f"Added constraint on parameter '{i}', removed from direct parameters")
                 self.__equal_constraints[i] = kwargs[i]
+                logger.debug(f"Set constraint function for parameter '{i}'")
             else:
-                raise ValueError(f"The constraint of {i} must be callable")
+                error_msg = f"The constraint of '{i}' must be callable, got {type(kwargs[i])}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
 
-    def del_equal_constraints(self, name):
+    def del_equal_constraints(self, name: str) -> None:
+        """
+        Remove an equality constraint from a parameter.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the parameter to remove constraint from.
+            
+        Raises
+        ------
+        ValueError
+            If there is no constraint on the parameter or if the parameter 
+            was not properly recorded in __constraints_parameters.
+            
+        Examples
+        --------
+        >>> params.del_equal_constraints('c')  # Remove constraint on c
+        """
         if name in self.__equal_constraints:
             if name in self.__constraints_parameters:
+                # Restore the parameter to __parameters
                 self.__parameters[name] = self.__constraints_parameters.pop(name)
                 self.__equal_constraints.pop(name)
+                logger.debug(f"Removed constraint on parameter '{name}', restored to direct parameters")
 
-                # retain the parameters order
+                # Retain the parameters order
                 ordername = list(
                     filter(lambda x: x in self.__parameters, self._parameter_names)
                 )
                 self.__parameters = {i: self.__parameters[i] for i in ordername}
             else:
-                raise ValueError(
-                    f"The parameter {name} was not recorded by __constraints_parameters"
-                )
+                error_msg = f"The parameter '{name}' was not recorded by __constraints_parameters"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
         else:
-            raise ValueError(f"No constraints on the parameter {name}")
+            error_msg = f"No constraints on the parameter '{name}'"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
     def decorate_func_constraints(self, function):
 

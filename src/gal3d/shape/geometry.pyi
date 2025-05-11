@@ -1,6 +1,7 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
-import numpy
+from typing import overload, Type, Literal
+import numpy as np
+
 from gal3d.shape.geometry import GeometryBase
 from gal3d.shape.geometry_plugins.ellipsoid import Ellipsoid
 from gal3d.shape.geometry_plugins.ellipsoid_s import Ellipsoid_S
@@ -10,19 +11,39 @@ class GeometryBase:
     @classmethod
     def __init_subclass__(cls, **kwargs) -> None: ...
 
-    def __call__(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def __call__(self, pos: np.ndarray) -> np.ndarray:
         """
         Evaluates the geometry function at the given positions.
+
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            Positions to evaluate the geometry function.
+
+        Returns
+        -------
+        numpy.ndarray
+            Evaluated geometry values.
         """
         ...
 
-    def jacobian(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> tuple:
+    def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, ...]:
         """
-        Computes the Jacobian of the geometry function at the given positions for each parameters.
+        Computes the Jacobian of the geometry function.
+
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            Positions to compute the Jacobian.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, ...]
+            Jacobian matrices for each parameter.
         """
         ...
 
-    def ray_intersect(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> tuple:
+    def ray_intersect(self, pos: np.ndarray[typing.Any, np.dtype[np.float64]]) -> tuple:
         """
         Computes the intersection between the ray from center and the surface of geometry.
 
@@ -34,45 +55,45 @@ class GeometryBase:
         """
         ...
 
-    def line_intersect(self, pos1: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]], pos2: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def line_intersect(self, pos1: np.ndarray[typing.Any, np.dtype[np.float64]], pos2: np.ndarray[typing.Any, np.dtype[np.float64]]) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Computes the intersection between given line segment and the surface of geometry
         """
         ...
 
-    def f_ray_d(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def f_ray_d(self, pos: np.ndarray[typing.Any, np.dtype[np.float64]]) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Ray distance in unit of the ray distance of the surface, 1 means on the surface
         """
         ...
 
-    def ray_point(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> tuple: ...
+    def ray_point(self, pos: np.ndarray[typing.Any, np.dtype[np.float64]]) -> tuple: ...
 
-    def ray_dist(self, pos: numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]) -> tuple: ...
+    def ray_dist(self, pos: np.ndarray[typing.Any, np.dtype[np.float64]]) -> tuple: ...
 
     @staticmethod
-    def quick_call(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def quick_call(*args, **kwargs) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Quick version of call, with given parameters, useful in error function
         """
         ...
 
     @staticmethod
-    def quick_f_ray_d(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def quick_f_ray_d(*args, **kwargs) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Quickly evaluates the distance fraction of the geometry function with given parameters and positions, useful in error function
         """
         ...
 
     @staticmethod
-    def quick_ray_dist(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def quick_ray_dist(*args, **kwargs) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Quickly computes the distance between points and ray points on the surface of the geometry, useful in error function
         """
         ...
 
     @staticmethod
-    def quick_line_intersect(*args, **kwargs) -> numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]:
+    def quick_line_intersect(*args, **kwargs) -> np.ndarray[typing.Any, np.dtype[np.float64]]:
         """
         Quickly computes the intersection between given line segment and the geometry
         """

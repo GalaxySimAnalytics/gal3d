@@ -1,5 +1,9 @@
+from typing import Tuple, List, Optional, Union, Dict, Any
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch, Rectangle
+from matplotlib.axes import Axes
 
 from .hist2d import hist_2d, show_image, show_contour, add_colorbar
 from ..point import Particles
@@ -145,21 +149,63 @@ def set_xlabel(*args, **kwargs):
 
 
 def plot_zoom(
-    main_axs,
-    zoom_axs,
-    xy=(0, 0),
-    length=10,
-    height=10,
-    linestyle=':',
-    linewidth=1,
-    color='red',
-    zoom_loc='right',
-    arrowstyle='-',
-    arrowcolor='red',
-    arrowwidth=1,
-):
+    main_axs: Axes,
+    zoom_axs: Axes,
+    xy: Tuple[float, float] = (0, 0),
+    length: float = 10,
+    height: float = 10,
+    linestyle: str = ':',
+    linewidth: float = 1,
+    color: str = 'red',
+    zoom_loc: str = 'right',
+    arrowstyle: str = '-',
+    arrowcolor: str = 'red',
+    arrowwidth: float = 1,
+) -> Tuple[Rectangle, ConnectionPatch, ConnectionPatch]:
+    """
+    Create a zoomed view of a specific region in the main axes.
 
-    from matplotlib.patches import ConnectionPatch, Rectangle
+    This function highlights a rectangular region on the main axes and connects it
+    with lines to a zoomed view in another axes object.
+
+    Parameters
+    ----------
+    main_axs : matplotlib.axes.Axes
+        The main axes containing the original plot.
+    zoom_axs : matplotlib.axes.Axes
+        The axes where the zoomed region will be shown.
+    xy : tuple of float, default=(0, 0)
+        The bottom-left coordinates of the zoom rectangle.
+    length : float, default=10
+        Width of the zoom rectangle.
+    height : float, default=10
+        Height of the zoom rectangle.
+    linestyle : str, default=':'
+        Line style for the zoom rectangle.
+    linewidth : float, default=1
+        Line width for the zoom rectangle.
+    color : str, default='red'
+        Color of the zoom rectangle.
+    zoom_loc : str, default='right'
+        Location of the zoom window relative to the main plot.
+        Options: 'right', 'left', 'top', 'bottom'
+    arrowstyle : str, default='-'
+        Style of the connection lines.
+    arrowcolor : str, default='red'
+        Color of the connection lines.
+    arrowwidth : float, default=1
+        Width of the connection lines.
+
+    Returns
+    -------
+    Tuple[Rectangle, ConnectionPatch, ConnectionPatch]
+        The rectangle patch and the two connection lines.
+
+    Raises
+    ------
+    ValueError
+        If an invalid zoom_loc value is provided.
+    """
 
     square = Rectangle(
         xy,
@@ -171,21 +217,26 @@ def plot_zoom(
         facecolor='none',
     )
     main_axs.add_patch(square)
+
+    # Determine connection points based on zoom location
     if zoom_loc == 'right':
         line1 = ((xy[0] + length, xy[1]), (xy[0], xy[1]))
         line2 = ((xy[0] + length, xy[1] + height), (xy[0], xy[1] + height))
-    if zoom_loc == 'left':
+    elif zoom_loc == 'left':
         line1 = ((xy[0], xy[1]), (xy[0] + length, xy[1]))
         line2 = ((xy[0], xy[1] + height), (xy[0] + length, xy[1] + height))
-
-    if zoom_loc == 'top':
+    elif zoom_loc == 'top':
         line1 = ((xy[0] + length, xy[1] + height), (xy[0] + length, xy[1]))
         line2 = ((xy[0], xy[1] + height), (xy[0], xy[1]))
-
-    if zoom_loc == 'bottom':
+    elif zoom_loc == 'bottom':
         line1 = ((xy[0] + length, xy[1]), (xy[0] + length, xy[1] + height))
         line2 = ((xy[0], xy[1]), (xy[0], xy[1] + height))
+    else:
+        raise ValueError(
+            f"Invalid zoom_loc '{zoom_loc}'. Must be one of: 'right', 'left', 'top', 'bottom'"
+        )
 
+    # Create connection patches
     con1 = ConnectionPatch(
         xyA=line1[0],
         coordsA=main_axs.transData,
@@ -214,26 +265,90 @@ def plot_zoom(
 def show_image_model_residual(
     data: Particles,
     model: ModelProjectorBase,
-    large_box_x_range=(-15, 15),
-    large_box_y_range=(-15, 15),
-    zoom_x_range=(-5, 5),
-    zoom_y_range=(-5, 5),
-    depth_z_range=(-20, 20),
-    nbins_large=200,
-    nbins_zoom=100,
-    nlevels_large=13,
-    nlevels_zoom=17,
-    which_pos_all=[(0, 1), (0, 2)],
-    rotation_matrix=np.eye(3),
-    cmap='turbo',
-    title_text=['Face', 'Edge'],
-    titlesize=25,
-    ylabel_all=["Data", "Model", "Residual"],
-    xlabel_all=["R [kpc]", "R [kpc]", "R [kpc]", "R [kpc]"],
-    labelsize=13,
-    savefile=None,
-):
+    large_box_x_range: Tuple[float, float] = (-15, 15),
+    large_box_y_range: Tuple[float, float] = (-15, 15),
+    zoom_x_range: Tuple[float, float] = (-5, 5),
+    zoom_y_range: Tuple[float, float] = (-5, 5),
+    depth_z_range: Tuple[float, float] = (-20, 20),
+    nbins_large: int = 200,
+    nbins_zoom: int = 100,
+    nlevels_large: int = 13,
+    nlevels_zoom: int = 17,
+    which_pos_all: List[Tuple[int, int]] = [(0, 1), (0, 2)],
+    rotation_matrix: NDArray[np.float64] = np.eye(3),
+    cmap: str = 'turbo',
+    title_text: List[str] = ['Face', 'Edge'],
+    titlesize: float = 25,
+    ylabel_all: List[str] = ["Data", "Model", "Residual"],
+    xlabel_all: List[str] = ["R [kpc]", "R [kpc]", "R [kpc]", "R [kpc]"],
+    labelsize: float = 13,
+    savefile: Optional[str] = None,
+) -> Union[plt.Figure, List[plt.Figure]]:
+    """
+    Create a comprehensive visualization comparing observed data, model, and residuals.
 
+    This function generates a detailed visualization that shows the observed data,
+    model projections, and their residuals in both large-scale and zoomed-in views.
+    It's useful for evaluating the quality of model fits to observational data.
+
+    Parameters
+    ----------
+    data : Particles
+        The particle data to visualize.
+    model : ModelProjectorBase
+        The model projector to generate model images.
+    large_box_x_range : tuple of float, default=(-15, 15)
+        X-axis range for the large box view in kpc.
+    large_box_y_range : tuple of float, default=(-15, 15)
+        Y-axis range for the large box view in kpc.
+    zoom_x_range : tuple of float, default=(-5, 5)
+        X-axis range for the zoomed view in kpc.
+    zoom_y_range : tuple of float, default=(-5, 5)
+        Y-axis range for the zoomed view in kpc.
+    depth_z_range : tuple of float, default=(-20, 20)
+        Depth range in z-direction for projection in kpc.
+    nbins_large : int, default=200
+        Number of bins for the large box view.
+    nbins_zoom : int, default=100
+        Number of bins for the zoomed view.
+    nlevels_large : int, default=13
+        Number of contour levels for the large box view.
+    nlevels_zoom : int, default=17
+        Number of contour levels for the zoomed view.
+    which_pos_all : list of tuples, default=[(0,1), (0,2)]
+        Axis pairs to use for projections (e.g., [(0,1)] for xy projection).
+    rotation_matrix : ndarray, default=np.eye(3)
+        3x3 rotation matrix to apply before projection.
+    cmap : str, default='turbo'
+        Colormap to use for the images.
+    title_text : list of str, default=['Face', 'Edge']
+        Titles for each projection view.
+    titlesize : float, default=25
+        Font size for titles.
+    ylabel_all : list of str, default=["Data", "Model", "Residual"]
+        Labels for the y-axis rows (data, model, residual).
+    xlabel_all : list of str, default=["R [kpc]", "R [kpc]", "R [kpc]", "R [kpc]"]
+        Labels for the x-axes.
+    labelsize : float, default=13
+        Font size for axis labels.
+    savefile : str, optional
+        Path to save the figure. If None, the figure is not saved.
+
+    Returns
+    -------
+    fig or list of figs
+        The generated figure(s).
+
+    Notes
+    -----
+    This function creates a complex multi-panel figure showing:
+    - Original data projections
+    - Model projections
+    - Residuals between data and model
+    - Both large-scale and zoomed-in views of each
+
+    Each projection can be shown from different viewpoints (e.g., face-on, edge-on).
+    """
     fig = plt.figure(dpi=300, figsize=(17, 13))
     gs = fig.add_gridspec(3, 4, hspace=0, wspace=0)
     axes = [[plt.subplot(gs[i, j]) for j in range(4)] for i in range(3)]

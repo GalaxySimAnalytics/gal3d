@@ -1,9 +1,12 @@
 import inspect
 import textwrap
-from typing import Dict, Type
-from collections.abc import Callable
+import logging
+from typing import Dict, Type, Callable, Any, List, Optional, Union, TypeVar, cast
 from functools import cached_property
 
+logger = logging.getLogger("gal3d.util.func_signature")
+
+T = TypeVar('T', bound=Callable[..., Any])
 
 class MySignature(inspect.Signature):
     """
@@ -29,7 +32,7 @@ class MySignature(inspect.Signature):
     """
 
     @cached_property
-    def params(self) -> dict:
+    def params(self) -> Dict[str, tuple]:
         """
         Returns a dictionary mapping parameter names to their kind and default values.
 
@@ -39,10 +42,14 @@ class MySignature(inspect.Signature):
             A dictionary where keys are parameter names and values are tuples of
             (parameter kind, default value).
         """
-        return {
-            i: (self.parameters[i].kind, self.parameters[i].default)
-            for i in self.parameters
-        }
+        try:
+            return {
+                i: (self.parameters[i].kind, self.parameters[i].default)
+                for i in self.parameters
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving parameter information: {e}")
+            raise ValueError(f"Failed to retrieve parameter information: {e}") from e
 
     @cached_property
     def kwargs(self) -> bool:
@@ -53,11 +60,20 @@ class MySignature(inspect.Signature):
         -------
         bool
             True if the function accepts keyword arguments, False otherwise.
+            
+        Notes
+        -----
+        This checks for VAR_KEYWORD parameter kind (kind=4), 
+        which represents **kwargs style parameters.
         """
-        for i in self.params:
-            if self.params[i][0] == 4:
-                return True
-        return False
+        try:
+            for param_name in self.params:
+                if self.params[param_name][0] == inspect.Parameter.VAR_KEYWORD:  # 4
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking for kwargs parameter: {e}")
+            return False
 
     @cached_property
     def args(self) -> bool:
@@ -68,13 +84,22 @@ class MySignature(inspect.Signature):
         -------
         bool
             True if the function accepts positional arguments, False otherwise.
+            
+        Notes
+        -----
+        This checks for VAR_POSITIONAL parameter kind (kind=2), 
+        which represents *args style parameters.
         """
-        for i in self.params:
-            if self.params[i][0] == 2:
-                return True
-        return False
+        try:
+            for param_name in self.params:
+                if self.params[param_name][0] == inspect.Parameter.VAR_POSITIONAL:  # 2
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking for args parameter: {e}")
+            return False
 
-    def get_params(self, positional: int = 0, keyword: int = 0, empty: int = 0) -> dict:
+    def get_params(self, positional: int = 0, keyword: int = 0, empty: int = 0) -> Dict[str, Any]:
         """
         Filters and returns parameters based on their kind and default values.
 
@@ -115,43 +140,78 @@ class MySignature(inspect.Signature):
             - VAR_POSITIONAL: 2
             - KEYWORD_ONLY: 3
             - VAR_KEYWORD: 4
+            
+        Raises
+        ------
+        ValueError
+            If any of the provided filter values are invalid.
         """
-        avaiable = [0, 1, 3]
+        try:
+            # Available parameter kinds to filter
+            available_kinds = [
+                inspect.Parameter.POSITIONAL_ONLY,        # 0
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,  # 1
+                inspect.Parameter.KEYWORD_ONLY            # 3
+            ]
 
-        levels = [0, 1, 2]
+            valid_filter_levels = [0, 1, 2]
 
-        if positional not in levels:
-            raise ValueError(f"'positional' = {positional}, this is not a valid value")
-        if keyword not in levels:
-            raise ValueError(f"'keyword' = {keyword}, this is not a valid value")
-        if empty not in levels:
-            raise ValueError(f"'positional' = {empty}, this is not a valid value")
+            # Validate input parameters
+            if positional not in valid_filter_levels:
+                raise ValueError(f"'positional' = {positional}, valid values are {valid_filter_levels}")
+            if keyword not in valid_filter_levels:
+                raise ValueError(f"'keyword' = {keyword}, valid values are {valid_filter_levels}")
+            if empty not in valid_filter_levels:
+                raise ValueError(f"'empty' = {empty}, valid values are {valid_filter_levels}")
 
-        if positional == 1:
-            avaiable = list(filter(lambda x: x < 2, avaiable))
-        if positional == 2:
-            avaiable = list(filter(lambda x: x == 0, avaiable))
-        if keyword == 1:
-            avaiable = list(filter(lambda x: (x == 1 or x == 3), avaiable))
-        if keyword == 2:
-            avaiable = list(filter(lambda x: (x == 3), avaiable))
+            # Apply positional filter
+            if positional == 1:
+                # Parameters that can be positional (POSITIONAL_ONLY, POSITIONAL_OR_KEYWORD)
+                available_kinds = [k for k in available_kinds if k < inspect.Parameter.VAR_POSITIONAL]
+            elif positional == 2:
+                # Only strictly positional parameters
+                available_kinds = [inspect.Parameter.POSITIONAL_ONLY]
 
-        if empty == 0:
-            emptysel = lambda x: True
-        else:
-            emptysel = (
-                (lambda x: x == inspect.Parameter.empty)
-                if empty == 1
-                else (lambda x: x != inspect.Parameter.empty)
-            )
+            # Apply keyword filter
+            if keyword == 1:
+                # Parameters that can be keyword (POSITIONAL_OR_KEYWORD, KEYWORD_ONLY)
+                available_kinds = [
+                    k for k in available_kinds if 
+                    k == inspect.Parameter.POSITIONAL_OR_KEYWORD or k == inspect.Parameter.KEYWORD_ONLY
+                ]
+            elif keyword == 2:
+                # Only strictly keyword parameters
+                available_kinds = [inspect.Parameter.KEYWORD_ONLY]
 
-        params = {}
-        for i in self.params:
-            if self.params[i][0] in avaiable:
-                if emptysel(self.params[i][1]):
-                    params[i] = self.params[i][1]
+            # Create filter function based on empty parameter
+            if empty == 0:
+                # Include all parameters regardless of default value
+                empty_filter = lambda x: True
+            elif empty == 1:
+                # Only parameters with no default value
+                empty_filter = lambda x: x == inspect.Parameter.empty
+            else:  # empty == 2
+                # Only parameters with a default value
+                empty_filter = lambda x: x != inspect.Parameter.empty
 
-        return params
+            # Apply filters and build result
+            params_result = {}
+            for param_name in self.params:
+                param_kind, param_default = self.params[param_name]
+                if param_kind in available_kinds and empty_filter(param_default):
+                    params_result[param_name] = param_default
+
+            return params_result
+            
+        except ValueError as e:
+            # Re-raise validation errors
+            logger.error(f"Invalid parameter for get_params: {e}")
+            raise
+        except Exception as e:
+            # Handle unexpected errors
+            err_msg = f"Error filtering parameters: {e}"
+            logger.error(err_msg, exc_info=True)
+            raise RuntimeError(err_msg) from e
 
 
 def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
@@ -171,17 +231,45 @@ def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
     -------
     dict
         A new dictionary with updated values, merging `origin`, `other`, and `kwargs`.
+
+    Raises
+    ------
+    TypeError
+        If `origin` or `other` is not a dictionary.
+    RuntimeError
+        If an error occurs during the update operation.
+        
+    Examples
+    --------
+    >>> original = {'a': 1, 'b': 2}
+    >>> updated = update_dict_value(original, {'b': 3}, c=4)
+    >>> updated
+    {'a': 1, 'b': 3, 'c': 4}
     """
-    ret = origin.copy()
-    same_key = ret.keys() & other.keys()
-    for i in same_key:
-        ret[i] = other[i]
-    same_key = ret.keys() & kwargs.keys()
-    for i in same_key:
-        ret[i] = kwargs[i]
-    return ret
+    if not isinstance(origin, dict) or not isinstance(other, dict):
+        raise TypeError("Both 'origin' and 'other' must be dictionaries.")
+    try:
+        # Create a copy of the original dictionary to avoid modifying it
+        result_dict = origin.copy()
+        
+        # Update values from 'other' dictionary
+        common_keys = result_dict.keys() & other.keys()
+        for key in common_keys:
+            result_dict[key] = other[key]
+        
+        # Update values from kwargs
+        common_keys = result_dict.keys() & kwargs.keys()
+        for key in common_keys:
+            result_dict[key] = kwargs[key]
+            
+        return result_dict
+    except Exception as e:
+        error_msg = f"Failed to update dictionary: {e}"
+        logger.error(error_msg, exc_info=True)
+        raise RuntimeError(error_msg) from e
 
 
+# Helper functions to extract parameters from callable objects
 func_optional_key = lambda x: MySignature.from_callable(x).get_params(
     positional=0,
     keyword=1,
@@ -194,7 +282,7 @@ func_required_key = lambda x: MySignature.from_callable(x).get_params(
 )
 
 
-def fromat_signature(func):
+def format_signature(func: Callable) -> str:
     """
     Returns the formatted string representation of a function's signature.
 
@@ -207,12 +295,22 @@ def fromat_signature(func):
     -------
     str
         A string representing the function name and its signature.
+        
+    Raises
+    ------
+    ValueError
+        If unable to retrieve the function's signature.
     """
-    sig = inspect.signature(func)
-    return f"{func.__name__}{sig}"
+    try:
+        sig = inspect.signature(func)
+        return f"{func.__name__}{sig}"
+    except Exception as e:
+        error_msg = f"Failed to format signature for {func.__name__}: {e}"
+        logger.error(error_msg)
+        raise ValueError(error_msg) from e
 
 
-def format_docstring(docstring, indent=4):
+def format_docstring(docstring: str, indent: int = 4) -> str:
     """
     Formats a docstring with the specified indentation.
 
@@ -227,14 +325,31 @@ def format_docstring(docstring, indent=4):
     -------
     str
         The formatted docstring with the specified indentation.
+        
+    Raises
+    ------
+    RuntimeError
+        If the docstring formatting process fails.
+    ValueError
+        If the indent value is negative.
     """
     if not docstring:
         return ""
-    lines = textwrap.indent('"""\n' + docstring.strip() + '\n"""', " " * indent)
-    return lines
+    
+    if indent < 0:
+        raise ValueError("Indent value must be non-negative")
+        
+    try:
+        # Add triple quotes and indent the docstring
+        lines = textwrap.indent('"""\n' + docstring.strip() + '\n"""', " " * indent)
+        return lines
+    except Exception as e:
+        error_msg = f"Failed to format docstring: {e}"
+        logger.error(error_msg, exc_info=True)
+        raise RuntimeError(error_msg) from e
 
 
-def is_static_or_class_method(cls, attr_name):
+def is_static_or_class_method(cls: Type, attr_name: str) -> Optional[str]:
     """
     Determines if the given attribute of the class is a static method or class method.
 
@@ -250,16 +365,35 @@ def is_static_or_class_method(cls, attr_name):
     str or None
         Returns '@staticmethod' or '@classmethod' if the attribute is a static or class method,
         respectively. Returns None otherwise.
+        
+    Notes
+    -----
+    This function inspects the class's __dict__ attribute to determine the type of method.
+    It does not handle inherited methods or descriptors other than staticmethod/classmethod.
     """
-    attr = cls.__dict__.get(attr_name)
-    if isinstance(attr, staticmethod):
-        return "@staticmethod"
-    elif isinstance(attr, classmethod):
-        return "@classmethod"
-    return None
+    try:
+        # Get the attribute from the class's __dict__ (not from parent classes)
+        attr = cls.__dict__.get(attr_name)
+        
+        # Check if it's a staticmethod or classmethod
+        if isinstance(attr, staticmethod):
+            return "@staticmethod"
+        elif isinstance(attr, classmethod):
+            return "@classmethod"
+        
+        # Additional checks could be implemented for property or other descriptor types
+        return None
+    except Exception as e:
+        logger.warning(f"Error checking method type for {cls.__name__}.{attr_name}: {e}")
+        return None
 
 
-def generate_plugin_stub(base, abc, plugins: Dict[str, Type], output_path: str):
+def generate_plugin_stub(
+    base: Type, 
+    abc: Type, 
+    plugins: Dict[str, Type], 
+    output_path: str
+) -> None:
     """
     Generates a plugin stub that includes the base class, abstract class, and plugin classes.
 
@@ -281,97 +415,179 @@ def generate_plugin_stub(base, abc, plugins: Dict[str, Type], output_path: str):
     -------
     None
         The function writes the generated plugin stub to the specified `output_path`.
+        
+    Raises
+    ------
+    IOError
+        If there's an error writing to the output file.
+    ValueError
+        If required method information can't be extracted.
     """
-    lines = [
-        "import typing",
-        "from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence",
-        "import numpy",
-        "import gal3d",
-        f"from {abc.__module__} import {abc.__name__}",
-        *[f"from {cls.__module__} import {cls.__name__}" for cls in plugins.values()],
-        "",
-    ]
-
-    lines.append(f"class {abc.__name__}:")
-    lines.append("")
-    for name, func in abc.__dict__.items():
-        if isinstance(func, (staticmethod, classmethod)):
-            func = func.__func__
-        elif inspect.isfunction(func):
-            pass
-        else:
-            continue
-        deco = is_static_or_class_method(abc, name)
-        if not deco is None:
-            lines.append(f"    {deco}")
-        docstring = inspect.getdoc(func)
-        sig = inspect.signature(func)
-        ret = func.__annotations__.get('return', 'None')
-        ret_type = ret.__name__ if hasattr(ret, '__name__') else str(ret)
-        if docstring:
-            if '->' in str(sig):
-                lines.append(f"    def {name}{sig}:")
+    try:
+        # Initialize lines list to store generated code
+        stub_lines = [
+            "import typing",
+            "from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence",
+            "import numpy",
+            "import gal3d",
+            f"from {abc.__module__} import {abc.__name__}",
+            *[f"from {cls.__module__} import {cls.__name__}" for cls in plugins.values()],
+            "",
+        ]
+        
+        # Generate abstract base class stub
+        logger.debug(f"Generating stub for abstract class {abc.__name__}")
+        stub_lines.append(f"class {abc.__name__}:")
+        stub_lines.append("")
+        
+        # Process methods in abstract class
+        for name, func in abc.__dict__.items():
+            # Skip non-function attributes
+            if isinstance(func, (staticmethod, classmethod)):
+                func = func.__func__
+            elif inspect.isfunction(func):
+                pass
             else:
-                lines.append(f"    def {name}{sig} -> None:")
-            lines.append(format_docstring(docstring, indent=8))
-            lines.append(f"        ...")
-        else:
-            if '->' in str(sig):
-                lines.append(f"    def {name}{sig}: ...")
+                continue
+                
+            # Add appropriate decorator if method is static or class method
+            decorator = is_static_or_class_method(abc, name)
+            if decorator:
+                stub_lines.append(f"    {decorator}")
+                
+            # Extract function information
+            docstring = inspect.getdoc(func)
+            sig = inspect.signature(func)
+            ret = func.__annotations__.get('return', 'None')
+            ret_type = ret.__name__ if hasattr(ret, '__name__') else str(ret)
+            
+            # Generate function stub with docstring
+            if docstring:
+                if '->' in str(sig):
+                    stub_lines.append(f"    def {name}{sig}:")
+                else:
+                    stub_lines.append(f"    def {name}{sig} -> None:")
+                stub_lines.append(format_docstring(docstring, indent=8))
+                stub_lines.append(f"        ...")
             else:
-                lines.append(f"    def {name}{sig} -> None: ...")
-        lines.append("")
+                if '->' in str(sig):
+                    stub_lines.append(f"    def {name}{sig}: ...")
+                else:
+                    stub_lines.append(f"    def {name}{sig} -> None: ...")
+            stub_lines.append("")
+        
+        # Generate base class stub
+        logger.debug(f"Generating stub for base class {base.__name__}")
+        stub_lines.append(f"class {base.__name__}:")
+        stub_lines.append("")
+        
+        # Store get_plugin information for later use
+        get_plugin_info = None
+        
+        # Process methods in base class
+        for name, func in base.__dict__.items():
+            if isinstance(func, (staticmethod, classmethod)):
+                func = func.__func__
+            elif inspect.isfunction(func):
+                pass
+            else:
+                continue
+                
+            # Handle get_plugin method separately
+            if name == "get_plugin":
+                get_plugin_deco = is_static_or_class_method(base, name)
+                get_plugin_sig = inspect.signature(func)
+                get_plugin_docstring = inspect.getdoc(func)
+                get_plugin_info = (get_plugin_deco, get_plugin_sig, get_plugin_docstring)
+                continue
+                
+            # Process other methods
+            decorator = is_static_or_class_method(base, name)
+            if decorator:
+                stub_lines.append(f"    {decorator}")
+                
+            docstring = inspect.getdoc(func)
+            sig = inspect.signature(func)
+            ret = func.__annotations__.get('return', 'None')
+            ret_type = ret.__name__ if hasattr(ret, '__name__') else str(ret)
+            
+            # Generate function stub
+            if docstring:
+                stub_lines.append(f"    def {name}{sig} -> {ret_type}:")
+                stub_lines.append(format_docstring(docstring, indent=8))
+                stub_lines.append(f"        ...")
+            else:
+                stub_lines.append(f"    def {name}{sig} -> {ret_type}: ...")
+            stub_lines.append("")
+        
+        # Generate get_plugin overloads
+        if get_plugin_info:
+            get_plugin_deco, get_plugin_sig, get_plugin_docstring = get_plugin_info
+            
+            # Add decorator if needed
+            if get_plugin_deco:
+                stub_lines.append(f"    {get_plugin_deco}")
+                
+            # Add base overload for None input
+            stub_lines.append(f"    @overload")
+            if get_plugin_docstring:
+                stub_lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:")
+                stub_lines.append(format_docstring(get_plugin_docstring, indent=8))
+                stub_lines.append(f"        ...")
+            else:
+                stub_lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:...")
+            
+            stub_lines.append("")
+            
+            # Add overloads for each plugin
+            for plugin_key, plugin_cls in plugins.items():
+                if get_plugin_deco:
+                    stub_lines.append(f"    {get_plugin_deco}")
+                    
+                plugin_name = plugin_cls.__name__
+                stub_lines.append(f"    @overload")
+                stub_lines.append(
+                    f"    def get_plugin(plugin: Literal['{plugin_key}']) -> Type[{plugin_name}]:..."
+                )
+                stub_lines.append("")
+        
+        # Write to output file
+        logger.info(f"Writing plugin stub to {output_path}")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(stub_lines))
+            
+        logger.info(f"Successfully generated plugin stub with {len(plugins)} plugins")
+            
+    except IOError as e:
+        error_msg = f"Failed to write stub to {output_path}: {e}"
+        logger.error(error_msg)
+        raise
+    except Exception as e:
+        error_msg = f"Error generating plugin stub: {e}"
+        logger.error(error_msg, exc_info=True)
+        raise ValueError(error_msg) from e
 
-    lines.append(f"class {base.__name__}:")
-    lines.append("")
-    for name, func in base.__dict__.items():
-        if isinstance(func, (staticmethod, classmethod)):
-            func = func.__func__
-        elif inspect.isfunction(func):
-            pass
-        else:
-            continue
-        if name == "get_plugin":
-            get_plugin_deco = is_static_or_class_method(base, name)
 
-            get_plugin_sig = inspect.signature(func)
-            get_plugin_docstring = inspect.getdoc(func)
-            continue
-        deco = is_static_or_class_method(base, name)
-        if not deco is None:
-            lines.append(f"    {deco}")
-        docstring = inspect.getdoc(func)
-        sig = inspect.signature(func)
-        ret = func.__annotations__.get('return', 'None')
-        ret_type = ret.__name__ if hasattr(ret, '__name__') else str(ret)
-        if docstring:
-            lines.append(f"    def {name}{sig} -> {ret_type}:")
-            lines.append(format_docstring(docstring, indent=8))
-            lines.append(f"        ...")
-        else:
-            lines.append(f"    def {name}{sig} -> {ret_type}: ...")
-        lines.append("")
+# Fix typo in function name but keep the old one for backward compatibility
+def fromat_signature(func: Callable) -> str:
+    """
+    Returns the formatted string representation of a function's signature.
+    
+    This function is a deprecated alias for `format_signature` with a typo in the name.
+    Please use `format_signature` instead.
 
-    if not get_plugin_deco is None:
-        lines.append(f"    {get_plugin_deco}")
-    lines.append(f"    @overload")
-    if get_plugin_docstring:
-        lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:")
-        lines.append(format_docstring(get_plugin_docstring, indent=8))
-        lines.append(f"        ...")
-    else:
-        lines.append(f"    def get_plugin(plugin: None) -> {abc.__name__}:...")
+    Parameters
+    ----------
+    func : callable
+        The function whose signature is to be formatted.
 
-    lines.append("")
-    for plugin_key, plugin_cls in plugins.items():
-        if not get_plugin_deco is None:
-            lines.append(f"    {get_plugin_deco}")
-        plugin_name = plugin_cls.__name__
-        lines.append(f"    @overload")
-        lines.append(
-            f"    def get_plugin(plugin: Literal['{plugin_key}']) -> Type[{plugin_name}]:..."
-        )
-        lines.append("")
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write("\n".join(lines))
+    Returns
+    -------
+    str
+        A string representing the function name and its signature.
+    """
+    logger.warning(
+        "The function 'fromat_signature' is deprecated due to a typo. "
+        "Please use 'format_signature' instead."
+    )
+    return format_signature(func)

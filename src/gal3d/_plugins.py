@@ -8,10 +8,51 @@ PLUGINS_JSON_FILE = os.path.join(os.path.dirname(__file__), "plugins.json")
 PLUGIN_CATEGORIES = ["DensityEstimator","Coordinate", "Geometry","Optimizer", "ModelProjector","Characterizer"]
 
 
-def save_plugin_to_json(plugin_name: str, plugin_description: str, plugin_type: str, plugin_path: str):
-    
+def save_plugin_to_json(plugin_name: str, plugin_description: str, plugin_type: str, plugin_path: str) -> None:
+    """
+    Save plugin information to a JSON file.
+
+    This function saves the details of a plugin, including its name, description, type, 
+    and path, into a JSON file. If the plugin type is invalid or required information 
+    is missing, the function logs an error and exits. If the plugin already exists, 
+    it will not be added again.
+
+    Parameters
+    ----------
+    plugin_name : str
+        The name of the plugin.
+    plugin_description : str
+        A brief description of the plugin.
+    plugin_type : str
+        The type of the plugin. Must be one of the predefined categories in `PLUGIN_CATEGORIES`.
+    plugin_path : str
+        The path to the plugin module.
+
+    Returns
+    -------
+    None
+        This function does not return any value. It writes the plugin information to a JSON file.
+
+    Notes
+    -----
+    - The JSON file is located at `PLUGINS_JSON_FILE`.
+    - If the JSON file does not exist, it will be created with the predefined categories.
+
+    Examples
+    --------
+    >>> save_plugin_to_json(
+    ...     plugin_name="ExamplePlugin",
+    ...     plugin_description="An example plugin for demonstration purposes.",
+    ...     plugin_type="Geometry",
+    ...     plugin_path="example.plugins.geometry"
+    ... )
+    Plugin 'ExamplePlugin' added to Geometry category in plugins.json
+    """
     if plugin_type not in PLUGIN_CATEGORIES:
         logger.error(f"Invalid plugin type '{plugin_type}'. Must be one of {PLUGIN_CATEGORIES}.")
+        return
+    if not plugin_name or not plugin_description or not plugin_path:
+        logger.error(f"Missing plugin information.")
         return
     
     if os.path.exists(PLUGINS_JSON_FILE):

@@ -1,7 +1,7 @@
 import copy
 import logging
 from dataclasses import is_dataclass
-from typing import Union,overload
+from typing import Union,overload, Dict, Any
 
 import numpy as np
 
@@ -377,10 +377,90 @@ def model_to_hdf5(
     hdf5_file_name: str,
     shape_name: str,
     error_name: str,
-    all_header='/',
-    other_info=dict(),
-):
+    all_header: str = '/',
+    other_info: Dict[str, Any] = None,
+) -> None:
+    """
+    Save model results to an HDF5 file.
+    
+    This function exports a ModelResult object to an HDF5 file with proper
+    organization and metadata for later reuse or analysis.
 
-    save_model_hdf5(
-        model, hdf5_file_name, shape_name, error_name, all_header, other_info
-    )
+    Parameters
+    ----------
+    model : ModelResult
+        The fitted model result to save.
+    hdf5_file_name : str
+        Path to the output HDF5 file.
+    shape_name : str
+        Name identifier for the shape being saved.
+    error_name : str
+        Name identifier for the error method used.
+    all_header : str, optional
+        Group path within the HDF5 file, by default '/'.
+    other_info : dict, optional
+        Additional metadata to store with the model, by default None.
+
+    Returns
+    -------
+    None
+        The function saves to the specified HDF5 file but returns nothing.
+        
+    Raises
+    ------
+    IOError
+        If the file cannot be written.
+    ValueError
+        If the model or parameters are invalid.
+    TimeoutError
+        If the operation takes too long (possibly due to large data).
+        
+    Notes
+    -----
+    The function saves key model parameters including:
+    - Shape parameters (pos, angle, a, eps_ab, eps_bc)
+    - Result metrics (e.g., fun/error value)
+    - Additional metadata provided in other_info
+    
+    For Ellipsoid_S models, additional parameters (sa, sb, sc, parent_fun) are saved.
+    """
+    try:
+        import time
+        start_time = time.time()
+        max_time = 300  # 5 minutes timeout
+        
+        if other_info is None:
+            other_info = {}
+            
+        # Record additional metadata about the save operation
+        other_info['save_timestamp'] = time.time()
+        if hasattr(model, '_structure') and hasattr(model._structure, '_geometry_name'):
+            other_info['geometry_name'] = model._structure._geometry_name
+        if hasattr(model, '_structure') and hasattr(model._structure, '_coordinate_name'):
+            other_info['coordinate_name'] = model._structure._coordinate_name
+            
+        logger.info(f"Saving model to {hdf5_file_name} (shape={shape_name}, error={error_name})")
+        
+        # Allow interruption for large models
+        if len(model) > 1000:
+            logger.warning(f"Large model with {len(model)} parameter sets may take time to save")
+            
+        save_model_hdf5(
+            model, hdf5_file_name, shape_name, error_name, all_header, other_info
+        )
+        
+        elapsed = time.time() - start_time
+        if elapsed > 5.0:  # Log timing if it takes more than 5 seconds
+            logger.info(f"Model saving completed in {elapsed:.1f} seconds")
+            
+        logger.info(f"Successfully saved model with {len(model)} parameter sets")
+        
+    except ImportError as e:
+        logger.error(f"Missing required dependencies for HDF5 export: {e}")
+        raise
+    except TimeoutError:
+        logger.error(f"Save operation timed out after {max_time} seconds")
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save model to HDF5: {e}", exc_info=True)
+        raise

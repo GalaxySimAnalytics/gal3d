@@ -1,7 +1,10 @@
 from .util import *
+import logging
 
 
 __all__ = ['Grid']
+
+logger = logging.getLogger(__name__)
 
 
 class Grid:
@@ -121,7 +124,7 @@ class Grid:
         self.bound_lower = bound_lower
         self.bound_upper = bound_upper
 
-    def make_grid(self, method='make_grid_by_num'):
+    def make_grid(self, method: str = 'make_grid_by_num') -> None:
         """
         Create the grid using the specified method.
 
@@ -130,34 +133,47 @@ class Grid:
         method : str, optional
             The method to use for creating the grid. Possible values are 'make_grid_by_num' and 'make_grid_by_diff'.
             Default is 'make_grid_by_num'.
+
+        Raises
+        ------
+        ValueError
+            If the specified method is not supported.
         """
         splid_method = {
             'make_grid_by_num': make_grid_by_num,
             'make_grid_by_diff': make_grid_by_diff,
         }
 
-        lower_pos, upper_pos, Depth, Nums, Indice = splid_method[method](
-            self.base_pos,
-            self.maxdepth,
-            self.splitpart,
-            self.bound_lower,
-            self.bound_upper,
-        )
-        volumn, masses, density = cal_volumn_density(
-            lower_pos, upper_pos, self.base_pa, Indice
-        )
-        grid_pos = (lower_pos + upper_pos) / 2
+        if method not in splid_method:
+            logger.error("Unsupported grid creation method: %s", method)
+            raise ValueError(f"Unsupported method: {method}")
 
-        self.base_indice = Indice
-        self.grid_pos_l = lower_pos[Nums > 0]
-        self.grid_pos_u = upper_pos[Nums > 0]
-        self.grid_depth = Depth[Nums > 0]
-        self.grid_volumn = volumn[Nums > 0]
-        self.grid_sumpa = masses[Nums > 0]
-        self.grid_denpa = density[Nums > 0]
-        self.grid_pos = grid_pos[Nums > 0]
-        print(f"Remove {len(Nums[Nums==0])} void grids")
-        self.grid_nums = Nums[Nums > 0]
+        try:
+            lower_pos, upper_pos, Depth, Nums, Indice = splid_method[method](
+                self.base_pos,
+                self.maxdepth,
+                self.splitpart,
+                self.bound_lower,
+                self.bound_upper,
+            )
+            volumn, masses, density = cal_volumn_density(
+                lower_pos, upper_pos, self.base_pa, Indice
+            )
+            grid_pos = (lower_pos + upper_pos) / 2
+
+            self.base_indice = Indice
+            self.grid_pos_l = lower_pos[Nums > 0]
+            self.grid_pos_u = upper_pos[Nums > 0]
+            self.grid_depth = Depth[Nums > 0]
+            self.grid_volumn = volumn[Nums > 0]
+            self.grid_sumpa = masses[Nums > 0]
+            self.grid_denpa = density[Nums > 0]
+            self.grid_pos = grid_pos[Nums > 0]
+            logger.info("Removed %d void grids", len(Nums[Nums == 0]))
+            self.grid_nums = Nums[Nums > 0]
+        except Exception as e:
+            logger.error("Failed to create grid: %s", e, exc_info=True)
+            raise
 
     def provide_griddata(self) -> dict:
         """

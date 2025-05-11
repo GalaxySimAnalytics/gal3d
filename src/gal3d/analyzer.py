@@ -355,13 +355,170 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
 
 
 @get_ell_structure.set_condition
-def ell_condition(self: Gal3DAnalyzer):
+def ell_condition(self: Gal3DAnalyzer) -> bool:
     """
     Condition for selecting the ellipsoidal fitting workflow.
-
+    
+    This function checks if the structure's geometry is one of the supported
+    ellipsoidal types (Ellipsoid or Ellipsoid_S).
+    
+    Parameters
+    ----------
+    self : Gal3DAnalyzer
+        The analyzer instance to check.
+        
     Returns
     -------
     bool
-        True if the structure is either 'Ellipsoid' or 'Ellipsoid_S'.
+        True if the structure's geometry is either 'Ellipsoid' or 'Ellipsoid_S',
+        False otherwise.
     """
-    return self.structure._geometry_name in ['Ellipsoid', 'Ellipsoid_S']
+    geometry_name = self.structure._geometry_name
+    is_supported = geometry_name in ['Ellipsoid', 'Ellipsoid_S']
+    
+    if is_supported:
+        logger.debug(f"Selected ellipsoidal fitting workflow for geometry: {geometry_name}")
+    else:
+        logger.debug(f"Geometry {geometry_name} is not supported by ellipsoidal fitting workflow")
+        
+    return is_supported
+
+# Add a new workflow for debugging/validation purposes
+@Gal3DAnalyzer.fit_workflow_registry
+def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
+    """
+    A workflow that validates fitting data and parameters before performing the fit.
+    
+    This method performs extensive validation of input data and parameters before
+    proceeding with the actual fitting process. It helps catch issues early and
+    provides detailed diagnostic information.
+    
+    Parameters
+    ----------
+    self : Gal3DAnalyzer
+        The analyzer instance containing particle data, field, structure, and optimizer.
+    a : float
+        The semi-major axis at which to validate and fit the structure data.
+    **kwargs : dict
+        Optional arguments for validation and fitting:
+        - var_a : float
+            Variance allowed for 'a' parameter (default: 0.1)
+        - uniformity_cut : float
+            Minimum required point distribution uniformity (default: 0.75)
+        - init_parameters : dict
+            Initial parameter values for the fit
+        - max_points : int
+            Maximum number of points to use for fitting (default: 10000)
+        - min_points : int
+            Minimum required points for fitting (default: 10)
+        
+    Returns
+    -------
+    ModelResult
+        The validated and fitted model result.
+        
+    Raises
+    ------
+    ValueError
+        If validation fails with detailed information about the failure.
+    RuntimeError
+        If the fitting process fails after validation.
+    """
+    logger.info(f"Starting validation for fitting at a={a}")
+    validation_start_time = time.time()
+    
+    # 1. Validate basic input parameters
+    if a <= 0:
+        error_msg = f"Semi-major axis must be positive, got a={a}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    var_a = kwargs.get('var_a', 0.1)
+    if not (0 <= var_a < 1):
+        logger.warning(f"var_a={var_a} outside recommended range [0,1), clamping to range")
+        var_a = min(max(var_a, 0), 0.99)
+    
+    uniformity_cut = kwargs.get('uniformity_cut', 0.75)
+    min_points = kwargs.get('min_points', 10)
+    max_points = kwargs.get('max_points', 10000)
+    
+    # 2. Generate and validate field data
+    try:
+        logger.info(f"Generating field data at a={a}")
+        field_data = self.field.generate(a, for_fit=True)
+        
+        # 3. Validate point count
+        point_count = len(field_data.get('pos', []))
+        logger.debug(f"Generated {point_count} points for fitting")
+        
+        if point_count < min_points:
+            error_msg = f"Generated only {point_count} points, need at least {min_points} for reliable fitting"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        if point_count > max_points:
+            logger.warning(f"Large number of points ({point_count} > {max_points}), fitting may be slow")
+            
+        # 4. Validate point distribution uniformity
+        if point_count < self.field.rays.num:
+            uniformity = SphVector.cal_uniformity(field_data['pos'])
+            logger.debug(f"Point distribution uniformity: {uniformity:.4f} (threshold: {uniformity_cut})")
+            if uniformity < uniformity_cut:
+                error_msg = f"Point distribution uniformity {uniformity:.4f} below threshold {uniformity_cut}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+        
+        # 5. Check for NaN values in position data
+        if np.isnan(field_data['pos']).any():
+            error_msg = "Position data contains NaN values"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # 6. Validate structure is compatible with data
+        if not hasattr(self.structure, '_error_method'):
+            error_msg = "Structure has no error method defined"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # 7. After validation, proceed with fitting using the standard workflow
+        logger.info(f"Validation successful ({time.time() - validation_start_time:.2f}s), proceeding with fitting")
+        
+        # Use the appropriate workflow based on structure type
+        if self.structure._geometry_name in ['Ellipsoid', 'Ellipsoid_S']:
+            return get_ell_structure(self, a, **kwargs)
+        else:
+            error_msg = f"No specific validation for geometry type '{self.structure._geometry_name}'"
+            logger.error(error_msg)
+            raise NotImplementedError(error_msg)
+            
+    except ValueError as e:
+        # Re-raise validation errors with context
+        logger.error(f"Validation failed: {e}")
+        raise
+    except Exception as e:
+        # Convert unexpected errors to RuntimeError with context
+        error_msg = f"Unexpected error during validation: {e}"
+        logger.error(error_msg, exc_info=True)
+        raise RuntimeError(error_msg) from e
+
+
+@validate_fitting_data.set_condition
+def validation_condition(self: Gal3DAnalyzer) -> bool:
+    """
+    Condition to determine when to use the validation workflow.
+    
+    This workflow should be explicitly requested by setting 'validate=True'
+    in the analyzer configuration.
+    
+    Parameters
+    ----------
+    self : Gal3DAnalyzer
+        The analyzer instance to check.
+        
+    Returns
+    -------
+    bool
+        True if validation is explicitly enabled, False otherwise.
+    """
+    # This workflow is not used by default, must be explicitly enabled
+    return getattr(self, 'validate', False)

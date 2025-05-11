@@ -1,5 +1,6 @@
 from typing import Callable, Self, Tuple, Dict
 from types import MethodType
+import logging
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -10,6 +11,7 @@ from .minimize_func import MinimizeFunc
 from ..util.func_signature import func_required_key
 from ..field.spherical_field.spherical_vector import fibonacci_sampling
 
+logger = logging.getLogger("gal3d.shape")
 
 class Structure3D:
     """
@@ -673,3 +675,71 @@ def grid_padev(self: Structure3D, params: tuple | ArrayLike, *args, **kwargs) ->
     error_pa = {i: kwargs[i] for i in self._error_params}
 
     return self._error_func(f_call1=f_call1, f_call2=f_call2, **error_pa)
+
+
+@Structure3D.compute_method_registry
+def validate_fitting_data(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> float:
+    """
+    Validate data before computing error to catch issues early.
+    
+    This error computation method provides additional validation before calling
+    the standard error computation methods. It's helpful for debugging and testing.
+    
+    Parameters
+    ----------
+    self : Structure3D
+        The structure instance.
+    params : tuple or array_like
+        Parameter values for the structure.
+    **kwargs : dict
+        Additional arguments passed to the error function.
+        Must contain 'pos' key with position data.
+        
+    Returns
+    -------
+    float
+        The computed error value.
+        
+    Raises
+    ------
+    ValueError
+        If validation fails or required data is missing.
+    """
+    # Check that required position data exists
+    if 'pos' not in kwargs:
+        error_msg = "Missing required position data ('pos' key)"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    pos_data = kwargs['pos']
+    # Validate position data
+    if not isinstance(pos_data, np.ndarray):
+        error_msg = f"Position data must be a numpy array, got {type(pos_data)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    if len(pos_data.shape) != 2 or pos_data.shape[1] != 3:
+        error_msg = f"Position data must have shape (N, 3), got {pos_data.shape}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    if np.isnan(pos_data).any():
+        error_msg = "Position data contains NaN values"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    # After validation, compute f_call using standard method
+    try:
+        f_call = self.quick_call(*params, pos=pos_data) - 1.0
+        error_pa = {i: kwargs[i] for i in self._error_params}
+        
+        # Log some statistics about the error values before returning
+        logger.debug(f"Error computation on {len(f_call)} points: "
+                    f"mean={np.mean(f_call**2):.6f}, "
+                    f"min={np.min(f_call**2):.6f}, "
+                    f"max={np.max(f_call**2):.6f}")
+        
+        return self._error_func(f_call, **error_pa)
+    except Exception as e:
+        logger.error(f"Error during validation fitting: {e}", exc_info=True)
+        raise

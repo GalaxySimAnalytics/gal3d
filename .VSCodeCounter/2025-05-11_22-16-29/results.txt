@@ -1,0 +1,127 @@
+Date : 2025-05-11 22:16:29
+Directory : /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src
+Total : 75 files,  11234 codes, 169 comments, 2411 blanks, all 13814 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Python   |         71 |     10,961 |        166 |      2,297 |     13,424 |
+| Cython   |          1 |        156 |          3 |         40 |        199 |
+| JSON     |          1 |         64 |          0 |          0 |         64 |
+| Ini      |          2 |         53 |          0 |         74 |        127 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                             | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                                |         75 |     11,234 |        169 |      2,411 |     13,814 |
+| gal3d                                                                                                                            |         75 |     11,234 |        169 |      2,411 |     13,814 |
+| gal3d (Files)                                                                                                                    |          9 |        817 |         17 |        253 |      1,087 |
+| gal3d/characterization                                                                                                           |          5 |        411 |          0 |         82 |        493 |
+| gal3d/characterization (Files)                                                                                                   |          3 |         99 |          0 |         36 |        135 |
+| gal3d/characterization/characterizer_plugins                                                                                     |          2 |        312 |          0 |         46 |        358 |
+| gal3d/field                                                                                                                      |         12 |      1,931 |         19 |        412 |      2,362 |
+| gal3d/field (Files)                                                                                                              |          1 |          1 |          0 |          0 |          1 |
+| gal3d/field/grid                                                                                                                 |          3 |        418 |          8 |         79 |        505 |
+| gal3d/field/spherical_field                                                                                                      |          8 |      1,512 |         11 |        333 |      1,856 |
+| gal3d/field/spherical_field (Files)                                                                                              |          5 |        863 |          6 |        206 |      1,075 |
+| gal3d/field/spherical_field/ray                                                                                                  |          3 |        649 |          5 |        127 |        781 |
+| gal3d/optimization                                                                                                               |         10 |      1,439 |         11 |        305 |      1,755 |
+| gal3d/optimization (Files)                                                                                                       |          6 |      1,312 |          8 |        273 |      1,593 |
+| gal3d/optimization/optimizer_plugins                                                                                             |          4 |        127 |          3 |         32 |        162 |
+| gal3d/point                                                                                                                      |          7 |        948 |          5 |        211 |      1,164 |
+| gal3d/point (Files)                                                                                                              |          5 |        772 |          5 |        163 |        940 |
+| gal3d/point/density_estimator_plugins                                                                                            |          2 |        176 |          0 |         48 |        224 |
+| gal3d/shape                                                                                                                      |         17 |      3,293 |         31 |        672 |      3,996 |
+| gal3d/shape (Files)                                                                                                              |          8 |      1,525 |         18 |        381 |      1,924 |
+| gal3d/shape/coordinate_plugins                                                                                                   |          3 |        305 |          0 |         65 |        370 |
+| gal3d/shape/geometry_plugins                                                                                                     |          6 |      1,463 |         13 |        226 |      1,702 |
+| gal3d/util                                                                                                                       |          7 |      1,220 |         79 |        265 |      1,564 |
+| gal3d/visualization                                                                                                              |          8 |      1,175 |          7 |        211 |      1,393 |
+| gal3d/visualization (Files)                                                                                                      |          5 |      1,042 |          7 |        166 |      1,215 |
+| gal3d/visualization/model_projector_plugins                                                                                      |          3 |        133 |          0 |         45 |        178 |
++----------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                                                                         | language | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/__init__.py                                                         | Python   |          5 |          2 |          5 |         12 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/_info.py                                                            | Python   |         29 |          0 |          2 |         31 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/_plugins.py                                                         | Python   |         83 |          0 |         22 |        105 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/analyzer.py                                                         | Python   |        398 |         13 |        114 |        525 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/characterization/__init__.py                                        | Python   |          1 |          0 |          0 |          1 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/characterization/characterizer.py                                   | Python   |         63 |          0 |         24 |         87 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/characterization/characterizer.pyi                                  | Python   |         35 |          0 |         12 |         47 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/characterization/characterizer_plugins/__init__.py                  | Python   |          1 |          0 |          0 |          1 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/characterization/characterizer_plugins/galaxy_bar.py                | Python   |        311 |          0 |         46 |        357 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/configuration.py                                                    | Python   |        166 |          1 |         29 |        196 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/default_config.ini                                                  | Ini      |         12 |          0 |         18 |         30 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/executor.py                                                         | Python   |         19 |          1 |          7 |         27 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/__init__.py                                                   | Python   |          1 |          0 |          0 |          1 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/grid/__init__.py                                              | Python   |          0 |          0 |          1 |          1 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/grid/cartesian_grid.py                                        | Python   |        166 |          0 |         27 |        193 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/grid/util.py                                                  | Python   |        252 |          8 |         51 |        311 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/__init__.py                                   | Python   |          3 |          0 |          0 |          3 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/field.py                                      | Python   |        577 |          1 |        134 |        712 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/ray/__init__.py                               | Python   |        128 |          1 |         29 |        158 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/ray/monotonic_profile.py                      | Python   |        242 |          0 |         45 |        287 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/ray/util.py                                   | Python   |        279 |          4 |         53 |        336 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/spherical_harmonic.py                         | Python   |         69 |          0 |         13 |         82 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/spherical_vector.py                           | Python   |        119 |          5 |         37 |        161 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/field/spherical_field/util.py                                       | Python   |         95 |          0 |         22 |        117 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/__init__.py                                            | Python   |          2 |          0 |          2 |          4 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer.py                                           | Python   |        172 |          0 |         40 |        212 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer.pyi                                          | Python   |         45 |          0 |         16 |         61 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer_plugins/__init__.py                          | Python   |          3 |          0 |          1 |          4 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer_plugins/optimize_nlopt.py                    | Python   |         37 |          1 |         12 |         50 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer_plugins/optimize_optimagic.py                | Python   |         36 |          1 |         10 |         47 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/optimizer_plugins/optimize_scipy.py                    | Python   |         51 |          1 |          9 |         61 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/parameter.py                                           | Python   |        656 |          6 |        118 |        780 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/result.py                                              | Python   |        385 |          2 |         80 |        467 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/optimization/util.py                                                | Python   |         52 |          0 |         17 |         69 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/plugins.json                                                        | JSON     |         64 |          0 |          0 |         64 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/__init__.py                                                   | Python   |         99 |          1 |         18 |        118 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/density_estimator.py                                          | Python   |        197 |          1 |         43 |        241 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/density_estimator.pyi                                         | Python   |         72 |          0 |         20 |         92 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/density_estimator_plugins/__init__.py                         | Python   |          1 |          0 |          1 |          2 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/density_estimator_plugins/estimator_knn.py                    | Python   |        175 |          0 |         47 |        222 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/global_calculator.py                                          | Python   |        193 |          0 |         44 |        237 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/point/util.py                                                       | Python   |        211 |          3 |         38 |        252 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/run_config.ini                                                      | Ini      |         41 |          0 |         56 |         97 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/__init__.py                                                   | Python   |        590 |          4 |        152 |        746 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/coordinate.py                                                 | Python   |        166 |          0 |         44 |        210 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/coordinate.pyi                                                | Python   |         49 |          0 |         16 |         65 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/coordinate_plugins/__init__.py                                | Python   |          1 |          0 |          1 |          2 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/coordinate_plugins/_rotation_eular_util.py                    | Python   |         84 |          0 |         20 |        104 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/coordinate_plugins/euler_shift.py                             | Python   |        220 |          0 |         44 |        264 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/fns.py                                                        | Python   |        164 |          6 |         26 |        196 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry.py                                                   | Python   |        239 |          0 |         57 |        296 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry.pyi                                                  | Python   |        109 |          0 |         30 |        139 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/__init__.py                                  | Python   |          2 |          0 |          1 |          3 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/_ellipsoid_s_util.py                         | Python   |        351 |          4 |         44 |        399 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/_ellipsoid_util.py                           | Python   |        485 |          6 |         59 |        550 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/_ellipsoid_util_cy.pyx                       | Cython   |        156 |          3 |         40 |        199 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/ellipsoid.py                                 | Python   |        254 |          0 |         45 |        299 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/geometry_plugins/ellipsoid_s.py                               | Python   |        215 |          0 |         37 |        252 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/minimize_func.py                                              | Python   |         67 |          2 |         21 |         90 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/shape/with_parameter.py                                             | Python   |        141 |          6 |         35 |        182 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/__init__.py                                                    | Python   |          1 |          0 |          1 |          2 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/array_operate.py                                               | Python   |        165 |         21 |         30 |        216 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/error_handling.py                                              | Python   |        119 |          9 |         25 |        153 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/func_cache.py                                                  | Python   |         17 |          1 |          9 |         27 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/func_decorator.py                                              | Python   |        173 |          6 |         49 |        228 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/func_signature.py                                              | Python   |        461 |         42 |         91 |        594 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/util/string_format.py                                               | Python   |        284 |          0 |         60 |        344 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/__init__.py                                           | Python   |          0 |          0 |          1 |          1 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/data_model_residual.py                                | Python   |        456 |          2 |         46 |        504 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/hist2d.py                                             | Python   |        268 |          4 |         52 |        324 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/model_projector.py                                    | Python   |        276 |          1 |         50 |        327 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/model_projector.pyi                                   | Python   |         42 |          0 |         17 |         59 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/model_projector_plugins/__init__.py                   | Python   |          2 |          0 |          1 |          3 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/model_projector_plugins/projector_line_integration.py | Python   |         72 |          0 |         24 |         96 |
+| /home/yxi/Simulation/TNG50_try/gal3d_develop/gal3d/src/gal3d/visualization/model_projector_plugins/projector_sph_grid.py         | Python   |         59 |          0 |         20 |         79 |
+| Total                                                                                                                            |          |     11,234 |        169 |      2,411 |     13,814 |
++----------------------------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

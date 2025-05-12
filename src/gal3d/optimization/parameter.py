@@ -514,10 +514,14 @@ class Parameters:
         """
         try:
             for i in kwargs:
+
                 if i not in self.__parameters:
-                    logger.warning(
-                        f"Setting upper bound failed. '{i}' is not a parameter name."
-                    )
+                    logger.warning(f"Setting upper bound failed. '{i}' is not a parameter name.")
+
+                elif self.__parameters[i].lb > kwargs[i]:
+                    msg = f"Upper bound ({kwargs[i]}) for '{i}' cannot be less than lower bound ({self.__parameters[i].lb})"
+                    logger.error(msg)
+                    raise ValueError(msg)
                 else:
                     # Validate the bound value
                     if not np.isfinite(kwargs[i]) and kwargs[i] != np.inf:

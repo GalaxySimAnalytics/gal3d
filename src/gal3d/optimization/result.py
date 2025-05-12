@@ -4,6 +4,7 @@ from dataclasses import is_dataclass
 from typing import Union,overload, Dict, Any
 
 import numpy as np
+import time
 
 from ..shape import Structure3D
 from .parameter import Parameters
@@ -57,7 +58,7 @@ class OptimizeResult:
 
     def __init__(self, optimize_result):
         if not is_dataclass(optimize_result):
-            raise (f'{optimize_result} is not a dataclass')
+            raise TypeError(f'{optimize_result} is not a dataclass')
 
         self._results = [optimize_result]
 
@@ -156,7 +157,7 @@ class OptimizeResult:
             If the input is not a dataclass or OptimizeResult object.
         """
         if isinstance(other, OptimizeResult):
-            if self.keys() <= other.keys():
+            if set(self.keys()).issubset(set(other.keys())):
                 self._results = self._results + other._results
                 return self
 
@@ -165,7 +166,7 @@ class OptimizeResult:
         if not is_dataclass(other):
             raise TypeError(f'{other} is not a dataclass')
 
-        if self.keys() <= other.__dataclass_fields__.keys():
+        if set(self.keys()).issubset(set(other.__dataclass_fields__.keys())):
             self._results.append(other)
             return self
         raise ValueError(f'{other} is not the same dataclass')
@@ -244,13 +245,13 @@ class ModelResult:
         """
         return self._parameters[0].keys()
 
-    def __call__(self, pos, *, item: int = 0, **kwargs):
+    def __call__(self, pos: Union[np.ndarray, list, tuple], *, item: int = 0, **kwargs):
         """
         Evaluates the 3D structure model at the given position using the specified set of parameters.
 
         Parameters
         ----------
-        pos : array-like
+        pos : array-like (numpy.ndarray, list, or tuple)
             The position at which to evaluate the model.
         item : int, optional
             The index of the parameter set to use (default is 0).
@@ -264,12 +265,13 @@ class ModelResult:
         """
         return self[item](pos, **kwargs)
     
+    # Overloads for the __getitem__ method to specify return types based on input type.
     @overload
-    def __getitem__(self, k: int)-> Structure3D:
+    def __getitem__(self, k: int) -> Structure3D:
         ...
     
     @overload
-    def __getitem__(self, k: str)-> np.ndarray:
+    def __getitem__(self, k: str) -> np.ndarray:
         ...
 
     def __getitem__(self, k: Union[int,str]) -> Union[Structure3D, np.ndarray]:
@@ -299,7 +301,7 @@ class ModelResult:
             return self._structure.from_parameters(
                 **self._parameters[k].structure_parameters
             )
-        raise KeyError(f"{k} is not a valid key")
+        raise KeyError(f"Key must be a string or integer, got {type(k).__name__}")
 
     def __repr__(self):
         """
@@ -314,7 +316,7 @@ class ModelResult:
         shape = self._structure._geometry_name
         error = self._structure._error_method_name
         lin1 = (
-            "<Resullt| num="
+            "<Result| num="
             + str(len(self._parameters))
             + " | "
             + coor
@@ -378,12 +380,18 @@ def model_to_hdf5(
     shape_name: str,
     error_name: str,
     all_header: str = '/',
-    other_info: Dict[str, Any] = None,
+    large_model_threshold: int = 1000,
 ) -> None:
     """
     Save model results to an HDF5 file.
     
     This function exports a ModelResult object to an HDF5 file with proper
+    organization and metadata for later reuse or analysis.
+
+    Parameters
+    ----------
+    large_model_threshold : int, optional
+        Threshold for the number of parameter sets to trigger a warning about large models (default is 1000).
     organization and metadata for later reuse or analysis.
 
     Parameters
@@ -425,7 +433,6 @@ def model_to_hdf5(
     For Ellipsoid_S models, additional parameters (sa, sb, sc, parent_fun) are saved.
     """
     try:
-        import time
         start_time = time.time()
         max_time = 300  # 5 minutes timeout
         
@@ -442,8 +449,8 @@ def model_to_hdf5(
         logger.info(f"Saving model to {hdf5_file_name} (shape={shape_name}, error={error_name})")
         
         # Allow interruption for large models
-        if len(model) > 1000:
-            logger.warning(f"Large model with {len(model)} parameter sets may take time to save")
+        if len(model) > large_model_threshold:
+            logger.warning(f"Large model with {len(model)} parameter sets exceeds the threshold ({large_model_threshold}) and may take time to save")
             
         save_model_hdf5(
             model, hdf5_file_name, shape_name, error_name, all_header, other_info
@@ -456,7 +463,13 @@ def model_to_hdf5(
         logger.info(f"Successfully saved model with {len(model)} parameter sets")
         
     except ImportError as e:
-        logger.error(f"Missing required dependencies for HDF5 export: {e}")
+        logger.error(
+            f"Failed to save model to HDF5: {e}. "
+            f"Possible causes: insufficient disk space, file permission issues, "
+            f"or invalid model structure. Please check the input parameters and "
+            f"ensure the target directory is writable.",
+            exc_info=True
+        )
         raise
     except TimeoutError:
         logger.error(f"Save operation timed out after {max_time} seconds")

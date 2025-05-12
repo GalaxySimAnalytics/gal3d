@@ -139,25 +139,25 @@ def to_hash_object(obj: Any) -> Any:
     return obj
 
 
-@to_hash_object.register
-def _(obj: Dict[Any, Any]) -> HashDict:
+@to_hash_object.register(dict)
+def _(obj: dict) -> HashDict:
     """Convert a dictionary to a hashable form."""
     return HashDict(obj)
 
 
-@to_hash_object.register
-def _(obj: List[Any]) -> HashList:
+@to_hash_object.register(list)
+def _(obj: list) -> HashList:
     """Convert a list to a hashable form."""
     return HashList(obj)
 
 
-@to_hash_object.register
-def _(obj: Set[Any]) -> HashSet:
+@to_hash_object.register(set)
+def _(obj: set) -> HashSet:
     """Convert a set to a hashable form."""
     return HashSet(obj)
 
 
-@to_hash_object.register
+@to_hash_object.register(np.ndarray)
 def _(obj: np.ndarray) -> bytes:
     """
     Convert a NumPy array to a hashable form.

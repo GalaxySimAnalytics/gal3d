@@ -1,5 +1,6 @@
 import os
 import logging
+import inspect
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Type, ClassVar, Set, Optional, Tuple, TypeVar, Generic
 
@@ -39,25 +40,26 @@ class WithParameter(ABC):
     UB: ClassVar[Dict[str, float]]
     LB: ClassVar[Dict[str, float]]
     
-    def __init_subclass__(cls, **kwargs: Any) -> bool:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
-        Validate that subclasses properly define required parameter attributes.
+        Validate that concrete subclasses properly define required parameter attributes.
+        
+        This method only validates concrete classes (non-abstract classes) to ensure
+        they define all required parameter attributes correctly.
         
         Parameters
         ----------
         **kwargs
             Additional keyword arguments passed to the parent __init_subclass__.
-            
-        Returns
-        -------
-        bool
-            True if the subclass has all required attributes correctly defined.
-            
-        Notes
-        -----
-        This method ensures that all subclasses define the required 'PN', 'UB', and 'LB'
-        attributes with the correct types, which are essential for parameter handling.
         """
+        # Call parent __init_subclass__
+        super().__init_subclass__(**kwargs)
+        
+        # Skip validation for abstract classes
+        if inspect.isabstract(cls):
+            return
+            
+        # For concrete implementations, verify required attributes
         for attr, typ in zip(required_attrs, required_type):
             if not hasattr(cls, attr):
                 logger.error(
@@ -179,3 +181,69 @@ class WithParameter(ABC):
             Subclass-specific output.
         """
         pass
+    
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the object.
+
+        Returns
+        -------
+        str
+            String showing the class name and parameter values.
+        """
+
+        param_repr = repr(self.parameters)
+
+        return f"<{self.__class__.__name__}|: " + param_repr[10:] + "|>"
+        
+    def __getitem__(self, key: str) -> Any:
+        """
+        Access parameter values using dictionary-style indexing.
+        
+        Parameters
+        ----------
+        key : str
+            Parameter name to access.
+            
+        Returns
+        -------
+        Any
+            The value of the requested parameter.
+            
+        Raises
+        ------
+        KeyError
+            If parameter does not exist or cannot be accessed.
+        """
+        if hasattr(self, 'parameters') and self.parameters is not None:
+            return self.parameters[key]
+        raise KeyError(f"Parameter '{key}' does not exist or cannot be accessed in {self.__class__.__name__}")
+    
+    def keys(self):
+        """
+        Return a list of parameter names.
+
+        Returns
+        -------
+        list of str
+            List of keys in the Parameters object.
+        """
+
+        return list(self.parameters.keys())
+
+    def __contains__(self, item):
+        """
+        Check if a parameter exists.
+
+        Parameters
+        ----------
+        item : str
+            The name of the parameter to check.
+            
+        Returns
+        -------
+        bool
+            True if the parameter exists, False otherwise.
+        """
+
+        return item in self.parameters

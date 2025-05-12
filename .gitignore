@@ -16,8 +16,8 @@ src/gal3d.egg-info
 tests/test_data
 **/.coverage
 
-.venc
+.venv
 .pytest_cache
 dist/
 build/
-.VSCodeCounter/*
+.VSCodeCounter

@@ -1,4 +1,4 @@
-from typing import Iterable, Callable, Dict, Tuple
+from typing import Iterable, Callable, Dict, Tuple, Union
 import time
 import logging
 
@@ -76,12 +76,22 @@ class Gal3DAnalyzer:
                             error_method=shape_cfg.get("error_method"),)
         
         optimizer_cfg = cfg['Optimizer']
-        optimizer = Optimizer.get_plugin(plugin =optimizer_cfg.get("optimizer"))(algorithm=optimizer_cfg.get("algorithm")) # OptimizerScipy Powell
+        try:
+            plugin_name = optimizer_cfg.get("optimizer")
+            algorithm_name = optimizer_cfg.get("algorithm")
+            optimizer_plugin = Optimizer.get_plugin(plugin=plugin_name)
+            optimizer = optimizer_plugin(algorithm=algorithm_name)
+        except KeyError as e:
+            logger.error(f"Missing configuration key: {e}")
+            raise ValueError(f"Configuration file is missing required key: {e}")
+        except AttributeError as e:
+            logger.error(f"Invalid optimizer plugin or algorithm: {e}")
+            raise ValueError(f"Invalid optimizer plugin '{plugin_name}' or algorithm '{algorithm_name}' specified in configuration.")
         
         return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
         
 
-    def fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
+    def fit(self, r: Union[float, Iterable] = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
         """
         Fit the model to a single radius or a sequence of radii.
 
@@ -100,21 +110,23 @@ class Gal3DAnalyzer:
         work = self.get_workflow()
 
         if not isinstance(r, Iterable):
-
             return work(self, r, **kwargs)
-
         else:
             resall = []
+            errors = []
             for i in tqdm(r):
                 try:
                     if resall:
-                        res_value = {i: resall[-1][i][0] for i in resall[-1].keys()}
+                        res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
                         kwargs['init_parameters'] = res_value
                     res = work(self, i, **kwargs)
                     resall.append(res)
                 except Exception as e:
-                    logger.error(f'Skip fitting at radius {i:.2f}, for error: {e}')
-
+                    errors.append(f"Radius {i:.2f}: {e}")
+            
+            if errors:
+                logger.error("Skipped fitting at some radii due to errors:\n" + "\n".join(errors))
+            
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])
             else:
@@ -142,7 +154,7 @@ class Gal3DAnalyzer:
         raise TypeError(f"No valid workflow")
 
     @staticmethod
-    def fit_workflow_registry(fn_or_name: str | Callable) -> Callable:
+    def fit_workflow_registry(fn_or_name: Union[str, Callable]) -> Callable:
         """
         Register a new workflow function with an optional condition.
 
@@ -165,13 +177,13 @@ class Gal3DAnalyzer:
         if callable(fn_or_name):
 
             fn = fn_or_name
-            name = fn.__name__
-            Gal3DAnalyzer.fit_workflow[name] = (default_condition, fn)
+            fn_name = fn.__name__
+            Gal3DAnalyzer.fit_workflow[fn_name] = (default_condition, fn)
 
             def set_condition(condition: Callable):
 
                 assert callable(condition)
-                Gal3DAnalyzer.fit_workflow[name] = (condition, fn)
+                Gal3DAnalyzer.fit_workflow[fn_name] = (condition, fn)
                 return fn
 
             fn.set_condition = set_condition
@@ -190,7 +202,7 @@ class Gal3DAnalyzer:
                 def set_condition(condition: Callable):
 
                     assert callable(condition)
-                    Gal3DAnalyzer.fit_workflow[name] = (condition, fn)
+                    Gal3DAnalyzer.fit_workflow[fn_name] = (condition, fn)
                     return fn
 
                 fn.set_condition = set_condition
@@ -379,11 +391,12 @@ def ell_condition(self: Gal3DAnalyzer) -> bool:
     if is_supported:
         logger.debug(f"Selected ellipsoidal fitting workflow for geometry: {geometry_name}")
     else:
-        logger.debug(f"Geometry {geometry_name} is not supported by ellipsoidal fitting workflow")
-        
+        # TODO: Consider adding more conditions in the future if new geometry types are introduced.
+        logger.warning(f"Unsupported geometry type: {geometry_name}")
+
     return is_supported
 
-# Add a new workflow for debugging/validation purposes
+# Add a new workflow for validating input data and parameters before fitting
 @Gal3DAnalyzer.fit_workflow_registry
 def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     """
@@ -469,7 +482,8 @@ def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResul
                 raise ValueError(error_msg)
         
         # 5. Check for NaN values in position data
-        if np.isnan(field_data['pos']).any():
+        pos_data = np.array(field_data['pos']) if not isinstance(field_data['pos'], np.ndarray) else field_data['pos']
+        if np.isnan(pos_data).any():
             error_msg = "Position data contains NaN values"
             logger.error(error_msg)
             raise ValueError(error_msg)
@@ -484,12 +498,9 @@ def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResul
         logger.info(f"Validation successful ({time.time() - validation_start_time:.2f}s), proceeding with fitting")
         
         # Use the appropriate workflow based on structure type
-        if self.structure._geometry_name in ['Ellipsoid', 'Ellipsoid_S']:
-            return get_ell_structure(self, a, **kwargs)
-        else:
-            error_msg = f"No specific validation for geometry type '{self.structure._geometry_name}'"
-            logger.error(error_msg)
-            raise NotImplementedError(error_msg)
+        workflow = self.get_workflow()
+        return workflow(self, a, **kwargs)
+
             
     except ValueError as e:
         # Re-raise validation errors with context

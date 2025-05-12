@@ -92,6 +92,7 @@ class ModelProjectorBase(abc.ABC):
         def wrapper(self, x_range: Sequence[float], y_range: Sequence[float], 
                    nbins: int, z_range: Sequence[float], rotation: NDArray[np.float64], 
                    **kwargs: Any) -> NDArray[np.float64]:
+            rotation_bytes = rotation.tobytes()
             recod = (
                 x_range[0],
                 x_range[1],
@@ -100,7 +101,7 @@ class ModelProjectorBase(abc.ABC):
                 nbins,
                 z_range[0],
                 z_range[1],
-                rotation.tobytes(),
+                rotation_bytes,
             )
             if recod in self._image_cache:
                 logger.info(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, rotation:{rotation}, nbins:{nbins}")
@@ -163,7 +164,7 @@ class ModelProjectorBase(abc.ABC):
             raise ValueError(f"Invalid nbins: {nbins}. Must be positive")
 
         if rotation is None:
-            rotation = np.eye(3)
+            rotation = np.eye(3).copy()
         elif rotation.shape != (3, 3):
             raise ValueError(f"Rotation matrix must be 3x3, got {rotation.shape}")
 
@@ -320,7 +321,9 @@ class ModelProjector:
     def available_plugins(cls) -> List[str]:
         if not _ModelProjectorPlugins:
             cls._load_plugin()
+            if not _ModelProjectorPlugins:
+                logger.warning("No plugins were loaded. The _ModelProjectorPlugins dictionary is empty.")
         return list(_ModelProjectorPlugins.keys())
 
 
-from .model_projector_plugins import *
+from .model_projector_plugins import ProjectorLineIntegration,ProjectorSphGrid

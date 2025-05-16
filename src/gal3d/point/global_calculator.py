@@ -41,6 +41,23 @@ class GlobalCalculator:
             raise ValueError(
                 f"Mismatch between number of positions ({self.pos.shape[0]}) and masses ({self.mass.shape[0]})."
             )
+            
+    def __del__(self):
+        """
+        Clean up large data arrays to assist garbage collection.
+        """
+        # Clear large arrays
+        if hasattr(self, 'pos'):
+            self.pos = None
+        if hasattr(self, 'mass'):
+            self.mass = None
+        if hasattr(self, 'r'):
+            self.r = None
+            
+        # Clear cached properties if they've been accessed
+        for attr in ['_ssc_center', '_mass_center', '_shape_center', '_moi', '_abc']:
+            if hasattr(self, attr):
+                setattr(self, attr, None)
 
     def _shape_check(self, pos):
         """

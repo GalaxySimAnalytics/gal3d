@@ -21,6 +21,7 @@ class Bar(CharacterizerBase):
                     Semi-major axis values (1D array)
                 eps, eps_ab, eps_bc: array_like
                     Ellipticity values (0-1, 1D array)
+                    If 'eps' is not provided, 'eps_ab' will be used as a fallback.
                 pa,: array_like
                     Position angle values in radians (0-pi or 2pi, 1D array)
                     
@@ -38,12 +39,26 @@ class Bar(CharacterizerBase):
         self.data={i: data[i][dex] for i in data}
         
         self.a = self.data['a']
-        self.eps = self.data['eps'] if 'eps' in data else data['eps_ab']
+        if 'eps' in data:
+            self.eps = self.data['eps']
+        elif 'eps_ab' in data:
+            self.eps = self.data['eps_ab']
+        else:
+            raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
         
         self.pa = self.data['pa']*180/np.pi         # radians to degrees
+        self._f_eps_R = PchipInterpolator(self.a, self.eps)
 
     def measure(
-        self, eps_cond=0.25, range_min=0.2, start_max=3, angle_dev=10, dec=0.85, detail: bool = False,other_keys: List[str] | str | None =None ) -> dict:
+        self, 
+        eps_cond=0.25, 
+        range_min=0.2, 
+        start_max=3, 
+        angle_dev=10, 
+        dec=0.85, 
+        detail: bool = False, 
+        other_keys: List[str] | str | None = None
+    ) -> dict:
         '''
         Measure galaxy bar parameters using ellipticity profile analysis.
 
@@ -114,10 +129,12 @@ class Bar(CharacterizerBase):
         eps_pa, R_pa = self.get_dev_epsRpa(R_max, angle_cond=angle_dev)
 
         bar_flag = 0
-        if (R_start > 0) & (eps_max > eps_cond) & ((R_pa - R_max) > range_min):
+        if (R_start > 0) and (eps_max > eps_cond) and ((R_pa - R_max) > range_min):
             bar_flag = 1
         result = {"flag": bar_flag, "eps_max":eps_max, "R_max": R_max, "R_bar": min(R_dc,R_pa)}
         
+        if other_keys and not isinstance(other_keys, (str, list, type(None))):
+            raise TypeError("Parameter 'other_keys' must be a string, list, or None.")
         if other_keys:
             if isinstance(other_keys,str):
                 other_keys = [other_keys]
@@ -173,7 +190,7 @@ class Bar(CharacterizerBase):
                     begin_flag = True
                     R_start.append(R_st)
                     R_end.append(R_ed)
-            if (i == len(self.eps) - 1) & (not begin_flag):
+            if (i == len(self.eps) - 1) and (not begin_flag):
                 R_start.append(R_st)
                 R_end.append(self.a[i])
         R_start = np.array(R_start, dtype=np.float64)
@@ -267,7 +284,7 @@ class Bar(CharacterizerBase):
             Ellipticity interpolator
         '''
 
-        f_eps_R = PchipInterpolator(self.a, self.eps)
+        f_eps_R = self._f_eps_R
         eps_dc = eps_max * dec
         range_cut = self.a >= eps_max
         R_dc = f_eps_R.solve(eps_dc, discontinuity=False, extrapolate=False)

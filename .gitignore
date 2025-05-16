@@ -12,6 +12,7 @@ src/gal3d.egg-info
 **/gal3d.log
 **/*.c
 **/*.so
+**/*.cpp
 
 tests/test_data
 **/.coverage

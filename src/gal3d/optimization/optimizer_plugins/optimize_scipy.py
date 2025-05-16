@@ -1,4 +1,3 @@
-from functools import partial
 
 from scipy import optimize
 from optimagic.optimizers.scipy_optimizers import process_scipy_result
@@ -28,8 +27,7 @@ class OptimizerScipy(OptimizerBase):
     ):
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
-        #fn = lambda x: fun(x, *func_args, **func_kwargs)
-        fn = partial(fun,*func_args, **func_kwargs)
+        fn = lambda x: fun(x, *func_args, **func_kwargs)
         res = optimize.minimize(
             fun=fn,
             x0=x0,
@@ -51,7 +49,8 @@ class OptimizerScipy(OptimizerBase):
             'L-BFGS-B',
             'TNC',
             'COBYLA',
-            'COBYQA' 'SLSQP',
+            'COBYQA', 
+            'SLSQP',
             'trust-constr',
             'dogleg',
             'trust-ncg',

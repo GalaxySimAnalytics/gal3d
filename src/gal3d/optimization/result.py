@@ -274,34 +274,51 @@ class ModelResult:
     def __getitem__(self, k: str) -> np.ndarray:
         ...
 
-    def __getitem__(self, k: Union[int,str]) -> Union[Structure3D, np.ndarray]:
+    @overload
+    def __getitem__(self, k: slice) -> 'ModelResult':
+        ...
+
+    def __getitem__(self, k: Union[int, str, slice]) -> Union[Structure3D, np.ndarray, 'ModelResult']:
         """
-        Retrieves either a specific parameter or a specific set of parameters.
+        Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
         Parameters
         ----------
-        k : str or int
+        k : str, int, or slice
             If `k` is a string, returns the corresponding parameter value from all parameter sets.
             If `k` is an integer, returns the `Structure3D` instance initialized with the k-th parameter set.
+            If `k` is a slice, returns a new `ModelResult` with the specified slice of parameter sets.
 
         Returns
         -------
-        numpy.ndarray or Structure3D
-            The requested parameter values or the initialized structure model.
+        numpy.ndarray, Structure3D, or ModelResult
+            The requested parameter values, initialized structure model, or sliced ModelResult.
 
         Raises
         ------
         KeyError
-            If `k` is neither a valid string key nor an integer index.
+            If `k` is not a valid string key, integer index, or slice.
         """
         if isinstance(k, str):
             return np.array([i[k] for i in self._parameters])
-
+        
         if isinstance(k, int):
             return self._structure.from_parameters(
                 **self._parameters[k].structure_parameters
             )
-        raise KeyError(f"Key must be a string or integer, got {type(k).__name__}")
+            
+        if isinstance(k, slice):
+            # Create a new ModelResult with sliced parameters
+            sliced_result = copy.copy(self)
+            sliced_result._parameters = self._parameters[k]
+            
+            # Also slice the optimization results if they align with parameters
+            if len(self.res._results) == len(self._parameters):
+                sliced_result.res._results = self.res._results[k]
+            
+            return sliced_result
+            
+        raise KeyError(f"Key must be a string, integer, or slice, got {type(k).__name__}")
 
     def __repr__(self):
         """
@@ -381,6 +398,7 @@ def model_to_hdf5(
     error_name: str,
     all_header: str = '/',
     large_model_threshold: int = 1000,
+    other_info: dict = None,
 ) -> None:
     """
     Save model results to an HDF5 file.

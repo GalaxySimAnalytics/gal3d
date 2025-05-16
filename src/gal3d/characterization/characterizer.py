@@ -23,13 +23,14 @@ _pyi_name = _current_file_name.replace('.py', '.pyi')
 class CharacterizerBase(ABC):
 
     def __init__(self, data: dict | ModelResult):
-
+        if not isinstance(data, (dict, ModelResult)):
+            raise TypeError(f"Expected 'data' to be of type 'dict' or 'ModelResult', but got {type(data).__name__}")
         self.data = data
 
     def __init_subclass__(cls, **kwargs):
         
         _CharacterizerPlugins[cls.__name__] = cls
-        logger.info(f"Find CharacterizerPlugin: {cls.__name__} and load successfully")
+        logger.info(f"CharacterizerPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -42,10 +43,22 @@ class CharacterizerBase(ABC):
         pass
 
 class Characterizer:
-    """Characterizer"""
+    """
+    Characterizer
+
+    This class serves as the main interface for managing and interacting with 
+    Characterizer plugins. It provides methods to retrieve available plugins, 
+    load plugins dynamically, and update plugin stubs for type hinting.
+
+    Methods:
+        - _update_plugin_stub: Updates the plugin stub file for type hinting.
+        - get_plugin: Retrieves a specific Characterizer plugin by name.
+        - _load_plugin: Dynamically loads Characterizer plugins.
+        - available_plugins: Returns a list of all available plugin names.
+    """
 
     @staticmethod
-    def _updata_plugin_stub():
+    def _update_plugin_stub():
         output_path = os.path.join(_current_dir, _pyi_name)
         generate_plugin_stub(Characterizer, CharacterizerBase, _CharacterizerPlugins, output_path)
         logger.info(f"✅ Updated stub: {output_path}")
@@ -53,16 +66,19 @@ class Characterizer:
     @staticmethod
     def get_plugin(plugin: str | None) -> CharacterizerBase:
         """
-        Get an Characterizer plugin
+        Get a Characterizer plugin.
 
         Parameters:
         plugin: str,
-            the name of plugin, available see available_plugins
+            The name of the plugin. If the plugin is not found in the available plugins, 
+            a ValueError will be raised. Use `available_plugins` to see the list of valid plugins.
 
         Returns:
-            available_plugins of CharacterizerBase
+            An instance of CharacterizerBase corresponding to the specified plugin.
         """
         assert (isinstance(plugin, str)) or (plugin is None)
+        if plugin is not None and plugin not in _CharacterizerPlugins:
+            raise ValueError(f"Plugin '{plugin}' not found in available plugins: {list(_CharacterizerPlugins.keys())}")
 
         if plugin is None:
             return CharacterizerBase
@@ -75,8 +91,11 @@ class Characterizer:
     @staticmethod
     def _load_plugin():
         import importlib
-        importlib.import_module("gal3d.characterization.characterizer_plugins")
-        logger.info("Successfully loaded Characterizer plugins")
+        try:
+            importlib.import_module("gal3d.characterization.characterizer_plugins")
+            logger.info("Successfully loaded Characterizer plugins")
+        except ImportError as e:
+            logger.error(f"Failed to load Characterizer plugins: {e}")
     
     @classproperty
     def available_plugins(cls) -> List[str]:

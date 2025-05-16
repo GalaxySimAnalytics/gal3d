@@ -1,6 +1,8 @@
 from typing import Callable, Union, Dict, Any, TypeVar, cast, Optional
 import logging
 
+from gal3d import config
+
 logger = logging.getLogger("gal3d.shape.minimize_func")
 T = TypeVar('T', bound=Callable[..., Any])
 
@@ -84,6 +86,16 @@ class MinimizeFunc:
         except Exception as e:
             logger.error(f"Error registering function to minimization registry: {e}", exc_info=True)
             raise
+    @staticmethod
+    def _load_func():
+        """
+        Dynamically import minimization functions based on configuration.
+        """
+        if config['general']['use_cython']:
+            from . import fns_cy
+            return None
+        else:
+            from . import fns_nb
+            return None
 
-
-from .fns import *
+MinimizeFunc._load_func()

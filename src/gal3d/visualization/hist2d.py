@@ -22,7 +22,43 @@ def hist_2d(
     **kwargs,
 ):
     '''
-    plt.imshow(data,origin='lower')
+    Generate a 2D histogram from input data.
+
+    Parameters
+    ----------
+    x : array-like
+        Input data for the x-axis.
+    y : array-like
+        Input data for the y-axis.
+    weights : array-like, optional
+        Weights for each data point. Default is None.
+    parameters : array-like, optional
+        Additional parameters for weighted histograms. Default is None.
+    density : bool, optional
+        If True, normalize the histogram to form a probability density. Default is True.
+    gridsize : tuple of int, optional
+        Number of bins for the histogram in (y, x) directions. Default is (100, 100).
+    nbins : int, optional
+        Number of bins for both axes (overrides gridsize if provided). Default is None.
+    x_logscale : bool, optional
+        If True, apply log scaling to the x-axis. Default is False.
+    y_logscale : bool, optional
+        If True, apply log scaling to the y-axis. Default is False.
+    x_range : list or tuple, optional
+        Range for the x-axis as [min, max]. Default is None.
+    y_range : list or tuple, optional
+        Range for the y-axis as [min, max]. Default is None.
+    **kwargs : dict
+        Additional keyword arguments.
+
+    Returns
+    -------
+    hist : 2D ndarray
+        The 2D histogram array.
+    xs : ndarray
+        Bin centers for the x-axis.
+    ys : ndarray
+        Bin centers for the y-axis.
     '''
     if nbins is not None:
         gridsize = (nbins, nbins)
@@ -91,21 +127,57 @@ def show_image(
     imageData,
     extent=None,
     axesObj=None,
+    scale="linear",
     logscale=True,
     vmin=None,
     vmax=None,
     cmap="jet",
     noErase=False,
 ):
-    imageData = np.asarray(imageData)
+    """
+    Display a 2D image with optional scaling and color normalization.
+
+    Parameters
+    ----------
+    imageData : 2D ndarray
+        The image data to be displayed.
+    extent : tuple, optional
+        The bounding box in data coordinates as (left, right, bottom, top). Default is None.
+    axesObj : matplotlib.axes.Axes, optional
+        The axes object to plot the image on. If None, the current axes are used. Default is None.
+    scale : str, optional
+        Scaling to apply to the color normalization. Options are "linear", "log", "symlog", etc. Default is "linear".
+    logscale : boolean, optional
+        If True, use a log-scaled colorbar and log-spaced contours. Default is True.
+    vmin : float, optional
+        Minimum data value for color normalization. Default is the minimum value in imageData.
+    vmax : float, optional
+        Maximum data value for color normalization. Default is the maximum value in imageData.
+    cmap : str, optional
+        Colormap to use for the image. Default is "jet".
+    noErase : bool, optional
+        If True, do not clear the current figure before plotting. Default is False.
+
+    Returns
+    -------
+    axesImg : matplotlib.image.AxesImage
+        The image object created by imshow.
+    """
+    imageData = np.asarray(imageData).copy()
+    vmin = vmin or np.min(imageData[imageData > 0])
+    vmax = vmax or np.max(imageData[imageData > 0])
+    
     if logscale:
-        vmin = vmin or np.min(imageData[imageData > 0])
-        vmax = vmax or np.max(imageData[imageData > 0])
+        scale = "log"
+
+    if scale == "log":
         cont_color = colors.LogNorm(vmin=vmin, vmax=vmax)
-    else:
-        vmin = vmin or np.min(imageData)
-        vmax = vmax or np.max(imageData)
+    elif scale == "symlog":
+        cont_color = colors.SymLogNorm(linthresh=1e-3, vmin=vmin, vmax=vmax)
+    elif scale == "linear":
         cont_color = colors.Normalize(vmin=vmin, vmax=vmax)
+    else:
+        raise ValueError(f"Unsupported scale: {scale}")
 
     imageData[imageData < vmin] = vmin
     imageData[imageData > vmax] = vmax
@@ -173,8 +245,8 @@ def show_contour(
     withfilter : boolean, optional
         If True, use gaussian_filter. Default is False.
 
-    sigma: float, optionalshow_image
-        used in  gaussian_filter
+    sigma: float, optional
+        Used in gaussian_filter
 
     vmin : float, optional
         Minimum value to use for the color scale. Default is arr.min().
@@ -192,8 +264,9 @@ def show_contour(
     logscale : boolean, optional
         If True, use a log-scaled colorbar and log-spaced contours. Default is True.
 
-    noErase = set this equal to True to draw the contours into an existing plot
-        window without erase things first (only used if axesObj is None)
+    noErase : bool, optional
+        If True, draws the contours into an existing plot window without erasing
+        existing content. Default is False.
 
     color = color for the contours
 
@@ -285,8 +358,8 @@ def add_colorbar(
 
     label_pad : str, optional
         padding between colorbar and its tick labels
-
-    tick_lable_size : float, optional
+    tick_label_size : float, optional
+        font size for tick labels
         font size for tick labels
 
     Returns

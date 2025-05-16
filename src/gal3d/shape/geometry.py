@@ -7,6 +7,7 @@ from numpy.typing import ArrayLike, NDArray
 
 
 from .with_parameter import WithParameter, abstractmethod, Parameters
+# Utility function to generate Python interface (.pyi) stubs for geometry plugins.
 from ..util.func_signature import generate_plugin_stub
 from ..util.func_decorator import classproperty
 from .. import config_parser
@@ -32,11 +33,11 @@ class GeometryBase(WithParameter):
         """
 
         if not super().__init_subclass__():
-            logger.info(f"Find GeometryPlugin: {cls.__name__} but fail to load")
+            logger.info(f"GeometryPlugin found: {cls.__name__} but failed to load")
             return
 
         _GeometryPlugins[cls.__name__] = cls
-        logger.info(f"Find GeometryPlugin: {cls.__name__} and load successfully")
+        logger.info(f"GeometryPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(Geometry, GeometryBase, _GeometryPlugins, output_path)
@@ -242,7 +243,7 @@ class Geometry:
     """
 
     @staticmethod
-    def _updata_plugin_stub():
+    def _update_plugin_stub():
         output_path = os.path.join(_current_dir, _pyi_name)
         generate_plugin_stub(Geometry, GeometryBase, _GeometryPlugins, output_path)
         logger.info(f"✅ Updated stub: {output_path}")
@@ -262,7 +263,7 @@ class Geometry:
         GeometryBase
             The plugin class.
         """
-        assert (isinstance(plugin, str)) or (plugin is None)
+        assert (isinstance(plugin, str)) or (plugin is None), "The 'plugin' parameter must be a string or None."
 
         if plugin is None:
             return GeometryBase
@@ -276,8 +277,13 @@ class Geometry:
         Load geometry plugin modules dynamically.
         """
         import importlib 
-        importlib.import_module("gal3d.shape.geometry_plugins")
-        logger.info("Successfully loaded geometry plugins")
+        try:
+            importlib.import_module("gal3d.shape.geometry_plugins")
+            logger.info("Successfully loaded geometry plugins")
+        except ModuleNotFoundError as e:
+            logger.error(f"Failed to load geometry plugins: {e}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while loading geometry plugins: {e}")
         
     @classproperty
     def available_plugins(cls) -> List[str]:

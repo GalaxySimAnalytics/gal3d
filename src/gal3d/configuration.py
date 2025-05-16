@@ -2,7 +2,7 @@ import logging
 import os
 import configparser
 
-from .util.string_format import string_formator
+from .util.string_format import string_formatter
 
 
 
@@ -19,7 +19,10 @@ def _get_config_parser_with_defaults() -> configparser.RawConfigParser:
     # Create config dictionaries which will be required by subpackages
 
     config_parser = _set_config_parser()
-    config_parser.read(os.path.join(os.path.dirname(__file__), "default_config.ini"))
+    default_config_path = os.path.join(os.path.dirname(__file__), "default_config.ini")
+    if not os.path.exists(default_config_path):
+        raise FileNotFoundError(f"Default configuration file not found: {default_config_path}")
+    config_parser.read(default_config_path)
     return config_parser
 
 def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
@@ -33,11 +36,13 @@ def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
     config['general'] = {}
     config['general']["update_stub"] = config_parser['general'].getboolean("update_stub", fallback=False)
     config['general']["batchsize"] = config_parser['general'].getint("batchsize", fallback=200000)
-    
-    config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads')
+
+    default_thread_count = max(os.cpu_count() // 3, 1)
+    config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads', fallback=default_thread_count)
+    config['general']['use_cython'] = config_parser.getboolean('general', 'use_cython', fallback=True)
 
     if config['general']['number_of_threads']<0:
-        config['general']['number_of_threads']=os.cpu_count()
+        config['general']['number_of_threads']=default_thread_count
     return config
 class ColorFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
@@ -45,86 +50,86 @@ class ColorFormatter(logging.Formatter):
     FORMATS = {
         logging.DEBUG: "".join(
             [
-                string_formator(
+                string_formatter(
                     "[%(asctime)s.%(msecs)03d] ",
                     italics=True,
                 ),"< ",
-                string_formator(
+                string_formatter(
                     "%(name)s", fg_color='bright_blue', underline=True
                 )," >",
-                string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
-                string_formator("| %(levelname)s | ", fg_color='cyan', bold=True),
+                string_formatter("| %(levelname)s | ", fg_color='cyan', bold=True),
                 "%(message)s",
             ]
         ),
         logging.INFO: "".join(
             [
-                string_formator(
+                string_formatter(
                     "[%(asctime)s.%(msecs)03d] ", italics=True, underline=False
                 ),"< ",
-                string_formator(
+                string_formatter(
                     "%(name)s", fg_color='bright_blue', underline=True
                 )," >",
                 "\n",
                 "  >>>  ",
-                string_formator("| %(levelname)s | ", fg_color='green', bold=True),
+                string_formatter("| %(levelname)s | ", fg_color='green', bold=True),
                 "%(message)s",
             ]
         ),
         logging.WARNING: "".join(
             [
-                string_formator(
+                string_formatter(
                     "[%(asctime)s.%(msecs)03d] ",
                     fg_color='yellow',
                     italics=True,
                     underline=False,
                 ),"< ",
-                string_formator(
+                string_formatter(
                     "%(filename)s", fg_color='bright_blue', underline=True
                 )," >",
-                string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
-                string_formator("| %(levelname)s | ", fg_color='yellow', bold=True),
+                string_formatter("| %(levelname)s | ", fg_color='yellow', bold=True),
                 "%(message)s",
             ]
         ),
         logging.ERROR: "".join(
             [
-                string_formator(
+                string_formatter(
                     "[%(asctime)s.%(msecs)03d] ",
                     fg_color='red',
                     italics=True,
                     underline=False,
                 ),"< ",
-                string_formator(
+                string_formatter(
                     "%(filename)s", fg_color='bright_blue', underline=True
                 )," >",
-                string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
-                string_formator(
+                string_formatter(
                     "| %(levelname)s | %(message)s", fg_color='red', bold=True
                 ),
             ]
         ),
         logging.CRITICAL: "".join(
             [
-                string_formator(
+                string_formatter(
                     "[%(asctime)s.%(msecs)03d] ",
                     fg_color='red',
                     italics=True,
                     underline=False,
                 ),
-                string_formator(
+                string_formatter(
                     "< %(filename)s >", fg_color='bright_blue', underline=True
                 ),
-                string_formator(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
                 "\n",
                 "  >>>  ",
-                string_formator(
+                string_formatter(
                     "| %(levelname)s | %(message)s",
                     fg_color='red',
                     bg_color='white',
@@ -141,6 +146,14 @@ class ColorFormatter(logging.Formatter):
 
 
 class NoColorFormatter(logging.Formatter):
+    """
+    A logging formatter that outputs log messages without color formatting.
+
+    This formatter is useful for environments where ANSI escape codes for colors
+    are not supported or desired. It removes any ANSI escape sequences from the
+    log messages and provides a plain-text format, unlike `ColorFormatter` which
+    adds color and styling to the log output.
+    """
     import re
 
     FORMATS = {
@@ -155,13 +168,15 @@ class NoColorFormatter(logging.Formatter):
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
-        if record.levelno not in [10,20,30,40,50]:
+        if record.levelno not in logging._levelToName:
             return self.ANSI_ESCAPE.sub('', formatter.format(record))
         return formatter.format(record)
 
 
 def _setup_logging(cfg: dict) -> logging.Logger:
     logger = logging.getLogger("gal3d")
+    if cfg['level'] not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
+        raise ValueError(f"Invalid logging level: {cfg['level']}")
     logger.setLevel(cfg['level'])
     
     ch = logging.StreamHandler()
@@ -182,7 +197,14 @@ def _setup_logging(cfg: dict) -> logging.Logger:
 
 def set_logging_level(level=logging.INFO):
     """
-    Set to logging.INFO for more verbose output, or logging.WARNING for less.
+    Set the logging level for the 'gal3d' logger.
+
+    Valid levels:
+    - logging.DEBUG: Detailed information, typically of interest only when diagnosing problems.
+    - logging.INFO: Confirmation that things are working as expected.
+    - logging.WARNING: An indication that something unexpected happened, or indicative of some problem in the near future.
+    - logging.ERROR: Due to a more serious problem, the software has not been able to perform some function.
+    - logging.CRITICAL: A very serious error, indicating that the program itself may be unable to continue running.
     """
     logger = logging.getLogger('gal3d')
     logger.setLevel(level)

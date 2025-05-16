@@ -299,7 +299,7 @@ def fontformat(
     return "".join([bold, thin, italics, underline, strikethrough])
 
 
-def string_formator(
+def string_formatter(
     string: str,
     bg_color: str | int | tuple | None = None,
     fg_color: str | int | tuple | None = None,

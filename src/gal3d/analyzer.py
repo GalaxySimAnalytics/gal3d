@@ -1,3 +1,4 @@
+from logging import config
 from typing import Iterable, Callable, Dict, Tuple, Union
 import time
 import logging
@@ -114,7 +115,7 @@ class Gal3DAnalyzer:
         else:
             resall = []
             errors = []
-            for i in tqdm(r):
+            for i in tqdm(r, desc="Fitting radii", disable=False):
                 try:
                     if resall:
                         res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
@@ -223,147 +224,194 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     a : float
         The semi-major axis at which the structure is fitted.
     **kwargs : dict
-        Optional arguments:
-        - var_a : float
-            Variance allowed for 'a' when setting parameter bounds.
-        - init_parameters : dict
-            Initial guess for parameters.
-        - upper_bounds : dict
-            Upper bounds for parameters.
-        - lower_bounds : dict
-            Lower bounds for parameters.
-        - fitonce : bool
-            If True and the geometry is `Ellipsoid_S`, fit only once.
+        Optional arguments for the fitting process.
 
     Returns
     -------
     ModelResult
-        The result of the fitting process, including parameter values and optimizer output.
+        The result of the fitting process.
     """
-
-    var_a = kwargs.get('var_a', 0.1)
-    var_a = min(var_a, 0.99)
-    var_a = max(var_a, 0)
-    uniformity_cut =  kwargs.get('uniformity_cut', 0.75)
-
-    init_parameters = kwargs.get('init_parameters', dict())
-    upper_bounds = kwargs.get('upper_bounds', dict())
-    lower_bounds = kwargs.get('lower_bounds', dict())
+    # Fast path: check for supported geometry before generating data
+    geometry_name = self.structure._geometry_name
+    if geometry_name not in ['Ellipsoid', 'Ellipsoid_S']:
+        raise ValueError(f"Unsupported geometry type: {geometry_name}")
+    
+    # Process input parameters efficiently
+    var_a = min(max(kwargs.get('var_a', 0.1), 0), 0.99)
     fitonce = kwargs.get('fitonce', False)
-
+    init_parameters = kwargs.get('init_parameters', {})
+    upper_bounds = kwargs.get('upper_bounds', {})
+    lower_bounds = kwargs.get('lower_bounds', {})
+    uniformity_cut = kwargs.get('uniformity_cut', 0.75)
+    
+    # Generate data only once
     data = self.field.generate(a, for_fit=True)
+    
+    # Extract info once if present
+    info = None
+    if 'info' in data:
+        info = data.pop('info')
+    
+    # Validate data points efficiently
     N_p = len(data['pos'])
     if N_p < 2:
-        raise ValueError(f"Generate {N_p} points < 2.")
+        raise ValueError(f"Insufficient points for fitting: {N_p} < 2")
     if N_p < self.field.rays.num:
         uni = SphVector.cal_uniformity(data['pos'])
         if uni < uniformity_cut:
-            raise ValueError(f"Generate {N_p} points, with uniformity: {uni:.3f} < {uniformity_cut}")
-
-    if (self.structure._geometry_name == 'Ellipsoid') or (
-        self.structure._geometry_name == 'Ellipsoid_S' and fitonce
-    ):
-
-        parameters_set = self.structure.parameters.new()
-        fun = parameters_set.decorate_func_constraints(self.structure._error_method)
-
-        if 'info' in data:
-            parameters_set.add_info(**data['info'])
-            del data['info']
-
-        parameters_set.set_lb(a=(a * (1 - var_a)))
-        parameters_set.set_ub(a=(a * (1 + var_a)))
-
-        for i in upper_bounds.keys() & parameters_set.keys():
-            parameters_set[i].ub = upper_bounds[i]
-
-        for i in lower_bounds.keys() & parameters_set.keys():
-            parameters_set[i].lb = lower_bounds[i]
-
-        bounds = parameters_set.scipy_bounds
-
-        if init_parameters:
-            parameters_set = parameters_set.set_value(**init_parameters)
-        parameters_set.set_value(a=a)
-
-        x0_dict = parameters_set.truncate_dict(n=4)
-
-        # we need first fitting Ellipsoid, then fit sa,sb,sc and a for Elllipsoid_S
-    if self.structure._geometry_name == 'Ellipsoid_S':
-
-        parameters_set = self.structure.parameters.new()
-        parameters_set.set_lb(a=(a * (1 - var_a)))
-        parameters_set.set_ub(a=(a * (1 + var_a)))
-
-        if init_parameters:
-            updatevalue = {
-                i: init_parameters[i]
-                for i in init_parameters.keys() & parameters_set.keys()
-            }
-            parameters_set = parameters_set.set_value(**updatevalue)
-        parameters_set.set_value(a=a)
-
-        ellipsoid = Structure3D(
-            self.structure._coordinate,
-            "Ellipsoid",
-            self.structure._error_func_name,
-            self.structure._error_method_name,
+            raise ValueError(f"Poor point distribution uniformity: {uni:.3f} < {uniformity_cut}")
+        
+    is_standard_ellipsoid = (geometry_name == 'Ellipsoid') or (geometry_name == 'Ellipsoid_S' and fitonce)
+    
+    if is_standard_ellipsoid:
+        # Simple case: standard ellipsoid fitting
+        return _fit_standard_ellipsoid(
+            self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info
         )
-        params_ell = ellipsoid.parameters.new()
-        params_ell.set_lb(a=(a * (1 - var_a)))
-        params_ell.set_ub(a=(a * (1 + var_a)))
-        if init_parameters:
-            updatevalue = {
-                i: init_parameters[i]
-                for i in init_parameters.keys() & params_ell.keys()
-            }
-            params_ell.set_value(**updatevalue)
-        params_ell.set_value(a=a)
-
-        for i in upper_bounds.keys() & params_ell.keys():
-            params_ell[i].ub = upper_bounds[i]
-
-        for i in lower_bounds.keys() & params_ell.keys():
-            params_ell[i].lb = lower_bounds[i]
-
-        bounds = params_ell.scipy_bounds
-
-        fun = params_ell.decorate_func_constraints(ellipsoid._error_method)
-
-        x0_dict = params_ell.truncate_dict(n=4)
-        ell_res = self.optimizer.fitting(
-            fun, list(x0_dict.values()), bounds, func_kwargs=dict(**data)
+    else:
+        # Complex case: two-step generalized ellipsoid fitting
+        return _fit_generalized_ellipsoid(
+            self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info
         )
 
-        res_value = dict(zip(list(x0_dict.keys()), ell_res.x))
+def _fit_standard_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info):
+    """
+    Fit a standard ellipsoidal structure, or fit a generalized ellipsoid only once.
+    """
 
-        parameters_set.set_value(**res_value)
-
-        x0_dict = parameters_set.truncate_dict(n=4)
-        x0_dict.update(res_value)
-
-        del res_value['a']
-        parameters_set.set_lb(**res_value)
-        parameters_set.set_ub(**res_value)
-
-        bounds = parameters_set.scipy_bounds
-
-        parameters_set.add_info(parent_fun=ell_res.fun)
-
-        fun = parameters_set.decorate_func_constraints(self.structure._error_method)
-
-        if 'info' in data:
-            parameters_set.add_info(**data['info'])
-            del data['info']
-
-    op_res = self.optimizer.fitting(
-        fun, list(x0_dict.values()), bounds, func_kwargs={**data}
-    )
+    # Set up parameters
+    parameters_set = self.structure.parameters.new()
+    
+    if 'info' in data:
+        parameters_set.add_info(**data['info'])
+        del data['info']
+    
+    # Set bounds and initial values
+    parameters_set.set_lb(a=(a * (1 - var_a)))
+    parameters_set.set_ub(a=(a * (1 + var_a)))
+    
+    # Apply custom bounds using set operations for efficiency
+    for param_name in set(upper_bounds) & set(parameters_set.keys()):
+        parameters_set[param_name].ub = upper_bounds[param_name]
+    
+    for param_name in set(lower_bounds) & set(parameters_set.keys()):
+        parameters_set[param_name].lb = lower_bounds[param_name]
+    
+    if init_parameters:
+        parameters_set = parameters_set.set_value(**init_parameters)
+    parameters_set.set_value(a=a)
+    
+    # Add info if available
+    if info:
+        parameters_set.add_info(**info)
+    
+    # Prepare optimization function and bounds
+    fun = parameters_set.decorate_func_constraints(self.structure._error_method)
+    bounds = parameters_set.scipy_bounds
+    x0_dict = parameters_set.get_rounded_values_dict(n=4)
+    x0_values = list(x0_dict.values())
+    
+    # Run optimization
+    op_res = self.optimizer.fitting(fun, x0_values, bounds, func_kwargs=data)
+    
+    # Set optimized values and return result
     parameters_set = parameters_set.set_value(op_res.x)
+    return ModelResult(self.structure, op_res, parameters_set)
 
-    res = ModelResult(self.structure, op_res, parameters_set)
 
-    return res
+def _fit_generalized_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info):
+    """
+    Fit a generalized ellipsoidal structure (Ellipsoid_S) using a two-step approach.
+    """
+ 
+    # Step 1: Create standard ellipsoid for initial fitting
+    ellipsoid = Structure3D(
+        self.structure._coordinate,
+        "Ellipsoid",
+        self.structure._error_func_name,
+        self.structure._error_method_name,
+    )
+    
+    # Reuse parameter setup logic
+    ell_params = ellipsoid.parameters.new()
+    ell_params.set_lb(a=(a * (1 - var_a)))
+    ell_params.set_ub(a=(a * (1 + var_a)))
+    
+    # Apply parameter constraints efficiently
+    for param_name in set(upper_bounds) & set(ell_params.keys()):
+        ell_params[param_name].ub = upper_bounds[param_name]
+    
+    for param_name in set(lower_bounds) & set(ell_params.keys()):
+        ell_params[param_name].lb = lower_bounds[param_name]
+        
+    # Set initial values
+    if init_parameters:
+        shared_keys = set(init_parameters) & set(ell_params.keys())
+        if shared_keys:
+            update_values = {k: init_parameters[k] for k in shared_keys}
+            ell_params = ell_params.set_value(**update_values)
+    ell_params.set_value(a=a)
+    
+    # Prepare first optimization
+    fun = ell_params.decorate_func_constraints(ellipsoid._error_method)
+    bounds = ell_params.scipy_bounds
+    x0_dict = ell_params.get_rounded_values_dict(n=4)
+    param_keys = list(x0_dict.keys())
+
+    # Run first optimization
+    ell_res = self.optimizer.fitting(
+        fun, list(x0_dict.values()), bounds, func_kwargs=data
+    )
+
+    # Step 2: Use ellipsoid results to initialize the generalized ellipsoid fit
+    res_value = dict(zip(param_keys, ell_res.x))
+
+    # Set up parameters for the generalized ellipsoid
+    parameters_set = self.structure.parameters.new()
+    parameters_set.set_lb(a=(a * (1 - var_a)))
+    parameters_set.set_ub(a=(a * (1 + var_a)))
+    
+    # Apply initial values and lock shape parameters
+    if init_parameters:
+        updatevalue = {
+            i: init_parameters[i]
+            for i in init_parameters.keys() & parameters_set.keys()
+        }
+        parameters_set = parameters_set.set_value(**updatevalue)
+    parameters_set.set_value(**res_value)
+
+    # Lock all parameters except 'a'
+    shape_params = res_value.copy()
+    if 'a' in shape_params:
+        del shape_params['a']  # Keep 'a' free to vary
+        
+    # Set up shape parameter bounds
+    if shape_params:
+        parameters_set.set_lb(**shape_params)
+        parameters_set.set_ub(**shape_params)
+        
+    # Record parent function result
+    parameters_set.add_info(parent_fun=ell_res.fun)
+    
+    # Add original info if available
+    if info:
+        parameters_set.add_info(**info)
+        
+    # Prepare final optimization
+    fun = parameters_set.decorate_func_constraints(self.structure._error_method)
+    bounds = parameters_set.scipy_bounds
+    x0_dict = parameters_set.get_rounded_values_dict(n=4)
+    x0_dict.update(res_value)
+
+    # Run final optimization
+    op_res = self.optimizer.fitting(
+        fun, list(x0_dict.values()), bounds, func_kwargs=data
+    )
+    
+    # Update parameters and return result
+    parameters_set = parameters_set.set_value(op_res.x)
+    return ModelResult(self.structure, op_res, parameters_set)
+
 
 
 @get_ell_structure.set_condition
@@ -497,11 +545,18 @@ def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResul
         # 7. After validation, proceed with fitting using the standard workflow
         logger.info(f"Validation successful ({time.time() - validation_start_time:.2f}s), proceeding with fitting")
         
-        # Use the appropriate workflow based on structure type
-        workflow = self.get_workflow()
-        return workflow(self, a, **kwargs)
+        # Temporarily disable validation to avoid recursion
+        original_validate = getattr(self, 'validate', False)
+        self.validate = False
+        
+        try:
+            # Get a non-validation workflow
+            workflow = self.get_workflow()
+            return workflow(self, a, **kwargs)
+        finally:
+            # Restore the original validation setting
+            self.validate = original_validate
 
-            
     except ValueError as e:
         # Re-raise validation errors with context
         logger.error(f"Validation failed: {e}")

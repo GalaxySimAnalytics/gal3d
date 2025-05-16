@@ -17,7 +17,6 @@ __all__ = ['ModelProjectorBase', 'ModelProjector']
 logger = logging.getLogger("gal3d.visualization.model_projector")
 
 _ModelProjectorPlugins = dict()
-
 _current_path = os.path.realpath(__file__)
 _current_dir = os.path.dirname(__file__)
 _current_file_name = os.path.basename(_current_path)
@@ -54,7 +53,7 @@ class ModelProjectorBase(abc.ABC):
         """
 
         _ModelProjectorPlugins[cls.__name__] = cls
-        logger.info(f"Find ModelProjectorPlugin: {cls.__name__} and load successfully")
+        logger.info(f"ModelProjectorPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -104,16 +103,34 @@ class ModelProjectorBase(abc.ABC):
                 rotation_bytes,
             )
             if recod in self._image_cache:
-                logger.info(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, rotation:{rotation}, nbins:{nbins}")
+                logger.info(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
                 return self._image_cache[recod]
             else:
-                logger.info(f"Cache image, register input: x:{x_range}, y:{y_range}, z:{z_range}, rotation:{rotation}, nbins:{nbins}")
+                logger.info(f"Cache image, register input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )
             return self._image_cache[recod]
 
         return wrapper
+
+    def _validate_range(self, value_range: Sequence[float], name: str) -> None:
+        """Validate that a range is a tuple of two floats with min < max.
+        
+        Parameters
+        ----------
+        value_range : sequence of float
+            The range to validate.
+        name : str
+            The name of the range for error messages.
+        
+        Raises
+        ------
+        ValueError
+            If the range is invalid.
+        """
+        if len(value_range) != 2 or value_range[0] >= value_range[1]:
+            raise ValueError(f"Invalid {name}: {value_range}. Must be (min, max) with min < max")
 
     @ImageCache
     def image(
@@ -154,12 +171,9 @@ class ModelProjectorBase(abc.ABC):
             If provided ranges are invalid or inconsistent.
         """
         # Input validation
-        if len(x_range) != 2 or x_range[0] >= x_range[1]:
-            raise ValueError(f"Invalid x_range: {x_range}. Must be (min, max) with min < max")
-        if len(y_range) != 2 or y_range[0] >= y_range[1]:
-            raise ValueError(f"Invalid y_range: {y_range}. Must be (min, max) with min < max")
-        if len(z_range) != 2 or z_range[0] >= z_range[1]:
-            raise ValueError(f"Invalid z_range: {z_range}. Must be (min, max) with min < max")
+        self._validate_range(x_range, "x_range")
+        self._validate_range(y_range, "y_range")
+        self._validate_range(z_range, "z_range")
         if nbins <= 0:
             raise ValueError(f"Invalid nbins: {nbins}. Must be positive")
 
@@ -207,7 +221,7 @@ class ModelProjectorBase(abc.ABC):
         ndarray
             The projected image.
         """
-        pass
+        raise NotImplementedError("Subclasses must implement the '_image' method to generate a projected image.")
 
     def image_xz(
         self,
@@ -219,7 +233,7 @@ class ModelProjectorBase(abc.ABC):
         """Generate a projection in the x-z plane.
         
         This is a convenience method that applies the appropriate
-        rotation to view the model from the y direction.
+        rotation (transposed) to view the model from the y direction.
         
         Parameters
         ----------
@@ -255,7 +269,7 @@ class ModelProjectorBase(abc.ABC):
         """Generate a projection in the y-z plane.
         
         This is a convenience method that applies the appropriate
-        rotation to view the model from the x direction.
+        rotation (transposed) to view the model from the x direction.
         
         Parameters
         ----------
@@ -294,14 +308,17 @@ class ModelProjector:
 
     @staticmethod
     def get_plugin(plugin: str | None) -> ModelProjectorBase:
-        """Get an geometry plugin
+        """Get a geometry plugin
 
         Parameters:
         plugin: str,
-            the name of plugin, available see available_plugins
+            the name of the plugin, available see available_plugins
 
         Returns:
-            available_plugins of ModelProjectorBase
+            An instance of the requested ModelProjectorBase plugin.
+
+        Raises:
+            KeyError: If the requested plugin name does not exist.
         """
         if not isinstance(plugin, (str, type(None))):
             raise TypeError("plugin must be a string or None")
@@ -310,6 +327,8 @@ class ModelProjector:
             return ModelProjectorBase
         if not _ModelProjectorPlugins:
             ModelProjector._load_plugin()
+        if plugin not in _ModelProjectorPlugins:
+            raise KeyError(f"Plugin '{plugin}' not found. Available plugins: {list(_ModelProjectorPlugins.keys())}")
         return _ModelProjectorPlugins[plugin]
     @staticmethod
     def _load_plugin():
@@ -326,4 +345,4 @@ class ModelProjector:
         return list(_ModelProjectorPlugins.keys())
 
 
-from .model_projector_plugins import ProjectorLineIntegration,ProjectorSphGrid
+# Removed unused imports: ProjectorLineIntegration, ProjectorSphGrid

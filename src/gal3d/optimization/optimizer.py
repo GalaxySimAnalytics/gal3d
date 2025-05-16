@@ -60,7 +60,7 @@ class OptimizerBase(ABC):
         Register the subclass as an optimizer plugin and update the plugin stub if update_stub.
         """
         _OptimizerPlugins[cls.__name__] = cls
-        logger.info(f"Find OptimizerPlugin: {cls.__name__} and load successfully")
+        logger.info(f"OptimizerPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(

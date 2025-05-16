@@ -5,7 +5,6 @@ from typing import Dict, Callable
 import numpy as np
 
 
-from .util import iso_profile_by_moi, iso_profile_by_pair
 from .spherical_vector import SphVector
 from .ray import MonotonRay
 from ...point import Particles
@@ -587,7 +586,7 @@ class SphField:
         return decorator
 
 
-from .util import iso_profile_by_moi, iso_profile_by_pair
+from .util_nb import iso_profile_by_moi, iso_profile_by_pair
 
 SphField.iso_registry('moi')(iso_profile_by_moi)
 SphField.iso_registry('pair')(iso_profile_by_pair)

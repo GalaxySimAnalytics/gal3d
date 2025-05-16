@@ -5,7 +5,7 @@ from numpy.typing import ArrayLike
 from ._rotation_eular_util import EulerAngles
 from ..coordinate import CoordinateBase, Coordinate, Parameters
 
-from ...util.array_operate import Shift, Rotate
+from ...util.array_operate import Shift, Rotate, RotateAndShift
 
 __all__ = ['EulerShift']
 
@@ -183,7 +183,7 @@ class EulerShift(CoordinateBase):
         matrix = EulerAngles.from_euler(
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
         ).as_matrix()
-        return Shift(Rotate(pos.copy(), matrix), pc)
+        return RotateAndShift(pos, matrix, pc)
 
     @staticmethod
     def quick_inverse(x, y, z, ang1, ang2, ang3, pos):

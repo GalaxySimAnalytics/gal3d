@@ -16,6 +16,7 @@ __all__ = ['Coordinate', 'CoordinateBase']
 
 logger = logging.getLogger("gal3d.shape.coordinate")
 
+# Dictionary to store registered Coordinate plugin subclasses.
 _CoordinatePlugins = dict()
 
 _current_path = os.path.realpath(__file__)
@@ -46,11 +47,11 @@ class CoordinateBase(WithParameter):
         """
 
         if not super().__init_subclass__():
-            logger.info(f"Find CoordinatePlugin: {cls.__name__} but fail to load")
+            logger.info(f"CoordinatePlugin found: {cls.__name__} but failed to load")
             return
 
         _CoordinatePlugins[cls.__name__] = cls
-        logger.info(f"Find CoordinatePlugin: {cls.__name__} and load successfully")
+        logger.info(f"CoordinatePlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -165,7 +166,7 @@ class Coordinate:
     """
 
     @staticmethod
-    def _updata_plugin_stub():
+    def _update_plugin_stub():
         output_path = os.path.join(_current_dir, _pyi_name)
         generate_plugin_stub(
             Coordinate, CoordinateBase, _CoordinatePlugins, output_path
@@ -175,16 +176,17 @@ class Coordinate:
     @staticmethod
     def get_plugin(plugin: str | None) -> CoordinateBase:
         """
-        Get an coordinate plugin
+        Retrieve a coordinate plugin by name or return the base class if no name is provided.
 
         Parameters:
-        plugin: str,
-            the name of plugin, available see available_plugins
+        plugin: str | None
+            The name of the plugin. If None, returns the base class `CoordinateBase`.
 
         Returns:
-            available_plugins of CoordinateBase
+        CoordinateBase
+            The requested plugin class or the base class.
         """
-        assert (isinstance(plugin, str)) or (plugin is None)
+        assert isinstance(plugin, str) or plugin is None, "Plugin must be a string or None"
 
         if plugin is None:
             return CoordinateBase
@@ -194,6 +196,12 @@ class Coordinate:
     
     @staticmethod
     def _load_plugin():
+        """
+         Dynamically load and register all available coordinate plugins.
+ 
+         This method imports the `gal3d.shape.coordinate_plugins` module to
+         populate the `_CoordinatePlugins` dictionary with available plugins.
+         """
         import importlib
         importlib.import_module("gal3d.shape.coordinate_plugins")
         logger.info("Successfully loaded coordinate plugins")

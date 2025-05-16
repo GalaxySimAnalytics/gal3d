@@ -1,4 +1,4 @@
-from .util.string_format import string_formator
+from .util.string_format import string_formatter
 
 __version__ = '1.0.0'
 
@@ -19,7 +19,7 @@ logo = f"""
     `---`       `--`---'                 `--`-,,-'     '---'          """
 logo_color = "\n".join(
     [
-        string_formator(
+        string_formatter(
             logo.split('\n')[i],
             bg_color=(0 + 5 * i, 0 + 5 * i, 0 + 5 * i),
             fg_color='white',

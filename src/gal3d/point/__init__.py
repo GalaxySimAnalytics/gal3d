@@ -66,7 +66,32 @@ class Particles(GlobalCalculator):
             raise TypeError(
     f"density_estimator must be either a string (plugin name), "
     f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead.")
-
+            
+    def __del__(self):
+        """
+        Clean up estimator and call parent class cleanup.
+        """
+        # Clear estimator reference which may hold significant data
+        if hasattr(self, 'estimator'):
+            self.estimator = None
+            
+        # Clear cached properties if they exist
+        for attr in ['_parameter', '_gradient']:
+            if hasattr(self, attr):
+                setattr(self, attr, None)
+                
+        # Call parent class __del__ method
+        try:
+            super().__del__()
+        except (AttributeError, TypeError):
+            pass  # Handle case where parent doesn't have __del__
+    
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__del__()
+    
     @property
     def parameter(self):
         """Cached property that returns the parameter values at the input positions."""

@@ -167,8 +167,8 @@ class Parameters:
         Initializes the Parameters class with a set of parameters.
     new(*args, **kwargs)
         Creates a new instance of Parameters with updated values and bounds.
-    truncate_dict(n=3)
-        Truncates the parameter values to `n` decimal places.
+    get_rounded_values_dict(n=3)
+        Rounds the parameter values to `n` decimal places.
     available_keys()
         Returns a set of all available keys, including parameter keys, derived keys, and info keys.
     keys()
@@ -260,19 +260,19 @@ class Parameters:
 
         return new
 
-    def truncate_dict(self, n: int = 3) -> dict:
+    def get_rounded_values_dict(self, n: int = 3) -> dict:
         """
-        Truncates the parameter values to `n` decimal places.
+        Rounds the parameter values to `n` decimal places.
 
         Parameters
         ----------
         n : int, optional
-            The number of decimal places to truncate to. Default is 3.
+            The number of decimal places to round to. Default is 3.
 
         Returns
         -------
         dict
-            A dictionary of parameter names and their truncated values.
+            A dictionary of parameter names and their rounded values.
 
         Raises
         ------
@@ -760,6 +760,24 @@ class Parameters:
             raise ValueError(error_msg)
 
     def decorate_func_constraints(self, function):
+        """
+        Decorates a function to apply equality constraints to parameters.
+
+        If equality constraints are defined, this method modifies the input parameters
+        of the function to include the constrained values based on the constraints.
+
+        Parameters
+        ----------
+        function : callable
+            The function to be decorated. It should accept a list of parameter values
+            as its first argument.
+
+        Returns
+        -------
+        callable
+            A wrapped version of the input function that applies the equality constraints
+            to the parameters before calling the original function.
+        """
 
         if self.__equal_constraints:
             wraps(function)

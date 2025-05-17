@@ -1,8 +1,8 @@
 import logging
-
+import os
 
 import numpy as np
-from scipy.spatial import SphericalVoronoi
+from scipy.spatial import SphericalVoronoi,KDTree
 
 from .util import *
 from ...configuration import config_parser
@@ -68,38 +68,27 @@ class SphVector:
         logger.info(
             f"{self.num} points on the sphere by {method} method have the uniformity of {(self.uniformity*100):.3f}%"
         )
+        self._tree =  None
+
 
     def assign_points(self, pos):
         '''
-        Assign each point in `pos` to the nearest point on the sphere.
+        Assign each point in `pos` to the nearest ray.
 
         Parameters:
         -----------
         pos : ndarray, shape (m, 3)
-            Cartesian coordinates (x, y, z) of the points to be assigned to the nearest point on the sphere.
+            Cartesian coordinates (x, y, z) of the points to be assigned to the nearest ray.
 
         Returns:
         --------
         indices : ndarray, shape (m,)
-            The indices of the nearest points on the sphere for each point in `pos`.
+            The indices of the nearest rays for each point in `pos`.
         '''
-        pos_uni = unit_vector3d(pos)
-
-        import psutil
-        # Dynamically adjust batchsize based on available memory
-        available_memory = psutil.virtual_memory().available // (1024 * 1024)  # in MB
-        default_batchsize = min(200000, available_memory * 1000)  # Adjust based on memory
-        batchsize = config_parser['general'].getint('batchsize', fallback=default_batchsize)  # prevent memory overflow
-        n_split = len(pos_uni) // batchsize
-        n_split = max(n_split, 1)
-
-        logger.info(f"Splitting points into {n_split} parts, prevent memory overflow")
-
-        target_pos_split = np.array_split(pos_uni, n_split, axis=0)
-
-        return np.concatenate(
-            [np.argmax(Matmul(i, self.pos.T), axis=1) for i in target_pos_split], axis=0
-        )
+        if self._tree is None:
+            self._tree = KDTree(self.pos)
+        
+        return  self._tree.query(pos,k=1,workers = os.cpu_count())[1]
 
     @staticmethod
     def fibonacci_sampling(Num_sampling: int = 256):

@@ -361,14 +361,18 @@ class Structure3D:
         np.ndarray
             Result of quick directional evaluation.
         """
-
-        pos = np.asarray(pos)
-
+        # Convert to numpy array efficiently
+        if not isinstance(pos, np.ndarray):
+            pos = np.asarray(pos)
+            
+        # Get parameters
         coord_pa, geoty_pa = self._generate_quick(*args, **kwargs)
+        
+        # First apply coordinate transformation
+        transformed_pos = self._coordinate.quick_call(**coord_pa, pos=pos)
 
-        return self._geometry.quick_f_ray_d(
-            **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
-        )
+        # Then compute ray distance with transformed positions
+        return self._geometry.quick_f_ray_d(**geoty_pa, pos=transformed_pos)
 
     def quick_ray_dist(self, *args, pos, **kwargs) -> np.ndarray:
         """
@@ -421,9 +425,21 @@ class Structure3D:
 
     def _generate_quick(self, *args, **kwargs) -> Tuple[dict, dict]:
         if args:
-            args = args[0] if len(args) == 1 else args
-            coord_pa = dict(zip(self._coordinate.PN, args[: self.__coor_pa_num]))
-            geoty_pa = dict(zip(self._geometry.PN, args[self.__coor_pa_num :]))
+            if len(args) == 1 and isinstance(args[0], (list, tuple)):
+                args = args[0]
+                
+            # Use pre-allocated dictionaries
+            coor_params = self.__coor_pa_num
+            coord_pa = {}
+            geoty_pa = {}
+            
+            # Manual assignment is faster than dict comprehension
+            for i in range(coor_params):
+                coord_pa[self._coordinate.PN[i]] = args[i]
+                
+            for i in range(coor_params, len(args)):
+                geoty_pa[self._geometry.PN[i-coor_params]] = args[i]
+                
             return coord_pa, geoty_pa
 
         if kwargs:
@@ -602,8 +618,8 @@ def isodensity_fcall(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> 
 def isodensity_dcall(
     self: Structure3D, params: tuple | ArrayLike, *args, **kwargs
 ) -> float:
-
-    f_call = self.quick_f_ray_d(*params, pos=kwargs['pos']) - 1.0
+    pos = kwargs['pos']
+    f_call = self.quick_f_ray_d(*params, pos=pos) - 1.0
     error_pa = {i: kwargs[i] for i in self._error_params}
 
     return self._error_func(f_call, **error_pa)

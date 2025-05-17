@@ -6,23 +6,19 @@ from Cython.Build import build_ext,cythonize
 import numpy
 from setuptools import Extension, setup
 
-# Ensure proper OpenMP flags based on platform
-openmp_args =['-fopenmp']
 
-# For macOS, need to link against libomp explicitly
-#if sys.platform == 'darwin':
-#    openmp_link_args.append('-lomp')
-#else:
-#    openmp_link_args.append('-lgomp')  
+openmp_args = ["-fopenmp"]
+optimization_flags = ['-O3', '-march=native', '-ffast-math']
+extra_compile_args = openmp_args + optimization_flags
+extra_link_args = openmp_args + ['-std=c++14'] + optimization_flags
     
-extra_link_args = openmp_args + ['-std=c++14']
 extensions = cythonize([
     Extension(
         name="gal3d.shape.geometry_plugins.ellipsoid_s_cy",
         sources=["src/gal3d/shape/geometry_plugins/ellipsoid_s_cy.pyx"],
         include_dirs=[numpy.get_include()],
         define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-        extra_compile_args=openmp_args,
+        extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",  # Explicitly set as C++
     ),
@@ -31,7 +27,7 @@ extensions = cythonize([
         sources=["src/gal3d/shape/geometry_plugins/ellipsoid_cy.pyx"],
         include_dirs=[numpy.get_include()],
         define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-        extra_compile_args=openmp_args,
+        extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",  # Explicitly set as C++
     ),
@@ -40,7 +36,7 @@ extensions = cythonize([
         sources=["src/gal3d/shape/fns_cy.pyx"],
         include_dirs=[numpy.get_include()],
         define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-        extra_compile_args=openmp_args,
+        extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",  # Explicitly set as C++
     ),
@@ -49,7 +45,7 @@ extensions = cythonize([
         sources=["src/gal3d/util/array_operate_cy.pyx"],
         include_dirs=[numpy.get_include()],  
         define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-        extra_compile_args=openmp_args,
+        extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",  # Explicitly set as C++
     ),
@@ -57,12 +53,18 @@ extensions = cythonize([
     "gal3d.field.spherical_field.util_cy",
     ["src/gal3d/field/spherical_field/util_cy.pyx"],
     include_dirs=[numpy.get_include()],
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
     language="c++",  # Explicitly set as C++
     ),
 ],
-    compiler_directives={'language_level': "3", "boundscheck": False, "wraparound": False,'cdivision': True,},
+    compiler_directives={'language_level': "3", 
+                         'boundscheck': False, 
+                         'wraparound': False,
+                         'cdivision': True,
+                         'initializedcheck': False,  # Add this
+                         'nonecheck': False,         # Add this
+}
 )
 
 install_requires=[

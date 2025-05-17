@@ -37,7 +37,7 @@ def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
     config['general']["update_stub"] = config_parser['general'].getboolean("update_stub", fallback=False)
     config['general']["batchsize"] = config_parser['general'].getint("batchsize", fallback=200000)
 
-    default_thread_count = max(os.cpu_count() // 3, 1)
+    default_thread_count = max(os.cpu_count() // 2, 1)
     config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads', fallback=default_thread_count)
     config['general']['use_cython'] = config_parser.getboolean('general', 'use_cython', fallback=True)
 

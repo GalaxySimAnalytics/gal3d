@@ -214,43 +214,44 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, double Sc,
-                          np.ndarray[DTYPE_t, ndim=2] pos, int maxIterations):
+                          np.ndarray[DTYPE_t, ndim=2] pos_arr, int maxIterations):
     """Compute ray-ellipsoid distance ratios (OpenMP-friendly, inlined)."""
     cdef:
+        DTYPE_t[:, ::1] pos = pos_arr  # Convert to memoryview
         int i, n = pos.shape[0]
-        int iteration  # Use iteration instead of j
-        np.ndarray[DTYPE_t, ndim=2] tarpos = np.zeros((n, 3), dtype=np.float64)
-        np.ndarray[DTYPE_t, ndim=1] d = np.zeros(n, dtype=np.float64)
-        np.ndarray[DTYPE_t, ndim=1] L = np.zeros(n, dtype=np.float64)
-        np.ndarray[DTYPE_t, ndim=1] r = np.zeros(n, dtype=np.float64)
+        int iteration
+        np.ndarray[DTYPE_t, ndim=1] r_arr = np.zeros(n, dtype=np.float64)
+        DTYPE_t[::1] r = r_arr  # Memoryview of result array
+        
         double x, y, z, d_val, L_val
         double xi, yi, zi, Ex, Ey, Ez, epsilon, d0, d1, Ltmp
-        int maxIter
         double dd, ExddSa, EyddSb, EzddSc, f, df
-       # bint converged  # Flag to indicate convergence
-
+        
     cdef int num_threads = config['general']['number_of_threads']
+    
     epsilon = 1e-9
-    maxIter = maxIterations
 
+    
     if n < 500:
         for i in range(n):
-            j = 0
             x = pos[i, 0]
             y = pos[i, 1]
             z = pos[i, 2]
-            # Inline Newton iteration
+            
+            # Calculate ray direction and length
             Ltmp = sqrt(x*x + y*y + z*z)
             xi = x / Ltmp
             yi = y / Ltmp
             zi = z / Ltmp
+            
+            # Calculate ellipsoid parameters
             Ex = c_pow((xi / a) * (xi / a), Sa)
             Ey = c_pow((yi / b) * (yi / b), Sb)
             Ez = c_pow((zi / c) * (zi / c), Sc)
+            
+            # Iteratively solve for intersection
             d0 = (a + c) / 2
-            while True:
-                if j > maxIter:
-                    break
+            for iteration in range(maxIterations):
                 dd = d0 * d0
                 ExddSa = Ex * c_pow(dd, Sa)
                 EyddSb = Ey * c_pow(dd, Sb)
@@ -258,37 +259,35 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                 f = ExddSa + EyddSb + EzddSc - 1
                 df = 2 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
                 d1 = d0 - f / df
+                
                 if abs(d1 - d0) < epsilon:
                     break
+                    
                 d0 = d1
-                j += 1
-            d_val = d0
-            L_val = Ltmp
-            tarpos[i, 0] = d_val * xi
-            tarpos[i, 1] = d_val * yi
-            tarpos[i, 2] = d_val * zi
-            d[i] = d_val
-            L[i] = L_val
-            r[i] = L_val / d_val
+            
+            # Store the result ratio directly
+            r[i] = Ltmp / d0
     else:
         with nogil:
             for i in prange(n, num_threads=num_threads, schedule='static'):
                 x = pos[i, 0]
                 y = pos[i, 1]
                 z = pos[i, 2]
-                # Inline Newton iteration
+                
+                # Calculate ray direction and length
                 Ltmp = sqrt(x*x + y*y + z*z)
                 xi = x / Ltmp
                 yi = y / Ltmp
                 zi = z / Ltmp
+                
+                # Calculate ellipsoid parameters
                 Ex = c_pow((xi / a) * (xi / a), Sa)
                 Ey = c_pow((yi / b) * (yi / b), Sb)
                 Ez = c_pow((zi / c) * (zi / c), Sc)
-                d0 = (a + c) / 2
                 
-                # Use a for loop with fixed iterations instead of while loop
-               # converged = False
-                for iteration in range(maxIter):
+                # Iteratively solve for intersection
+                d0 = (a + c) / 2
+                for iteration in range(maxIterations):
                     dd = d0 * d0
                     ExddSa = Ex * c_pow(dd, Sa)
                     EyddSb = Ey * c_pow(dd, Sb)
@@ -298,21 +297,14 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                     d1 = d0 - f / df
                     
                     if abs(d1 - d0) < epsilon:
-                      #  converged = True
                         break
                     
                     d0 = d1
                 
-                d_val = d0
-                L_val = Ltmp
-                tarpos[i, 0] = d_val * xi
-                tarpos[i, 1] = d_val * yi
-                tarpos[i, 2] = d_val * zi
-                d[i] = d_val
-                L[i] = L_val
-                r[i] = L_val / d_val
+                # Store the result ratio directly
+                r[i] = Ltmp / d0
 
-    return r
+    return r_arr
 
 
 @cython.cdivision(True)

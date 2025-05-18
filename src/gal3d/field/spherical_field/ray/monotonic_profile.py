@@ -191,52 +191,69 @@ class LU_Mono:
         INTERPOLATE = {'Pchip': MyPchipInterpolator, 'Akima': MyAkima1DInterpolator}
         interpolate = INTERPOLATE[interpolate_mode]
 
+        # Use boundary calculation
         lo, up = self.profile_boundary(y, mono_de=y_de)
-        fupper = interpolate(x[up], y[up], extrapolate='const')
-        flower = interpolate(x[lo], y[lo], extrapolate='const')
+        
+        # Create interpolators with pre-filtered data
+        x_lo, y_lo = x[lo], y[lo]
+        x_up, y_up = x[up], y[up]
+        fupper = interpolate(x_up, y_up, extrapolate='const')
+        flower = interpolate(x_lo, y_lo, extrapolate='const')
 
+        # Calculate shared nodes
         rnodes = x[lo & up]
+        
+        # Pre-compute interpolated values
+        upper_vals = fupper(x)
+        lower_vals = flower(x)
+        midpoints = (upper_vals + lower_vals) / 2
+        
+        # Efficient binning
+        bin_indices = np.searchsorted(rnodes, x, side='right')
+        above_mid = y > midpoints
+        
+        # Count bins once
+        rbins = np.bincount(bin_indices)
+        
+        # Use vectorized operations for counts
+        max_bin = max(bin_indices.max() if len(bin_indices) else 0, 1)
+        upper = np.bincount(bin_indices[above_mid], minlength=max_bin+1)
+        lower = np.bincount(bin_indices[~above_mid], minlength=max_bin+1)
 
+        # Process new x points
         new_x = x if re_sample_ord < 1 else resample_1D(x, re_sample_ord)
-
-        rbins = np.bincount(np.searchsorted(rnodes, x, side='right'))
-        upper = np.bincount(
-            np.searchsorted(rnodes, x[y > ((fupper(x) + flower(x)) / 2)], side='right')
-        )
-        lower = np.bincount(
-            np.searchsorted(rnodes, x[y <= ((fupper(x) + flower(x)) / 2)], side='right')
-        )
-
         new_x_ind = np.searchsorted(rnodes, new_x, side='right')
-
-        if len(lower) > len(upper):
-            new_y_upper_ratio = 1 - np.array(
-                [(1 + lower[i]) / (2 + rbins[i]) for i in new_x_ind]
-            )
+        
+        # Pre-allocate array
+        new_y_upper_ratio = np.zeros_like(new_x, dtype=float)
+        
+        # Handle valid indices only
+        valid_indices = new_x_ind < len(rbins)
+        safe_indices = new_x_ind[valid_indices]
+        
+        # Calculate ratios efficiently
+        if np.sum(lower) > np.sum(upper):
+            ratio_calc = 1 - ((1 + lower[safe_indices]) / (2 + rbins[safe_indices]))
         else:
-            new_y_upper_ratio = np.array(
-                [(1 + upper[i]) / (2 + rbins[i]) for i in new_x_ind]
-            )
+            ratio_calc = (1 + upper[safe_indices]) / (2 + rbins[safe_indices])
 
-        new_y = new_y_upper_ratio * fupper(new_x) + (1 - new_y_upper_ratio) * flower(
-            new_x
-        )
-
-        ftarget = interpolate(new_x, new_y, extrapolate=False)
-
+        new_y_upper_ratio[valid_indices] = ratio_calc
+        
+        # Calculate interpolated values for new points
+        new_upper = fupper(new_x)
+        new_lower = flower(new_x)
+        new_y = new_y_upper_ratio * new_upper + (1 - new_y_upper_ratio) * new_lower
+        
+        # Store the results
         self.f_lower = flower
         self.f_upper = fupper
-        self.f_value = ftarget
+        self.f_value = interpolate(new_x, new_y, extrapolate=False)
+        
+        # Compute inverse functions
+        self.inv_f_value = inverse_interpolate(new_y, new_x, y_de, interpolate, extrapolate=False)
+        self.inv_f_lower = inverse_interpolate(y_lo, x_lo, y_de, interpolate, extrapolate=False)
+        self.inv_f_upper = inverse_interpolate(y_up, x_up, y_de, interpolate, extrapolate=False)
 
-        self.inv_f_value = inverse_interpolate(
-            new_y, new_x, y_de, interpolate, extrapolate=False
-        )
-        self.inv_f_lower = inverse_interpolate(
-            y[lo], x[lo], y_de, interpolate, extrapolate=False
-        )
-        self.inv_f_upper = inverse_interpolate(
-            y[up], x[up], y_de, interpolate, extrapolate=False
-        )
 
     @staticmethod
     def profile_boundary(y, mono_de=True):

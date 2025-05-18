@@ -96,10 +96,11 @@ class DensityEstimatorKNN(DensityEstimatorBase):
                 The estimated parameter values at the target positions.
         '''
         target_pos = self._shape_check(target_pos)
+                    
         query_options = update_dict_value(self._tree_query_options, kwargs)
-
+        
         n_d, n_index = self.tree.query(target_pos, **query_options)
-
+        
         return self._cal_pa(n_d, n_index)
 
     def get_gradient(self, target_pos, **kwargs):
@@ -168,31 +169,60 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             fit_pa: array, shape(m,)
                 The estimated parameter values based on the nearest neighbors.
         '''
-        if np.isfinite(n_d).any():
-            valid_mask = np.isfinite(n_d)
-            mass_neighbors = np.zeros_like(n_index,dtype=float)
-            mass_neighbors[valid_mask] = self.mass[n_index[valid_mask]]
+        # Fast path for all finite values (common case)
+        all_finite = np.isfinite(n_d).all()
+        
+        if all_finite:
+            # Fast path for all finite distances
+            mass_neighbors = self.mass[n_index]
+            
             if self.pa_mode == 'Mean':
-                fit_pa = np.mean(mass_neighbors, axis=1)
+                return np.mean(mass_neighbors, axis=1)
             else:
-                n_d_max = np.where(valid_mask,n_d,0).max(axis=1)
-                n_d_max[n_d_max==0] = self._tree_query_options['distance_upper_bound']
                 if self.pa_mode != 'Density':
                     logger.warning(f"Unsupported parameter_mode '{self.pa_mode}', defaulting to 'Density'")
+                
+                # For all finite values, the max distance is the last column
+                n_d_max = n_d[:, -1]
                 n_mass = np.sum(mass_neighbors, axis=1)
-                fit_pa = n_mass / (4 / 3 * np.pi * np.power(n_d_max, 3))
-            return fit_pa
-            
-        n_d_max = n_d[:, -1]
+                
+                # Pre-compute the constant factor
+                volume_factor = 4/3 * np.pi
+                return n_mass / (volume_factor * np.power(n_d_max, 3))
+        
+        # Slower path for when there are non-finite values
+        valid_mask = np.isfinite(n_d)
+        
+        # Pre-allocate the array with zeros
+        mass_neighbors = np.zeros_like(n_d, dtype=float)
+        # Only assign values where the mask is True
+        mass_neighbors[valid_mask] = self.mass[n_index[valid_mask]]
+        
         if self.pa_mode == 'Mean':
-            fit_pa = np.mean(self.mass[n_index], axis=1)
+            # Calculate mean efficiently using nanmean
+            # Sum valid values and divide by count of valid values
+            mass_sum = np.sum(mass_neighbors, axis=1)
+            valid_count = np.sum(valid_mask, axis=1)
+            # Avoid division by zero
+            valid_count = np.maximum(valid_count, 1)
+            return mass_sum / valid_count
         else:
             if self.pa_mode != 'Density':
                 logger.warning(f"Unsupported parameter_mode '{self.pa_mode}', defaulting to 'Density'")
-            n_mass = np.sum(self.mass[n_index], axis=1)
-            fit_pa = n_mass / (4 / 3 * np.pi * np.power(n_d_max, 3))
             
-        return fit_pa
+            # Calculate n_d_max efficiently
+            n_d_masked = np.where(valid_mask, n_d, 0)
+            n_d_max = np.max(n_d_masked, axis=1)
+            
+            # Handle zero max distances
+            zero_mask = (n_d_max == 0)
+            if np.any(zero_mask):
+                distance_upper_bound = self._tree_query_options.get('distance_upper_bound', np.inf)
+                n_d_max[zero_mask] = distance_upper_bound
+            
+            n_mass = np.sum(mass_neighbors, axis=1)
+            volume_factor = 4/3 * np.pi
+            return n_mass / (volume_factor * np.power(n_d_max, 3))
 
     def __generate_kd_options(self, k_nearest, r_cut, **kwargs):
         '''

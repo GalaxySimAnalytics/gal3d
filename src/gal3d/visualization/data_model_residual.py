@@ -1,4 +1,5 @@
 from typing import Tuple, List, Optional, Union, Dict, Any
+from annotated_types import T
 import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
@@ -35,7 +36,7 @@ def show_data_model(
     nbins=200,
     logscale=True,
     cmap='turbo',
-    nlevels=20,
+    nlevels: int | Tuple[int, int] = 20,
     linewidth=0.8,
     color='k',
     linestyle='-',
@@ -50,6 +51,16 @@ def show_data_model(
         density=True,
         nbins=nbins,
     )
+    if nlevels is None:
+        nlevels = int(np.sqrt(data_image.size))
+    if isinstance(nlevels, int):
+        nlevel1 = nlevels
+        nlevel2 = nlevels
+        nlevel3 = nlevels
+    else:
+        nlevel1 = nlevels[0]
+        nlevel2 = nlevels[1]
+        nlevel3 = nlevels[-1]
 
     data_im = show_image(
         data_image,
@@ -66,7 +77,7 @@ def show_data_model(
         withfilter=True,
         sigma=0.9,
         axesObj=axes[0],
-        nlevels=nlevels,
+        nlevels=nlevel1,
         linewidth=linewidth,
         color=color,
         linestyle=linestyle,
@@ -98,7 +109,7 @@ def show_data_model(
         axesObj=axes[1],
         vmin=data_im.colorizer.vmin,
         vmax=data_im.colorizer.vmax,
-        nlevels=nlevels,
+        nlevels=nlevel2,
         linewidth=linewidth,
         color=color,
         linestyle=linestyle,
@@ -122,7 +133,7 @@ def show_data_model(
         withfilter=True,
         sigma=0.9,
         axesObj=axes[2],
-        nlevels=nlevels,
+        nlevels=nlevel3,
         linewidth=linewidth,
         color=color,
         linestyle=linestyle,
@@ -272,8 +283,8 @@ def show_image_model_residual(
     depth_z_range: Tuple[float, float] = (-20, 20),
     nbins_large: int = 200,
     nbins_zoom: int = 100,
-    nlevels_large: int = 13,
-    nlevels_zoom: int = 17,
+    nlevels_large: int | Tuple[int, int] = 13,
+    nlevels_zoom: int | Tuple[int, int] = 17,
     which_pos_all: List[Tuple[int, int]] = [(0, 1), (0, 2)],
     rotation_matrix: NDArray[np.float64] = np.eye(3),
     cmap: str = 'turbo',

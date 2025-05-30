@@ -77,14 +77,15 @@ class Characterizer:
             An instance of CharacterizerBase corresponding to the specified plugin.
         """
         assert (isinstance(plugin, str)) or (plugin is None)
+        
+        if not _CharacterizerPlugins:
+            Characterizer._load_plugin()
+            
         if plugin is not None and plugin not in _CharacterizerPlugins:
             raise ValueError(f"Plugin '{plugin}' not found in available plugins: {list(_CharacterizerPlugins.keys())}")
 
         if plugin is None:
             return CharacterizerBase
-        
-        if not _CharacterizerPlugins:
-            Characterizer._load_plugin()
 
         return _CharacterizerPlugins[plugin]
 

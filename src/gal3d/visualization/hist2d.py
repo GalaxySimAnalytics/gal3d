@@ -1,4 +1,5 @@
-# see https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py,
+# This code is inspired by or adapted from the plotting utilities in the following repository:
+# https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py
 
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -132,6 +133,7 @@ def show_image(
     vmin=None,
     vmax=None,
     cmap="jet",
+    clip=True,
     noErase=False,
 ):
     """
@@ -164,23 +166,21 @@ def show_image(
         The image object created by imshow.
     """
     imageData = np.asarray(imageData).copy()
-    vmin = vmin or np.min(imageData[imageData > 0])
-    vmax = vmax or np.max(imageData[imageData > 0])
     
     if logscale:
         scale = "log"
 
     if scale == "log":
-        cont_color = colors.LogNorm(vmin=vmin, vmax=vmax)
+        vmin = vmin or np.min(imageData[imageData > 0])
+        vmax = vmax or np.max(imageData[imageData > 0])
+        cont_color = colors.LogNorm(vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "symlog":
-        cont_color = colors.SymLogNorm(linthresh=1e-3, vmin=vmin, vmax=vmax)
+        cont_color = colors.SymLogNorm(linthresh=1e-3, vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "linear":
-        cont_color = colors.Normalize(vmin=vmin, vmax=vmax)
+        cont_color = colors.Normalize(vmin=vmin, vmax=vmax, clip=clip)
     else:
         raise ValueError(f"Unsupported scale: {scale}")
 
-    imageData[imageData < vmin] = vmin
-    imageData[imageData > vmax] = vmax
 
     if axesObj is None:
         if noErase is False:
@@ -359,7 +359,6 @@ def add_colorbar(
     label_pad : str, optional
         padding between colorbar and its tick labels
     tick_label_size : float, optional
-        font size for tick labels
         font size for tick labels
 
     Returns

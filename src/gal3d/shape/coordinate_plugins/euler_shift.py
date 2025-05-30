@@ -180,22 +180,10 @@ class EulerShift(CoordinateBase):
             The transformed positions.
         """
         pc = np.float64([x, y, z])
-        if EulerShift.EulerSeq == 'zyx':
-            # Create rotation matrix directly rather than using EulerAngles class
-            c1, s1 = np.cos(ang1), np.sin(ang1)
-            c2, s2 = np.cos(ang2), np.sin(ang2)
-            c3, s3 = np.cos(ang3), np.sin(ang3)
-            
-            # Create rotation matrix for 'zyx' sequence (pre-compute once)
-            rot_matrix = np.array([
-                [c1*c2, c1*s2*s3-s1*c3, c1*s2*c3+s1*s3],
-                [s1*c2, s1*s2*s3+c1*c3, s1*s2*c3-c1*s3],
-                [-s2, c2*s3, c2*c3]
-            ])
-        else:
-            rot_matrix = EulerAngles.from_euler(
-                seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
-            ).as_matrix()
+
+        rot_matrix = EulerAngles.from_euler(
+            seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
+        ).as_matrix()
         return RotateAndShift(pos, rot_matrix, pc)
 
     @staticmethod

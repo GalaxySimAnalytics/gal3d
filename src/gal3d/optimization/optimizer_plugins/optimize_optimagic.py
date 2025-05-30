@@ -1,4 +1,3 @@
-from functools import partial
 
 import optimagic as om
 import numpy as np
@@ -29,8 +28,7 @@ class OptimizerOptimagic(OptimizerBase):
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
 
-       # fn = lambda x: fun(x, *func_args, **func_kwargs)
-        fn = partial(fun,*func_args, **func_kwargs)
+        fn = lambda x: fun(x, *func_args, **func_kwargs)
         res = om.minimize(
             fun=fn,
             params=np.asarray(x0),

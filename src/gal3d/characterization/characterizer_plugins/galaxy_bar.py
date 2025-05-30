@@ -140,9 +140,9 @@ class Bar(CharacterizerBase):
                 other_keys = [other_keys]
             for i in other_keys:
                 f_r = PchipInterpolator(self.a, self.data[i])
-                result[f"{i}_max"] = f_r(result['R_max'])
-                result[f"{i}_bar"] = f_r(result['R_bar'])
-        
+                result[f"R_max_{i}"] = f_r(result['R_max'])
+                result[f"R_bar_{i}"] = f_r(result['R_bar'])
+
         if not detail:
             return result
 

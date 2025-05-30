@@ -22,25 +22,37 @@ def f_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, doubl
     """Compute the shaped ellipsoid function values for given positions."""
     cdef:
         int i, n = pos.shape[0]
-        np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
-        double h1, h2, h3
+        np.ndarray[DTYPE_t, ndim=1] result_arr = np.zeros(n, dtype=np.float64)
+        DTYPE_t[::1] result = result_arr  # Memoryview of result array
+        
+        # Precompute constants once
+        double inv_a_squared = 1.0 / (a * a)
+        double inv_b_squared = 1.0 / (b * b)
+        double inv_c_squared = 1.0 / (c * c)
+        double x, y, z, h1, h2, h3
     cdef int num_threads = config['general']['number_of_threads']
     # Skip parallelization for small arrays    
     if n < 500:
         for i in range(n):
-            h1 = pos[i, 0] * pos[i, 0] / (a * a)
-            h2 = pos[i, 1] * pos[i, 1] / (b * b)
-            h3 = pos[i, 2] * pos[i, 2] / (c * c)
+            x = pos[i, 0]
+            y = pos[i, 1]
+            z = pos[i, 2]
+            h1 = x * x * inv_a_squared
+            h2 = y * y * inv_b_squared
+            h3 = z * z * inv_c_squared
             result[i] = c_pow(h1, Sa) + c_pow(h2, Sb) + c_pow(h3, Sc)
     else:
         # Use prange for larger arrays
         for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
-            h1 = pos[i, 0] * pos[i, 0] / (a * a)
-            h2 = pos[i, 1] * pos[i, 1] / (b * b)
-            h3 = pos[i, 2] * pos[i, 2] / (c * c)
+            x = pos[i, 0]
+            y = pos[i, 1]
+            z = pos[i, 2]
+            h1 = x * x * inv_a_squared
+            h2 = y * y * inv_b_squared
+            h3 = z * z * inv_c_squared
             result[i] = c_pow(h1, Sa) + c_pow(h2, Sb) + c_pow(h3, Sc)
-        
-    return result
+
+    return result_arr
 
 
 @cython.cdivision(True)
@@ -122,14 +134,21 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
         int i, n = pos.shape[0]
         np.ndarray[DTYPE_t, ndim=2] tarpos = np.zeros((n, 3), dtype=np.float64)
         np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
+
+        # Precomputed constants
+        double inv_a_squared = 1.0 / a / a
+        double inv_b_squared = 1.0 / b / b
+        double inv_c_squared = 1.0 / c / c
+        double epsilon = 1e-9
+        double initial_guess = (a + c) / 2.0
+
         # Local variables for inline calculation
         double x, y, z, L, xi, yi, zi
-        double Ex, Ey, Ez, epsilon, d0, d1
+        double Ex, Ey, Ez, d0, d1
         int iteration
         double dd, ExddSa, EyddSb, EzddSc, f, df
     
     cdef int num_threads = config['general']['number_of_threads']
-    epsilon = 1e-9
     
     if n < 500:
         for i in range(n):
@@ -143,20 +162,20 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
             yi = y / L
             zi = z / L
             
-            # Calculate ellipsoid parameters (inlined)
-            Ex = c_pow((xi / a) * (xi / a), Sa)
-            Ey = c_pow((yi / b) * (yi / b), Sb)
-            Ez = c_pow((zi / c) * (zi / c), Sc)
+            # Precompute these values once
+            Ex = c_pow((xi * xi) * inv_a_squared, Sa)
+            Ey = c_pow((yi * yi) * inv_b_squared, Sb)
+            Ez = c_pow((zi * zi) * inv_c_squared, Sc)
             
             # Iteratively solve for intersection (inlined)
-            d0 = (a + c) / 2
+            d0 = initial_guess
             for iteration in range(maxIterations):
                 dd = d0 * d0
                 ExddSa = Ex * c_pow(dd, Sa)
                 EyddSb = Ey * c_pow(dd, Sb)
                 EzddSc = Ez * c_pow(dd, Sc)
-                f = ExddSa + EyddSb + EzddSc - 1
-                df = 2 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
+                f = ExddSa + EyddSb + EzddSc - 1.0
+                df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
                 d1 = d0 - f / df
                 
                 if abs(d1 - d0) < epsilon:
@@ -181,20 +200,20 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
                 yi = y / L
                 zi = z / L
                 
-                # Calculate ellipsoid parameters (inlined)
-                Ex = c_pow((xi / a) * (xi / a), Sa)
-                Ey = c_pow((yi / b) * (yi / b), Sb)
-                Ez = c_pow((zi / c) * (zi / c), Sc)
+                # Precompute these values once
+                Ex = c_pow((xi * xi) * inv_a_squared, Sa)
+                Ey = c_pow((yi * yi) * inv_b_squared, Sb)
+                Ez = c_pow((zi * zi) * inv_c_squared, Sc)
                 
                 # Iteratively solve for intersection (inlined)
-                d0 = (a + c) / 2
+                d0 = initial_guess
                 for iteration in range(maxIterations):
                     dd = d0 * d0
                     ExddSa = Ex * c_pow(dd, Sa)
                     EyddSb = Ey * c_pow(dd, Sb)
                     EzddSc = Ez * c_pow(dd, Sc)
-                    f = ExddSa + EyddSb + EzddSc - 1
-                    df = 2 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
+                    f = ExddSa + EyddSb + EzddSc - 1.0
+                    df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
                     d1 = d0 - f / df
                     
                     if abs(d1 - d0) < epsilon:
@@ -214,22 +233,25 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, double Sc,
-                          np.ndarray[DTYPE_t, ndim=2] pos_arr, int maxIterations):
+                          np.ndarray[DTYPE_t, ndim=2] pos, int maxIterations):
     """Compute ray-ellipsoid distance ratios (OpenMP-friendly, inlined)."""
     cdef:
-        DTYPE_t[:, ::1] pos = pos_arr  # Convert to memoryview
         int i, n = pos.shape[0]
         int iteration
-        np.ndarray[DTYPE_t, ndim=1] r_arr = np.zeros(n, dtype=np.float64)
-        DTYPE_t[::1] r = r_arr  # Memoryview of result array
+        np.ndarray[DTYPE_t, ndim=1] r = np.zeros(n, dtype=np.float64)
+
+        # Precomputed constants
+        double inv_a_squared = 1.0 / a / a
+        double inv_b_squared = 1.0 / b / b
+        double inv_c_squared = 1.0 / c / c
+        double epsilon = 1e-9
+        double initial_guess = (a + c) / 2.0
         
-        double x, y, z, d_val, L_val
-        double xi, yi, zi, Ex, Ey, Ez, epsilon, d0, d1, Ltmp
+        double x, y, z
+        double xi, yi, zi, Ex, Ey, Ez, d0, d1, Ltmp
         double dd, ExddSa, EyddSb, EzddSc, f, df
         
     cdef int num_threads = config['general']['number_of_threads']
-    
-    epsilon = 1e-9
 
     
     if n < 500:
@@ -245,12 +267,12 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
             zi = z / Ltmp
             
             # Calculate ellipsoid parameters
-            Ex = c_pow((xi / a) * (xi / a), Sa)
-            Ey = c_pow((yi / b) * (yi / b), Sb)
-            Ez = c_pow((zi / c) * (zi / c), Sc)
-            
+            Ex = c_pow(xi * xi * inv_a_squared, Sa)
+            Ey = c_pow(yi * yi * inv_b_squared, Sb)
+            Ez = c_pow(zi * zi * inv_c_squared, Sc)
+
             # Iteratively solve for intersection
-            d0 = (a + c) / 2
+            d0 = initial_guess
             for iteration in range(maxIterations):
                 dd = d0 * d0
                 ExddSa = Ex * c_pow(dd, Sa)
@@ -281,17 +303,17 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                 zi = z / Ltmp
                 
                 # Calculate ellipsoid parameters
-                Ex = c_pow((xi / a) * (xi / a), Sa)
-                Ey = c_pow((yi / b) * (yi / b), Sb)
-                Ez = c_pow((zi / c) * (zi / c), Sc)
-                
+                Ex = xi * xi * inv_a_squared
+                Ey = yi * yi * inv_b_squared
+                Ez = zi * zi * inv_c_squared
+
                 # Iteratively solve for intersection
-                d0 = (a + c) / 2
+                d0 = initial_guess
                 for iteration in range(maxIterations):
                     dd = d0 * d0
-                    ExddSa = Ex * c_pow(dd, Sa)
-                    EyddSb = Ey * c_pow(dd, Sb)
-                    EzddSc = Ez * c_pow(dd, Sc)
+                    ExddSa = c_pow(Ex * dd, Sa) 
+                    EyddSb = c_pow(Ey * dd, Sb) 
+                    EzddSc = c_pow(Ez * dd, Sc) 
                     f = ExddSa + EyddSb + EzddSc - 1
                     df = 2 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0
                     d1 = d0 - f / df
@@ -304,7 +326,7 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                 # Store the result ratio directly
                 r[i] = Ltmp / d0
 
-    return r_arr
+    return r
 
 
 @cython.cdivision(True)
@@ -316,16 +338,26 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                              int maxIteration):
     """Find intersections of multiple lines with the shaped ellipsoid."""
     cdef:
-        int i, j, n = pos1.shape[0]
+        int i, n = pos1.shape[0]
         np.ndarray[DTYPE_t, ndim=2] vects = unit_vector3d(pos2 - pos1)
         np.ndarray[DTYPE_t, ndim=1] tmax = vector_length3d(pos2 - pos1)
         np.ndarray[DTYPE_t, ndim=2] ts = -np.ones((n, 2), dtype=np.float64)
-        # For inline calculation
+
+        # Precomputed constants
+        double inv_a_squared = 1.0 / a / a
+        double inv_b_squared = 1.0 / b / b
+        double inv_c_squared = 1.0 / c / c
+        double delta_cut = c/2.0
+        double epsilon = 1e-9
+        double ten_epsilon = 1e-8
+
+
+        # Working variables
         double pos1_x, pos1_y, pos1_z, vect_x, vect_y, vect_z
-        double epsilon = 1e-9, delta_cut, t0, t1, f0, f1, t2, f2, ti_min, ti_max
-        double Ex, Ey, Ez, f, df_x, df_y, df_z, df, delta
-        double posi_x, posi_y, posi_z
-        int iter_count, pos_stride = pos1.shape[1], ts_stride = ts.shape[1]
+        double posi_x, posi_y, posi_z, t0, t1, delta
+        double Ex, Ey, Ez, f0, f1, df_x, df_y, df_z, df
+
+        int iter_count
     
     cdef int num_threads = config['general']['number_of_threads']
     
@@ -338,123 +370,134 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
             vect_x = vects[i, 0]
             vect_y = vects[i, 1]
             vect_z = vects[i, 2]
-            delta_cut = c/2.0
-            
+
             # First iteration (t0 near 0)
             t0 = epsilon
+
+            # Calculate position at current t
             posi_x = pos1_x + t0 * vect_x
             posi_y = pos1_y + t0 * vect_y
             posi_z = pos1_z + t0 * vect_z
             
-            # Inlined _iter_IntersectLineEllipsoid_S for t0
+            # Newton-Raphson iteration for first intersection
             iter_count = 0
             while True:
+                # Calculate ellipsoid function terms
                 Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
                 Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
                 Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                f0 = Ex + Ey + Ez - 1
+                f0 = Ex + Ey + Ez - 1.0
                 
+                # Check if we've converged
                 if abs(f0) < epsilon:
                     break
                 
+                # Calculate gradient components with robust handling of zero values
                 df_x = 0.0 if posi_x == 0 else Ex * Sa * vect_x / posi_x
                 df_y = 0.0 if posi_y == 0 else Ey * Sb * vect_y / posi_y
                 df_z = 0.0 if posi_z == 0 else Ez * Sc * vect_z / posi_z
-                df = 4 * (df_x + df_y + df_z)
+                df = 4.0 * (df_x + df_y + df_z)
                 
+                # Calculate step and apply adaptive limit
                 delta = -f0 / df
+
+                # Apply adaptive step size limit
                 if f0 < 2.0:  # when near target pos
                     delta = min(delta_cut, delta)  # avoid large update 
                     delta = max(-delta_cut, delta)
+
                 t0 = t0 + delta
+
                 posi_x = pos1_x + t0 * vect_x
                 posi_y = pos1_y + t0 * vect_y
                 posi_z = pos1_z + t0 * vect_z
                 iter_count += 1
                 
+                # Check if we've converged based on step size
                 if abs(delta) < epsilon or iter_count > maxIteration:
                     break
             
             # Update f0 after loop
-            Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-            Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-            Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-            f0 = Ex + Ey + Ez - 1
+            Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+            Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+            Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+            f0 = Ex + Ey + Ez - 1.0
             
             # Second iteration (t1 near tmax)
             t1 = tmax[i]
+
+            # Calculate position at current t
             posi_x = pos1_x + t1 * vect_x
             posi_y = pos1_y + t1 * vect_y
             posi_z = pos1_z + t1 * vect_z
             
-            # Inlined _iter_IntersectLineEllipsoid_S for t1
+            # Newton-Raphson iteration for second intersection
             iter_count = 0
             while True:
-                Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-                Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-                Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                f1 = Ex + Ey + Ez - 1
+
+                # Calculate ellipsoid function terms
+                Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+                Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+                Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+                f1 = Ex + Ey + Ez - 1.0
                 
+                # Check if we've converged
                 if abs(f1) < epsilon:
                     break
                 
+                # Calculate gradient components with robust handling of zero values
                 df_x = 0.0 if posi_x == 0 else Ex * Sa * vect_x / posi_x
                 df_y = 0.0 if posi_y == 0 else Ey * Sb * vect_y / posi_y
                 df_z = 0.0 if posi_z == 0 else Ez * Sc * vect_z / posi_z
-                df = 4 * (df_x + df_y + df_z)
-                
+                df = 4.0 * (df_x + df_y + df_z)
+
+                # Calculate step and apply adaptive limit
                 delta = -f1 / df
-                if f1 < 2.0:
+
+                # Apply adaptive step size limit
+                if f1 < 2.0:    # When near the surface
                     delta = min(delta_cut, delta)
                     delta = max(-delta_cut, delta)
+
                 t1 = t1 + delta
+
                 posi_x = pos1_x + t1 * vect_x
                 posi_y = pos1_y + t1 * vect_y
                 posi_z = pos1_z + t1 * vect_z
                 iter_count += 1
                 
+                # Check if we've converged based on step size
                 if abs(delta) < epsilon or iter_count > maxIteration:
                     break
             
             # Update f1 after loop
-            Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-            Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-            Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-            f1 = Ex + Ey + Ez - 1
+            Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+            Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+            Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+            f1 = Ex + Ey + Ez - 1.0
             
-            # Handle convergence cases - inlined from IntersectLineEllipsoid_S
-            if abs(t0 - t1) <= 10 * epsilon:
-                if (abs(f0) < 10 * epsilon) or (abs(f1) < 10 * epsilon):
+            # Determine intersection results
+            if abs(t0 - t1) <= ten_epsilon:
+                # Single intersection point (tangent)
+                if (abs(f0) < ten_epsilon) or (abs(f1) < ten_epsilon):
                     ts[i, 0] = t0
                     ts[i, 1] = t1
                 # else default is -1, -1
-            elif (abs(f0) <= 10 * epsilon) and (abs(f1) <= 10 * epsilon):
+            elif (abs(f0) <= ten_epsilon) and (abs(f1) <= ten_epsilon):
+                # Two distinct intersection points
                 ts[i, 0] = t0
                 ts[i, 1] = t1
-            elif (abs(f0) <= 10 * epsilon) or (abs(f1) <= 10 * epsilon):
-                # Handle the case with additional iterations
-                if abs(f0) <= 10 * epsilon:
+            elif (abs(f0) <= ten_epsilon) or (abs(f1) <= ten_epsilon):
+                # First point converged, second didn't
+                if abs(f0) <= ten_epsilon:
                     ts[i, 0] = t0
-                    # Find second intersection point
-                    # (This is the complex part with a while loop - simplified here)
-                    ti_min = t0
-                    ti_max = t1
-                    delta_cut = c/4.0
+
                     # Try a point 2/3 of the way from t0 to t1
-                    t2 = ti_min + 2 * (ti_max - ti_min) / 3
-                    
-                    # Inlined _iter_IntersectLineEllipsoid_S for t2
-                    # ... similar iteration as above for t2
-                    
+                    t2 = t0 + 0.66 * (t1 - t0)
                     ts[i, 1] = t2
                 else:  # f1 <= 10 * epsilon
-                    # Find first intersection point
-                    # Try a point 1/3 of the way from t0 to t1
-                    t2 = t0 + (t1 - t0) / 3
-                    
-                    # Inlined _iter_IntersectLineEllipsoid_S for t2
-                    # ... similar iteration as above for t2
-                    
+                    # Second point converged, first didn't
+                    t2 = t0 + 0.33 * (t1 - t0)
                     ts[i, 0] = t2
                     ts[i, 1] = t1
             # else default is -1, -1
@@ -462,37 +505,40 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
         # Parallel version with nogil
         with nogil:
             for i in prange(n, num_threads=num_threads, schedule='static'):
-                # Inlined version of IntersectLineEllipsoid_S
                 pos1_x = pos1[i, 0]
                 pos1_y = pos1[i, 1]
                 pos1_z = pos1[i, 2]
                 vect_x = vects[i, 0]
                 vect_y = vects[i, 1]
                 vect_z = vects[i, 2]
-                delta_cut = c/2.0
-                
+
                 # First iteration (t0 near 0)
                 t0 = epsilon
+
+                # Calculate position at current t
                 posi_x = pos1_x + t0 * vect_x
                 posi_y = pos1_y + t0 * vect_y
                 posi_z = pos1_z + t0 * vect_z
                 
-                # Inlined _iter_IntersectLineEllipsoid_S for t0
-                # Changed from while True to for loop with range(maxIteration)
+                # Newton-Raphson iteration for first intersection
                 for iter_count in range(maxIteration):
-                    Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-                    Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-                    Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                    f0 = Ex + Ey + Ez - 1
+                    # Calculate ellipsoid function terms
+                    Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+                    Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+                    Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+                    f0 = Ex + Ey + Ez - 1.0
                     
+                    # Check if we've converged
                     if abs(f0) < epsilon:
                         break
                     
+                    # Calculate gradient components with robust handling of zero values
                     df_x = 0.0 if posi_x == 0 else Ex * Sa * vect_x / posi_x
                     df_y = 0.0 if posi_y == 0 else Ey * Sb * vect_y / posi_y
                     df_z = 0.0 if posi_z == 0 else Ez * Sc * vect_z / posi_z
-                    df = 4 * (df_x + df_y + df_z)
-                    
+                    df = 4.0 * (df_x + df_y + df_z)
+
+                    # Calculate step and apply adaptive limit
                     delta = -f0 / df
                     if f0 < 2.0:  # when near target pos
                         delta = min(delta_cut, delta)  # avoid large update 
@@ -504,13 +550,13 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                     
                     if abs(delta) < epsilon:
                         break
-                
+                10
                 # Update f0 after loop
-                Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-                Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-                Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                f0 = Ex + Ey + Ez - 1
-                
+                Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+                Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+                Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+                f0 = Ex + Ey + Ez - 1.0
+
                 # Second iteration (t1 near tmax)
                 t1 = tmax[i]
                 posi_x = pos1_x + t1 * vect_x
@@ -520,21 +566,21 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                 # Inlined _iter_IntersectLineEllipsoid_S for t1
                 # Changed from while True to for loop with range(maxIteration)
                 for iter_count in range(maxIteration):
-                    Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-                    Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-                    Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                    f1 = Ex + Ey + Ez - 1
-                    
+                    Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+                    Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+                    Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+                    f1 = Ex + Ey + Ez - 1.0
+
                     if abs(f1) < epsilon:
                         break
                     
                     df_x = 0.0 if posi_x == 0 else Ex * Sa * vect_x / posi_x
                     df_y = 0.0 if posi_y == 0 else Ey * Sb * vect_y / posi_y
                     df_z = 0.0 if posi_z == 0 else Ez * Sc * vect_z / posi_z
-                    df = 4 * (df_x + df_y + df_z)
-                    
+                    df = 4.0 * (df_x + df_y + df_z)
+
                     delta = -f1 / df
-                    if f1 < 2.0:
+                    if f1 < 2.0:    # When near the surface
                         delta = min(delta_cut, delta)
                         delta = max(-delta_cut, delta)
                     t1 = t1 + delta
@@ -546,28 +592,28 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                         break
                 
                 # Update f1 after loop
-                Ex = c_pow((posi_x / a) * (posi_x / a), Sa)
-                Ey = c_pow((posi_y / b) * (posi_y / b), Sb)
-                Ez = c_pow((posi_z / c) * (posi_z / c), Sc)
-                f1 = Ex + Ey + Ez - 1
-                
-                # Handle convergence cases - simplified for parallel execution
-                if abs(t0 - t1) <= 10 * epsilon:
-                    if (abs(f0) < 10 * epsilon) or (abs(f1) < 10 * epsilon):
+                Ex = c_pow(posi_x * posi_x * inv_a_squared, Sa)
+                Ey = c_pow(posi_y * posi_y * inv_b_squared, Sb)
+                Ez = c_pow(posi_z * posi_z * inv_c_squared, Sc)
+                f1 = Ex + Ey + Ez - 1.0
+
+                # Determine intersection results
+                if abs(t0 - t1) <= ten_epsilon:
+                    # Single intersection point (tangent)
+                    if (abs(f0) < ten_epsilon) or (abs(f1) < ten_epsilon):
                         ts[i, 0] = t0
                         ts[i, 1] = t1
-                elif (abs(f0) <= 10 * epsilon) and (abs(f1) <= 10 * epsilon):
+                elif (abs(f0) <= ten_epsilon) and (abs(f1) <= ten_epsilon):
+                    # Two distinct intersection points
                     ts[i, 0] = t0
                     ts[i, 1] = t1
-                elif abs(f0) <= 10 * epsilon:
-                    # First point converged, use it
+                elif abs(f0) <= ten_epsilon:
+                    # First point converged, second didn't
                     ts[i, 0] = t0
-                    # Use tmax/2 as second point (simplified)
                     ts[i, 1] = t0 + 0.6 * (t1 - t0)
-                elif abs(f1) <= 10 * epsilon:
-                    # Second point converged, use it
+                elif abs(f1) <= ten_epsilon:
+                    # Second point converged, first didn't
                     ts[i, 1] = t1
-                    # Use 0.4*tmax as first point (simplified)
                     ts[i, 0] = t0 + 0.4 * (t1 - t0)
                 # else default is -1, -1
     

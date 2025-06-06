@@ -8,9 +8,11 @@ from gal3d import config
 from ..geometry import GeometryBase, Parameters
 
 if config['general']['use_cython']:
-    from .ellipsoid_s_cy import f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid
+    from .ellipsoid_s_cy import (f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,
+            IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid)
 else:
-    from .ellipsoid_s_nb import f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid
+    from .ellipsoid_s_nb import (f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,
+            IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid)
 
 __all__ = ['Ellipsoid_S']
 

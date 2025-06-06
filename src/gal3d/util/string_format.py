@@ -1,7 +1,78 @@
+"""
+String formatting utilities for terminal output.
+
+This module provides utilities for formatting terminal output with ANSI escape codes,
+including support for colors, font styles, and text formatting.
+
+Author: Shuai Lu (卢帅)
+Email: lushuai@stu.xmu.edu.cn
+Created: 2025-04-20
+Last Modified: 2025-06-06
+Version: 1.0.0
+
+License: MIT
+
+Dependencies:
+    - functools (standard library)
+
+Examples:
+    >>> from string_format import string_formatter
+    >>> formatted_text = string_formatter("Hello World", fg_color="red", bold=True)
+    >>> print(formatted_text)
+
+"""
+
+
 from functools import singledispatch
 
+__version__ = "1.0.0"
+__author__ = "Shuai Lu (卢帅)"
+__email__ = "lushuai@stu.xmu.edu.cn"
 
-__all__ = ['string_formator']
+__all__ = ['string_formatter']
+
+def string_formatter(
+    string: str,
+    bg_color: str | int | tuple | None = None,
+    fg_color: str | int | tuple | None = None,
+    bold: bool = False,
+    thin: bool = False,
+    italics: bool = False,
+    underline: bool = False,
+    strikethrough: bool = False,
+) -> str:
+    """
+    Format a string with background and foreground colors and font styles.
+
+    Parameters
+    ----------
+    string : str
+        The input string to format.
+    bg_color : str | int | tuple, optional
+        The background color as a string, integer, or tuple of RGB values.
+    fg_color : str | int | tuple, optional
+        The foreground color as a string, integer, or tuple of RGB values.
+    bold : bool, optional
+        Whether to apply bold formatting. Default is False.
+    thin : bool, optional
+        Whether to apply thin formatting. Default is False.
+    italics : bool, optional
+        Whether to apply italics formatting. Default is False.
+    underline : bool, optional
+        Whether to apply underline formatting. Default is False.
+    strikethrough : bool, optional
+        Whether to apply strikethrough formatting. Default is False.
+
+    Returns
+    -------
+    str
+        The formatted string with ANSI escape codes.
+    """
+    bg_color = bg_color and background_color(bg_color) or ""
+    fg_color = fg_color and foreground_color(fg_color) or ""
+    font = fontformat(bold, thin, italics, underline, strikethrough)
+
+    return "".join([bg_color, fg_color, font, string, "\033[0m"])
 
 
 @singledispatch
@@ -235,7 +306,7 @@ def background_color(*args):
     elif len(args) == 3 and all(isinstance(a, int) for a in args):
         return escape_codes_color_bg(args)
     else:
-        raise TypeError("Invalid input format for foreground_color")
+        raise TypeError("Invalid input format for background_color")
 
 
 def color(
@@ -297,47 +368,3 @@ def fontformat(
     strikethrough = strikethrough and "\033[9m" or ""
 
     return "".join([bold, thin, italics, underline, strikethrough])
-
-
-def string_formatter(
-    string: str,
-    bg_color: str | int | tuple | None = None,
-    fg_color: str | int | tuple | None = None,
-    bold: bool = False,
-    thin: bool = False,
-    italics: bool = False,
-    underline: bool = False,
-    strikethrough: bool = False,
-) -> str:
-    """
-    Format a string with background and foreground colors and font styles.
-
-    Parameters
-    ----------
-    string : str
-        The input string to format.
-    bg_color : str | int | tuple, optional
-        The background color as a string, integer, or tuple of RGB values.
-    fg_color : str | int | tuple, optional
-        The foreground color as a string, integer, or tuple of RGB values.
-    bold : bool, optional
-        Whether to apply bold formatting. Default is False.
-    thin : bool, optional
-        Whether to apply thin formatting. Default is False.
-    italics : bool, optional
-        Whether to apply italics formatting. Default is False.
-    underline : bool, optional
-        Whether to apply underline formatting. Default is False.
-    strikethrough : bool, optional
-        Whether to apply strikethrough formatting. Default is False.
-
-    Returns
-    -------
-    str
-        The formatted string with ANSI escape codes.
-    """
-    bg_color = bg_color and background_color(bg_color) or ""
-    fg_color = fg_color and foreground_color(fg_color) or ""
-    font = fontformat(bold, thin, italics, underline, strikethrough)
-
-    return "".join([bg_color, fg_color, font, string, "\033[0m"])

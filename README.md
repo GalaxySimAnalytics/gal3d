@@ -1,25 +1,29 @@
 ## Introduction
-This Python package is designed to build an isodense ellipsoid model for simulated galaxies from the inside out. Similar to the ellipse fitting used in observations.
+Gal3D is a Python library for constructing and analyzing three-dimensional galaxy morphology models. It is specifically designed for building 3D models from simulated particle data, analogous to ellipse fitting techniques used in observation.
 
 ## Installation
 
 ```
-git clone https://github.com/wx-ys/gal3d.git
+git clone https://github.com/GalaxySimAnalytics/gal3d.git
 ```
 Install this in editable mode.
 ```
 cd gal3d
 pip install -e .
 ```
+gal3d depends on the following libraries:
 
-The gal3d packages relies on the following Python packages:
+- **numpy** (numerical computations)
+- **scipy** (scientific computing)
+- **cython** (default numerical acceleration)
+- **matplotlib** (visualization)
+- **tqdm** (progress bars)
 
-* numpy
-* scipy
-* numba
-* nlopt
-* optimagic
-* tqdm
+optional:
+
+- **numba** (JIT acceleration)
+- **nlopt** (numerical optimization algorithms)
+- **optimagic** (numerical optimization algorithms)
 
 
 

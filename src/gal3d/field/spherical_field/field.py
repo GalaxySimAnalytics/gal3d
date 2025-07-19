@@ -585,9 +585,12 @@ class SphField:
 
         return decorator
 
-
-from .util_nb import iso_profile_by_moi, iso_profile_by_pair
-
+from gal3d import config
+if config['general']['use_cython']:
+    from .util_cy import iso_profile_by_moi, iso_profile_by_pair
+else:
+    from .util_nb import iso_profile_by_moi, iso_profile_by_pair
+    
 SphField.iso_registry('moi')(iso_profile_by_moi)
 SphField.iso_registry('pair')(iso_profile_by_pair)
 

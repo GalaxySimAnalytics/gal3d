@@ -84,6 +84,8 @@ def iso_profile_by_moi(
         tuple result
         np.ndarray[DTYPE_t, ndim=2] abc, rota, new_pos
         np.ndarray[np.uint8_t, ndim=1] sel1, sel2
+
+    #cdef int num_threads = config['general']['number_of_threads']
     
     for i in range(pas.shape[1]):
         result = abc_vect(points, pas[:, i])
@@ -97,6 +99,33 @@ def iso_profile_by_moi(
     
     return iso_pro_pa
 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef DTYPE_t compute_max_mean(
+    DTYPE_t[:, :] pas_mv,
+    np.uint8_t[:, :] sel_mv,
+    int m,
+    int i
+) nogil:
+    cdef DTYPE_t max_val = -1e99
+    cdef DTYPE_t mean_val
+    cdef int cnt, j, k
+    for j in range(m):
+        mean_val = 0.0
+        cnt = 0
+        for k in range(m):
+            if sel_mv[j, k]:
+                mean_val += pas_mv[k, i]
+                cnt += 1
+        if cnt > 0:
+            mean_val /= cnt
+        else:
+            mean_val = 0.0
+        if mean_val > max_val:
+            max_val = mean_val
+    return max_val
+
 def iso_profile_by_pair(
     np.ndarray[DTYPE_t, ndim=2] points,
     np.ndarray[DTYPE_t, ndim=2] pas,
@@ -104,24 +133,21 @@ def iso_profile_by_pair(
     double res_c
 ):
     """
-    Calculate isophote profile using pair-wise comparisons
+    Calculate isophote profile using pair-wise comparisons (optimized)
     """
     cdef:
+        int n = pas.shape[1]
         double angle_max = sqrt(1 - (res_b / 2 + res_c / 2) ** 2)
         np.ndarray[DTYPE_t, ndim=2] points_dist = Matmul(points, points.T)
         np.ndarray[np.uint8_t, ndim=2] sel = (points_dist < -angle_max) | (points_dist > angle_max)
-        np.ndarray[DTYPE_t, ndim=1] iso_pro_pa = np.zeros(pas.shape[1], dtype=DTYPE)
-        np.ndarray[DTYPE_t, ndim=1] pathis
-        int i, j
-        double max_val
-    
-    for i in range(pas.shape[1]):
-        pathis = np.zeros(len(sel), dtype=DTYPE)
-        
-        # This nested parallelism might be inefficient - consider single-threaded if performance issues
-        for j in range(len(sel)):
-            pathis[j] = np.mean(pas[:, i][sel[j]])
-        
-        iso_pro_pa[i] = np.max(pathis)
-    
-    return iso_pro_pa
+        np.ndarray[DTYPE_t, ndim=1] iso_pro_pa = np.zeros(n, dtype=DTYPE)
+        int i, m = sel.shape[0]
+        DTYPE_t[:, :] pas_mv = pas
+        np.uint8_t[:, :] sel_mv = sel
+
+    cdef int num_threads = config['general']['number_of_threads']
+
+    for i in prange(n, nogil=True, num_threads=num_threads):
+        iso_pro_pa[i] = compute_max_mean(pas_mv, sel_mv, m, i)
+
+    return np.asarray(iso_pro_pa)

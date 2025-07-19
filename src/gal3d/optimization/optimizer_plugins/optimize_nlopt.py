@@ -1,11 +1,46 @@
 import nlopt
-from optimagic.optimizers.nlopt_optimizers import _process_nlopt_results
 
+from .util import InternalOptimizeResult
 from ..optimizer import OptimizerBase, classproperty
 
 __all__ = ['OptimizerNLopt']
 
 
+# from optimagic
+def _process_nlopt_results(nlopt_obj, solution_x, is_global):
+    messages = {
+        1: "Convergence achieved ",
+        2: (
+            "Optimizer stopped because maximum value of criterion function was reached"
+        ),
+        3: (
+            "Optimizer stopped because convergence_ftol_rel or "
+            "convergence_ftol_abs was reached"
+        ),
+        4: (
+            "Optimizer stopped because convergence_xtol_rel or "
+            "convergence_xtol_abs was reached"
+        ),
+        5: "Optimizer stopped because max_criterion_evaluations was reached",
+        6: "Optimizer stopped because max running time was reached",
+        -1: "Optimizer failed",
+        -2: "Invalid arguments were passed",
+        -3: "Memory error",
+        -4: "Halted because roundoff errors limited progress",
+        -5: "Halted because of user specified forced stop",
+    }
+    success = nlopt_obj.last_optimize_result() in [1, 2, 3, 4]
+    if is_global and not success:
+        success = None
+    processed = InternalOptimizeResult(
+        x=solution_x,
+        fun=nlopt_obj.last_optimum_value(),
+        n_fun_evals=nlopt_obj.get_numevals(),
+        success=success,
+        message=messages[nlopt_obj.last_optimize_result()],
+    )
+
+    return processed
 class OptimizerNLopt(OptimizerBase):
     """
     nlopt

@@ -1,10 +1,41 @@
+from typing import SupportsInt
 
 from scipy import optimize
-from optimagic.optimizers.scipy_optimizers import process_scipy_result
+from scipy.optimize import OptimizeResult as ScipyOptimizeResult
 
+from .util import InternalOptimizeResult
 from ..optimizer import OptimizerBase, classproperty
 
 __all__ = ['OptimizerScipy']
+
+# from optimagic
+def _int_if_not_none(value: SupportsInt | None) -> int | None:
+    if value is None:
+        return None
+    return int(value)
+
+
+# from optimagic
+def process_scipy_result(scipy_res: ScipyOptimizeResult) -> InternalOptimizeResult:
+    res = InternalOptimizeResult(
+        x=scipy_res.x,
+        fun=scipy_res.fun,
+        success=bool(scipy_res.success),
+        message=str(scipy_res.message),
+        n_fun_evals=_int_if_not_none(scipy_res.get("nfev")),
+        n_jac_evals=_int_if_not_none(scipy_res.get("njev")),
+        n_hess_evals=_int_if_not_none(scipy_res.get("nhev")),
+        n_iterations=_int_if_not_none(scipy_res.get("nit")),
+        # TODO: Pass on more things once we can convert them to external
+        status=None,
+        jac=None,
+        hess=None,
+        hess_inv=None,
+        max_constraint_violation=None,
+        info=None,
+        history=None,
+    )
+    return res
 
 
 class OptimizerScipy(OptimizerBase):

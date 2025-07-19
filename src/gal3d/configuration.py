@@ -4,6 +4,11 @@ import configparser
 
 from .util.string_format import string_formatter
 
+try:
+    import numba
+    NUMBA_AVAILABLE = True
+except ImportError:
+    NUMBA_AVAILABLE = False
 
 
 def _set_config_parser()-> configparser.RawConfigParser:
@@ -215,3 +220,6 @@ config_parser = _get_config_parser_with_defaults()
 config = _get_basic_config_from_parser(config_parser)
 logger = _setup_logging(config['logger'])
 
+if not config['general']['use_cython'] and not NUMBA_AVAILABLE:
+    logger.warning("Numba is not available, falling back to Cython.")
+    config['general']['use_cython'] = True

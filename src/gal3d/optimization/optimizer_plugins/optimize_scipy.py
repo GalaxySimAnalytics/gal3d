@@ -33,7 +33,7 @@ def process_scipy_result(scipy_res: ScipyOptimizeResult) -> InternalOptimizeResu
         hess_inv=None,
         max_constraint_violation=None,
         info=None,
-        history=None,
+        #history=None,
     )
     return res
 

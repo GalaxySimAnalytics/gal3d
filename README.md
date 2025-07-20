@@ -24,6 +24,7 @@ optional:
 - **numba** (JIT acceleration)
 - **nlopt** (numerical optimization algorithms)
 - **optimagic** (numerical optimization algorithms)
+- **emcee** (MCMC optimization)
 
 
 

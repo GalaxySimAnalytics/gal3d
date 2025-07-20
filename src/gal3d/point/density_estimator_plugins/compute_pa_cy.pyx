@@ -2,7 +2,6 @@
 import numpy as np
 cimport numpy as np
 from cython.parallel import prange
-from libc.math cimport isnan, isinf
 
 cdef double VOLUME_FACTOR = 4.0 / 3.0 * np.pi
 

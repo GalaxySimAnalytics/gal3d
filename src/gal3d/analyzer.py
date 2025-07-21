@@ -49,9 +49,80 @@ class Gal3DAnalyzer:
         self.field = field
         self.structure = structure
         self.optimizer = optimizer
-    
+        
+    @staticmethod
+    def analyze(pos, mass, **kwargs):
+        """
+        Analyze the given particle data.
+
+        Parameters
+        ----------
+        pos : np.ndarray
+            The positions of the particles.
+        mass : np.ndarray
+            The masses of the particles.
+        **kwargs : dict
+            Additional keyword arguments for analysis.
+
+        """
+        logger.info("Starting analysis...")
+
+
+        particle = Particles(pos=pos, mass=mass)
+        
+        
+        res_r = ((np.sum(particle.mass)/np.sum(particle.parameter))/(4/3*np.pi))**(1/3)*20
+        particle.estimator._tree_query_options['distance_upper_bound'] = res_r*10
+        del particle.estimator.parameter
+        
+        
+        res_m = np.mean(particle.mass)
+        logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
+
+        Num_rays = min(1024,int(len(particle.r)/100))
+        Num_rays = max(Num_rays,int(len(particle.r)/10000))
+        
+        inner = res_r/2
+        inner_mode = 'dist'
+        
+        outer = res_m/(4*np.pi/3*(2*res_r)**3)
+        outer_mode = 'value'
+
+        logger.info("Set inner radius to %f", inner)
+        logger.info("Set outer value to %f", outer)
+
+        logger.info("Building spherical field...")
+        field = SphField(particle, num_ray=Num_rays
+                ).build_field_boundary(inner = inner, outer=outer,inner_mode=inner_mode,outer_mode=outer_mode
+                ).build_profile_sample(
+                ).build_profile_interpolator(
+                ).build_isodensity_profile(
+                )
+                
+        ellipsoid_s = Structure3D(coordinate='EulerShift',geometry='Ellipsoid_S',error_func='sums_dev_rscale',error_method='isodensity_dcall')
+        optimizer = Optimizer.get_plugin(plugin = 'OptimizerScipy')(algorithm='Powell') # OptimizerScipy Powell
+        
+        return Gal3DAnalyzer(particle=particle,field=field,structure=ellipsoid_s,optimizer=optimizer)
+
     @staticmethod
     def from_config(pos, mass, config_file: str):
+        """
+        Create a Gal3DAnalyzer instance from a configuration file.
+
+        Parameters
+        ----------
+        pos : np.ndarray
+            The positions of the particles.
+        mass : np.ndarray
+            The masses of the particles.
+        config_file : str
+            The path to the configuration file.
+
+        Returns
+        -------
+        Gal3DAnalyzer
+            An instance of the Gal3DAnalyzer class.
+        """
         cfg = _set_config_parser()
         cfg.read(config_file)
         particle_cfg = cfg['Point']
@@ -90,9 +161,32 @@ class Gal3DAnalyzer:
             raise ValueError(f"Invalid optimizer plugin '{plugin_name}' or algorithm '{algorithm_name}' specified in configuration.")
         
         return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
+    
+    
+    def fit(self, num_step:int = 200, step_mode: str = 'log'):
+        """ 
+        Fit the model to the data.
+
+        Parameters
+        ----------
+        num_step : int
+            The number of steps for the fitting process.
+        step_mode : str
+            The mode of the steps (e.g., 'log' for logarithmic spacing).
+
+        """
+        r_min = max(np.median(self.field.inner_r)*6,self.field.iso_pro_r[0]*3)
+        r_max = min(self.field.iso_pro_r[-1],np.median(self.field.outer_r))
+
+        if step_mode == 'log':
+            r = np.geomspace(r_min, r_max, num_step)
+        else:
+            r = np.linspace(r_min, r_max, num_step)
+
+        return self._fit(r)
         
 
-    def fit(self, r: Union[float, Iterable] = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
+    def _fit(self, r: Union[float, Iterable] = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
         """
         Fit the model to a single radius or a sequence of radii.
 

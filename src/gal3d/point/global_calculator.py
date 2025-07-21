@@ -27,9 +27,13 @@ class GlobalCalculator:
 
     """
 
-    def __init__(self, pos: np.ndarray, mass: np.ndarray):
+    def __init__(self, pos: np.ndarray, mass: np.ndarray, recenter: bool = True):
 
         pos = self._shape_check(pos)
+        if recenter:
+            cen = self.shrink_sphere_center(pos,mass)
+            pos = pos - cen
+            logger.info(f"Recentered positions by subtracting center: {cen}")
         r = vector_length3d(pos)
         ind = np.argsort(r)
 

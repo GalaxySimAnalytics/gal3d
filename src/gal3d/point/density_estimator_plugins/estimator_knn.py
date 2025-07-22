@@ -80,6 +80,34 @@ class DensityEstimatorKNN(DensityEstimatorBase):
     def gradient(self):
         '''Cached property that returns the gradient of the parameter at the input positions.'''
         return self.get_gradient(self.pos)
+    
+    @cached_property
+    def hsm(self):
+        """Cached property that returns the half-smooth length at the input positions."""
+
+        return self.get_hsm(self.pos)
+
+    def get_hsm(self, target_pos, **kwargs):
+        '''
+        Estimate the half-smooth length at the target positions.
+
+        Parameters:
+            target_pos: ndarray, shape(m,3)
+                The target positions (x, y, z) where the half-smooth length is to be estimated.
+            **kwargs: dict, optional
+                Additional keyword arguments passed to the KDTree query method.
+
+        Returns:
+            results: array, shape(m,)
+                The estimated half-smooth lengths at the target positions.
+        '''
+        target_pos = self._shape_check(target_pos)
+
+        query_options = update_dict_value(self._tree_query_options, kwargs)
+
+        n_d, n_index = self.tree.query(target_pos, **query_options)
+
+        return n_d[:,-1]/2
 
     def get_parameter(self, target_pos, **kwargs):
         '''
@@ -101,7 +129,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         
         n_d, n_index = self.tree.query(target_pos, **query_options)
         
-        return self._cal_pa(n_d, n_index)
+        return self._cal_pa(n_d, n_index, **query_options)
 
     def get_gradient(self, target_pos, **kwargs):
         '''
@@ -155,7 +183,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             (lo_gradient, unit_vector3d(lo_vect)),
         )
 
-    def _cal_pa(self, n_d, n_index):
+    def _cal_pa(self, n_d, n_index, **kwargs):
         '''
         Calculate the parameter value based on the nearest neighbors.
 
@@ -171,7 +199,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         '''
         return cal_pa(n_d.astype(np.float64),
             n_index.astype(np.int32),
-            self.mass.astype(np.float64), self.pa_mode, self._tree_query_options.get('distance_upper_bound', np.inf))
+            self.mass.astype(np.float64), self.pa_mode, kwargs.get('distance_upper_bound', np.inf))
 
     def __generate_kd_options(self, k_nearest, r_cut, **kwargs):
         '''

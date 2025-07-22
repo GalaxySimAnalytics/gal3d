@@ -6,22 +6,12 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch, Rectangle
 from matplotlib.axes import Axes
 
-from .hist2d import hist_2d, show_image, show_contour, add_colorbar
+from .hist2d import hist_2d, render_2d,show_image, show_contour, add_colorbar, which_pos_to_rotation
 from ..point import Particles
 from .model_projector import ModelProjectorBase
 from ..util.array_operate import Rotate
 
 
-def which_pos_to_rotation(which_pos):
-    order = list(which_pos)
-    for i in [0, 1, 2]:
-        if i not in order:
-            order.append(i)
-            break
-    h1 = np.zeros((3, 3), dtype=np.float64)
-    for i in range(3):
-        h1[i] = np.eye(3)[int(order[i])]
-    return h1.T
 
 
 def show_data_model(
@@ -40,17 +30,30 @@ def show_data_model(
     linewidth=0.8,
     color='k',
     linestyle='-',
+    render = True
 ):
-    pos = Rotate(data.pos, rotation_matrix.T)
-    data_image, xs, ys = hist_2d(
-        pos[:, which_pos[0]],
-        pos[:, which_pos[1]],
-        weights=data.mass,
-        x_range=x_range,
-        y_range=y_range,
-        density=True,
-        nbins=nbins,
-    )
+    if render:
+        data_image, xs, ys = render_2d(
+            data,
+            which_pos=which_pos,
+            rotation_matrix=rotation_matrix,
+            x_range=x_range,
+            y_range=y_range,
+            z_range=z_range,
+            nbins=nbins,
+        )
+    else:
+        pos = Rotate(data.pos, rotation_matrix.T)
+        data_image, xs, ys = hist_2d(
+            pos[:, which_pos[0]],
+            pos[:, which_pos[1]],
+            weights=data.mass,
+            x_range=x_range,
+            y_range=y_range,
+            density=True,
+            nbins=nbins,
+        )
+        
     if nlevels is None:
         nlevels = int(np.sqrt(data_image.size))
     if isinstance(nlevels, int):

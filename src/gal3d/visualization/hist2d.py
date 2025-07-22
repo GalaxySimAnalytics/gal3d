@@ -7,6 +7,19 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from scipy.ndimage import gaussian_filter
 
+from ..util.array_operate import Rotate
+
+
+def which_pos_to_rotation(which_pos):
+    order = list(which_pos)
+    for i in [0, 1, 2]:
+        if i not in order:
+            order.append(i)
+            break
+    h1 = np.zeros((3, 3), dtype=np.float64)
+    for i in range(3):
+        h1[i] = np.eye(3)[int(order[i])]
+    return h1.T
 
 def hist_2d(
     x,
@@ -122,6 +135,47 @@ def hist_2d(
     xs = 0.5 * (xs[:-1] + xs[1:])
     ys = 0.5 * (ys[:-1] + ys[1:])
     return hist, xs, ys
+
+def render_2d(particle, which_pos=(0, 1),
+            rotation_matrix=np.eye(3),
+            x_range=(-15, 15),
+            y_range=(-15, 15),
+            z_range=(-20, 20),
+            nbins=200,
+            return_grid = False,
+            ):
+
+    ini_3d = np.ones(shape=(nbins, nbins, nbins))
+    l_max = np.array([x_range[1],y_range[1],z_range[1]])
+    l_min = np.array([x_range[0],y_range[0],z_range[0]])
+    xyz_length = l_max-l_min
+    cen_pos = (l_max+l_min)/2
+
+    pixel_size = xyz_length / np.array(ini_3d.shape)
+    
+    cen_indices = np.array(ini_3d.shape)/2 - 0.5
+    indices = np.transpose(np.nonzero(ini_3d))
+    
+    im_pos = (indices-cen_indices) * pixel_size + cen_pos
+
+    rota = which_pos_to_rotation(which_pos)
+    rota = Rotate(rotation_matrix, rota.T)
+    
+    im_pos= Rotate(im_pos, rota)  # get position in particle coordinate frame
+
+    ini_3d[tuple(indices.T)] = particle.get_parameter(im_pos)
+    
+    if return_grid:
+        return ini_3d
+    else:
+        render_image = np.einsum(f'xyz->'+f"xy", ini_3d).T*pixel_size[2]
+
+        xs = np.linspace(l_min[0], l_max[1], nbins+1)
+        ys = np.linspace(l_min[0], l_max[1], nbins+1)
+        xs = 0.5 * (xs[:-1] + xs[1:])
+        ys = 0.5 * (ys[:-1] + ys[1:])
+        
+        return render_image,xs,ys
 
 
 def show_image(

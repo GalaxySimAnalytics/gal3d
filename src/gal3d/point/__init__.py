@@ -96,6 +96,11 @@ class Particles(GlobalCalculator):
     def parameter(self):
         """Cached property that returns the parameter values at the input positions."""
         return self.estimator.parameter
+    
+    @property
+    def hsm(self):
+        """Cached property that returns the half-smooth length at the input positions."""
+        return self.estimator.hsm
 
     @property
     def gradient(self):

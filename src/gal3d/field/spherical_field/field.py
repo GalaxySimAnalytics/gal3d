@@ -84,6 +84,8 @@ class SphField:
         outer_mode : str, optional
             The mode for calculating the outer boundary. Options are 'dist', 'pct', or 'value'. Default is 'pct'.
         """
+        
+        self.rays_vect = self.rays.pos
 
         self.inner_r = self._bound_method[inner_mode](self, inner, mode='min')
         r_in_min = np.min(self.inner_r)
@@ -99,7 +101,6 @@ class SphField:
         if r_ou_min/r_ou_max < 0.09:
             logger.warning("The axial ratio of the outer boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
 
-        self.rays_vect = self.rays.pos
         self.check_boundary()
         return self
 
@@ -596,7 +597,7 @@ SphField.iso_registry('pair')(iso_profile_by_pair)
 
 
 @SphField.boundary_registry('dist')
-def bound_dist(cls, value, **kwargs):
+def bound_dist(self, value, **kwargs):
     '''
     Calculate the boundary based on a fixed distance.
 
@@ -612,11 +613,11 @@ def bound_dist(cls, value, **kwargs):
     np.ndarray
         The boundary values.
     '''
-    return value * np.ones(cls.rays.num)
+    return value * np.ones(self.rays.num)
 
 
 @SphField.boundary_registry('pct')
-def bound_pct(cls, value, **kwargs):
+def bound_pct(self, value, **kwargs):
     '''
     Calculate the boundary based on a percentile.
 
@@ -632,53 +633,88 @@ def bound_pct(cls, value, **kwargs):
     np.ndarray
         The boundary values.
     '''
-    return np.array([np.percentile(cls.r_ray_n(i), value) for i in range(cls.rays.num)])
+    return np.array([np.percentile(self.r_ray_n(i), value) for i in range(self.rays.num)])
 
 
 @SphField.boundary_registry('value')
-def bound_value(cls, value, mode='max', **kwargs):
-    '''
-    Calculate the boundary based on a parameter value.
+def bound_value(self, value, **kwargs):
+    """
+    Finds the outer boundary radius for each ray such that the parameter value along the ray equals or exceeds a specified target value.
+    This function is registered as a boundary condition handler for the 'value' type. It iteratively searches along each ray direction to find the radius where the parameter (obtained from `self.particles.get_parameter`) crosses the given `target_value`. The search is performed in two stages: a coarse search to bracket the boundary, followed by a bisection method for refinement.
 
     Parameters
     ----------
+    self : SphField
+        The SphField instance containing ray and particle information.
     value : float
-        The parameter value.
-    mode : str, optional
-        The mode for calculating the boundary. Options are 'max' or 'min'. Default is 'max'.
+        The target parameter value to find along each ray.
     **kwargs : dict
-        Additional keyword arguments.
+        Additional keyword arguments (unused).
 
     Returns
     -------
     np.ndarray
-        The boundary values.
+        Array of radii for each ray where the parameter value crosses the specified boundary.
+    """
+    rays_vect = self.rays_vect
 
-    Raises
-    ------
-    ValueError
-        If the mode is not 'max' or 'min'.
-    '''
-    # np.array([np.max(Base.r_ray_n(i)[Base.parameter_ray_n(i)>value]) for i in range(Base.rays.num)])
-    if mode == 'max':
-        return np.array(
-            [
-                np.max(cls.r_ray_n(i)[cls.parameter_ray_n(i) > value])
-                for i in range(cls.rays.num)
-            ]
-        )
-    if mode == 'min':
-        return np.array(
-            [
-                np.min(cls.r_ray_n(i)[cls.parameter_ray_n(i) < value])
-                for i in range(cls.rays.num)
-            ]
-        )
-    raise ValueError(f"{mode} is not a valid value. Only 'max' and 'min' are valid.")
+    radius_guess = self.inner_r.copy()
+    eps_radius = np.mean(radius_guess)
+    iter_max = 100
+    step_fraction = 0.2
+
+    active_mask = np.ones_like(radius_guess, dtype=bool)  # Only iterate over unconverged rays
+
+    # Coarse search to bracket the boundary
+    for i in range(iter_max):
+        param_val = np.zeros_like(radius_guess)
+        param_val[active_mask] = self.particles.get_parameter(radius_guess[active_mask, None] * rays_vect[active_mask])
+        iter_step = step_fraction * radius_guess
+        iter_step[param_val < value] = 0  # Stop iterating if max found
+        radius_guess[param_val > value] += iter_step[param_val > value]
+        active_mask = iter_step != 0
+        if not np.any(active_mask):
+            break
+
+    if i >= iter_max - 1:
+        logger.error(f"[Coarse Search] Outer boundary search did not converge after {iter_max} iterations")
+    else:
+        logger.debug(f"[Coarse Search] Outer boundary converged in {i+1} iterations")
+
+    radius_upper = radius_guess.copy()
+    radius_lower = radius_guess / (1 + step_fraction)
+
+    active_mask = np.ones_like(radius_guess, dtype=bool)
+
+    # Bisection search for refinement
+    for i in range(iter_max):
+        radius_mid = (radius_lower[active_mask] + radius_upper[active_mask]) / 2
+        pos_mid = radius_mid[:, None] * rays_vect[active_mask]
+        param_val_mid = self.particles.get_parameter(pos_mid)
+
+        mask = param_val_mid > value
+
+        radius_lower[active_mask] = np.where(mask, radius_mid, radius_lower[active_mask])
+        radius_upper[active_mask] = np.where(~mask, radius_mid, radius_upper[active_mask])
+
+        converged = np.abs(radius_lower - radius_upper) < 0.1 * eps_radius
+        if np.all(converged):
+            break
+
+        active_mask = ~converged
+    if i >= iter_max - 1:
+        logger.error(f"[Bisection Search] Boundary iteration exceeded maximum limit: {iter_max}")
+    else:
+        logger.debug(f"[Bisection Search] Found target radius in {i+1} iterations")
+
+    r_boundary = (radius_lower + radius_upper) / 2
+    return r_boundary
+
+
 
 
 @SphField.step_registry('lin')
-def step_lin(cls, num_p):
+def step_lin(self, num_p):
     '''
     Generate linearly spaced points between the inner and outer boundaries.
 
@@ -692,11 +728,11 @@ def step_lin(cls, num_p):
     np.ndarray
         The generated points.
     '''
-    return np.linspace(cls.inner_r, cls.outer_r, num_p).T
+    return np.linspace(self.inner_r, self.outer_r, num_p).T
 
 
 @SphField.step_registry('log')
-def step_log(cls, num_p):
+def step_log(self, num_p):
     '''
     Generate logarithmically spaced points between the inner and outer boundaries.
 
@@ -710,4 +746,4 @@ def step_log(cls, num_p):
     np.ndarray
         The generated points.
     '''
-    return np.geomspace(cls.inner_r, cls.outer_r, num_p).T
+    return np.geomspace(self.inner_r, self.outer_r, num_p).T

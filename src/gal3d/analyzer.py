@@ -65,27 +65,34 @@ class Gal3DAnalyzer:
             Additional keyword arguments for analysis.
 
         """
+        
         logger.info("Starting analysis...")
 
 
         particle = Particles(pos=pos, mass=mass)
         
-        
-        res_r = ((np.sum(particle.mass)/np.sum(particle.parameter))/(4/3*np.pi))**(1/3)*20
-        particle.estimator._tree_query_options['distance_upper_bound'] = res_r*10
-        del particle.estimator.parameter
+        if "res_r" not in kwargs:
+            hsm = particle.hsm
+            d_in = np.median(hsm)-3*np.std(hsm)
+            d_ou = np.median(hsm)+3*np.std(hsm)
+            res_r = np.mean(hsm[(hsm>d_in) & (hsm<d_ou)])
+        else:
+            res_r = kwargs["res_r"]
+
+        #res_r = ((np.sum(particle.mass)/np.sum(particle.parameter))/(4/3*np.pi))**(1/3)*20
+        #particle.estimator._tree_query_options['distance_upper_bound'] = res_r*10
         
         
         res_m = np.mean(particle.mass)
         logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
 
         Num_rays = min(1024,int(len(particle.r)/100))
-        Num_rays = max(Num_rays,int(len(particle.r)/10000))
+        Num_rays = max(Num_rays,64)
         
         inner = res_r/2
         inner_mode = 'dist'
         
-        outer = res_m/(4*np.pi/3*(2*res_r)**3)
+        outer = res_m/(4*np.pi/3*(3*res_r)**3)
         outer_mode = 'value'
 
         logger.info("Set inner radius to %f", inner)
@@ -102,6 +109,9 @@ class Gal3DAnalyzer:
         ellipsoid_s = Structure3D(coordinate='EulerShift',geometry='Ellipsoid_S',error_func='sums_dev_rscale',error_method='isodensity_dcall')
         optimizer = Optimizer.get_plugin(plugin = 'OptimizerScipy')(algorithm='Powell') # OptimizerScipy Powell
         
+        ellipsoid_s.parameters.set_ub(x=inner,y=inner,z=inner)
+        ellipsoid_s.parameters.set_lb(x=-inner,y=-inner,z=-inner)
+
         return Gal3DAnalyzer(particle=particle,field=field,structure=ellipsoid_s,optimizer=optimizer)
 
     @staticmethod
@@ -428,6 +438,11 @@ def _fit_generalized_ellipsoid(self, data, a, var_a, init_parameters, upper_boun
     
     # Reuse parameter setup logic
     ell_params = ellipsoid.parameters.new()
+    
+    for param_name in set(self.structure.parameters.keys()) & set(ell_params.keys()):
+        ell_params[param_name].ub = self.structure.parameters[param_name].ub
+        ell_params[param_name].lb = self.structure.parameters[param_name].lb
+
     ell_params.set_lb(a=(a * (1 - var_a)))
     ell_params.set_ub(a=(a * (1 + var_a)))
     

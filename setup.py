@@ -11,7 +11,7 @@ extra_link_args = openmp_args + ['-std=c++14'] + optimization_flags
 extensions = cythonize([
     Extension(
         name="gal3d.shape.geometry_plugins.ellipsoid_s_cy",
-        sources=["src/gal3d/shape/geometry_plugins/ellipsoid_s_cy.pyx"],
+        sources=["src/gal3d/shape/geometry_plugins/ellipsoid_s_cy.pyx", "src/gal3d/shape/geometry_plugins/ellipsoid_s.cpp"],
         include_dirs=[numpy.get_include()],
         define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
         extra_compile_args=extra_compile_args,

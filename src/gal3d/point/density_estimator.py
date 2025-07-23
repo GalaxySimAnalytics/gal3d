@@ -126,6 +126,25 @@ class DensityEstimatorBase(ABC):
         return self.get_gradient(self.pos)
 
     @abstractmethod
+    def get_hsm(self, target_pos, **kwargs):
+        """
+        Estimate the half-smooth length at the target positions.
+
+        Parameters
+        ----------
+        target_pos : ndarray, shape (m, 3)
+            Positions at which to evaluate the half-smooth length.
+        **kwargs : dict
+            Additional arguments passed to the internal method.
+
+        Returns
+        -------
+        numpy.ndarray
+            Estimated half-smooth length values.
+        """
+        pass
+
+    @abstractmethod
     def get_parameter(self, target_pos, **kwargs):
         """
         Estimate the parameter value at the target positions.

@@ -64,7 +64,7 @@ extensions = cythonize([
     Extension(
         name="gal3d.point.density_estimator_plugins.compute_pa_cy",
         sources=["src/gal3d/point/density_estimator_plugins/compute_pa_cy.pyx"],
-        include_dirs=[numpy.get_include()],
+        include_dirs=[numpy.get_include(), "src/gal3d/point/density_estimator_plugins"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",

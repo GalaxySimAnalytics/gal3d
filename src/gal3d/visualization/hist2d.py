@@ -225,7 +225,7 @@ def show_image(
         scale = "log"
 
     if scale == "log":
-        vmin = vmin or np.min(imageData[imageData > 0])
+        vmin = vmin or np.percentile(imageData[imageData > 0], 1)
         vmax = vmax or np.max(imageData[imageData > 0])
         cont_color = colors.LogNorm(vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "symlog":

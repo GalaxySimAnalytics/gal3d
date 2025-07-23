@@ -73,8 +73,11 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
     @cached_property
     def parameter(self):
-        '''Cached property that returns the parameter values at the input positions.'''
-        return self.get_parameter(self.pos)
+        '''Cached property that returns the parameter values at the input positions, and caches hsm.'''
+        target_pos = self.pos
+        query_options = self._tree_query_options
+        n_d, n_index = self.tree.query(target_pos, **query_options)
+        return self._cal_pa(n_d, n_index, **query_options)
 
     @cached_property
     def gradient(self):
@@ -84,7 +87,6 @@ class DensityEstimatorKNN(DensityEstimatorBase):
     @cached_property
     def hsm(self):
         """Cached property that returns the half-smooth length at the input positions."""
-
         return self.get_hsm(self.pos)
 
     def get_hsm(self, target_pos, **kwargs):
@@ -107,7 +109,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
         n_d, n_index = self.tree.query(target_pos, **query_options)
 
-        return n_d[:,-1]/2
+        return n_d[:,-1] / 2.
 
     def get_parameter(self, target_pos, **kwargs):
         '''
@@ -199,7 +201,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         '''
         return cal_pa(n_d.astype(np.float64),
             n_index.astype(np.int32),
-            self.mass.astype(np.float64), self.pa_mode, kwargs.get('distance_upper_bound', np.inf))
+            self.mass.astype(np.float64), self.hsm.astype(np.float64))
 
     def __generate_kd_options(self, k_nearest, r_cut, **kwargs):
         '''

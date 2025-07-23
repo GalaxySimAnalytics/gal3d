@@ -90,19 +90,24 @@ extern "C" void IntersectRaysEllipsoid_S_cpp(
         // Calculate ray direction
         double L = std::sqrt(x*x + y*y + z*z);
         double xi = x / L, yi = y / L, zi = z / L;
-        double x2 = xi*xi, y2 = yi*yi, z2 = zi*zi;
+        double xi2 = xi*xi, yi2 = yi*yi, zi2 = zi*zi;
 
-        double Ex = std::pow(x2*inv_a2, Sa);
-        double Ey = std::pow(y2*inv_b2, Sb);
-        double Ez = std::pow(z2*inv_c2, Sc);
+        double ex_base = xi2 * inv_a2;
+        double ey_base = yi2 * inv_b2;
+        double ez_base = zi2 * inv_c2;
+        double log_ex_base = std::log(ex_base);
+        double log_ey_base = std::log(ey_base);
+        double log_ez_base = std::log(ez_base);
 
         // Iteratively solve for intersection
         double d0 = initial_guess, d1;
         for (int it = 0; it < maxIterations; ++it) {
-            double dd = d0 * d0;
-            double ExddSa = Ex * std::pow(dd, Sa);
-            double EyddSb = Ey * std::pow(dd, Sb);
-            double EzddSc = Ez * std::pow(dd, Sc);
+            double log_dd = 2.0 * std::log(d0); // log(d0^2)
+
+            double ExddSa = std::exp(Sa * (log_ex_base + log_dd));
+            double EyddSb = std::exp(Sb * (log_ey_base + log_dd));
+            double EzddSc = std::exp(Sc * (log_ez_base + log_dd));
+            
             double f = ExddSa + EyddSb + EzddSc - 1.0;
             double df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0;
             d1 = d0 - f / df;
@@ -133,18 +138,26 @@ extern "C" void f_ray_shaped_ellipsoid_cpp(
     for (int i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = std::sqrt(x*x + y*y + z*z);
+
         double xi = x / L, yi = y / L, zi = z / L;
-        double Ex = std::pow((xi*xi)*inv_a2, Sa);
-        double Ey = std::pow((yi*yi)*inv_b2, Sb);
-        double Ez = std::pow((zi*zi)*inv_c2, Sc);
-        
+        double xi2 = xi*xi, yi2 = yi*yi, zi2 = zi*zi;
+
+        double ex_base = xi2 * inv_a2;
+        double ey_base = yi2 * inv_b2;
+        double ez_base = zi2 * inv_c2;
+        double log_ex_base = std::log(ex_base);
+        double log_ey_base = std::log(ey_base);
+        double log_ez_base = std::log(ez_base);
+
 
         double d0 = initial_guess, d1;
         for (int it = 0; it < maxIterations; ++it) {
-            double dd = d0 * d0;
-            double ExddSa = Ex * std::pow(dd, Sa);
-            double EyddSb = Ey * std::pow(dd, Sb);
-            double EzddSc = Ez * std::pow(dd, Sc);
+            double log_dd = 2.0 * std::log(d0); // log(d0^2)
+
+            double ExddSa = std::exp(Sa * (log_ex_base + log_dd));
+            double EyddSb = std::exp(Sb * (log_ey_base + log_dd));
+            double EzddSc = std::exp(Sc * (log_ez_base + log_dd));
+
             double f = ExddSa + EyddSb + EzddSc - 1.0;
             double df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0;
             d1 = d0 - f / df;

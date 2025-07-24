@@ -179,7 +179,7 @@ class EulerShift(CoordinateBase):
         numpy.ndarray
             The transformed positions.
         """
-        pc = np.float64([x, y, z])
+        pc = np.asarray([x, y, z], dtype=np.float64)
 
         rot_matrix = EulerAngles.from_euler(
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]

@@ -174,20 +174,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] f_ray_ellipsoid(double a, double b, doubl
             y = pos[i, 1]
             z = pos[i, 2]
             
-            Li = sqrt(x*x + y*y + z*z)
-            
-            # Avoid division by zero
-            if Li == 0.0:
-                r[i] = 0.0
-                continue
-                
-            xi = x / Li
-            yi = y / Li
-            zi = z / Li
-            
-            denom = (xi / a) ** 2 + (yi / b) ** 2 + (zi / c) ** 2
-            di = sqrt(1.0 / denom)
-            r[i] = Li / di
+            r[i] = sqrt(x*x/(a*a) + y*y/(b*b) + z*z/(c*c))
     else:
         
         for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
@@ -195,20 +182,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] f_ray_ellipsoid(double a, double b, doubl
             y = pos[i, 1]
             z = pos[i, 2]
 
-            Li = sqrt(x*x + y*y + z*z)
-
-            # Avoid division by zero
-            if Li == 0.0:
-                r[i] = 0.0
-                continue
-
-            xi = x / Li
-            yi = y / Li
-            zi = z / Li
-
-            denom = (xi / a) ** 2 + (yi / b) ** 2 + (zi / c) ** 2
-            di = sqrt(1.0 / denom)
-            r[i] = Li / di
+            r[i] = sqrt(x*x/(a*a) + y*y/(b*b) + z*z/(c*c))
 
     return r
 

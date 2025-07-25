@@ -2,22 +2,45 @@ import logging
 from typing import Callable
 
 import numpy as np
-from scipy.signal import savgol_filter
 
-from .monotonic_profile import SG_Mono, LU_Mono, judge_monoton
-
+from .lu_mono import LU_Mono
 
 logger = logging.getLogger('gal3d.preprocessing.ray.ray_profile')
 
 
+def judge_monoton(x, is_decreasing: bool = True) -> bool:
+    '''
+    Judge whether the array `x` is monotonically decreasing or increasing.
+
+    Parameters
+    ----------
+    x : array_like
+        The input array to be checked for monotonicity.
+    is_decreasing : bool, optional
+        If True, checks for monotonically decreasing. If False, checks for monotonically increasing.
+        Default is True.
+
+    Returns
+    -------
+    bool
+        True if `x` is monotonic (either decreasing or increasing based on `is_decreasing`), False otherwise.
+    '''
+
+    if is_decreasing:
+        judge_mono = all(np.diff(x) < 0)
+    else:
+        judge_mono = all(np.diff(x) > 0)
+
+    return judge_mono
+
 class MonotonRay:
-    _interpolator_method = {'LU': LU_Mono, 'SG': SG_Mono}
+    _interpolator_method = {}
 
     def __init__(
         self,
         r,
         f,
-        f_de=True,
+        is_decreasing=True,
         interpolator_method: str = 'LU',
         interpolator_kwargs: dict = dict(),
         **kwargs,
@@ -31,12 +54,11 @@ class MonotonRay:
             A 1-D array of monotonically increasing real values.
         f : 1-D array
             A 1-D array of real values, must be of the same length as `r`.
-        f_de : bool, optional
+        is_decreasing : bool, optional
             If True, the function f(r) is assumed to be monotonically decreasing. Default is True.
-        interpolator_method : {'LU', 'SG'}, optional
+        interpolator_method : {'LU'}, optional
             Determines the method used to smooth f(r).
             - 'LU': Uses the median of lower and upper values.
-            - 'SG': Uses the Savitzky-Golay filter.
             Default is 'LU'.
         interpolator_kwargs : dict, optional
             Additional keyword arguments to pass to the interpolator. Default is an empty dictionary.
@@ -57,9 +79,6 @@ class MonotonRay:
         - If using `smooth_mode='LU'`, the function first calculates (r_upper, f_upper) and (r_lower, f_lower),
           then interpolates them. The median value `f_median = (f_upper + f_lower)/2` is used as the smoothed
           function, and the error at each point `r` can be obtained from `f_lower` and `f_upper`.
-        - If using `smooth_mode='SG'`, the function first applies the Savitzky-Golay filter to make `f` monotonic,
-          then interpolates. The smoothed function `f_smooth` is used, and the error at each point `r` can be
-          obtained from the ratio `f/f_smooth`.
 
         Raises
         ------
@@ -68,11 +87,11 @@ class MonotonRay:
         '''
 
         # r must be increasing
-        if not judge_monoton(r, mono_de=False):
+        if not judge_monoton(r, is_decreasing=False):
             raise ValueError(f"'r' must be strictly increasing sequence.")
         interpolator = self._interpolator_method[interpolator_method]
 
-        self._interpolator = interpolator(r, f, y_de=f_de, **interpolator_kwargs)
+        self._interpolator = interpolator(r, f, is_decreasing=is_decreasing, **interpolator_kwargs)
 
     def __call__(self, value, inv=False):
         '''
@@ -151,7 +170,5 @@ class MonotonRay:
         return decorator
 
 
-from .monotonic_profile import SG_Mono, LU_Mono
 
-MonotonRay.interpolator_registry('SG')(SG_Mono)
 MonotonRay.interpolator_registry('LU')(LU_Mono)

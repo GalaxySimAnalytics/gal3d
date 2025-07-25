@@ -8,7 +8,7 @@ from scipy.interpolate import PchipInterpolator, Akima1DInterpolator
 logger = logging.getLogger('gal3d.preprocessing.ray.util')
 
 
-def judge_monoton(x, mono_de: bool = True) -> bool:
+def judge_monoton(x, is_decreasing: bool = True) -> bool:
     '''
     Judge whether the array `x` is monotonically decreasing or increasing.
 
@@ -16,17 +16,17 @@ def judge_monoton(x, mono_de: bool = True) -> bool:
     ----------
     x : array_like
         The input array to be checked for monotonicity.
-    mono_de : bool, optional
+    is_decreasing : bool, optional
         If True, checks for monotonically decreasing. If False, checks for monotonically increasing.
         Default is True.
 
     Returns
     -------
     bool
-        True if `x` is monotonic (either decreasing or increasing based on `mono_de`), False otherwise.
+        True if `x` is monotonic (either decreasing or increasing based on `is_decreasing`), False otherwise.
     '''
 
-    if mono_de:
+    if is_decreasing:
         judge_mono = all(np.diff(x) < 0)
     else:
         judge_mono = all(np.diff(x) > 0)

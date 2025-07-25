@@ -136,7 +136,7 @@ class SphField:
 
     @timing
     def build_profile_interpolator(
-        self, interpolator_method='LU', f_de=True, interpolator_kwargs=dict(), **kwargs
+        self, interpolator_method='LU', is_decreasing=True, interpolator_kwargs=dict(), **kwargs
     ):
         '''
         Build interpolators for the sampled points.
@@ -145,7 +145,7 @@ class SphField:
         ----------
         interpolator_method : str, optional
             The method used for interpolation. Default is 'LU'.
-        f_de : bool, optional
+        is_decreasing : bool, optional
             Whether to use density estimation. Default is True.
         interpolator_kwargs : dict, optional
             Additional keyword arguments for the interpolator. Default is an empty dictionary.
@@ -156,7 +156,7 @@ class SphField:
             MonotonRay(
                 self.points_r[i],
                 self.points_parameter[i],
-                f_de=f_de,
+                is_decreasing=is_decreasing,
                 interpolator_method=interpolator_method,
                 interpolator_kwargs=interpolator_kwargs,
                 **kwargs,

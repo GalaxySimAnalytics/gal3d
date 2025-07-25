@@ -69,6 +69,21 @@ extensions = cythonize([
         extra_link_args=extra_link_args,
         language="c++",
     ),
+    Extension(
+        name="gal3d.field.spherical_field.ray.lu_mono",
+        sources=[
+            "src/gal3d/field/spherical_field/ray/lu_mono.pyx",
+            "src/gal3d/field/spherical_field/ray/pchip.cpp"
+        ],
+        include_dirs=[
+            numpy.get_include(),
+            "src/gal3d/field/spherical_field/ray"
+        ],
+        language="c++",
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args,
+        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
+    ),
 ],
     compiler_directives={'language_level': "3",
                          'boundscheck': False,

@@ -3,13 +3,16 @@ import logging
 
 import numpy as np
 
+
+from .lu_mono import MyPchipInterpolator
+
 from .util import (
     savgol_filter,
     sg_smooth,
     sg_smooth_tomono,
     judge_monoton,
     sg_smooth_throw,
-    MyPchipInterpolator,
+    #MyPchipInterpolator,
     MyAkima1DInterpolator,
     resample_1D,
 )
@@ -164,7 +167,7 @@ class LU_Mono:
         The independent variable values.
     y : array-like
         The dependent variable values.
-    y_de : bool, optional
+    is_decreasing : bool, optional
         If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
     interpolate_mode : str, optional
         The interpolation mode to use. Options are 'Pchip' and 'Akima'. Default is 'Pchip'.
@@ -187,12 +190,12 @@ class LU_Mono:
         The inverse interpolation function for the upper bound.
     """
 
-    def __init__(self, x, y, y_de=True, interpolate_mode='Pchip', re_sample_ord=0):
+    def __init__(self, x, y, is_decreasing=True, interpolate_mode='Pchip', re_sample_ord=0):
         INTERPOLATE = {'Pchip': MyPchipInterpolator, 'Akima': MyAkima1DInterpolator}
         interpolate = INTERPOLATE[interpolate_mode]
 
         # Use boundary calculation
-        lo, up = self.profile_boundary(y, mono_de=y_de)
+        lo, up = self.profile_boundary(y, is_decreasing=is_decreasing)
         
         # Create interpolators with pre-filtered data
         x_lo, y_lo = x[lo], y[lo]
@@ -250,13 +253,13 @@ class LU_Mono:
         self.f_value = interpolate(new_x, new_y, extrapolate=False)
         
         # Compute inverse functions
-        self.inv_f_value = inverse_interpolate(new_y, new_x, y_de, interpolate, extrapolate=False)
-        self.inv_f_lower = inverse_interpolate(y_lo, x_lo, y_de, interpolate, extrapolate=False)
-        self.inv_f_upper = inverse_interpolate(y_up, x_up, y_de, interpolate, extrapolate=False)
+        self.inv_f_value = inverse_interpolate(new_y, new_x, is_decreasing, interpolate, extrapolate=False)
+        self.inv_f_lower = inverse_interpolate(y_lo, x_lo, is_decreasing, interpolate, extrapolate=False)
+        self.inv_f_upper = inverse_interpolate(y_up, x_up, is_decreasing, interpolate, extrapolate=False)
 
 
     @staticmethod
-    def profile_boundary(y, mono_de=True):
+    def profile_boundary(y, is_decreasing=True):
         """
         Determine the lower and upper boundaries of the profile.
 
@@ -264,7 +267,7 @@ class LU_Mono:
         ----------
         y : array-like
             The dependent variable values.
-        mono_de : bool, optional
+        is_decreasing : bool, optional
             If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
 
         Returns
@@ -291,7 +294,7 @@ class LU_Mono:
                     sel[idx] = True
             return sel[::-1]
 
-        if mono_de:
+        if is_decreasing:
             data = y
             upper = sel_upper(data)
             lower = sel_lower(data)

@@ -70,9 +70,9 @@ extensions = cythonize([
         language="c++",
     ),
     Extension(
-        name="gal3d.field.spherical_field.ray.lu_mono",
+        name="gal3d.field.spherical_field.ray.lu_mono_cy",
         sources=[
-            "src/gal3d/field/spherical_field/ray/lu_mono.pyx",
+            "src/gal3d/field/spherical_field/ray/lu_mono_cy.pyx",
             "src/gal3d/field/spherical_field/ray/pchip.cpp"
         ],
         include_dirs=[

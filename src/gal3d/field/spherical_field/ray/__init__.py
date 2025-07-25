@@ -3,7 +3,7 @@ from typing import Callable
 
 import numpy as np
 
-from .lu_mono import LU_Mono
+from .lu_mono_cy import LU_Mono
 
 logger = logging.getLogger('gal3d.preprocessing.ray.ray_profile')
 

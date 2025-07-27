@@ -75,7 +75,7 @@ class Gal3DAnalyzer:
             hsm = particle.hsm
             d_in = np.median(hsm)-3*np.std(hsm)
             d_ou = np.median(hsm)+3*np.std(hsm)
-            res_r = np.mean(hsm[(hsm>d_in) & (hsm<d_ou)]) * 1.1
+            res_r = np.mean(hsm[(hsm>d_in) & (hsm<d_ou)]) * 0.55
         else:
             res_r = kwargs["res_r"]
 

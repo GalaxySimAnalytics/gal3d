@@ -109,7 +109,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
         n_d, n_index = self.tree.query(target_pos, **query_options)
 
-        return n_d[:,-1] / 2.
+        return n_d[:,-1]
 
     def get_parameter(self, target_pos, **kwargs):
         '''

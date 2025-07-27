@@ -39,7 +39,6 @@ def show_data_model(
             rotation_matrix=rotation_matrix,
             x_range=x_range,
             y_range=y_range,
-            z_range=z_range,
             nbins=nbins,
         )
     else:

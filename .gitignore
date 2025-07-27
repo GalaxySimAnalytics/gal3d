@@ -10,7 +10,6 @@ src/gal3d.egg-info
 **/__pycache__
 
 **/gal3d.log
-**/*.c
 **/*.so
 **/*cy.cpp
 

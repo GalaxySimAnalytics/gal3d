@@ -15,7 +15,7 @@ np.import_array()
 ctypedef np.float64_t DTYPE_t
 
 
-cdef extern from "ellipsoid_s.hpp":
+cdef extern from "ellipsoid_s.h":
     void f_shaped_ellipsoid_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n, double* result, int num_threads) nogil
@@ -31,7 +31,7 @@ def f_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, doubl
                                &result[0], num_threads)
     return result
 
-cdef extern from "ellipsoid_s.hpp":
+cdef extern from "ellipsoid_s.h":
     void f_shaped_ellipsoid_jacobian_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n,
@@ -65,7 +65,7 @@ def f_shaped_ellipsoid_jacobian(double a, double b, double c, double Sa, double 
     return (da, db, dc, dSa, dSb, dSc, dx, dy, dz)
 
 
-cdef extern from "ellipsoid_s.hpp":
+cdef extern from "ellipsoid_s.h":
     void IntersectRaysEllipsoid_S_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n, int maxIterations,
@@ -87,7 +87,7 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
 
 
 
-cdef extern from "ellipsoid_s.hpp":
+cdef extern from "ellipsoid_s.h":
     void f_ray_shaped_ellipsoid_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n, int maxIterations,
@@ -104,7 +104,7 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                                &result[0], num_threads)
     return result
 
-cdef extern from "ellipsoid_s.hpp":
+cdef extern from "ellipsoid_s.h":
     void IntersectLinesEllipsoid_S_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos1, const double* pos2, int n, int maxIterations,

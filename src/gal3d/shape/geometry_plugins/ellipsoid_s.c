@@ -1,10 +1,9 @@
-#include "ellipsoid_s.hpp"
-#include <cmath>
-#include <algorithm>
+#include "ellipsoid_s.h"
+#include <math.h>
 #include <omp.h>
 
 
-extern "C" void f_shaped_ellipsoid_cpp(
+void f_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, double* result, int num_threads)
 {
@@ -22,12 +21,12 @@ extern "C" void f_shaped_ellipsoid_cpp(
         double h1 = x * x * inv_a2;
         double h2 = y * y * inv_b2;
         double h3 = z * z * inv_c2;
-        result[i] = std::pow(h1, Sa) + std::pow(h2, Sb) + std::pow(h3, Sc);
+        result[i] = pow(h1, Sa) + pow(h2, Sb) + pow(h3, Sc);
     }
 }
 
 
-extern "C" void f_shaped_ellipsoid_jacobian_cpp(
+void f_shaped_ellipsoid_jacobian_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n,
     double* da, double* db, double* dc,
@@ -50,15 +49,14 @@ extern "C" void f_shaped_ellipsoid_jacobian_cpp(
         double h2 = y * y * inv_b2;
         double h3 = z * z * inv_c2;
 
-        double log_h1 = std::log(h1);
-        double log_h2 = std::log(h2);
-        double log_h3 = std::log(h3);
+        double log_h1 = log(h1);
+        double log_h2 = log(h2);
+        double log_h3 = log(h3);
 
-        double h1_Sa = std::exp(Sa * log_h1);
-        double h2_Sb = std::exp(Sb * log_h2);
-        double h3_Sc = std::exp(Sc * log_h3);
+        double h1_Sa = exp(Sa * log_h1);
+        double h2_Sb = exp(Sb * log_h2);
+        double h3_Sc = exp(Sc * log_h3);
 
-        
         da[i]  = -2.0 * h1_Sa * Sa / a;
         db[i]  = -2.0 * h2_Sb * Sb / b;
         dc[i]  = -2.0 * h3_Sc * Sc / c;
@@ -77,13 +75,13 @@ extern "C" void f_shaped_ellipsoid_jacobian_cpp(
 
 
 // Helper function for ray-ellipsoid intersection Newton iteration
-inline double solve_ray_shaped_ellipsoid(
+double solve_ray_shaped_ellipsoid(
     double x, double y, double z,
     double a, double b, double c,
     double Sa, double Sb, double Sc,
     int maxIterations, double epsilon)
 {
-    double L = std::sqrt(x*x + y*y + z*z);
+    double L = sqrt(x*x + y*y + z*z);
     double xi = x / L, yi = y / L, zi = z / L;
     double xi2 = xi*xi, yi2 = yi*yi, zi2 = zi*zi;
 
@@ -96,27 +94,27 @@ inline double solve_ray_shaped_ellipsoid(
     double ex_base = xi2 * inv_a2;
     double ey_base = yi2 * inv_b2;
     double ez_base = zi2 * inv_c2;
-    double log_ex_base = std::log(ex_base);
-    double log_ey_base = std::log(ey_base);
-    double log_ez_base = std::log(ez_base);
+    double log_ex_base = log(ex_base);
+    double log_ey_base = log(ey_base);
+    double log_ez_base = log(ez_base);
 
     double d0 = initial_guess, d1;
     for (int it = 0; it < maxIterations; ++it) {
-        double log_dd = 2.0 * std::log(d0); // log(d0^2)
-        double ExddSa = std::exp(Sa * (log_ex_base + log_dd));
-        double EyddSb = std::exp(Sb * (log_ey_base + log_dd));
-        double EzddSc = std::exp(Sc * (log_ez_base + log_dd));
+        double log_dd = 2.0 * log(d0); // log(d0^2)
+        double ExddSa = exp(Sa * (log_ex_base + log_dd));
+        double EyddSb = exp(Sb * (log_ey_base + log_dd));
+        double EzddSc = exp(Sc * (log_ez_base + log_dd));
         double f = ExddSa + EyddSb + EzddSc - 1.0;
         double df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0;
         d1 = d0 - f / df;
-        if (std::abs(d1 - d0) < epsilon) break;
+        if (fabs(d1 - d0) < epsilon) break;
         d0 = d1;
     }
     return d0;
 }
 
 
-extern "C" void IntersectRaysEllipsoid_S_cpp(
+void IntersectRaysEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
     double* tarpos, double* result, int num_threads)
@@ -128,7 +126,7 @@ extern "C" void IntersectRaysEllipsoid_S_cpp(
     #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
-        double L = std::sqrt(x*x + y*y + z*z);
+        double L = sqrt(x*x + y*y + z*z);
         double xi = x / L, yi = y / L, zi = z / L;
 
         double d0 = solve_ray_shaped_ellipsoid(
@@ -144,7 +142,7 @@ extern "C" void IntersectRaysEllipsoid_S_cpp(
     }
 }
 
-extern "C" void f_ray_shaped_ellipsoid_cpp(
+void f_ray_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
     double* result, int num_threads)
@@ -156,7 +154,7 @@ extern "C" void f_ray_shaped_ellipsoid_cpp(
     #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
-        double L = std::sqrt(x*x + y*y + z*z);
+        double L = sqrt(x*x + y*y + z*z);
         double xi = x / L, yi = y / L, zi = z / L;
 
         double d0 = solve_ray_shaped_ellipsoid(
@@ -176,7 +174,7 @@ struct EllipsoidIntersectResult {
 };
 
 // Helper for Newton-Raphson intersection along a line segment
-inline EllipsoidIntersectResult newton_intersect_ellipsoid(
+struct EllipsoidIntersectResult newton_intersect_ellipsoid(
     double x1, double y1, double z1,
     double vx, double vy, double vz,
     double inv_a2, double inv_b2, double inv_c2,
@@ -195,13 +193,13 @@ inline EllipsoidIntersectResult newton_intersect_ellipsoid(
         posiz = z1 + t * vz;
 
         // Calculate ellipsoid function terms
-        Ex = std::pow((posix * posix) * inv_a2, Sa);
-        Ey = std::pow((posiy * posiy) * inv_b2, Sb);
-        Ez = std::pow((posiz * posiz) * inv_c2, Sc);
+        Ex = pow((posix * posix) * inv_a2, Sa);
+        Ey = pow((posiy * posiy) * inv_b2, Sb);
+        Ez = pow((posiz * posiz) * inv_c2, Sc);
 
         // Check if converged
         f = Ex + Ey + Ez - 1.0;
-        if (std::abs(f) < epsilon) break;
+        if (fabs(f) < epsilon) break;
 
         // Calculate gradient components
         df_x = (posix == 0) ? 0.0 : Ex * Sa * vx / posix;
@@ -214,23 +212,27 @@ inline EllipsoidIntersectResult newton_intersect_ellipsoid(
 
         // apply adaptive limit when near target pos
         if (f < 2.0) {
-            delta = std::min(delta_cut, std::max(-delta_cut, delta));
+            if (delta > delta_cut) delta = delta_cut;
+            if (delta < -delta_cut) delta = -delta_cut;
         }
         t += delta;
-        if (std::abs(delta) < epsilon) break;
+        if (fabs(delta) < epsilon) break;
     }
     posix = x1 + t * vx;
     posiy = y1 + t * vy;
     posiz = z1 + t * vz;
-    Ex = std::pow((posix * posix) * inv_a2, Sa);
-    Ey = std::pow((posiy * posiy) * inv_b2, Sb);
-    Ez = std::pow((posiz * posiz) * inv_c2, Sc);
+    Ex = pow((posix * posix) * inv_a2, Sa);
+    Ey = pow((posiy * posiy) * inv_b2, Sb);
+    Ez = pow((posiz * posiz) * inv_c2, Sc);
     f = Ex + Ey + Ez - 1.0;
 
-    return {t, f};
+    struct EllipsoidIntersectResult res;
+    res.t = t;
+    res.f = f;
+    return res;
 }
 
-extern "C" void IntersectLinesEllipsoid_S_cpp(
+void IntersectLinesEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos1, const double* pos2, int n, int maxIterations,
     double* ts, int num_threads)
@@ -250,7 +252,7 @@ extern "C" void IntersectLinesEllipsoid_S_cpp(
         double x1 = pos1[i*3+0], y1 = pos1[i*3+1], z1 = pos1[i*3+2];
         double x2 = pos2[i*3+0], y2 = pos2[i*3+1], z2 = pos2[i*3+2];
         double vx = x2 - x1, vy = y2 - y1, vz = z2 - z1;
-        double vlen = std::sqrt(vx*vx + vy*vy + vz*vz);
+        double vlen = sqrt(vx*vx + vy*vy + vz*vz);
         if (vlen == 0) {
             ts[i*2+0] = -1;
             ts[i*2+1] = -1;
@@ -260,35 +262,35 @@ extern "C" void IntersectLinesEllipsoid_S_cpp(
         double tmax = vlen;
 
         // First intersection (t0)
-        EllipsoidIntersectResult res0 = newton_intersect_ellipsoid(
+        struct EllipsoidIntersectResult res0 = newton_intersect_ellipsoid(
                         x1, y1, z1, vx, vy, vz,
                         inv_a2, inv_b2, inv_c2,
                         Sa, Sb, Sc,
                         epsilon, delta_cut, epsilon, maxIterations);
 
         // Second intersection (t1)
-        EllipsoidIntersectResult res1 = newton_intersect_ellipsoid(
+        struct EllipsoidIntersectResult res1 = newton_intersect_ellipsoid(
             x1, y1, z1, vx, vy, vz,
             inv_a2, inv_b2, inv_c2,
             Sa, Sb, Sc,
             tmax, delta_cut, epsilon, maxIterations);
 
         // Intersection result logic
-        if (std::abs(res0.t - res1.t) <= ten_epsilon) {
-            if ((std::abs(res0.f) < ten_epsilon) || (std::abs(res1.f) < ten_epsilon)) {
+        if (fabs(res0.t - res1.t) <= ten_epsilon) {
+            if ((fabs(res0.f) < ten_epsilon) || (fabs(res1.f) < ten_epsilon)) {
                 // Single intersection point (tangent)
                 ts[i*2+0] = res0.t;
                 ts[i*2+1] = res1.t;
             }
-        } else if ((std::abs(res0.f) <= ten_epsilon) && (std::abs(res1.f) <= ten_epsilon)) {
+        } else if ((fabs(res0.f) <= ten_epsilon) && (fabs(res1.f) <= ten_epsilon)) {
             // Two distinct intersection points
             ts[i*2+0] = res0.t;
             ts[i*2+1] = res1.t;
-        } else if (std::abs(res0.f) <= ten_epsilon) {
+        } else if (fabs(res0.f) <= ten_epsilon) {
             // First point converged, second didn't
             ts[i*2+0] = res0.t;
             ts[i*2+1] = res0.t + 0.6 * (res1.t - res0.t);
-        } else if (std::abs(res1.f) <= ten_epsilon) {
+        } else if (fabs(res1.f) <= ten_epsilon) {
             // Second point converged, first didn't
             ts[i*2+1] = res1.t;
             ts[i*2+0] = res0.t + 0.4 * (res1.t - res0.t);

@@ -1,10 +1,14 @@
-#pragma once
+#ifndef ELLIPSOID_S_H
+#define ELLIPSOID_S_H
 
-extern "C" void f_shaped_ellipsoid_cpp(
+#ifdef __cplusplus
+extern "C" {
+#endif
+void f_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, double* result, int num_threads);
 
-extern "C" void f_shaped_ellipsoid_jacobian_cpp(
+void f_shaped_ellipsoid_jacobian_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n,
     double* da, double* db, double* dc,
@@ -12,17 +16,23 @@ extern "C" void f_shaped_ellipsoid_jacobian_cpp(
     double* dx, double* dy, double* dz,
     int num_threads);
 
-extern "C" void IntersectRaysEllipsoid_S_cpp(
+void IntersectRaysEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
     double* tarpos, double* result, int num_threads);
 
-extern "C" void f_ray_shaped_ellipsoid_cpp(
+void f_ray_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
     double* result, int num_threads);
 
-extern "C" void IntersectLinesEllipsoid_S_cpp(
+void IntersectLinesEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos1, const double* pos2, int n, int maxIterations,
     double* ts, int num_threads);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

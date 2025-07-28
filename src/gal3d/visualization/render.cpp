@@ -1,38 +1,47 @@
 #include "render.hpp"
+#include <cstdio>
 
-std::vector<double> CubicSplineSmoothingKernel::density_table;
-std::vector<double> CubicSplineSmoothingKernel::column_table;
+template<typename T>
+std::vector<T> CubicSplineSmoothingKernel<T>::density_table;
 
-Grid::Grid(double xmin_, double ymin_, double xmax_, double ymax_, int nx_, int ny_)
+template<typename T>
+std::vector<T> CubicSplineSmoothingKernel<T>::column_table;
+
+template<typename T>
+Grid<T>::Grid(T xmin_, T ymin_, T xmax_, T ymax_, int nx_, int ny_)
     : xmin(xmin_), ymin(ymin_), xmax(xmax_), ymax(ymax_), nx(nx_), ny(ny_) {
     dx = (xmax - xmin) / nx;
     dy = (ymax - ymin) / ny;
     dxdy = dx * dy;
-    xcenter0 = xmin + 0.5 * dx; // 初始化
+    xcenter0 = xmin + 0.5 * dx; // Initialize
     ycenter0 = ymin + 0.5 * dy;
     inv_dxdy = 1.0 / dxdy;
-    qty.resize(ny, std::vector<double>(nx, 0.0));
+    qty.resize(nx * ny, 0.0);
 }
 
-void Grid::add_qty(double px, double py, double pqty) {
+template<typename T>
+void Grid<T>::add_qty(T px, T py, T pqty) {
     int ix = int((px - xmin) / dx);
     int iy = int((py - ymin) / dy);
     if (ix >= 0 && ix < nx && iy >= 0 && iy < ny) {
-        qty[iy][ix] += pqty * inv_dxdy;
+        qty[iy * nx + ix] += pqty * inv_dxdy;
     }
 }
 
-CubicSplineSmoothingKernel::CubicSplineSmoothingKernel() {
+template<typename T>
+CubicSplineSmoothingKernel<T>::CubicSplineSmoothingKernel() {
     if (density_table.empty() || column_table.empty()) {
         init_table();
     }
 }
 
-double CubicSplineSmoothingKernel::operator()(double r) const {
+template<typename T>
+T CubicSplineSmoothingKernel<T>::operator()(T r) const {
     return density(r);
 }
 
-double CubicSplineSmoothingKernel::density(double r) {
+template<typename T>
+T CubicSplineSmoothingKernel<T>::density(T r) {
     if (r < 0.0 || r >= 1.0) return 0.0;
     if (r < 0.5)
         return 8.0 / M_PI * (1.0 - 6.0 * r * r * (1.0 - r));
@@ -40,225 +49,248 @@ double CubicSplineSmoothingKernel::density(double r) {
         return 8.0 / M_PI * 2.0 * pow(1.0 - r, 3);
 }
 
-double CubicSplineSmoothingKernel::columnDensity(double R) {
+template<typename T>
+T CubicSplineSmoothingKernel<T>::columnDensity(T R) {
     if (R < 0.0 || R >= 1.0) return 0.0;
-    double R2 = R * R;
+    T R2 = R * R;
     if (R < 1e-6)
         return 6.0 / M_PI * (1.0 - 8.0 * std::log(2.0) * R2);
 
-    double s = std::sqrt((1.0 - R) * (1.0 + R));
+    T s = std::sqrt((1.0 - R) * (1.0 + R));
     if (R < 0.5) {
-        double t = std::sqrt((1.0 - 2.0 * R) * (1.0 + 2.0 * R));
-        double p1 = (4.0 + 26.0 * R2) * s;
-        double p2 = (1.0 + 26.0 * R2) * t;
-        double p3 = 18.0 * R2 * R2 * std::log(2.0 * R / (1.0 + t));
-        double p4 = 6.0 * R2 * (4.0 + R2) * std::log(2.0 * (1.0 + s) / (1.0 + t));
+        T t = std::sqrt((1.0 - 2.0 * R) * (1.0 + 2.0 * R));
+        T p1 = (4.0 + 26.0 * R2) * s;
+        T p2 = (1.0 + 26.0 * R2) * t;
+        T p3 = 18.0 * R2 * R2 * std::log(2.0 * R / (1.0 + t));
+        T p4 = 6.0 * R2 * (4.0 + R2) * std::log(2.0 * (1.0 + s) / (1.0 + t));
         return 2.0 / M_PI * (p1 - p2 - p3 - p4);
     } else {
-        double p1 = (2.0 + 13.0 * R2) * s;
-        double p2 = 3.0 * R2 * (4.0 + R2) * std::log(R / (1.0 + s));
+        T p1 = (2.0 + 13.0 * R2) * s;
+        T p2 = 3.0 * R2 * (4.0 + R2) * std::log(R / (1.0 + s));
         return 4.0 / M_PI * (p1 + p2);
     }
 }
 
-double integrate_columnDensity(double x0, double x1, double y0, double y1, int Nx, int Ny, const CubicSplineSmoothingKernel& kernel) {
-    double dx = (x1 - x0) / Nx;
-    double dy = (y1 - y0) / Ny;
-    double sum = 0.0;
+template<typename T>
+T integrate_columnDensity(T x0, T x1, T y0, T y1, int Nx, int Ny, const CubicSplineSmoothingKernel<T>& kernel) {
+    T dx = (x1 - x0) / Nx;
+    T dy = (y1 - y0) / Ny;
+    T sum = 0.0;
     for (int i = 0; i < Nx; ++i) {
-        double xi = x0 + (i + 0.5) * dx;
+        T xi = x0 + (i + 0.5) * dx;
         for (int j = 0; j < Ny; ++j) {
-            double yj = y0 + (j + 0.5) * dy;
-            double R = std::sqrt(xi * xi + yj * yj);
+            T yj = y0 + (j + 0.5) * dy;
+            T R = std::sqrt(xi * xi + yj * yj);
             sum += kernel.lookup_columnDensity(R);
         }
     }
     return sum * dx * dy;
 }
 
-
-void CubicSplineSmoothingKernel::init_table() {
+template<typename T>
+void CubicSplineSmoothingKernel<T>::init_table() {
     int n = int(1.0 / dr) + 1;
     density_table.resize(n);
     column_table.resize(n);
     for (int i = 0; i < n; ++i) {
-        double r = i * dr;
+        T r2 = T(i) * dr; // Uniform sampling of r2
+        T r = std::sqrt(r2);
         density_table[i] = density(r);
         column_table[i] = columnDensity(r);
     }
 }
-double CubicSplineSmoothingKernel::lookup_density(double r) {
+
+template<typename T>
+T CubicSplineSmoothingKernel<T>::lookup_density(T r) {
     if (r < 0.0 || r > 1.0) return 0.0;
     size_t idx = static_cast<size_t>(r / dr);
     if (idx >= density_table.size()) return 0.0;
     return density_table[idx];
 }
 
-double CubicSplineSmoothingKernel::lookup_columnDensity(double r) {
-    if (r < 0.0 || r > 1.0) return 0.0;
-    size_t idx = static_cast<size_t>(r / dr);
+template<typename T>
+inline T CubicSplineSmoothingKernel<T>::lookup_columnDensity(T R2) {
+    if (R2 <= 0.0 || R2 > 1.0) return 0.0;
+    size_t idx = static_cast<size_t>(R2 / dr);
     if (idx >= column_table.size()) return 0.0;
     return column_table[idx];
 }
 
-
-KernelSampler::KernelSampler(int nx, int ny, const CubicSplineSmoothingKernel& kernel_)
+template<typename T>
+KernelSampler<T>::KernelSampler(int nx, int ny, const CubicSplineSmoothingKernel<T>& kernel_)
     : grid(-1, -1, 1, 1, nx, ny), kernel(kernel_) {
     make_sample();
 }
 
-void KernelSampler::make_sample() {
+template<typename T>
+void KernelSampler<T>::make_sample() {
     for (int i = 0; i < grid.nx; ++i) {
         for (int j = 0; j < grid.ny; ++j) {
-            double x = grid.xmin + 0.5 * grid.dx + i * grid.dx;
-            double y = grid.ymin + 0.5 * grid.dy + j * grid.dy;
-            double R = std::sqrt(x * x + y * y);
-            grid.add_qty(x, y, kernel.lookup_columnDensity(R));
+            T x = grid.xmin + 0.5 * grid.dx + i * grid.dx;
+            T y = grid.ymin + 0.5 * grid.dy + j * grid.dy;
+            T R2 = x * x + y * y;
+            grid.add_qty(x, y, kernel.lookup_columnDensity(R2));
         }
     }
 }
 
-std::vector<std::vector<double>> KernelSampler::get_weights() const {
-    double total = 0.0;
-    for (const auto& row : grid.qty)
-        for (double v : row)
-            total += v;
-    std::vector<std::vector<double>> weights = grid.qty;
-    if (total > 0.0) {
-        for (auto& row : weights)
-            for (double& v : row)
-                v /= total;
-    }
+template<typename T>
+std::vector<std::vector<T>> KernelSampler<T>::get_weights() const {
+    T total = 0.0;
+    int nx = grid.nx, ny = grid.ny;
+    // First, sum up the total
+    for (T v : grid.qty) total += v;
+    // Split into 2D
+    std::vector<std::vector<T>> weights(ny, std::vector<T>(nx, 0.0));
+    for (int j = 0; j < ny; ++j)
+        for (int i = 0; i < nx; ++i)
+            weights[j][i] = (total > 0.0) ? (grid.qty[j * nx + i] / total) : 0.0;
     return weights;
 }
 
-
-RenderImage::RenderImage(double x_min, double x_max, double y_min, double y_max, int nx, int ny,
-                         const CubicSplineSmoothingKernel& kernel, int subsample_nx, int subsample_ny)
+template<typename T>
+RenderImage<T>::RenderImage(T x_min, T x_max, T y_min, T y_max, int nx, int ny,
+                         const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny)
     : image_grid(x_min, y_min, x_max, y_max, nx, ny),
       subsampler(subsample_nx, subsample_ny, kernel),
       subsample_weights(subsampler.get_weights()),
       do_subsample(!(subsample_nx <= 1 && subsample_ny <= 1))
 {}
 
-void RenderImage::add_particle(double x, double y, double mass, double hsml) {
+template<typename T>
+void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T>& qty) {
     int canvas_status = circle_vs_canvas(x, y, hsml);
 
-    // 0: 完全不在画布内
+    // 0: completely outside the canvas
     if (canvas_status == 0) return;
 
-    double dx = image_grid.dx;
-    double dy = image_grid.dy;
-    int x0 = static_cast<int>(std::floor((x - hsml - image_grid.xmin) / dx));
-    int x1 = static_cast<int>(std::ceil((x + hsml - image_grid.xmin) / dx));
-    int y0 = static_cast<int>(std::floor((y - hsml - image_grid.ymin) / dy));
-    int y1 = static_cast<int>(std::ceil((y + hsml - image_grid.ymin) / dy));
+    T dx = image_grid.dx;
+    T dy = image_grid.dy;
+    int x0 = int(std::floor((x - hsml - image_grid.xmin) / dx));
+    int x1 = int(std::floor((x + hsml - image_grid.xmin) / dx));
+    int y0 = int(std::floor((y - hsml - image_grid.ymin) / dy));
+    int y1 = int(std::floor((y + hsml - image_grid.ymin) / dy));
     int nx = x1 - x0 + 1;
     int ny = y1 - y0 + 1;
     int area_npix_part = nx * ny;
 
-    bool need_subsample = (do_subsample && (4 * subsampler.grid.nx * subsampler.grid.ny > area_npix_part));
+    if (canvas_status == 2 && area_npix_part == 1) {
+        //#pragma omp atomic
+        qty[x0 + y0 * image_grid.nx] += mass * image_grid.inv_dxdy;
+        return;
+    }
 
-    // 全在画布内,
+    bool need_subsample = (do_subsample && (subsampler.grid.nx * subsampler.grid.ny > 4 * area_npix_part));
+
+    // All inside
     if (canvas_status == 2) {
 
-        // 并只影响 1 个 pixel，直接加入
-        if (area_npix_part == 1) {
-            image_grid.add_qty(x, y, mass);
-            return;
-        }
 
-        // 不需要重采样，直接归一化计算对每一个pixel的贡献
+        // No need to resample, directly normalize and calculate the contribution to each pixel
         if (!need_subsample){
+            hsml = std::max(hsml, image_grid.dx + image_grid.dy);
+            T inv_hsml = 1.0 / hsml;
 
-            std::vector<std::vector<double>> vals(ny, std::vector<double>(nx, 0.0));
-            double total_val = 0.0;
+
+            std::vector<T> vals(nx * ny, 0.0);
+
+            T total_val = 0.0;
+
+            std::vector<T> dx_arr(nx);
+            for (int i = 0; i < nx; ++i)
+                dx_arr[i] = image_grid.xcenter0 + (x0 + i) * image_grid.dx - x;
 
             // 先计算所有 val 并累加
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    double i_x = image_grid.xcenter0 + (x0 + i) * image_grid.dx;
-                    double j_y = image_grid.ycenter0 + (y0 + j) * image_grid.dy;
-                    double val = CubicSplineSmoothingKernel::lookup_columnDensity(
-                        std::sqrt((i_x - x) * (i_x - x) + (j_y - y) * (j_y - y)) / hsml
+            for (int j = 0; j < ny; ++j) {
+                T i_y = image_grid.ycenter0 + (y0 + j) * image_grid.dy - y;
+                T iy2 = i_y * i_y;
+
+                int row_offset = j * nx;
+
+                for (int i = 0; i < nx; ++i) {
+                    T r2 = iy2 + dx_arr[i] * dx_arr[i];
+                    T val = CubicSplineSmoothingKernel<T>::lookup_columnDensity(
+                        r2 * inv_hsml * inv_hsml
                     );
-                    vals[j][i] = val;
+                    /* just lookup to table
+                    T val = CubicSplineSmoothingKernel<T>::columnDensity(
+                        std::sqrt(r2 * inv_hsml * inv_hsml)
+                    );
+                    */
+                    vals[row_offset + i] = val;
                     total_val += val;
                 }
             }
 
-            // 归一化并加到网格
+            // Normalize and add to the grid
             if (total_val > 0.0) {
-                #pragma omp parallel for collapse(2)
-                for (int i = 0; i < nx; ++i) {
-                    for (int j = 0; j < ny; ++j) {
+                for (int j = 0; j < ny; ++j) {
+                    int grid_j = y0 + j;
+                    for (int i = 0; i < nx; ++i) {
                         int grid_i = x0 + i;
-                        int grid_j = y0 + j;
-                        double norm_val = mass * vals[j][i] / total_val;
-                        /*
-                        理论上canvas_status == 2情况下 grid_i 和 grid_j 应该在 [0, image_grid.nx) 和 [0, image_grid.ny) 之间， 
-                        但是由于浮点误差 (我猜测)，一些特殊的情况下会超出范围
-                        所以在这里加了这个条件
-                        */
-                        if (grid_i >= 0 && grid_i < image_grid.nx && grid_j >= 0 && grid_j < image_grid.ny) {
-                            #pragma omp atomic
-                            image_grid.qty[grid_j][grid_i] += norm_val * image_grid.inv_dxdy;
-                        }
+                        T norm_val = mass * vals[j*nx + i] / total_val;
+                        qty[grid_j * image_grid.nx + grid_i] += norm_val * image_grid.inv_dxdy;
                     }
                 }
-            }
+            } 
             return;
         } else {
 
-            #pragma omp parallel for collapse(2)
-            for (int i = 0; i < subsampler.grid.nx; ++i) {
-                for (int j = 0; j < subsampler.grid.ny; ++j) {
-                    double xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
+            for (int j = 0; j < subsampler.grid.ny; ++j) {
+                T yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
+                for (int i = 0; i < subsampler.grid.nx; ++i) {
+                    T xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
                     int ix = int((xx - image_grid.xmin) / image_grid.dx);
-                    double yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
-                    double value = mass * subsample_weights[j][i];
                     int iy = int((yy - image_grid.ymin) / image_grid.dy);
-                    #pragma omp atomic
-                    image_grid.qty[iy][ix] += value * image_grid.inv_dxdy;
+                    T value = mass * subsample_weights[j][i];
+                    qty[iy * image_grid.nx + ix] += value * image_grid.inv_dxdy;
                 }
             }
         }
         
     } else {
-        // 部分在画布内
+        // Partially inside the canvas
 
-        // 不需要重采样，直接归一化计算对每一个pixel的贡献
+        // No need to resample, directly normalize and calculate the contribution to each pixel
         if (!need_subsample){
+            hsml = std::max(hsml, image_grid.dx + image_grid.dy);
+            T inv_hsml = 1.0 / hsml;
 
 
-            std::vector<std::vector<double>> vals(ny, std::vector<double>(nx, 0.0));
-            double total_val = 0.0;
+            std::vector<T> vals(nx * ny, 0.0);
+            T total_val = 0.0;
 
-            // 先计算所有 val 并累加
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    double i_x = image_grid.xcenter0 + (x0 + i) * image_grid.dx;
-                    double j_y = image_grid.ycenter0 + (y0 + j) * image_grid.dy;
-                    double val = CubicSplineSmoothingKernel::lookup_columnDensity(
-                        std::sqrt((i_x - x) * (i_x - x) + (j_y - y) * (j_y - y)) / hsml
+            std::vector<T> dx_arr(nx);
+            for (int i = 0; i < nx; ++i)
+                dx_arr[i] = image_grid.xcenter0 + (x0 + i) * image_grid.dx - x;
+
+            // First calculate all val and accumulate
+            for (int j = 0; j < ny; ++j) {
+                T i_y = image_grid.ycenter0 + (y0 + j) * image_grid.dy - y;
+                T iy2 = i_y * i_y;
+
+                int row_offset = j * nx;
+
+                for (int i = 0; i < nx; ++i) {
+                    T r2 = iy2 + dx_arr[i] * dx_arr[i];
+                    T val = CubicSplineSmoothingKernel<T>::lookup_columnDensity(
+                        r2 * inv_hsml * inv_hsml
                     );
-                    vals[j][i] = val;
+                    vals[row_offset + i] = val;
                     total_val += val;
                 }
             }
 
-            // 归一化并加到网格
+            // Normalize and add to the grid
             if (total_val > 0.0) {
-                #pragma omp parallel for collapse(2)
-                for (int i = 0; i < nx; ++i) {
-                    for (int j = 0; j < ny; ++j) {
+                for (int j = 0; j < ny; ++j) {
+                    int grid_j = y0 + j;
+                    for (int i = 0; i < nx; ++i) {
                         int grid_i = x0 + i;
-                        int grid_j = y0 + j;
-                        // 判断在网格内
+                        // Check if inside the grid
                         if (grid_i >= 0 && grid_i < image_grid.nx && grid_j >= 0 && grid_j < image_grid.ny) {
-                            double norm_val = mass * vals[j][i] / total_val;
-                            #pragma omp atomic
-                            image_grid.qty[grid_j][grid_i] += norm_val * image_grid.inv_dxdy;
+                            T norm_val = mass * vals[j*nx + i] / total_val;
+                            qty[grid_j * image_grid.nx + grid_i] += norm_val * image_grid.inv_dxdy;
                         }
                     }
                 }
@@ -268,17 +300,16 @@ void RenderImage::add_particle(double x, double y, double mass, double hsml) {
             
         } else {
 
-            #pragma omp parallel for collapse(2)
-            for (int i = 0; i < subsampler.grid.nx; ++i) {
-                for (int j = 0; j < subsampler.grid.ny; ++j) {
-                    double xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
+            for (int j = 0; j < subsampler.grid.ny; ++j) {
+                T yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
+                int iy = int((yy - image_grid.ymin) / image_grid.dy);
+                if (iy < 0 || iy >= image_grid.ny) continue;
+                for (int i = 0; i < subsampler.grid.nx; ++i) {
+                    T xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
                     int ix = int((xx - image_grid.xmin) / image_grid.dx);
-                    double yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
-                    int iy = int((yy - image_grid.ymin) / image_grid.dy);
-                    if (ix >= 0 && ix < image_grid.nx && iy >= 0 && iy < image_grid.ny) {
-                        double value = mass * subsample_weights[j][i];
-                        #pragma omp atomic
-                        image_grid.qty[iy][ix] += value * image_grid.inv_dxdy;
+                    if (ix >= 0 && ix < image_grid.nx) {
+                        T value = mass * subsample_weights[j][i];
+                        qty[iy * image_grid.nx + ix] += value * image_grid.inv_dxdy;
                     }
                 }
             }
@@ -288,29 +319,55 @@ void RenderImage::add_particle(double x, double y, double mass, double hsml) {
     }
 }
 
-void RenderImage::add_particle(const std::vector<double>& x,
-                               const std::vector<double>& y,
-                               const std::vector<double>& mass,
-                               const std::vector<double>& hsml) {
-    size_t n = x.size();
-    #pragma omp parallel for
-    for (size_t idx = 0; idx < n; ++idx) {
-        add_particle(x[idx], y[idx], mass[idx], hsml[idx]);
-    }
+template<typename T>
+void RenderImage<T>::add_particle(T x, T y, T mass, T hsml) {
+    add_particle_to_qty(x, y, mass, hsml, image_grid.qty);
 }
 
-int RenderImage::circle_vs_canvas(double x, double y, double hsml) const {
-    double x_min = x - hsml;
-    double x_max = x + hsml;
-    double y_min = y - hsml;
-    double y_max = y + hsml;
+template<typename T>
+void RenderImage<T>::add_particle(const std::vector<T>& x,
+                               const std::vector<T>& y,
+                               const std::vector<T>& mass,
+                               const std::vector<T>& hsml) {
+    size_t n = x.size();
+    int nthreads = 1;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        nthreads = omp_get_num_threads();
+    }
+    std::vector<std::vector<T>> thread_qty(nthreads, std::vector<T>(image_grid.nx * image_grid.ny, 0.0));
 
-    // 判断 x 方向有几个点在画布内
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        for (size_t idx = tid; idx < n; idx += nthreads) {
+            add_particle_to_qty(x[idx], y[idx], mass[idx], hsml[idx], thread_qty[tid]);
+        }
+    }
+    // Merge
+    for (int t = 0; t < nthreads; ++t)
+        for (size_t i = 0; i < image_grid.qty.size(); ++i)
+            image_grid.qty[i] += thread_qty[t][i];
+}
+
+
+
+template<typename T>
+int RenderImage<T>::circle_vs_canvas(T x, T y, T hsml) const {
+    T x_min = x - hsml;
+    T x_max = x + hsml;
+    T y_min = y - hsml;
+    T y_max = y + hsml;
+
+    // First, determine the relationship between the bounding square of the circle and the canvas,
+    // then further check if necessary.
+    // Check how many points in the x direction are inside the canvas
     int x_count_in = 0;
     if (x_min >= image_grid.xmin && x_min <= image_grid.xmax) x_count_in++;
     if (x_max >= image_grid.xmin && x_max <= image_grid.xmax) x_count_in++;
 
-    // 判断 y 方向有几个点在画布内
+    // Check how many points in the y direction are inside the canvas
     int y_count_in = 0;
     if (y_min >= image_grid.ymin && y_min <= image_grid.ymax) y_count_in++;
     if (y_max >= image_grid.ymin && y_max <= image_grid.ymax) y_count_in++;
@@ -318,25 +375,43 @@ int RenderImage::circle_vs_canvas(double x, double y, double hsml) const {
     int count_in = x_count_in * y_count_in;
 
     if (count_in == 0) {
-        //判断圆心是否在画布内
+        // Check if the center of the circle is inside the canvas
         if (x >= image_grid.xmin && x <= image_grid.xmax &&
             y >= image_grid.ymin && y <= image_grid.ymax)
             return 1;
         return 0;
     } else if (count_in == 4) {
-        return 2; // 全在
+        return 2; // Completely inside
     } else if (count_in == 2) {
-        return 1;  // 部分在
+        return 1;  // Partially inside
     } else if (count_in == 1) {
-        // 只有一个顶点在画布内，需进一步判断圆是否与画布有交点
-        double closest_x = std::clamp(x, image_grid.xmin, image_grid.xmax);
-        double closest_y = std::clamp(y, image_grid.ymin, image_grid.ymax);
-        double dist2 = (closest_x - x) * (closest_x - x) + (closest_y - y) * (closest_y - y);
-        if (dist2 > hsml * hsml) return 0; // 完全不在
-        else return 1; // 有部分在
+        // Only one vertex is inside the canvas, need to further check if the circle intersects the canvas
+        T closest_x = std::clamp(x, image_grid.xmin, image_grid.xmax);
+        T closest_y = std::clamp(y, image_grid.ymin, image_grid.ymax);
+        T dist2 = (closest_x - x) * (closest_x - x) + (closest_y - y) * (closest_y - y);
+        if (dist2 > hsml * hsml) return 0; // Completely outside
+        else return 1; // Partially inside
     }
+    // Default return value to prevent missing return causing compilation errors
+    return 0;
 }
 
-const std::vector<std::vector<double>>& RenderImage::get_values() const {
-    return image_grid.qty;
+template<typename T>
+std::vector<std::vector<T>> RenderImage<T>::get_values() const {
+    int nx = image_grid.nx, ny = image_grid.ny;
+    std::vector<std::vector<T>> values(ny, std::vector<T>(nx, 0.0));
+    for (int j = 0; j < ny; ++j)
+        for (int i = 0; i < nx; ++i)
+            values[j][i] = image_grid.qty[j * nx + i];
+    return values;
 }
+
+
+template class Grid<float>;
+template class Grid<double>;
+template class CubicSplineSmoothingKernel<float>;
+template class CubicSplineSmoothingKernel<double>;
+template class KernelSampler<float>;
+template class KernelSampler<double>;
+template class RenderImage<float>;
+template class RenderImage<double>;

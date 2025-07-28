@@ -8,7 +8,7 @@ from matplotlib import colors
 from scipy.ndimage import gaussian_filter
 
 
-from .render_wrapper import PyRenderImage, PyCubicSplineSmoothingKernel
+from .render_wrapper import get_render_image, get_kernel
 from ..util.array_operate import Rotate
 
 
@@ -147,7 +147,7 @@ def render_2d(particle, which_pos=(0, 1),
             ret_image: bool = True
             ):
     
-    render = PyRenderImage(x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, PyCubicSplineSmoothingKernel(), subsamples, subsamples)
+    render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, get_kernel(), subsamples, subsamples)
     
     pos = Rotate(particle.pos, rotation_matrix.T)
     

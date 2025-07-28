@@ -6,6 +6,7 @@ docs/code_for_save.py
 docs/test.py
 
 src/gal3d.egg-info
+src/gal3d/visualization/render_wrapper.cpp
 
 **/__pycache__
 

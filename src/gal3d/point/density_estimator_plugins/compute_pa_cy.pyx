@@ -5,7 +5,7 @@ cimport numpy as np
 from cython.parallel import prange
 
 
-cdef extern from "sph_density.hpp":
+cdef extern from "sph_density.h":
     double calc_sph_density(
         int i, int num_near,
         const double* n_d,

@@ -23,6 +23,7 @@ class Particles(GlobalCalculator):
         pos,
         mass,
         rmax: float | None = None,
+        recenter: bool = True,
         parameter_mode: str = 'Density',
         density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',
         estimator_kwargs: dict | None = None,
@@ -44,7 +45,7 @@ class Particles(GlobalCalculator):
             Additional keyword arguments passed to `density_estimator`.
         """
 
-        GlobalCalculator.__init__(self, pos, mass)
+        GlobalCalculator.__init__(self, pos, mass, recenter)
         if rmax:
             sel = (self.r<rmax)
             self.pos = self.pos[sel]

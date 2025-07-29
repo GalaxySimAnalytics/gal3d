@@ -148,8 +148,9 @@ def render_2d(particle, which_pos=(0, 1),
             ):
     
     render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, get_kernel(), subsamples, subsamples)
-    
-    pos = Rotate(particle.pos, rotation_matrix.T)
+    # Ensure rotation_matrix dtype matches particle.pos
+    rot = rotation_matrix.T.astype(particle.pos.dtype)
+    pos = Rotate(particle.pos, rot)
     
     
     render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],particle.mass,particle.hsm)

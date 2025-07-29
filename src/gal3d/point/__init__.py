@@ -6,7 +6,7 @@ This module provides several functions for working with particles' positions and
 including calculating the geometric center, mass-weighted center of mass, the moment of inertia tensor,
 the principal axes of particle distributions, and density estimators.
 """
-# kernel #TODO
+import numpy as np
 
 from .global_calculator import GlobalCalculator
 from .density_estimator import DensityEstimator, DensityEstimatorBase
@@ -141,6 +141,33 @@ class Particles(GlobalCalculator):
                 - The second tuple contains the downward gradient magnitude and direction.
         """
         return self.estimator.get_gradient(target_pos, **kwargs)
+    
+    
+    def estimate_spatial_resolution(self):
+        """
+        Estimate the spatial resolution based on the half-smooth length (hsm).
+        Returns
+        -------
+        float
+            Estimated spatial resolution.
+        """
+        hsm = self.hsm
+        d_in = np.median(hsm) - 3 * np.std(hsm)
+        d_ou = np.median(hsm) + 3 * np.std(hsm)
+        res_r = np.mean(hsm[(hsm > d_in) & (hsm < d_ou)]) * 0.55
+        return res_r
+
+    def estimate_mass_resolution(self):
+        """
+        Estimate the mass resolution as the mean particle mass.
+        Returns
+        -------
+        float
+            Estimated mass resolution.
+        """
+        return np.mean(self.mass)
+    
+    
     @classproperty
     def available_estimator(cls):
         """

@@ -17,12 +17,14 @@ from cython.parallel import prange
 
 from gal3d import config
 
-ctypedef np.float64_t DTYPE_t
+ctypedef fused DTYPE_t:
+    np.float32_t
+    np.float64_t
 
 # Geometric centroid
 cpdef np.ndarray centroid(np.ndarray[DTYPE_t, ndim=2] pos):
     cdef int i, n = pos.shape[0]
-    cdef np.ndarray[DTYPE_t, ndim=1] cenpos = np.zeros(3, dtype=np.float64)
+    cdef np.ndarray[DTYPE_t, ndim=1] cenpos = np.zeros(3, dtype=pos.dtype)
     # Use prange for parallel summation
     cdef int num_threads = config['general']['number_of_threads']
     for i in prange(n, nogil=True, num_threads=num_threads):
@@ -48,7 +50,7 @@ cpdef tuple shrink_sphere_center(
     cdef int npart = npart_all
     cdef double r2 = 0.0
     cdef double tot_weight = 0.0
-    cdef np.ndarray[DTYPE_t, ndim=1] com = np.zeros(3, dtype=np.float64)
+    cdef np.ndarray[DTYPE_t, ndim=1] com = np.zeros(3, dtype=pos.dtype)
     cdef np.ndarray[DTYPE_t, ndim=1] com_x = centroid(pos)
     cdef int iternum = 0
     cdef double current_rmax = np.inf
@@ -108,7 +110,7 @@ cpdef np.ndarray center_of_mass(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYP
     Compute the mass-weighted center of mass.
     """
     cdef int i, j, n = pos.shape[0]
-    cdef np.ndarray[DTYPE_t, ndim=1] cenpos = np.zeros(3, dtype=np.float64)
+    cdef np.ndarray[DTYPE_t, ndim=1] cenpos = np.zeros(3, dtype=pos.dtype)
     cdef double massum = 0.0
     cdef double s0 = 0.0
     cdef double s1 = 0.0
@@ -132,7 +134,7 @@ cpdef np.ndarray center_of_mass(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYP
 
 # Moment of inertia tensor
 cpdef np.ndarray moment_of_inertia(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYPE_t, ndim=1] m):
-    cdef np.ndarray[DTYPE_t, ndim=2] I = np.zeros((3, 3), dtype=np.float64)
+    cdef np.ndarray[DTYPE_t, ndim=2] I = np.zeros((3, 3), dtype=pos.dtype)
     cdef int i, j, k, n = pos.shape[0]
     cdef double total_mass = 0.0
     cdef double s

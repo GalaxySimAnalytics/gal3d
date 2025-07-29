@@ -72,18 +72,11 @@ class Gal3DAnalyzer:
         particle = Particles(pos=pos, mass=mass)
         
         if "res_r" not in kwargs:
-            hsm = particle.hsm
-            d_in = np.median(hsm)-3*np.std(hsm)
-            d_ou = np.median(hsm)+3*np.std(hsm)
-            res_r = np.mean(hsm[(hsm>d_in) & (hsm<d_ou)]) * 0.55
+            res_r = particle.estimate_spatial_resolution()
         else:
             res_r = kwargs["res_r"]
-
-        #res_r = ((np.sum(particle.mass)/np.sum(particle.parameter))/(4/3*np.pi))**(1/3)*20
-        #particle.estimator._tree_query_options['distance_upper_bound'] = res_r*10
         
-        
-        res_m = np.mean(particle.mass)
+        res_m = particle.estimate_mass_resolution()
         logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
 
         Num_rays = min(1024,int(len(particle.r)/100))

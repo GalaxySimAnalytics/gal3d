@@ -6,7 +6,6 @@ import scipy.integrate as integrate
 from gal3d.visualization.model_projector import ModelProjectorBase
 from gal3d.util.array_operate import Rotate
 
-from .integrate_profiles_cy import integrate_profiles_cy
 class ProjectorLineIntegration(ModelProjectorBase):
     def __init__(self, model, model_cric=None, cache_len=100, **kwargs):
 

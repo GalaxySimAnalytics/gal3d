@@ -47,7 +47,10 @@ class SphField:
 
         self.rays = SphVector(num_ray, ray_method)
         self.particles = particles
-        self.rays_index = self.rays.assign_points(particles.pos)
+        return self
+    
+    def _assign_ray_points(self):
+        self.rays_index = self.rays.assign_points(self.particles.pos)
         self.rays_points_num = np.bincount(self.rays_index)
 
         max_num_dex = np.argmax(self.rays_points_num)
@@ -62,12 +65,11 @@ class SphField:
         if self.rays_points_num[min_num_dex] < 3:
             logger.error(f"It should be > 2, so please make the ray num smaller. ")
 
-        ind = [[] for _ in range(num_ray)]
+        ind = [[] for _ in range(self.rays.num)]
         for i, j in enumerate(self.rays_index):
             ind[j].append(i)
 
         self.points_index = [np.array(i) for i in ind]
-        return self
 
     @timing
     def build_field_boundary(
@@ -280,6 +282,8 @@ class SphField:
         np.ndarray
             The coordinates of the points closest to the nth ray.
         '''
+        if not hasattr(self, 'points_index'):
+            self._assign_ray_points()
         return self.particles.pos[self.points_index[n]]
 
     def r_ray_n(self, n: int) -> np.ndarray:
@@ -296,6 +300,8 @@ class SphField:
         np.ndarray
             The radii of the points closest to the nth ray.
         '''
+        if not hasattr(self, 'points_index'):
+            self._assign_ray_points()
         return self.particles.r[self.points_index[n]]
 
     def mass_ray_n(self, n: int) -> np.ndarray:
@@ -312,6 +318,8 @@ class SphField:
         np.ndarray
             The mass of the points closest to the nth ray.
         '''
+        if not hasattr(self, 'points_index'):
+            self._assign_ray_points()
         return self.particles.mass[self.points_index[n]]
 
     def parameter_ray_n(self, n: int) -> np.ndarray:
@@ -328,6 +336,8 @@ class SphField:
         np.ndarray
             The parameters of the points closest to the nth ray.
         '''
+        if not hasattr(self, 'points_index'):
+            self._assign_ray_points()
         return self.particles.parameter[self.points_index[n]]
 
     def gradient_ray_n(self, n: int) -> tuple:
@@ -344,6 +354,8 @@ class SphField:
         tuple
             The gradients of the points closest to the nth ray.
         '''
+        if not hasattr(self, 'points_index'):
+            self._assign_ray_points()
         return (
             (
                 self.particles.gradient[0][0][self.points_index[n]],

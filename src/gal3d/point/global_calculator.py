@@ -27,7 +27,19 @@ class GlobalCalculator:
 
     """
 
-    def __init__(self, pos: np.ndarray, mass: np.ndarray, recenter: bool = True):
+    def __init__(self, pos: np.ndarray, mass: np.ndarray, recenter: bool = True, sort_by_radius: bool = False):
+        """
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            Particle positions.
+        mass : numpy.ndarray
+            Particle masses.
+        recenter : bool, optional
+            Whether to recenter positions using the shrink-sphere method. Default is True.
+        sort_by_radius : bool, optional
+            Whether to sort particles by their radial distance from the origin. Default is False.
+        """
 
         pos = self._shape_check(pos)
         if recenter:
@@ -35,11 +47,15 @@ class GlobalCalculator:
             pos = pos - cen
             logger.info(f"Recentered positions by subtracting center: {cen}")
         r = vector_length3d(pos)
-        ind = np.argsort(r)
-
-        self.pos = pos[ind]
-        self.mass = mass[ind]
-        self.r = r[ind]
+        if sort_by_radius:
+            ind = np.argsort(r)
+            self.pos = pos[ind]
+            self.mass = mass[ind]
+            self.r = r[ind]
+        else:
+            self.pos = pos
+            self.mass = mass
+            self.r = r
         
         if self.pos.shape[0] != self.mass.shape[0]:
             raise ValueError(

@@ -1,6 +1,7 @@
 from functools import cached_property
 import logging
 import os
+import json
 
 import numpy as np
 from scipy.spatial import KDTree
@@ -68,7 +69,6 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
         self.__generate_kd_options(k_nearest, r_cut, **kwargs)
 
-        logger.info(f"Build KDtree with options {self._tree_build_options}")
         self.tree = KDTree(self.pos, **self._tree_build_options)
 
     @cached_property
@@ -217,7 +217,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self._tree_build_options = func_optional_key(KDTree)
         self._tree_query_options = func_optional_key(KDTree.query)
 
-        self._tree_build_options['leafsize'] = k_nearest
+        self._tree_build_options['leafsize'] = max(int(k_nearest/2),10)
         self._tree_query_options['workers'] = os.cpu_count()
         self._tree_query_options['k'] = k_nearest
         if r_cut:
@@ -228,3 +228,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self._tree_build_options = update_dict_value(self._tree_build_options, kwargs)
 
         self._tree_query_options = update_dict_value(self._tree_query_options, kwargs)
+        
+        changed_keys = ['leafsize'] + list(kwargs.keys())
+        changed_options = {k: self._tree_build_options[k] for k in changed_keys if k in self._tree_build_options}
+        logger.info(f"Build KDTree with options: {changed_options}")

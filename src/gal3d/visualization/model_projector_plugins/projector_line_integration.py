@@ -6,7 +6,7 @@ import scipy.integrate as integrate
 from gal3d.visualization.model_projector import ModelProjectorBase
 from gal3d.util.array_operate import Rotate
 
-
+from .integrate_profiles_cy import integrate_profiles_cy
 class ProjectorLineIntegration(ModelProjectorBase):
     def __init__(self, model, model_cric=None, cache_len=100, **kwargs):
 
@@ -70,44 +70,43 @@ class ProjectorLineIntegration(ModelProjectorBase):
         if len(model_sel) == 0:
             raise ValueError("model_sel is empty. Ensure that the selection criteria result in a non-empty model_sel.")
 
-        project_profile = {}
+        n = len(pos1)
+        intersections = [[] for _ in range(n)]
+        parameters = [[] for _ in range(n)]
         
-        # Find initial intersections
-        alll = self.model[int(model_sel[-1])].quick_line_intersect(pos1=pos1, pos2=pos2)
-        ind = np.arange(len(pos1))
+        para = self.model['parameter']
+        quick_line_intersect = self.model[int(model_sel[-1])].quick_line_intersect
+
+        alll = quick_line_intersect(pos1=pos1, pos2=pos2)
+        ind = np.arange(n)
         ind_in = ind[(alll[:, 0] > 0.0)]
         ind_total = ind_in.copy()
 
-        # Calculate intersections for each model component
-        para = self.model['parameter']
         for i in tqdm(model_sel[::-1], desc="Intersecting"):
-            sec = self.model[int(i)].quick_line_intersect(
-                pos1=pos1[ind_in], pos2=pos2[ind_in]
-            )
+            model_i = self.model[int(i)]
+            sec = model_i.quick_line_intersect(pos1=pos1[ind_in], pos2=pos2[ind_in])
             sel = (sec[:, 0] > 0.0)
             tar = ind_in[sel]
             sec = sec[sel]
-
-            for j in range(len(tar)):
-                if tar[j] not in project_profile:
-                    project_profile[tar[j]] = [[], []]
-                project_profile[tar[j]][0].extend([sec[j][0], sec[j][1]])
-                project_profile[tar[j]][1].extend([para[i], para[i]])
+            p = para[i]
+            for idx, j in enumerate(tar):
+                intersections[j].extend([sec[idx][0], sec[idx][1]])
+                parameters[j].extend([p, p])
             ind_in = tar
-            
-        return project_profile, ind_total
-    
-    def _integrate_profiles(self, project_profile, ind_total, indices, nbins):
+
+        return intersections, parameters, ind_total
+
+    def _integrate_profiles(self, intersections, parameters, ind_total, indices, nbins):
         """Integrate profiles along sight lines to create the final image."""
         deproject_array = np.zeros((nbins, nbins), dtype=np.float64)
-        
         for i in tqdm(ind_total, desc="Integrating Profiles"):
-           x = np.array(project_profile[i][0])
-           y = np.array(project_profile[i][1])
-           xsort = np.argsort(x)
-           inte = integrate.trapezoid(y[xsort], x[xsort])
-           deproject_array[tuple(indices[i])] = inte
-           
+            x = np.array(intersections[i])
+            y = np.array(parameters[i])
+            if len(x) == 0:
+                continue
+            xsort = np.argsort(x)
+            inte = integrate.trapezoid(y[xsort], x[xsort])
+            deproject_array[tuple(indices[i])] = inte
         return deproject_array
     
     
@@ -137,9 +136,9 @@ class ProjectorLineIntegration(ModelProjectorBase):
         pos1, pos2 = self._prepare_sight_lines(pos, z_range, rotation)
         
         # Calculate intersections
-        project_profile, ind_total = self._calculate_intersections(pos1, pos2)
+        intersections, parameters, ind_total = self._calculate_intersections(pos1, pos2)
         
         # Integrate profiles
-        deproject_array = self._integrate_profiles(project_profile, ind_total, indices, nbins)
+        deproject_array = self._integrate_profiles(intersections, parameters, ind_total, indices, nbins)
         
         return deproject_array.T, xs, ys

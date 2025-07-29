@@ -1,5 +1,4 @@
 #include "render.hpp"
-#include <cstdio>
 
 template<typename T>
 std::vector<T> CubicSplineSmoothingKernel<T>::density_table;
@@ -200,7 +199,7 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
             for (int i = 0; i < nx; ++i)
                 dx_arr[i] = image_grid.xcenter0 + (x0 + i) * image_grid.dx - x;
 
-            // 先计算所有 val 并累加
+            // First calculate all val and accumulate
             for (int j = 0; j < ny; ++j) {
                 T i_y = image_grid.ycenter0 + (y0 + j) * image_grid.dy - y;
                 T iy2 = i_y * i_y;

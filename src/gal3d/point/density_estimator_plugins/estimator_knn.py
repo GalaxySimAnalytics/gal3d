@@ -6,7 +6,7 @@ import json
 import numpy as np
 from scipy.spatial import KDTree
 
-from .compute_pa_cy import cal_pa
+from .compute_pa_cy import sph_density, sph_gradient
 from ..density_estimator import DensityEstimatorBase
 from ...util.array_operate import unit_vector3d
 from ...util.func_signature import func_optional_key, update_dict_value
@@ -77,7 +77,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         target_pos = self.pos
         query_options = self._tree_query_options
         n_d, n_index = self.tree.query(target_pos, **query_options)
-        return self._cal_pa(n_d, n_index, **query_options)
+        return self._cal_density(n_d, n_index, **query_options)
 
     @cached_property
     def gradient(self):
@@ -131,7 +131,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         
         n_d, n_index = self.tree.query(target_pos, **query_options)
         
-        return self._cal_pa(n_d, n_index, **query_options)
+        return self._cal_density(n_d, n_index, **query_options)
 
     def get_gradient(self, target_pos, **kwargs):
         '''
@@ -154,38 +154,28 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
         n_d, n_index = self.tree.query(target_pos, **query_options)
 
-        target_pa = self._cal_pa(n_d, n_index)
+        return self._cal_gradient(target_pos, n_d, n_index)
 
-        parameter = self.parameter[n_index]
+    def _cal_gradient(self,target_pos, n_d, n_index, **kwargs):
+        '''
+        Calculate the gradient based on the nearest neighbors.
 
-        up_grad_ind = np.argmax(parameter, axis=1, keepdims=True)
-        lo_grad_ind = np.argmin(parameter, axis=1, keepdims=True)
+        Parameters:
+            n_d: ndarray, shape(m, num_near)
+                The distances to the nearest neighbors for each target position.
+            n_index: ndarray, shape(m, num_near)
+                The indices of the nearest neighbors for each target position.
 
-        up_grad_index = np.take_along_axis(n_index, up_grad_ind, axis=1)[:, 0]
-        lo_grad_index = np.take_along_axis(n_index, lo_grad_ind, axis=1)[:, 0]
+        Returns:
+            gradient: array, shape(m, 3)
+                The estimated gradients at the target positions.
+        '''
+        # Placeholder implementation
+        return sph_gradient(n_d.astype(np.float64),
+            n_index.astype(np.int32),
+            self.mass.astype(np.float64), self.pos.astype(np.float64), self.hsm.astype(np.float64), target_pos.astype(np.float64))
 
-        up_dist = np.clip(
-            np.take_along_axis(n_d, up_grad_ind, axis=1)[:, 0], a_min=1e-8, a_max=None
-        )
-        lo_dist = np.clip(
-            np.take_along_axis(n_d, lo_grad_ind, axis=1)[:, 0], a_min=1e-8, a_max=None
-        )
-
-        up_pa = np.take_along_axis(parameter, up_grad_ind, axis=1)[:, 0] - target_pa
-        lo_pa = np.take_along_axis(parameter, lo_grad_ind, axis=1)[:, 0] - target_pa
-
-        up_vect = self.pos[up_grad_index] - target_pos
-        lo_vect = self.pos[lo_grad_index] - target_pos
-
-        up_gradient = up_pa / up_dist
-        lo_gradient = lo_pa / lo_dist
-
-        return (
-            (up_gradient, unit_vector3d(up_vect)),
-            (lo_gradient, unit_vector3d(lo_vect)),
-        )
-
-    def _cal_pa(self, n_d, n_index, **kwargs):
+    def _cal_density(self, n_d, n_index, **kwargs):
         '''
         Calculate the parameter value based on the nearest neighbors.
 
@@ -199,7 +189,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             fit_pa: array, shape(m,)
                 The estimated parameter values based on the nearest neighbors.
         '''
-        return cal_pa(n_d.astype(np.float64),
+        return sph_density(n_d.astype(np.float64),
             n_index.astype(np.int32),
             self.mass.astype(np.float64), self.hsm.astype(np.float64))
 

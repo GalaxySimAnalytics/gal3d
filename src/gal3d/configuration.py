@@ -2,6 +2,17 @@ import logging
 import os
 import configparser
 
+
+default_thread_count = None
+try:
+    import psutil
+    default_thread_count = psutil.cpu_count(logical=False)
+except ImportError:
+    pass
+
+if default_thread_count is None:
+    default_thread_count = max(os.cpu_count()//2, 1)
+
 from .util.string_format import string_formatter
 
 try:
@@ -43,7 +54,6 @@ def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
     config['general']["update_stub"] = config_parser['general'].getboolean("update_stub", fallback=False)
     config['general']["min_batchsize"] = config_parser['general'].getint("min_batchsize", fallback=200000)
 
-    default_thread_count = max(os.cpu_count() // 2, 1)
     config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads', fallback=default_thread_count)
     config['general']['use_cython'] = config_parser.getboolean('general', 'use_cython', fallback=True)
     config['general']['render_double'] = config_parser.getboolean('general', 'render_double', fallback=False)

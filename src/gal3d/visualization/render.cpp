@@ -149,11 +149,12 @@ std::vector<std::vector<T>> KernelSampler<T>::get_weights() const {
 
 template<typename T>
 RenderImage<T>::RenderImage(T x_min, T x_max, T y_min, T y_max, int nx, int ny,
-                         const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny)
+                         const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny, int numthreads)
     : image_grid(x_min, y_min, x_max, y_max, nx, ny),
       subsampler(subsample_nx, subsample_ny, kernel),
       subsample_weights(subsampler.get_weights()),
-      do_subsample(!(subsample_nx <= 1 && subsample_ny <= 1))
+      do_subsample(!(subsample_nx <= 1 && subsample_ny <= 1)),
+      numthreads(numthreads)
 {}
 
 template<typename T>
@@ -329,12 +330,10 @@ void RenderImage<T>::add_particle(const std::vector<T>& x,
                                const std::vector<T>& mass,
                                const std::vector<T>& hsml) {
     size_t n = x.size();
-    int nthreads = 1;
-    #pragma omp parallel
-    {
-        #pragma omp single
-        nthreads = omp_get_num_threads();
-    }
+
+    int nthreads = numthreads;
+    omp_set_num_threads(nthreads);
+
     std::vector<std::vector<T>> thread_qty(nthreads, std::vector<T>(image_grid.nx * image_grid.ny, 0.0));
 
     #pragma omp parallel
@@ -358,26 +357,37 @@ int RenderImage<T>::circle_vs_canvas(T x, T y, T hsml) const {
     T x_max = x + hsml;
     T y_min = y - hsml;
     T y_max = y + hsml;
-
-    // First, determine the relationship between the bounding square of the circle and the canvas,
-    // then further check if necessary.
-    // Check how many points in the x direction are inside the canvas
+    /*
+    Check the relationship between the x and y intervals and the canvas.
+    Each direction has six cases. Use .. to represent the distribution interval of a certain dimension x, and || to represent the grid interval:
+    xmin >= grid_min, xmin <= grid_max, xmax >= grid_min, xmax <= grid_max;
+    F T F T,  . . | |  No overlapping interval, status 0,
+    T F T F,  | | . .  No overlapping interval, status 0,
+    F T T T,  . | . |  Overlapping interval exists, status 1,
+    T T T F,  | . | .  Overlapping interval exists, status 1,
+    F T T F,  . | | .  x distribution encloses the grid, but here simply marked as 1
+    T T T T,  | . . |  Grid encloses x's distribution, marked as status 2
+    */
     int x_count_in = 0;
-    if (x_min >= image_grid.xmin && x_min <= image_grid.xmax) x_count_in++;
-    if (x_max >= image_grid.xmin && x_max <= image_grid.xmax) x_count_in++;
+    if (x_min <= image_grid.xmax && x_max >=image_grid.xmin){
+        if (x_min>=image_grid.xmin && x_max<=image_grid.xmax) x_count_in++;
+        x_count_in++;
+    } else {
+        return 0;
+    }
 
-    // Check how many points in the y direction are inside the canvas
     int y_count_in = 0;
-    if (y_min >= image_grid.ymin && y_min <= image_grid.ymax) y_count_in++;
-    if (y_max >= image_grid.ymin && y_max <= image_grid.ymax) y_count_in++;
+
+    if (y_min <= image_grid.ymax && y_max >= image_grid.ymin) {
+        if (y_min >= image_grid.ymin && y_max <= image_grid.ymax) y_count_in++;
+        y_count_in++;
+    } else {
+        return 0;
+    }
 
     int count_in = x_count_in * y_count_in;
 
     if (count_in == 0) {
-        // Check if the center of the circle is inside the canvas
-        if (x >= image_grid.xmin && x <= image_grid.xmax &&
-            y >= image_grid.ymin && y <= image_grid.ymax)
-            return 1;
         return 0;
     } else if (count_in == 4) {
         return 2; // Completely inside
@@ -385,8 +395,8 @@ int RenderImage<T>::circle_vs_canvas(T x, T y, T hsml) const {
         return 1;  // Partially inside
     } else if (count_in == 1) {
         // Only one vertex is inside the canvas, need to further check if the circle intersects the canvas
-        T closest_x = std::clamp(x, image_grid.xmin, image_grid.xmax);
-        T closest_y = std::clamp(y, image_grid.ymin, image_grid.ymax);
+        T closest_x = std::max(image_grid.xmin, std::min(x, image_grid.xmax));
+        T closest_y = std::max(image_grid.ymin, std::min(y, image_grid.ymax));
         T dist2 = (closest_x - x) * (closest_x - x) + (closest_y - y) * (closest_y - y);
         if (dist2 > hsml * hsml) return 0; // Completely outside
         else return 1; // Partially inside

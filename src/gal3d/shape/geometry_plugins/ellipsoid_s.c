@@ -155,7 +155,6 @@ void f_ray_shaped_ellipsoid_cpp(
     for (int i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
-        double xi = x / L, yi = y / L, zi = z / L;
 
         double d0 = solve_ray_shaped_ellipsoid(
             x, y, z,

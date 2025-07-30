@@ -13,6 +13,7 @@ src/gal3d/visualization/render_wrapper.cpp
 **/gal3d.log
 **/*.so
 **/*cy.cpp
+**/*cy.c
 
 tests/test_data
 **/.coverage

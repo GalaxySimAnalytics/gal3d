@@ -55,9 +55,10 @@ public:
     KernelSampler<T> subsampler;
     std::vector<std::vector<T>> subsample_weights;
     bool do_subsample;
+    int numthreads;
 
     RenderImage(T x_min, T x_max, T y_min, T y_max, int nx, int ny,
-                const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny);
+                const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny, int numthreads);
 
 
     void add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T>& qty);

@@ -23,7 +23,7 @@ cdef extern from "render.hpp":
 
     cdef cppclass RenderImage "RenderImage<double>":
         RenderImage(double, double, double, double, int, int,
-                    CubicSplineSmoothingKernel&, int, int)
+                    CubicSplineSmoothingKernel&, int, int, int)
         void add_particle(double, double, double, double)
         void add_particle(vector[double]&, vector[double]&, vector[double]&, vector[double]&)
         int circle_vs_canvas(double, double, double) const
@@ -43,7 +43,7 @@ cdef extern from "render.hpp":
 
     cdef cppclass RenderImageFloat "RenderImage<float>":
         RenderImageFloat(float, float, float, float, int, int,
-                    CubicSplineSmoothingKernelFloat&, int, int)
+                    CubicSplineSmoothingKernelFloat&, int, int, int)
         void add_particle(float, float, float, float)
         void add_particle(vector[float]&, vector[float]&, vector[float]&, vector[float]&)
         int circle_vs_canvas(float, float, float) const
@@ -132,9 +132,9 @@ cdef class PyRenderImage:
     cdef RenderImage* cpp_image
 
     def __cinit__(self, double x_min, double x_max, double y_min, double y_max, int nx, int ny,
-                  PyCubicSplineSmoothingKernel kernel, int subsample_nx, int subsample_ny):
+                  PyCubicSplineSmoothingKernel kernel, int subsample_nx, int subsample_ny, int numthreads = 1):
         self.cpp_image = new RenderImage(x_min, x_max, y_min, y_max, nx, ny,
-                                         kernel.cpp_kernel[0], subsample_nx, subsample_ny)
+                                         kernel.cpp_kernel[0], subsample_nx, subsample_ny, numthreads)
 
     def __dealloc__(self):
         del self.cpp_image
@@ -174,9 +174,9 @@ cdef class PyRenderImageFloat:
     cdef RenderImageFloat* cpp_image
 
     def __cinit__(self, float x_min, float x_max, float y_min, float y_max, int nx, int ny,
-                  PyCubicSplineSmoothingKernelFloat kernel, int subsample_nx, int subsample_ny):
+                  PyCubicSplineSmoothingKernelFloat kernel, int subsample_nx, int subsample_ny, int numthreads = 1):
         self.cpp_image = new RenderImageFloat(x_min, x_max, y_min, y_max, nx, ny,
-                                              kernel.cpp_kernel[0], subsample_nx, subsample_ny)
+                                              kernel.cpp_kernel[0], subsample_nx, subsample_ny, numthreads)
 
     def __dealloc__(self):
         del self.cpp_image
@@ -213,8 +213,8 @@ def get_kernel():
     else:
         return PyCubicSplineSmoothingKernelFloat()
 
-def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny):
+def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads = config['general']['number_of_threads']):
     if DOUBLE:
-        return PyRenderImage(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny)
+        return PyRenderImage(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)
     else:
-        return PyRenderImageFloat(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny)
+        return PyRenderImageFloat(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)

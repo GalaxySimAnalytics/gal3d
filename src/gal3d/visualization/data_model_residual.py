@@ -34,7 +34,7 @@ def show_data_model(
 ):
     if render:
         data_image, xs, ys = render_2d(
-            data,
+            data.pos,data.mass,data.hsm,
             which_pos=which_pos,
             rotation_matrix=rotation_matrix,
             x_range=x_range,

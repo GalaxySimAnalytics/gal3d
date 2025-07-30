@@ -138,7 +138,7 @@ def hist_2d(
     ys = 0.5 * (ys[:-1] + ys[1:])
     return hist, xs, ys
 
-def render_2d(particle, which_pos=(0, 1),
+def render_2d(pos,mass,hsm, which_pos=(0, 1),
             rotation_matrix=np.eye(3),
             x_range=(-15, 15),
             y_range=(-15, 15),
@@ -149,11 +149,11 @@ def render_2d(particle, which_pos=(0, 1),
     
     render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, get_kernel(), subsamples, subsamples)
     # Ensure rotation_matrix dtype matches particle.pos
-    rot = rotation_matrix.T.astype(particle.pos.dtype)
-    pos = Rotate(particle.pos, rot)
-    
-    
-    render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],particle.mass,particle.hsm)
+    rot = rotation_matrix.T.astype(pos.dtype)
+    pos = Rotate(pos, rot)
+
+
+    render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],mass,hsm)
 
     if ret_image:
         xs = np.linspace(x_range[0], x_range[1], nbins+1)

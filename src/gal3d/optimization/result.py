@@ -407,12 +407,6 @@ def model_to_hdf5(
 
     Parameters
     ----------
-    large_model_threshold : int, optional
-        Threshold for the number of parameter sets to trigger a warning about large models (default is 1000).
-    organization and metadata for later reuse or analysis.
-
-    Parameters
-    ----------
     model : ModelResult
         The fitted model result to save.
     hdf5_file_name : str
@@ -423,6 +417,9 @@ def model_to_hdf5(
         Name identifier for the error method used.
     all_header : str, optional
         Group path within the HDF5 file, by default '/'.
+    large_model_threshold : int, optional
+        Threshold for the number of parameter sets to trigger a warning about large models (default is 1000).
+        organization and metadata for later reuse or analysis.
     other_info : dict, optional
         Additional metadata to store with the model, by default None.
 

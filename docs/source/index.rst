@@ -3,15 +3,27 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Gal3D documentation
-===================
+Welcome to the Gal3D documentation!
+===================================
+
+
 
 Add your content using ``reStructuredText`` syntax. See the
 `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
 documentation for details.
 
 
+Installation
+============
+
+.. code-block:: bash
+
+   git clone https://github.com/GalaxySimAnalytics/gal3d.git
+   cd gal3d
+   pip install -e .
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
+    
+    Reference <reference/index>

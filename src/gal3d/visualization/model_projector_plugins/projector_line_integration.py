@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import scipy.integrate as integrate
 from tqdm import tqdm
@@ -5,27 +7,28 @@ from tqdm import tqdm
 from gal3d.util.array_operate import Rotate
 from gal3d.visualization.model_projector import ModelProjectorBase
 
-
+logger = logging.getLogger("gal3d.visualization.ModelProjector")
 class ProjectorLineIntegration(ModelProjectorBase):
-    def __init__(self, model, model_cric=None, cache_len=100, **kwargs):
+    def __init__(self, model, model_cric=None, sigma_clip=2, cache_len=100, **kwargs):
 
         super().__init__(cache_len=cache_len)
-        sel = kwargs.get("sel", None)
 
         self.model = model
-        self.model_cric = model_cric
         try:
             self.model_sel = np.arange(len(self.model['parameter']))
         except KeyError:
             raise KeyError("The model dictionary must contain the key 'parameter'.")
-
-        if (self.model_cric is not None) or (sel is not None):
-            if sel is None:
-                sel = np.array(self.model.res['fun']) < self.model_cric
-            else:
-                if self.model_cric is not None:
-                    sel = sel & (np.array(self.model.res['fun']) < self.model_cric)
-
+        
+        sel = kwargs.get("sel", np.ones(len(self.model_sel), dtype=np.bool_))
+        if model_cric:
+            sel = sel & (np.array(self.model.res['fun']) < model_cric)
+        if sigma_clip:
+            me = np.mean(np.array(self.model.res['fun']))
+            std = np.std(np.array(self.model.res['fun']))
+            sel = sel & (np.array(self.model.res['fun']) < me+sigma_clip*std)
+        removed_count = np.sum(~sel)
+        if removed_count:
+            logger.info(f"Projector removed {removed_count} steps with relatively large fit error")
             self.model_sel = self.model_sel[sel]
 
     def _setup_grid(self, x_range, y_range, nbins):

@@ -50,7 +50,7 @@ class Gal3DAnalyzer:
         self.optimizer = optimizer
         
     @staticmethod
-    def analyze(pos, mass, **kwargs):
+    def analyze(pos, mass, recenter:bool = True,**kwargs):
         """
         Analyze the given particle data.
 
@@ -68,17 +68,19 @@ class Gal3DAnalyzer:
         logger.info("Starting analysis...")
 
 
-        particle = Particles(pos=pos, mass=mass)
+        particle = Particles(pos=pos, mass=mass, recenter=recenter)
         
         if "res_r" not in kwargs:
             res_r = particle.estimate_spatial_resolution()
         else:
             res_r = kwargs["res_r"]
+        if "res_r_max" in kwargs:
+            res_r = min(res_r, kwargs['res_r_max'])
         
         res_m = particle.estimate_mass_resolution()
         logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
 
-        Num_rays = min(1024,int(len(particle.r)/100))
+        Num_rays = min(1024,int(len(particle.r)/150))
         Num_rays = max(Num_rays,64)
         
         inner = res_r/2
@@ -165,7 +167,7 @@ class Gal3DAnalyzer:
         return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
     
     
-    def fit(self, num_step:int = 200, step_mode: str = 'log'):
+    def fit(self, num_step:int = 200, step_mode: str = 'log', **kwargs):
         """ 
         Fit the model to the data.
 
@@ -185,7 +187,7 @@ class Gal3DAnalyzer:
         else:
             r = np.linspace(r_min, r_max, num_step)
 
-        return self._fit(r)
+        return self._fit(r,**kwargs)
         
 
     def _fit(self, r: Union[float, Iterable] = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
@@ -334,6 +336,7 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     
     # Process input parameters efficiently
     var_a = min(max(kwargs.get('var_a', 0.1), 0), 0.99)
+    var_cen = min(max(kwargs.get('var_cen', 0.1), 0), 0.99)
     fitonce = kwargs.get('fitonce', False)
     init_parameters = kwargs.get('init_parameters', {})
     upper_bounds = kwargs.get('upper_bounds', {})
@@ -362,15 +365,15 @@ def get_ell_structure(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResult:
     if is_standard_ellipsoid:
         # Simple case: standard ellipsoid fitting
         return _fit_standard_ellipsoid(
-            self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info
+            self, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info
         )
     else:
         # Complex case: two-step generalized ellipsoid fitting
         return _fit_generalized_ellipsoid(
-            self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info
+            self, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info
         )
 
-def _fit_standard_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info):
+def _fit_standard_ellipsoid(self, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info):
     """
     Fit a standard ellipsoidal structure, or fit a generalized ellipsoid only once.
     """
@@ -385,6 +388,10 @@ def _fit_standard_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds,
     # Set bounds and initial values
     parameters_set.set_lb(a=(a * (1 - var_a)))
     parameters_set.set_ub(a=(a * (1 + var_a)))
+    if var_cen:
+        cen = var_cen*a
+        parameters_set.set_lb(x=-cen,y=-cen,z=-cen)
+        parameters_set.set_ub(x=cen,y=cen,z=cen)
     
     # Apply custom bounds using set operations for efficiency
     for param_name in set(upper_bounds) & set(parameters_set.keys()):
@@ -415,7 +422,7 @@ def _fit_standard_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds,
     return ModelResult(self.structure, op_res, parameters_set)
 
 
-def _fit_generalized_ellipsoid(self, data, a, var_a, init_parameters, upper_bounds, lower_bounds, info):
+def _fit_generalized_ellipsoid(self, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info):
     """
     Fit a generalized ellipsoidal structure (Ellipsoid_S) using a two-step approach.
     """
@@ -437,6 +444,10 @@ def _fit_generalized_ellipsoid(self, data, a, var_a, init_parameters, upper_boun
 
     ell_params.set_lb(a=(a * (1 - var_a)))
     ell_params.set_ub(a=(a * (1 + var_a)))
+    if var_cen:
+        cen = var_cen*a
+        ell_params.set_lb(x=-cen,y=-cen,z=-cen)
+        ell_params.set_ub(x=cen,y=cen,z=cen)
     
     # Apply parameter constraints efficiently
     for param_name in set(upper_bounds) & set(ell_params.keys()):

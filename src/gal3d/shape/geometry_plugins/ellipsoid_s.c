@@ -215,8 +215,9 @@ struct EllipsoidIntersectResult newton_intersect_ellipsoid(
             if (delta < -delta_cut) delta = -delta_cut;
         }
         t += delta;
-        if (fabs(delta) < epsilon) break;
+       // if (fabs(delta) < epsilon) break; // Do not use delta to check for convergence; sometimes delta meets the convergence condition but f does not.
     }
+    /* Since the convergence check no longer uses delta, there is no need to update f again here 
     posix = x1 + t * vx;
     posiy = y1 + t * vy;
     posiz = z1 + t * vz;
@@ -224,6 +225,7 @@ struct EllipsoidIntersectResult newton_intersect_ellipsoid(
     Ey = pow((posiy * posiy) * inv_b2, Sb);
     Ez = pow((posiz * posiz) * inv_c2, Sc);
     f = Ex + Ey + Ez - 1.0;
+    */
 
     struct EllipsoidIntersectResult res;
     res.t = t;
@@ -241,7 +243,7 @@ void IntersectLinesEllipsoid_S_cpp(
     double inv_c2 = 1.0 / (c * c);
     double delta_cut = c / 2.0;
     double epsilon = 1e-9;
-    double ten_epsilon = 1e-8;
+    double res_check = 1e-7;
 
     omp_set_num_threads(num_threads);
 
@@ -275,21 +277,21 @@ void IntersectLinesEllipsoid_S_cpp(
             tmax, delta_cut, epsilon, maxIterations);
 
         // Intersection result logic
-        if (fabs(res0.t - res1.t) <= ten_epsilon) {
-            if ((fabs(res0.f) < ten_epsilon) || (fabs(res1.f) < ten_epsilon)) {
+        if (fabs(res0.t - res1.t) <= res_check) {
+            if ((fabs(res0.f) < res_check) || (fabs(res1.f) < res_check)) {
                 // Single intersection point (tangent)
                 ts[i*2+0] = res0.t;
                 ts[i*2+1] = res1.t;
             }
-        } else if ((fabs(res0.f) <= ten_epsilon) && (fabs(res1.f) <= ten_epsilon)) {
+        } else if ((fabs(res0.f) <= res_check) && (fabs(res1.f) <= res_check)) {
             // Two distinct intersection points
             ts[i*2+0] = res0.t;
             ts[i*2+1] = res1.t;
-        } else if (fabs(res0.f) <= ten_epsilon) {
+        } else if (fabs(res0.f) <= res_check) {
             // First point converged, second didn't
             ts[i*2+0] = res0.t;
             ts[i*2+1] = res0.t + 0.6 * (res1.t - res0.t);
-        } else if (fabs(res1.f) <= ten_epsilon) {
+        } else if (fabs(res1.f) <= res_check) {
             // Second point converged, first didn't
             ts[i*2+1] = res1.t;
             ts[i*2+0] = res0.t + 0.4 * (res1.t - res0.t);

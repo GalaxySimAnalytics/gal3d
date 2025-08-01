@@ -1,11 +1,9 @@
 import numpy as np
 from numpy.typing import ArrayLike
 
-
+from ...util.array_operate import Rotate, RotateAndShift, Shift
+from ..coordinate import Coordinate, CoordinateBase, Parameters
 from ._rotation_eular_util import EulerAngles
-from ..coordinate import CoordinateBase, Coordinate, Parameters
-
-from ...util.array_operate import Shift, Rotate, RotateAndShift
 
 __all__ = ['EulerShift']
 

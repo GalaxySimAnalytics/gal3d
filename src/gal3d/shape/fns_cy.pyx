@@ -1,13 +1,15 @@
 # cython: boundscheck=False, wraparound=False, cdivision=True, language_level=3
 import numpy as np
+
 cimport numpy as np
-from libc.math cimport sqrt, fabs
+from libc.math cimport fabs, sqrt
+
 from cython.parallel import prange
+
+from gal3d.configuration import config
 
 # Import registry mechanism
 from .minimize_func import MinimizeFunc
-from gal3d.configuration import config
-
 
 # Initialize numpy
 np.import_array()

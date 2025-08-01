@@ -1,8 +1,8 @@
-import numpy as np
 import emcee
+import numpy as np
 
-from .util import InternalOptimizeResult
 from ..optimizer import OptimizerBase, classproperty
+from .util import InternalOptimizeResult
 
 
 class OptimizerEmcee(OptimizerBase):

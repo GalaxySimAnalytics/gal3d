@@ -2,21 +2,21 @@
 import math
 
 import numpy as np
-from numpy.typing import ArrayLike
 from numba import (
-    int32,
-    deferred_type,
-    optional,
-    float64,
     boolean,
+    deferred_type,
+    float64,
+    int32,
     int64,
-    njit,
     jit,
+    njit,
+    optional,
     prange,
     types,
 )
+from numpy.typing import ArrayLike
 
-from ...util.array_operate_nb import unit_vector3d, RobustLength3d, Dot
+from ...util.array_operate_nb import Dot, RobustLength3d, unit_vector3d
 
 __all__ = ['Ellipsoid']
 

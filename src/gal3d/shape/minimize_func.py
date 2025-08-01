@@ -1,5 +1,5 @@
-from typing import Callable, Union, Dict, Any, TypeVar, cast, Optional
 import logging
+from typing import Any, Callable, Dict, Optional, TypeVar, Union, cast
 
 from gal3d import config
 

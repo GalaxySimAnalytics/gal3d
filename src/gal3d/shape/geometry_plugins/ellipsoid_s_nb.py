@@ -2,23 +2,19 @@
 
 import numpy as np
 from numba import (
-    int32,
-    deferred_type,
-    optional,
-    float64,
     boolean,
+    deferred_type,
+    float64,
+    int32,
     int64,
-    njit,
     jit,
+    njit,
+    optional,
     prange,
     types,
 )
 
-
-from ...util.array_operate import unit_vector3d, RobustLength3d, vector_length3d
-
-
-
+from ...util.array_operate import RobustLength3d, unit_vector3d, vector_length3d
 
 
 @jit(

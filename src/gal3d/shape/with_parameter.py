@@ -1,8 +1,19 @@
-import os
-import logging
 import inspect
+import logging
+import os
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Type, ClassVar, Set, Optional, Tuple, TypeVar, Generic
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from ..optimization.parameter import Parameters
 

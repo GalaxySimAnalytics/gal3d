@@ -1,5 +1,6 @@
-from libcpp.vector cimport vector
 cimport numpy as np
+from libcpp.vector cimport vector
+
 import numpy as np
 
 

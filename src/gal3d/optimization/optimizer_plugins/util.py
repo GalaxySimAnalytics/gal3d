@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
+
 # from optimagic
 @dataclass(frozen=True)
 class InternalOptimizeResult:

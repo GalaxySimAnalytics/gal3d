@@ -1,11 +1,12 @@
 import os
 
-import pytest
 import numpy as np
+import pytest
 
 from gal3d.analyzer import Gal3DAnalyzer
 from gal3d.characterization import Characterizer
 from gal3d.visualization import ModelProjector, show_image_model_residual
+
 
 @pytest.fixture
 def data():

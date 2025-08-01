@@ -1,17 +1,16 @@
+import numpy as np
 from numba import (
-    int32,
-    deferred_type,
-    optional,
-    float64,
     boolean,
+    deferred_type,
+    float64,
+    int32,
     int64,
-    njit,
     jit,
+    njit,
+    optional,
     prange,
     types,
 )
-
-import numpy as np
 
 
 @njit(

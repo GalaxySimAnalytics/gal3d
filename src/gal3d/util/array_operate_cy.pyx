@@ -2,13 +2,15 @@
 # cython: boundscheck=False, wraparound=False, nonecheck=False, cdivision=True, language_level=3
 
 import numpy as np
+
 cimport numpy as np
-from libc.math cimport sqrt, atan2, cos, sin, acos, isnan, M_PI
+from libc.math cimport M_PI, acos, atan2, cos, isnan, sin, sqrt
+
 from cython.parallel import prange
+
 cimport cython
 
 from gal3d.configuration import config
-
 
 #openmp.omp_set_num_threads(num_threads)
 

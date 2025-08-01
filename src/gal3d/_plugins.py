@@ -1,6 +1,6 @@
 import json
-import os
 import logging
+import os
 
 logger = logging.getLogger("gal3d.plugins")
 PLUGINS_JSON_FILE = os.path.join(os.path.dirname(__file__), "plugins.json")
@@ -81,11 +81,11 @@ def save_plugin_to_json(plugin_name: str, plugin_description: str, plugin_type: 
 
 
 def update_plugins_json():
-    from gal3d.optimization.optimizer import Optimizer
-    from gal3d.shape import Coordinate,Geometry
-    from gal3d.point import DensityEstimator
-    from gal3d.visualization.model_projector import ModelProjector
     from gal3d.characterization import Characterizer
+    from gal3d.optimization.optimizer import Optimizer
+    from gal3d.point import DensityEstimator
+    from gal3d.shape import Coordinate, Geometry
+    from gal3d.visualization.model_projector import ModelProjector
 
     PLUGIN_BASE = [DensityEstimator,Coordinate,Geometry,Optimizer,ModelProjector,Characterizer]
     

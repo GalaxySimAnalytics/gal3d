@@ -1,7 +1,8 @@
 # distutils: language = c++
-from libcpp.vector cimport vector
-from libcpp cimport bool
 cimport numpy as np
+from libcpp cimport bool
+from libcpp.vector cimport vector
+
 import numpy as np
 
 from ..configuration import config

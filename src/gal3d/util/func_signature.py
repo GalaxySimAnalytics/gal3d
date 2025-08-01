@@ -1,8 +1,8 @@
 import inspect
-import textwrap
 import logging
-from typing import Dict, Type, Callable, Any, List, Optional, Union, TypeVar, cast
+import textwrap
 from functools import cached_property
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
 
 logger = logging.getLogger("gal3d.util.func_signature")
 

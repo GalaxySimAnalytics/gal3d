@@ -6,10 +6,10 @@ across the package, making debugging easier and error messages more informative.
 """
 
 import functools
+import inspect
 import logging
 import traceback
-import inspect
-from typing import Callable, TypeVar, Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 logger = logging.getLogger("gal3d.util.error_handling")
 

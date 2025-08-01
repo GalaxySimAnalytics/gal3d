@@ -2,13 +2,18 @@
 # cython: boundscheck=False, wraparound=False, nonecheck=False, cdivision=True, language_level=3
 
 import numpy as np
+
 cimport numpy as np
-from libc.math cimport pow as c_pow, log, abs, sqrt
-from cython.parallel import prange
+from libc.math cimport abs, log
+from libc.math cimport pow as c_pow
+from libc.math cimport sqrt
+
 import cython
+from cython.parallel import prange
+
+from gal3d import config
 
 from ...util.array_operate import unit_vector3d, vector_length3d
-from gal3d import config
 
 np.import_array()
 

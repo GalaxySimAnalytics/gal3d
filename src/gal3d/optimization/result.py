@@ -1,15 +1,14 @@
 import copy
 import logging
+import time
 from dataclasses import is_dataclass
-from typing import Union,overload, Dict, Any
+from typing import Any, Dict, Union, overload
 
 import numpy as np
-import time
 
 from ..shape import Structure3D
 from .parameter import Parameters
 from .util import save_model_hdf5
-
 
 logger = logging.getLogger("gal3d.optimization.result")
 

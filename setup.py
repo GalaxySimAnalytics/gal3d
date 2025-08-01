@@ -1,9 +1,9 @@
 import platform
 import subprocess
 
-from setuptools import setup, Extension
-from Cython.Build import build_ext, cythonize
 import numpy
+from Cython.Build import build_ext, cythonize
+from setuptools import Extension, setup
 
 
 def is_macos():

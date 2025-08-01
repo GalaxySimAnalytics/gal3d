@@ -5,9 +5,10 @@ from functools import wraps
 import numpy as np
 from scipy import optimize
 
+from .util import truncate
+
 # from optimagic import Bounds
 
-from .util import truncate
 
 
 logger = logging.getLogger("gal3d.optimization.parameter")

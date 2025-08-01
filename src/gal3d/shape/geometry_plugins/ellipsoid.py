@@ -1,16 +1,28 @@
 
 import logging
 
-
 import numpy as np
 
 from gal3d import config
+
 from ..geometry import GeometryBase, Parameters
 
 if config['general']['use_cython']:
-    from .ellipsoid_cy import f_ellipsoid,f_ellipsoid_jacobian,IntersectRaysEllipsoid,IntersectLinesEllipsoid,f_ray_ellipsoid
+    from .ellipsoid_cy import (
+        IntersectLinesEllipsoid,
+        IntersectRaysEllipsoid,
+        f_ellipsoid,
+        f_ellipsoid_jacobian,
+        f_ray_ellipsoid,
+    )
 else:
-    from .ellipsoid_nb import f_ellipsoid,f_ellipsoid_jacobian,IntersectRaysEllipsoid,IntersectLinesEllipsoid,f_ray_ellipsoid
+    from .ellipsoid_nb import (
+        IntersectLinesEllipsoid,
+        IntersectRaysEllipsoid,
+        f_ellipsoid,
+        f_ellipsoid_jacobian,
+        f_ray_ellipsoid,
+    )
 
 __all__ = ['Ellipsoid']
 

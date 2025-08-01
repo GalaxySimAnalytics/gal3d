@@ -3,7 +3,6 @@ from scipy.spatial.transform import Rotation
 
 from ...util.array_operate import Rotate
 
-
 __all__ = ["EulerAngles"]
 
 

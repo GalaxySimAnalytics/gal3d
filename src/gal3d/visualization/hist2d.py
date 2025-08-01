@@ -1,15 +1,14 @@
 # This code is inspired by or adapted from the plotting utilities in the following repository:
 # https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py
 
-import numpy as np
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 
-
-from .render_wrapper import get_render_image, get_kernel
 from ..util.array_operate import Rotate
+from .render_wrapper import get_kernel, get_render_image
 
 
 def which_pos_to_rotation(which_pos):

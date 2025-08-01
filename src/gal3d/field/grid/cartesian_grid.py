@@ -1,6 +1,6 @@
-from .util import *
 import logging
 
+from .util import *
 
 __all__ = ['Grid']
 

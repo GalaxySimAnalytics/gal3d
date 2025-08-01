@@ -1,18 +1,17 @@
-from logging import config
-from typing import Iterable, Callable, Dict, Tuple, Union
-import time
 import logging
+import time
+from logging import config
+from typing import Callable, Dict, Iterable, Tuple, Union
 
 import numpy as np
 from tqdm import tqdm
 
-from .point import Particles
+from .configuration import _set_config_parser
 from .field import SphField, SphVector
-from .shape import Structure3D
 from .optimization.optimizer import Optimizer
 from .optimization.result import ModelResult
-
-from .configuration import _set_config_parser
+from .point import Particles
+from .shape import Structure3D
 
 logger = logging.getLogger("gal3d.analyzer")
 

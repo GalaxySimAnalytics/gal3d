@@ -1,10 +1,9 @@
 import functools
 import json
 import time
-from typing import Any, Callable, TypeVar, Dict, Union, List, Set, Optional
+from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Union
 
 import numpy as np
-
 
 __all__ = ['timer', 'classproperty', 'lru_cache']
 

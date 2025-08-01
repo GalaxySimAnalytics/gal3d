@@ -3,10 +3,9 @@ from functools import cached_property
 
 import numpy as np
 
-from .util import shrink_sphere_center as ssc
-from .util import center_of_mass, centroid, moment_of_inertia, abc_vect
 from ..util.array_operate import vector_length3d
-
+from .util import abc_vect, center_of_mass, centroid, moment_of_inertia
+from .util import shrink_sphere_center as ssc
 
 logger = logging.getLogger('gal3d.particle.global_calculator')
 

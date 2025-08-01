@@ -1,17 +1,23 @@
-from typing import Tuple, List, Optional, Union, Dict, Any
-from annotated_types import T
-import numpy as np
-from numpy.typing import NDArray
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import matplotlib.pyplot as plt
-from matplotlib.patches import ConnectionPatch, Rectangle
+import numpy as np
+from annotated_types import T
 from matplotlib.axes import Axes
+from matplotlib.patches import ConnectionPatch, Rectangle
+from numpy.typing import NDArray
 
-from .hist2d import hist_2d, render_2d,show_image, show_contour, add_colorbar, which_pos_to_rotation
 from ..point import Particles
-from .model_projector import ModelProjectorBase
 from ..util.array_operate import Rotate
-
-
+from .hist2d import (
+    add_colorbar,
+    hist_2d,
+    render_2d,
+    show_contour,
+    show_image,
+    which_pos_to_rotation,
+)
+from .model_projector import ModelProjectorBase
 
 
 def show_data_model(

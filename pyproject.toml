@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gal3d"
-version = "1.0.0"
 description = "Build galaxy 3D morphology model"
 authors = [{name = "Shuai LU", email = "lushuai@stu.xmu.edu.cn"}]
 readme = "README.md"
@@ -16,6 +15,8 @@ dependencies = [
     "h5py>=3.13.0,<4.0.0",
 ]
 requires-python = ">=3.10,<3.13"
+
+dynamic = ["version"]
 
 [project.optional-dependencies]
 tests = [
@@ -29,8 +30,27 @@ gal3d = "gal3d.executor:main"
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.dynamic]
+version = {attr = "gal3d.__version__"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 "gal3d" = ["*.pyx", "*.pxd", "plugins.json", "default_config.ini", "run_config.ini"]
+
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+known_third_party = [
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "pytest",
+]
+
+known_first_party = ["gal3d"]
+
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]

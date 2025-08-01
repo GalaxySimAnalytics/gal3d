@@ -1,8 +1,9 @@
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
+
 from .util.string_format import string_formatter
 
 logger = logging.getLogger('gal3d.executor')

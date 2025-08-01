@@ -1,6 +1,6 @@
 
-import optimagic as om
 import numpy as np
+import optimagic as om
 
 from ..optimizer import OptimizerBase, classproperty
 

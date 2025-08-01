@@ -4,21 +4,24 @@
 # cython: cdivision=True
 
 import numpy as np
+
 cimport numpy as np
-from libc.math cimport sqrt, cos, sin, pi
-from cython.parallel import prange
+from libc.math cimport cos, pi, sin, sqrt
+
 import cython
+from cython.parallel import prange
+
+from gal3d import config
 
 # Import dependencies
 from ...point.util import abc_vect
 from ...util.array_operate_cy import (
-    vector_length3d,
-    unit_vector3d,
-    trans_to_Spherical_coordinates,
-    trans_to_Cartesian_coordinates,
     Matmul,
+    trans_to_Cartesian_coordinates,
+    trans_to_Spherical_coordinates,
+    unit_vector3d,
+    vector_length3d,
 )
-from gal3d import config
 
 # For OpenMP configuration
 

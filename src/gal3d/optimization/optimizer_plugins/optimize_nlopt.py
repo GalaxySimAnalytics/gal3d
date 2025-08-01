@@ -1,7 +1,7 @@
 import nlopt
 
-from .util import InternalOptimizeResult
 from ..optimizer import OptimizerBase, classproperty
+from .util import InternalOptimizeResult
 
 __all__ = ['OptimizerNLopt']
 

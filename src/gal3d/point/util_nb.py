@@ -10,24 +10,23 @@ Functions
 - abc_vect(pos, mass): Returns eigenvalues and eigenvectors of the inertia tensor (i.e., principal axes).
 """
 
-import math
 import logging
-
-from numba import (
-    int32,
-    deferred_type,
-    optional,
-    float64,
-    boolean,
-    int64,
-    njit,
-    jit,
-    prange,
-    types,
-    cuda,
-)
+import math
 
 import numpy as np
+from numba import (
+    boolean,
+    cuda,
+    deferred_type,
+    float64,
+    int32,
+    int64,
+    jit,
+    njit,
+    optional,
+    prange,
+    types,
+)
 
 
 @njit(float64[:](float64[:, :]), nogil=True, parallel=True, fastmath=True, cache=True)

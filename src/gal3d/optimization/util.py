@@ -1,6 +1,6 @@
+import logging
 import os
 from functools import wraps
-import logging
 
 import h5py
 

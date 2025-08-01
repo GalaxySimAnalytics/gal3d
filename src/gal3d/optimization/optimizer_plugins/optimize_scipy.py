@@ -3,8 +3,8 @@ from typing import SupportsInt
 from scipy import optimize
 from scipy.optimize import OptimizeResult as ScipyOptimizeResult
 
-from .util import InternalOptimizeResult
 from ..optimizer import OptimizerBase, classproperty
+from .util import InternalOptimizeResult
 
 __all__ = ['OptimizerScipy']
 

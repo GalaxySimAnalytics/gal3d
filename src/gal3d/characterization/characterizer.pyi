@@ -1,6 +1,8 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
+from typing import Any, List, Literal, NoReturn, Sequence, Type, Union, overload
+
 import numpy
+
 import gal3d
 from gal3d.characterization.characterizer import CharacterizerBase
 from gal3d.characterization.characterizer_plugins.galaxy_bar import Bar

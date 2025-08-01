@@ -1,6 +1,8 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
+from typing import Any, List, Literal, NoReturn, Sequence, Type, Union, overload
+
 import numpy
+
 from gal3d.point.density_estimator import DensityEstimatorBase
 from gal3d.point.density_estimator_plugins.estimator_knn import DensityEstimatorKNN
 

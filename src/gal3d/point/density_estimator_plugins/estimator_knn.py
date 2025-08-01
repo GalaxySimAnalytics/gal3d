@@ -1,16 +1,15 @@
-from functools import cached_property
+import json
 import logging
 import os
-import json
+from functools import cached_property
 
 import numpy as np
 from scipy.spatial import KDTree
 
-from .compute_pa_cy import sph_density, sph_gradient
-from ..density_estimator import DensityEstimatorBase
 from ...util.array_operate import unit_vector3d
 from ...util.func_signature import func_optional_key, update_dict_value
-
+from ..density_estimator import DensityEstimatorBase
+from .compute_pa_cy import sph_density, sph_gradient
 
 logger = logging.getLogger('gal3d.particle.density_estimator.DensityEstimatorKNN')
 

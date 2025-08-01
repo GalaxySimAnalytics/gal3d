@@ -1,31 +1,29 @@
 import math
 
+import numpy as np
 from numba import (
-    int32,
-    deferred_type,
-    optional,
-    float64,
     boolean,
+    deferred_type,
+    float64,
+    int32,
     int64,
-    njit,
     jit,
+    njit,
+    optional,
     prange,
     types,
 )
-import numpy as np
-
 
 from ...point.util import abc_vect
 from ...util.array_operate_nb import (
-    vector_length3d,
-    unit_vector3d,
-    trans_to_Spherical_coordinates,
-    trans_to_Cartesian_coordinates,
-    Matmul,
     Dot,
+    Matmul,
     Rotate,
+    trans_to_Cartesian_coordinates,
+    trans_to_Spherical_coordinates,
+    unit_vector3d,
+    vector_length3d,
 )
-
 
 __all__ = [
     'trans_to_Spherical_coordinates',

@@ -1,16 +1,16 @@
-import logging
 import abc
-from typing import List, NoReturn, Sequence, Optional, Dict, Any, Tuple, Union, Callable
-from functools import wraps
+import logging
 import os
+from functools import wraps
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ..util.func_cache import CacheDict
-from ..util.func_signature import generate_plugin_stub
-from ..util.func_decorator import classproperty
 from .. import config_parser
+from ..util.func_cache import CacheDict
+from ..util.func_decorator import classproperty
+from ..util.func_signature import generate_plugin_stub
 
 __all__ = ['ModelProjectorBase', 'ModelProjector']
 

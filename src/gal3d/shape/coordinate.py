@@ -1,16 +1,15 @@
-import os
 import logging
+import os
 from typing import List
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .with_parameter import WithParameter, abstractmethod, Parameters
-from ..optimization.parameter import Parameters
-from ..util.func_signature import generate_plugin_stub
-from ..util.func_decorator import classproperty
 from .. import config_parser
-
+from ..optimization.parameter import Parameters
+from ..util.func_decorator import classproperty
+from ..util.func_signature import generate_plugin_stub
+from .with_parameter import Parameters, WithParameter, abstractmethod
 
 __all__ = ['Coordinate', 'CoordinateBase']
 

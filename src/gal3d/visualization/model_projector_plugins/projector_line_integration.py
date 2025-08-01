@@ -1,10 +1,10 @@
 import numpy as np
-from tqdm import tqdm
 import scipy.integrate as integrate
+from tqdm import tqdm
 
-
-from gal3d.visualization.model_projector import ModelProjectorBase
 from gal3d.util.array_operate import Rotate
+from gal3d.visualization.model_projector import ModelProjectorBase
+
 
 class ProjectorLineIntegration(ModelProjectorBase):
     def __init__(self, model, model_cric=None, cache_len=100, **kwargs):

@@ -1,9 +1,15 @@
 import typing
-from typing import overload, Type, Literal, List, NoReturn, Union, Any, Sequence
+from typing import Any, List, Literal, NoReturn, Sequence, Type, Union, overload
+
 import numpy
+
 from gal3d.visualization.model_projector import ModelProjectorBase
-from gal3d.visualization.model_projector_plugins.projector_line_integration import ProjectorLineIntegration
-from gal3d.visualization.model_projector_plugins.projector_sph_grid import ProjectorSphGrid
+from gal3d.visualization.model_projector_plugins.projector_line_integration import (
+    ProjectorLineIntegration,
+)
+from gal3d.visualization.model_projector_plugins.projector_sph_grid import (
+    ProjectorSphGrid,
+)
 
 class ModelProjectorBase:
 

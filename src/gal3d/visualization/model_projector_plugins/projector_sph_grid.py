@@ -1,11 +1,10 @@
 import numpy as np
 from tqdm import tqdm
 
-
-from ..model_projector import ModelProjectorBase
 from ...field.spherical_field.spherical_vector import SphVector
 from ...util.array_operate import Rotate
 from ..hist2d import hist_2d
+from ..model_projector import ModelProjectorBase
 
 
 class ProjectorSphGrid(ModelProjectorBase):

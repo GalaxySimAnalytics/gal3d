@@ -1,15 +1,15 @@
-from typing import Callable, Self, Tuple, Dict
-from types import MethodType
 import logging
+from types import MethodType
+from typing import Callable, Dict, Self, Tuple
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-from .geometry import Geometry, GeometryBase, Parameters
-from .coordinate import CoordinateBase, Coordinate
-from .minimize_func import MinimizeFunc
-from ..util.func_signature import func_required_key
 from ..field.spherical_field.spherical_vector import fibonacci_sampling
+from ..util.func_signature import func_required_key
+from .coordinate import Coordinate, CoordinateBase
+from .geometry import Geometry, GeometryBase, Parameters
+from .minimize_func import MinimizeFunc
 
 logger = logging.getLogger("gal3d.shape")
 

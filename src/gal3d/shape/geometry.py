@@ -1,16 +1,16 @@
-import os
 import logging
+import os
 from typing import List
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from .. import config_parser
+from ..util.func_decorator import classproperty
 
-from .with_parameter import WithParameter, abstractmethod, Parameters
 # Utility function to generate Python interface (.pyi) stubs for geometry plugins.
 from ..util.func_signature import generate_plugin_stub
-from ..util.func_decorator import classproperty
-from .. import config_parser
+from .with_parameter import Parameters, WithParameter, abstractmethod
 
 __all__ = ['Geometry', 'GeometryBase']
 

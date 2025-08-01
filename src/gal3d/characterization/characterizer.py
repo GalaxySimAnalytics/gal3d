@@ -1,13 +1,12 @@
-import os
 import logging
+import os
 from abc import ABC, abstractmethod
 from typing import List
 
-from ..util.func_signature import generate_plugin_stub
-from ..util.func_decorator import classproperty
 from .. import config_parser
 from ..optimization.result import ModelResult
-
+from ..util.func_decorator import classproperty
+from ..util.func_signature import generate_plugin_stub
 
 __all__ = ['Characterizer', 'CharacterizerBase']
 

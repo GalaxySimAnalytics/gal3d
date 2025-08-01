@@ -5,14 +5,25 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from gal3d import config
+
 from ..geometry import GeometryBase, Parameters
 
 if config['general']['use_cython']:
-    from .ellipsoid_s_cy import (f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,
-            IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid)
+    from .ellipsoid_s_cy import (
+        IntersectLinesEllipsoid_S,
+        IntersectRaysEllipsoid_S,
+        f_ray_shaped_ellipsoid,
+        f_shaped_ellipsoid,
+        f_shaped_ellipsoid_jacobian,
+    )
 else:
-    from .ellipsoid_s_nb import (f_shaped_ellipsoid,f_shaped_ellipsoid_jacobian,
-            IntersectRaysEllipsoid_S,IntersectLinesEllipsoid_S,f_ray_shaped_ellipsoid)
+    from .ellipsoid_s_nb import (
+        IntersectLinesEllipsoid_S,
+        IntersectRaysEllipsoid_S,
+        f_ray_shaped_ellipsoid,
+        f_shaped_ellipsoid,
+        f_shaped_ellipsoid_jacobian,
+    )
 
 __all__ = ['Ellipsoid_S']
 

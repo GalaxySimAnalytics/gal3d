@@ -8,9 +8,9 @@ the principal axes of particle distributions, and density estimators.
 """
 import numpy as np
 
-from .global_calculator import GlobalCalculator
-from .density_estimator import DensityEstimator, DensityEstimatorBase
 from ..util.func_decorator import classproperty
+from .density_estimator import DensityEstimator, DensityEstimatorBase
+from .global_calculator import GlobalCalculator
 
 
 class Particles(GlobalCalculator):

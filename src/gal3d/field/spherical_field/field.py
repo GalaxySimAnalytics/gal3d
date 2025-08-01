@@ -1,14 +1,13 @@
 import logging
 from collections.abc import Iterable
-from typing import Dict, Callable
+from typing import Callable, Dict
 
 import numpy as np
 
-
-from .spherical_vector import SphVector
-from .ray import MonotonRay
 from ...point import Particles
 from ...util.func_decorator import timer
+from .ray import MonotonRay
+from .spherical_vector import SphVector
 
 logger = logging.getLogger("gal3d.preprocessing.spherical_field.field")
 
@@ -599,6 +598,7 @@ class SphField:
         return decorator
 
 from gal3d import config
+
 if config['general']['use_cython']:
     from .util_cy import iso_profile_by_moi, iso_profile_by_pair
 else:

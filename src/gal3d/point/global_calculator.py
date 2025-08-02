@@ -194,7 +194,7 @@ class GlobalCalculator:
         """
         begin_r = begin_r or (np.max(pos[:, 0]) - np.min(pos[:, 0])) / 2
 
-        logger.info(f"Using a begin_r= {begin_r:.2f}")
+        logger.debug(f"Using a begin_r= {begin_r:.2f}")
 
         cen, final_r, v_r, iternum = ssc(
             np.array(pos),
@@ -206,14 +206,14 @@ class GlobalCalculator:
             itermax,
         )
 
-        logger.info(f"Iteration num= {iternum}")
+        logger.debug(f"Iteration num= {iternum}")
 
         if iternum > itermax:
             logger.error(
                 f"shrink_sphere_center failed to converge after {iternum} iterations"
             )
 
-        logger.info(f"After iteration, final_r= {final_r:.2f}")
+        logger.debug(f"After iteration, final_r= {final_r:.2f}")
 
         return cen
 

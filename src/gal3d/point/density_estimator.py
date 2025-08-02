@@ -61,7 +61,7 @@ class DensityEstimatorBase(ABC):
 
     def __init_subclass__(cls, **kwargs):
         _DensityEstimatorPlugins[cls.__name__] = cls
-        logger.info(
+        logger.debug(
             f"Find DensityEstimatorPlugin: {cls.__name__} and load successfully"
         )
         if config_parser['general'].getboolean("update_stub"):
@@ -89,14 +89,14 @@ class DensityEstimatorBase(ABC):
             Reshaped position array with shape (n, 3).
         """
         if len(np.shape(pos)) != 2:
-            logger.info(f"pos is 1d array with shape={np.shape(pos)}, reshaping to (-1,3)")
+            logger.debug(f"pos is 1d array with shape={np.shape(pos)}, reshaping to (-1,3)")
             pos = np.array(pos).reshape(-1, 3)
         if np.shape(pos)[1] == 3:
             return pos
         if np.shape(pos)[0] == 3:
-            logger.info(f"pos have the shape= {np.shape(pos)}, transposing it")
+            logger.debug(f"pos have the shape= {np.shape(pos)}, transposing it")
             return np.array(pos).T
-        logger.info(
+        logger.debug(
             f"pos have the shape={np.shape(pos)}, target shape: (n,3), reshaping it"
         )
         return np.array(pos).reshape(-1, 3)
@@ -241,8 +241,8 @@ class DensityEstimator:
         """
         import importlib
         importlib.import_module("gal3d.point.density_estimator_plugins")
-        logger.info("Successfully loaded density estimator plugins")
-        
+        logger.info(f"Successfully loaded density estimator plugins: {list(_DensityEstimatorPlugins.keys())}")
+
     @classproperty
     def available_plugins(cls) -> List[str]:
         """

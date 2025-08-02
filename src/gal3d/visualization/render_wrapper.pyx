@@ -215,6 +215,33 @@ def get_kernel():
         return PyCubicSplineSmoothingKernelFloat()
 
 def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads = config['general']['number_of_threads']):
+    """
+    Get a render image object for the specified parameters.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x-coordinate of the render image.
+    x_max : float
+        Maximum x-coordinate of the render image.
+    y_min : float
+        Minimum y-coordinate of the render image.
+    y_max : float
+        Maximum y-coordinate of the render image.
+    nx : int
+        Number of pixels in the x-direction.
+    ny : int
+        Number of pixels in the y-direction.
+    kernel : PyCubicSplineSmoothingKernel
+        Smoothing kernel to use for the render image.
+    subsample_nx : int
+        Subsampling factor in the x-direction.
+    subsample_ny : int
+        Subsampling factor in the y-direction.
+    numthreads : int
+        Number of threads to use for rendering.
+
+    """
     if DOUBLE:
         return PyRenderImage(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)
     else:

@@ -3,6 +3,7 @@ from typing import List
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
+from scipy.spatial.transform import Rotation
 
 from ..characterizer import CharacterizerBase
 
@@ -45,8 +46,14 @@ class Bar(CharacterizerBase):
             self.eps = self.data['eps_ab']
         else:
             raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
-        
-        self.pa = self.data['pa']*180/np.pi         # radians to degrees
+        if 'pa' in data:
+            self.pa = self.data['pa']*180/np.pi         # radians to degrees
+        elif 'angle' in data:
+            rota = Rotation.from_euler(seq='zyx',angles=self.data['angle'])
+            self.pa = rota.magnitude()*180/np.pi
+        else:
+            raise KeyError("Both 'pa' and 'angle' are missing from the data dictionary.")
+
         self._f_eps_R = PchipInterpolator(self.a, self.eps)
 
     def measure(

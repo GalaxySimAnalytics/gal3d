@@ -29,7 +29,7 @@ class CharacterizerBase(ABC):
     def __init_subclass__(cls, **kwargs):
         
         _CharacterizerPlugins[cls.__name__] = cls
-        logger.info(f"CharacterizerPlugin found: {cls.__name__} and loaded successfully")
+        logger.debug(f"CharacterizerPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -93,7 +93,7 @@ class Characterizer:
         import importlib
         try:
             importlib.import_module("gal3d.characterization.characterizer_plugins")
-            logger.info("Successfully loaded Characterizer plugins")
+            logger.info(f"Successfully loaded Characterizer plugins: {list(_CharacterizerPlugins.keys())}")
         except ImportError as e:
             logger.error(f"Failed to load Characterizer plugins: {e}")
     

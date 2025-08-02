@@ -633,66 +633,6 @@ def isodensity_dist(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> f
 
     return self._error_func(f_call, **error_pa)
 
-
-@Structure3D.compute_method_registry
-def shell_padev(self: Structure3D, params: tuple | ArrayLike, *args, **kwargs) -> float:
-    """
-    Calculate the error using the shell error function.
-
-    Parameters
-    ----------
-    params : list or dict
-        The parameters to be used in the error calculation.
-    kwargs : dict
-        Additional keyword arguments required by the error function.
-
-    Returns
-    -------
-    float
-        The calculated error value.
-    """
-    if not isinstance(params, dict):
-        params = dict(zip(self.parameters.keys(), params))
-    params1 = params.copy()
-    params1['a'] = 0.98 * params1['a']
-    params2 = params.copy()
-    params2['a'] = 1.02 * params2['a']
-    f_call1 = self.quick_call(pos=kwargs['pos'], **params1) - 1
-    f_call2 = self.quick_call(pos=kwargs['pos'], **params2) - 1
-    error_pa = {i: kwargs[i] for i in self._error_params}
-    return self._error_func(f_call1=f_call1, f_call2=f_call2, **error_pa)
-
-
-@Structure3D.compute_method_registry
-def grid_padev(self: Structure3D, params: tuple | ArrayLike, *args, **kwargs) -> float:
-    """
-    Calculate the error using the grid error function.
-
-    Parameters
-    ----------
-    params : list or dict
-        The parameters to be used in the error calculation.
-    kwargs : dict
-        Additional keyword arguments required by the error function.
-
-    Returns
-    -------
-    float
-        The calculated error value.
-    """
-    if not isinstance(params, dict):
-        params = dict(zip(self.parameters.keys(), params))
-    params1 = params.copy()
-    params1['a'] = 0.9 * params1['a']
-    params2 = params.copy()
-    params2['a'] = 1.1 * params2['a']
-    f_call1 = self.quick_call(pos=kwargs['pos'], **params1) - 1
-    f_call2 = self.quick_call(pos=kwargs['pos'], **params2) - 1
-    error_pa = {i: kwargs[i] for i in self._error_params}
-
-    return self._error_func(f_call1=f_call1, f_call2=f_call2, **error_pa)
-
-
 @Structure3D.compute_method_registry
 def validate_fitting_data(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> float:
     """

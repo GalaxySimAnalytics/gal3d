@@ -53,7 +53,7 @@ class ModelProjectorBase(abc.ABC):
         """
 
         _ModelProjectorPlugins[cls.__name__] = cls
-        logger.info(f"ModelProjectorPlugin found: {cls.__name__} and loaded successfully")
+        logger.debug(f"ModelProjectorPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -103,10 +103,10 @@ class ModelProjectorBase(abc.ABC):
                 rotation_bytes,
             )
             if recod in self._image_cache:
-                logger.info(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
+                logger.debug(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
                 return self._image_cache[recod]
             else:
-                logger.info(f"Cache image, register input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
+                logger.debug(f"Cache image, register input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )
@@ -334,8 +334,8 @@ class ModelProjector:
     def _load_plugin():
         import importlib
         importlib.import_module("gal3d.visualization.model_projector_plugins")
-        logger.info("Successfully loaded model projector plugins")
-        
+        logger.info(f"Successfully loaded model projector plugins: {list(_ModelProjectorPlugins.keys())}")
+
     @classproperty
     def available_plugins(cls) -> List[str]:
         if not _ModelProjectorPlugins:

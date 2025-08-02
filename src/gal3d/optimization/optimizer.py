@@ -59,7 +59,7 @@ class OptimizerBase(ABC):
         Register the subclass as an optimizer plugin and update the plugin stub if update_stub.
         """
         _OptimizerPlugins[cls.__name__] = cls
-        logger.info(f"OptimizerPlugin found: {cls.__name__} and loaded successfully")
+        logger.debug(f"OptimizerPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -199,8 +199,8 @@ class Optimizer:
     def _load_plugin():
         import importlib
         importlib.import_module("gal3d.optimization.optimizer_plugins")
-        logger.info("Successfully loaded optimizer plugins")
-    
+        logger.info(f"Successfully loaded optimizer plugins: {list(_OptimizerPlugins.keys())}")
+
     @classproperty
     def available_plugins(cls) -> List[str]:
         """ A list of available optimizer plugins. """

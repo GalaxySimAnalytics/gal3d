@@ -64,9 +64,6 @@ class Gal3DAnalyzer:
             Additional keyword arguments for analysis.
 
         """
-        
-        logger.info("Starting analysis...")
-
 
         particle = Particles(pos=pos, mass=mass, recenter=recenter)
         
@@ -92,7 +89,6 @@ class Gal3DAnalyzer:
         logger.info("Set inner radius to %f", inner)
         logger.info("Set outer value to %f", outer)
 
-        logger.info("Building spherical field...")
         field = SphField(particle, num_ray=Num_rays
                 ).build_field_boundary(inner = inner, outer=outer,inner_mode=inner_mode,outer_mode=outer_mode
                 ).build_profile_sample(

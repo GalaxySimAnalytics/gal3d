@@ -33,11 +33,11 @@ class GeometryBase(WithParameter):
         """
 
         if not super().__init_subclass__():
-            logger.info(f"GeometryPlugin found: {cls.__name__} but failed to load")
+            logger.warning(f"GeometryPlugin found: {cls.__name__} but failed to load")
             return
 
         _GeometryPlugins[cls.__name__] = cls
-        logger.info(f"GeometryPlugin found: {cls.__name__} and loaded successfully")
+        logger.debug(f"GeometryPlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(Geometry, GeometryBase, _GeometryPlugins, output_path)
@@ -279,7 +279,7 @@ class Geometry:
         import importlib 
         try:
             importlib.import_module("gal3d.shape.geometry_plugins")
-            logger.info("Successfully loaded geometry plugins")
+            logger.info(f"Successfully loaded geometry plugins: {list(_GeometryPlugins.keys())}")
         except ModuleNotFoundError as e:
             logger.error(f"Failed to load geometry plugins: {e}")
         except Exception as e:

@@ -53,12 +53,12 @@ class SphField:
         self.rays_points_num = np.bincount(self.rays_index)
 
         max_num_dex = np.argmax(self.rays_points_num)
-        logger.info(
+        logger.debug(
             f"Ray {max_num_dex} has the maximum particle count of {self.rays_points_num[max_num_dex]}. "
         )
 
         min_num_dex = np.argmin(self.rays_points_num)
-        logger.info(
+        logger.debug(
             f"Ray {min_num_dex} has the minimum particle count of {self.rays_points_num[min_num_dex]}. "
         )
         if self.rays_points_num[min_num_dex] < 3:
@@ -91,14 +91,14 @@ class SphField:
         self.inner_r = self._bound_method[inner_mode](self, inner, mode='min')
         r_in_min = np.min(self.inner_r)
         r_in_max = np.max(self.inner_r)
-        logger.info(f"Field inner boundaries range from {r_in_min:.2f} to {r_in_max:.2f}")
+        logger.debug(f"Field inner boundaries range from {r_in_min:.2f} to {r_in_max:.2f}")
         if r_in_min/r_in_max < 0.09:
             logger.warning("The axial ratio of the inner boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
 
         self.outer_r = self._bound_method[outer_mode](self, outer, mode='max')
         r_ou_min = np.min(self.outer_r)
         r_ou_max = np.max(self.outer_r)
-        logger.info(f"Field outer boundaries range from {r_ou_min:.2f} to {r_ou_max:.2f}")
+        logger.debug(f"Field outer boundaries range from {r_ou_min:.2f} to {r_ou_max:.2f}")
         if r_ou_min/r_ou_max < 0.09:
             logger.warning("The axial ratio of the outer boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
 

@@ -30,7 +30,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         r_cut: float | None = None,
         **kwargs,
     ):
-        '''
+        """
         Parameters:
             pos: ndarray, shape(n,3)
                 The coordinates (x, y, z) of the n data points.
@@ -63,7 +63,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
                 Estimate the parameter value at the target positions.
             get_gradient(target_pos)
                 Estimate the gradient of the parameter at the target positions.
-        '''
+        """
         super().__init__(pos, mass, parameter_mode, kernel)
 
         self.__generate_kd_options(k_nearest, r_cut, **kwargs)
@@ -212,7 +212,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         if r_cut:
             self._tree_query_options['distance_upper_bound'] = r_cut
 
-        logger.info(f"cpu nums: {self._tree_query_options['workers']}")
+        logger.debug(f"cpu nums: {self._tree_query_options['workers']}")
 
         self._tree_build_options = update_dict_value(self._tree_build_options, kwargs)
 
@@ -220,4 +220,5 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         
         changed_keys = ['leafsize'] + list(kwargs.keys())
         changed_options = {k: self._tree_build_options[k] for k in changed_keys if k in self._tree_build_options}
+        changed_options['workers'] = self._tree_query_options['workers']
         logger.info(f"Build KDTree with options: {changed_options}")

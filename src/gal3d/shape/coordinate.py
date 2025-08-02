@@ -46,11 +46,11 @@ class CoordinateBase(WithParameter):
         """
 
         if not super().__init_subclass__():
-            logger.info(f"CoordinatePlugin found: {cls.__name__} but failed to load")
+            logger.warning(f"CoordinatePlugin found: {cls.__name__} but failed to load")
             return
 
         _CoordinatePlugins[cls.__name__] = cls
-        logger.info(f"CoordinatePlugin found: {cls.__name__} and loaded successfully")
+        logger.debug(f"CoordinatePlugin found: {cls.__name__} and loaded successfully")
         if config_parser['general'].getboolean("update_stub"):
             output_path = os.path.join(_current_dir, _pyi_name)
             generate_plugin_stub(
@@ -203,7 +203,7 @@ class Coordinate:
          """
         import importlib
         importlib.import_module("gal3d.shape.coordinate_plugins")
-        logger.info("Successfully loaded coordinate plugins")
+        logger.info(f"Successfully loaded coordinate plugins: {list(_CoordinatePlugins.keys())}")
 
     @classproperty
     def available_plugins(cls) -> List[str]:

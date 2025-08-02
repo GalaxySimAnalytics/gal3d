@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 
 sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../../')) # Adjust this to your project's root
+sys.path.insert(0, os.path.abspath('../../src')) # Adjust this to your project's root
 sys.path.append(os.path.abspath('sphinxext'))
 
 
@@ -90,34 +90,34 @@ pygments_style = 'sphinx'
 html_theme = 'sphinx_book_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme.
-html_theme_options = {
+#html_theme_options = {
     # Repository and navigation settings
-    "repository_provider": "github",
-    "repository_url": "https://github.com/GalaxySimAnalytics/gal3d",
+ #   "repository_provider": "github",
+ #   "repository_url": "https://github.com/GalaxySimAnalytics/gal3d",
     
-    "use_repository_button": True,      # Show repository button
+ #   "use_repository_button": True,      # Show repository button
    # "use_issues_button": True,          # Show issues button  
     #"use_edit_page_button": True,       # Show edit page button
     
     #"use_sidenotes": True,
    # "use_source_button": True,
-    "path_to_docs": "docs/source",      # Path to documentation source in repo
+ #   "path_to_docs": "docs/source",      # Path to documentation source in repo
    # "home_page_in_toc": True,           # Include home page in table of contents
     
     # Navigation and layout
     #"show_navbar_depth": 2,             # Depth of navigation bar
-    "show_toc_level": 2,                # Depth of table of contents in sidebar
+  #  "show_toc_level": 2,                # Depth of table of contents in sidebar
     #"collapse_navigation": False,        # Keep navigation expanded
     #"navigation_with_keys": True,        # Enable keyboard navigation
     
     # Logo and branding
-    "logo": {
-        "text": "Gal3D Documentation", # Logo text (if no image)
+  #  "logo": {
+  #      "text": "Gal3D Documentation", # Logo text (if no image)
         # Add a subtitle/description
-        "subtitle": "Galaxy 3D morphology model"
+  #      "subtitle": "Galaxy 3D morphology model"
         # "image_light": "logo-light.png",  # Logo image for light mode
         # "image_dark": "logo-dark.png",    # Logo image for dark mode
-    },
+  #  },
     
     # Search functionality
    # "search_bar_text": "Search the documentation...",  # Search bar placeholder
@@ -133,7 +133,7 @@ html_theme_options = {
     #"extra_footer": "",                 # Additional footer content
     
     # Announcement banner (optional)
-    "announcement": "This documentation is under active development!",
+  #  "announcement": "This documentation is under active development!",
     
     # Theme variants
     #"pygment_light_style": "default",   # Code highlighting style for light mode
@@ -143,7 +143,34 @@ html_theme_options = {
     #"show_prev_next": True,             # Show previous/next navigation
    # "use_download_button": True,        # Show download button
     #"use_fullscreen_button": True,      # Show fullscreen button
-}
+#}
+
+if language == 'zh_CN':
+    html_theme_options = {
+        "repository_provider": "github",
+        "repository_url": "https://github.com/GalaxySimAnalytics/gal3d",
+        "use_repository_button": True,
+        "path_to_docs": "docs/source",
+        "show_toc_level": 2,
+        "logo": {
+            "text": "Gal3D 文档",
+            "subtitle": "星系三维形态建模"
+        },
+        "announcement": "本文档正在建设中！",
+    }
+else:
+    html_theme_options = {
+        "repository_provider": "github",
+        "repository_url": "https://github.com/GalaxySimAnalytics/gal3d",
+        "use_repository_button": True,
+        "path_to_docs": "docs/source",
+        "show_toc_level": 2,
+        "logo": {
+            "text": "Gal3D Documentation",
+            "subtitle": "Galaxy 3D morphology model"
+        },
+        "announcement": "This documentation is under active development!",
+    }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files.
@@ -155,10 +182,10 @@ html_css_files = ['gal3d.css']
 
 # -- Options for autodoc extension -------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#configuration
-
-autodoc_typehints = "description"  # Show typehints in the description, not the signature
-autoclass_content = "both"         # Include both the class's and the __init__ docstring
-autodoc_member_order = 'bysource'  # Order members by source order
+autosummary_generate = False
+#autodoc_typehints = "description"  # Show typehints in the description, not the signature
+#autoclass_content = "both"         # Include both the class's and the __init__ docstring
+#autodoc_member_order = 'bysource'  # Order members by source order
 
 
 # -- Options for intersphinx extension ---------------------------------------

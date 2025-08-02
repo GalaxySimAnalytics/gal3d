@@ -1,9 +1,7 @@
 
 
 
-docs/code_test.ipynb
-docs/code_for_save.py
-docs/test.py
+docs/source/reference/_autosummary/*
 
 src/gal3d.egg-info
 src/gal3d/visualization/render_wrapper.cpp

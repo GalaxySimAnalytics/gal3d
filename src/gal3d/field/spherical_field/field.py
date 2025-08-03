@@ -9,7 +9,7 @@ from ...util.func_decorator import timer
 from .ray import MonotonRay
 from .spherical_vector import SphVector
 
-logger = logging.getLogger("gal3d.preprocessing.spherical_field.field")
+logger = logging.getLogger("gal3d.field.SphField")
 
 
 timing = timer(logger)

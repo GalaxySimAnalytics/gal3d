@@ -48,7 +48,8 @@ extensions = [
     'sphinx.ext.todo',         # Support for todo items
     'sphinx_copybutton',       # Add a "copy" button to code blocks
     'numpydoc',                # Support for NumPy docstrings
-    'nbsphinx',                # Support for Jupyter Notebooks
+   # 'nbsphinx',                # Support for Jupyter Notebooks
+    'myst_nb',                  # Support for Jupyter Notebooks
     # Add other extensions here, e.g., 'myst_parser' for Markdown support
 ]
 

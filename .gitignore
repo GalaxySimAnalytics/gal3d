@@ -8,6 +8,9 @@ src/gal3d/visualization/render_wrapper.cpp
 
 **/__pycache__
 
+# 
+**/*.ipynb
+
 **/gal3d.log
 **/*.so
 **/*cy.cpp

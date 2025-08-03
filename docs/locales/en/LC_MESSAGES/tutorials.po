@@ -1,0 +1,247 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2025
+# This file is distributed under the same license as the Gal3D package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Gal3D 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-08-03 19:33+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: ../../source/tutorials/configuration.rst:2
+#: ../../source/tutorials/index.rst:23
+msgid "额外的设置"
+msgstr ""
+
+#: ../../source/tutorials/density_field.ipynb:10002
+#: ../../source/tutorials/index.rst:23
+msgid "构建密度场"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:13 ../../source/tutorials/index.rst:15
+#: ../../source/tutorials/quick_start.ipynb:10002
+msgid "快速入门"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:23
+#: ../../source/tutorials/particle_initialization.ipynb:10002
+msgid "粒子初始化"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:23
+#: ../../source/tutorials/morphology_construction.ipynb:10002
+msgid "形态的量化"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:23
+#: ../../source/tutorials/optimization.ipynb:10002
+msgid "优化与拟合"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:23
+#: ../../source/tutorials/result_analysis.ipynb:10004
+msgid "结果的分析"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:4
+msgid "Gal3D 教程"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:6
+msgid "这里是 Gal3D 的使用教程，帮助用户快速上手并掌握库的基本功能和用法。"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:8
+msgid ""
+":doc:`快速入门 <quick_start>` 提供了最基本的使用示例和说明。 :doc:`进阶教程 "
+"<advanced_tutorials>` 涵盖了更复杂的用法和技巧。"
+msgstr ""
+
+#: ../../source/tutorials/index.rst:21
+msgid "进阶教程"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:10005
+msgid "这里将展示使用Gal3D进行三维星系形态建模的基本步骤和示例。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:10007
+msgid "这个教程是从一个ipython notebook生成的，你可以通过右上角的下载链接直接访问它。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:20002
+msgid "提取数据"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:20005
+msgid ""
+"本节中，我们使用 [AnastrisTNG](https://github.com/wx-ys/AnastrisTNG) "
+"库，从TNG50-1模拟中提取一个星系的恒星粒子的坐标（``pos``）和质量（``mass``）。 这些数据将作为后续三维建模的基础。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:40003
+msgid ""
+"为了展示Gal3D的功能，我们使用了从TNG50-1中切出来的一个星系。如果你想尝试其他的数据，你只需要更改``pos`` 和 "
+"``mass``参数的输入即可。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:50002
+msgid "数据初始化"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:50005
+msgid ""
+"将粒子的坐标（``pos``）和质量（``mass``）传入给 "
+"[Gal3DAnalyzer.analyze](../reference/_autosummary/gal3d.analyzer.Gal3DAnalyzer.html#gal3d.analyzer.Gal3DAnalyzer.analyze)"
+" 方法，进行三维数据的初始化。你可以通过``res_r``参数手动指定粒子分辨率，如果不指定，程序会自动估算一个合适的分辨率。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:70002
+msgid "拟合模型"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:70004
+msgid ""
+"在完成数据初始化后，下一步是对星系的三维结构进行模型拟合。 我们使用 "
+"[Gal3DAnalyzer.fit](../reference/_autosummary/gal3d.analyzer.Gal3DAnalyzer.html#gal3d.analyzer.Gal3DAnalyzer.fit)"
+" 方法，对粒子分布进行椭球体嵌套拟合。通过设置参数 ``num_step = "
+"300``，指定拟合过程生成300个嵌套椭球体。``num_step``  的默认值为 ``200``，可根据实际需求调整该参数。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:90002
+msgid "拟合结果"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:90005
+msgid ""
+"拟合完成后，``res_ellipsoid_s`` 变量中保存了所有嵌套椭球体的参数信息。该对象属于 "
+"[ModelResult](../reference/_autosummary/gal3d.optimization.result.ModelResult.html)"
+" 类，包括拟合的模型，模型参数，拟合程度等。 "
+"可以通过``res_ellipsoid_s.keys()``查看可用的键值，然后可以使用这些键值来访问具体的拟合结果。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:110004
+msgid "对于 `ModelResult` 类的详细信息，请参阅其 :ref:`拟合与优化 <tutorials/optimization>` 文档。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:120002
+msgid "可以查看径向的形状参数的变化"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:140002
+msgid "结果分析"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:140005
+#, python-brace-format
+msgid ""
+"获取了拟合结果后，可以利用 {py:class}`Characterizer "
+"<gal3d.characterization.characterizer.Characterizer>` 类来分析拟合结果。 "
+"通过``Characterizer.available_plugins``可以查看所有可用的分析插件。例如，``Bar`` "
+"插件可用于定量分析星系棒结构的形态特征。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:160002
+msgid "使用``Characterizer.get_plugin('Bar')``来获取Bar插件。并对拟合结果进行分析："
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:160006
+msgid ""
+"对于 `Characterizer` 类的详细信息，请参阅其 :ref:`结果的分析 <tutorials/result_analysis>` "
+"文档。:ref:`结果的分析 <result_analysis>`"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:180002
+msgid "``flag=1``表明有星系棒结构的存在。``R_bar``记录棒的半长轴的长度。"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:190002
+msgid "可视化"
+msgstr ""
+
+#: ../../source/tutorials/quick_start.ipynb:190005
+msgid ""
+"可以使用 Gal3D 提供的可视化工具直观展示模型和数据。 ``ModelProjector`` "
+"插件可将三维模型投影到二维平面，``ProjectorLineIntegration``支持沿视线方向的积分投影。 "
+"``show_image_model_residual`` 是一个内置的可视化函数，可同时展示原始数据投影、模型投影及其残差，便于对比分析。"
+msgstr ""
+
+#~ msgid ""
+#~ ":doc:`快速入门 <quick_start>` 提供了最基本的使用示例和说明。 :doc:`进阶教程"
+#~ " <advanced-tutorials>` 涵盖了更复杂的用法和技巧。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "在这个部分，我们先从模拟数据中提取模拟中的数据 ``pos`` 和 ``mass``\\ 。"
+#~ " 这里我们使用 `AnastrisTNG <https://github.com/wx-"
+#~ "ys/AnastrisTNG>`__ 这个Python库，来提取TNG模拟中的数据。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "为了展示Gal3D的功能，我们使用了从TNG50-1中切出来的一个星系。如果你想尝试其他的数据，你只需要更改\\ ``pos``"
+#~ " 和 ``mass``\\ 参数的输入即可。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "将粒子的坐标\\ ``pos``\\ 和质量\\ ``mass`` 传入给 "
+#~ "`Gal3DAnalyzer.analyze "
+#~ "<../reference/_autosummary/gal3d.analyzer.Gal3DAnalyzer.html#gal3d.analyzer.Gal3DAnalyzer.analyze>`__\\"
+#~ " 。另外可以传入可选参数\\ ``res_r``\\ ，它用于指定粒子分辨率， "
+#~ "如果没有传入，则程序会自动估计分辨率。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "我们使用 `Gal3DAnalyzer.fit "
+#~ "<../reference/_autosummary/gal3d.analyzer.Gal3DAnalyzer.html#gal3d.analyzer.Gal3DAnalyzer.fit>`__"
+#~ " 方法来拟合模型。这里传入参数 ``num_step = 300``\\ "
+#~ "，指定拟合300个嵌套模型，\\ ``num_step`` 的默认值为 ``200``\\ "
+#~ "。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "``res_ellipsoid_s`` 是一个 `ModelResult "
+#~ "<../reference/_autosummary/gal3d.optimization.result.ModelResult.html>`__"
+#~ " 类，它存储了拟合结果的相关信息，包括拟合的模型，模型参数，拟合程度等。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ ".. note ::    "
+#~ "为了展示Gal3D的功能，我们使用了从TNG50-1中切出来的一个星系。如果你想尝试其他的数据，你只需要更改``pos`` 和"
+#~ " ``mass``参数的输入即可。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ ".. seealso::     :class: margin    对于 "
+#~ "`ModelResult` 类的详细信息，请参阅其 :ref:`拟合与优化 "
+#~ "<tutorials/optimization>` 文档。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "对于 `ModelResult` 类的详细信息，请参阅其 :ref:`拟合与优化 "
+#~ "<tutorials/optimization>` 文档。 :class: margin"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "获取了拟合结果后，可以利用 "
+#~ "[Characterizer](../reference/_autosummary/gal3d.characterization.characterizer.html)类来分析拟合结果。"
+#~ " 通过``Characterizer.available_plugins``可以查看所有可用的分析插件。例如，``Bar`` "
+#~ "插件可用于定量分析星系棒结构的形态特征。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "使用``Characterizer.get_plugin('Bar')``来获取Bar插件。并对拟合结果进行分析： .. "
+#~ "seealso::      对于 `Characterizer` 类的详细信息，请参阅其 "
+#~ ":ref:`结果的分析 <tutorials/result_analysis>` 文档。"
+#~ msgstr ""
+

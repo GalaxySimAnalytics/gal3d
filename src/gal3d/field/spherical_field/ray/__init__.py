@@ -5,7 +5,7 @@ import numpy as np
 
 from .lu_mono_cy import LU_Mono
 
-logger = logging.getLogger('gal3d.preprocessing.ray.ray_profile')
+logger = logging.getLogger('gal3d.field.ray.MonotonRay')
 
 
 def judge_monoton(x, is_decreasing: bool = True) -> bool:

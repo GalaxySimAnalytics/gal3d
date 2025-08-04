@@ -1,6 +1,7 @@
+from matplotlib.pyplot import cla
 import nlopt
 
-from ..optimizer import OptimizerBase, classproperty
+from ..optimizer import OptimizerBase
 from .util import InternalOptimizeResult
 
 __all__ = ['OptimizerNLopt']
@@ -79,6 +80,6 @@ class OptimizerNLopt(OptimizerBase):
 
         return _process_nlopt_results(opt, xopt, is_global)
 
-    @classproperty
+    @classmethod
     def available_algorithm(cls):
         return list(filter(lambda x: x[:3] in ['GN_', 'GD_', 'LN_', 'LD_'], dir(nlopt)))

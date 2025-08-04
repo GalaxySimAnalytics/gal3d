@@ -3,7 +3,7 @@ from typing import SupportsInt
 from scipy import optimize
 from scipy.optimize import OptimizeResult as ScipyOptimizeResult
 
-from ..optimizer import OptimizerBase, classproperty
+from ..optimizer import OptimizerBase
 from .util import InternalOptimizeResult
 
 __all__ = ['OptimizerScipy']
@@ -69,7 +69,7 @@ class OptimizerScipy(OptimizerBase):
         )
         return process_scipy_result(res)
 
-    @classproperty
+    @classmethod
     def available_algorithm(cls):
         return [
             'Nelder-Mead',

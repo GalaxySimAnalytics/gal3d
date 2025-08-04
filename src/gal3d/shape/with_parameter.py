@@ -22,8 +22,6 @@ logger = logging.getLogger("gal3d.shape.with_parameter")
 required_attrs = ['PN', 'UB', 'LB']
 required_type = [tuple, dict, dict]
 
-T = TypeVar('T', bound='WithParameter')
-
 class WithParameter(ABC):
     """
     Abstract base class for objects that contain parameters with bounds.

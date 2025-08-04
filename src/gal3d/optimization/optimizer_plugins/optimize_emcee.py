@@ -1,7 +1,8 @@
 import emcee
+from matplotlib.pyplot import cla
 import numpy as np
 
-from ..optimizer import OptimizerBase, classproperty
+from ..optimizer import OptimizerBase
 from .util import InternalOptimizeResult
 
 
@@ -65,6 +66,6 @@ class OptimizerEmcee(OptimizerBase):
         )
         return res
 
-    @classproperty
+    @classmethod
     def available_algorithm(cls):
         return ["emcee"]

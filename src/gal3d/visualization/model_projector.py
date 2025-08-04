@@ -1,4 +1,4 @@
-import abc
+from abc import abstractmethod
 import logging
 import os
 from functools import wraps
@@ -9,21 +9,17 @@ from numpy.typing import NDArray
 
 from .. import config_parser
 from ..util.func_cache import CacheDict
-from ..util.func_decorator import classproperty
-from ..util.func_signature import generate_plugin_stub
+
+from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ['ModelProjectorBase', 'ModelProjector']
 
 logger = logging.getLogger("gal3d.visualization.model_projector")
 
 _ModelProjectorPlugins = dict()
-_current_path = os.path.realpath(__file__)
-_current_dir = os.path.dirname(__file__)
-_current_file_name = os.path.basename(_current_path)
-_pyi_name = _current_file_name.replace('.py', '.pyi')
 
 
-class ModelProjectorBase(abc.ABC):
+class ModelProjectorBase(PluginBase):
     """Abstract base class for model projectors that generate 2D projections from 3D models.
 
     This class provides a framework for creating different types of model projectors
@@ -51,15 +47,9 @@ class ModelProjectorBase(abc.ABC):
         **kwargs
             Additional keyword arguments passed to the parent __init_subclass__.
         """
+        super().__init_subclass__(**kwargs)
+        ModelProjectorManager.register(cls)
 
-        _ModelProjectorPlugins[cls.__name__] = cls
-        logger.debug(f"ModelProjectorPlugin found: {cls.__name__} and loaded successfully")
-        if config_parser['general'].getboolean("update_stub"):
-            output_path = os.path.join(_current_dir, _pyi_name)
-            generate_plugin_stub(
-                ModelProjector, ModelProjectorBase, _ModelProjectorPlugins, output_path
-            )
-            logger.info(f"✅ Updated stub: {output_path}")
 
     def __init__(self, cache_len: int = 100):
         """Initialize the model projector.
@@ -186,7 +176,7 @@ class ModelProjectorBase(abc.ABC):
             x_range, y_range, nbins, z_range=z_range, rotation=rotation, **kwargs
         )
 
-    @abc.abstractmethod
+    @abstractmethod
     def _image(
         self,
         x_range: Sequence[float],
@@ -296,53 +286,15 @@ class ModelProjectorBase(abc.ABC):
         )
 
 
-class ModelProjector:
+class ModelProjectorManager(PluginManager[ModelProjectorBase]):
+    """
+    Factory class for accessing registered ModelProjector plugins.
+    """
+    
+    _plugins = {}
+    _plugin_module = "gal3d.visualization.model_projector_plugins"
+    _base_class = ModelProjectorBase
 
-    @staticmethod
-    def _update_plugin_stub():
-        output_path = os.path.join(_current_dir, _pyi_name)
-        generate_plugin_stub(
-            ModelProjector, ModelProjectorBase, _ModelProjectorPlugins, output_path
-        )
-        logger.info(f"✅ Updated stub: {output_path}")
-
-    @staticmethod
-    def get_plugin(plugin: str | None) -> ModelProjectorBase:
-        """Get a geometry plugin
-
-        Parameters:
-        plugin: str,
-            the name of the plugin, available see available_plugins
-
-        Returns:
-            An instance of the requested ModelProjectorBase plugin.
-
-        Raises:
-            KeyError: If the requested plugin name does not exist.
-        """
-        if not isinstance(plugin, (str, type(None))):
-            raise TypeError("plugin must be a string or None")
-
-        if plugin is None:
-            return ModelProjectorBase
-        if not _ModelProjectorPlugins:
-            ModelProjector._load_plugin()
-        if plugin not in _ModelProjectorPlugins:
-            raise KeyError(f"Plugin '{plugin}' not found. Available plugins: {list(_ModelProjectorPlugins.keys())}")
-        return _ModelProjectorPlugins[plugin]
-    @staticmethod
-    def _load_plugin():
-        import importlib
-        importlib.import_module("gal3d.visualization.model_projector_plugins")
-        logger.info(f"Successfully loaded model projector plugins: {list(_ModelProjectorPlugins.keys())}")
-
-    @classproperty
-    def available_plugins(cls) -> List[str]:
-        if not _ModelProjectorPlugins:
-            cls._load_plugin()
-            if not _ModelProjectorPlugins:
-                logger.warning("No plugins were loaded. The _ModelProjectorPlugins dictionary is empty.")
-        return list(_ModelProjectorPlugins.keys())
-
+ModelProjector = ModelProjectorManager
 
 # Removed unused imports: ProjectorLineIntegration, ProjectorSphGrid

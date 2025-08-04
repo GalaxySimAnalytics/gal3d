@@ -97,7 +97,7 @@ class Gal3DAnalyzer:
                 )
                 
         ellipsoid_s = Structure3D(coordinate='EulerShift',geometry='Ellipsoid_S',error_func='sums_dev_rscale',error_method='isodensity_dcall')
-        optimizer = Optimizer.get_plugin(plugin = 'OptimizerScipy')(algorithm='Powell') # OptimizerScipy Powell
+        optimizer = Optimizer.get_plugin(name = 'OptimizerScipy')(algorithm='Powell') # OptimizerScipy Powell
         
         ellipsoid_s.parameters.set_ub(x=inner,y=inner,z=inner)
         ellipsoid_s.parameters.set_lb(x=-inner,y=-inner,z=-inner)

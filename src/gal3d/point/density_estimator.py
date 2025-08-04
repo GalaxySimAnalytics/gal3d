@@ -1,30 +1,22 @@
 import logging
 import os
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from functools import cached_property
 from typing import List
 
 import numpy as np
 
 from .. import config_parser
-from ..util.func_decorator import classproperty
-from ..util.func_signature import generate_plugin_stub
+
+from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ['DensityEstimator', 'DensityEstimatorBase']
 
 logger = logging.getLogger("gal3d.particle.density_estimator")
 
 
-_DensityEstimatorPlugins = dict()
-
-_current_path = os.path.realpath(__file__)
-_current_dir = os.path.dirname(__file__)
-_current_file_name = os.path.basename(_current_path)
-_pyi_name = _current_file_name.replace('.py', '.pyi')
-
-
 # TODO kernel
-class DensityEstimatorBase(ABC):
+class DensityEstimatorBase(PluginBase):
     """
     Abstract base class for all density estimators.
 
@@ -60,19 +52,8 @@ class DensityEstimatorBase(ABC):
         self.kernel = kernel
 
     def __init_subclass__(cls, **kwargs):
-        _DensityEstimatorPlugins[cls.__name__] = cls
-        logger.debug(
-            f"Find DensityEstimatorPlugin: {cls.__name__} and load successfully"
-        )
-        if config_parser['general'].getboolean("update_stub"):
-            output_path = os.path.join(_current_dir, _pyi_name)
-            generate_plugin_stub(
-                DensityEstimator,
-                DensityEstimatorBase,
-                _DensityEstimatorPlugins,
-                output_path,
-            )
-            logger.info(f"✅ Updated stub: {output_path}")
+        super().__init_subclass__(**kwargs)
+        DensityEstimatorManager.register(cls)
 
     def _shape_check(self, pos):
         """
@@ -185,75 +166,12 @@ class DensityEstimatorBase(ABC):
         pass
 
 
-class DensityEstimator:
+class DensityEstimatorManager(PluginManager[DensityEstimatorBase]):
     """
     Factory class for accessing registered density estimator plugins.
-
-    This class provides static methods to load and retrieve available
-    density estimator plugins derived from `DensityEstimatorBase`.
-
-    Methods
-    -------
-    get_plugin(plugin)
-        Retrieve a specific DensityEstimator plugin by name.
-    available_plugins
-        List all available DensityEstimator plugins.
     """
+    _plugins = {}
+    _plugin_module = "gal3d.point.density_estimator_plugins"
+    _base_class = DensityEstimatorBase
 
-    @staticmethod
-    def _updata_plugin_stub():
-        output_path = os.path.join(_current_dir, _pyi_name)
-        generate_plugin_stub(
-            DensityEstimator,
-            DensityEstimatorBase,
-            _DensityEstimatorPlugins,
-            output_path,
-        )
-        logger.info(f"✅ Updated stub: {output_path}")
-
-    @staticmethod
-    def get_plugin(plugin: str | None) -> DensityEstimatorBase:
-        """
-        Get a specific DensityEstimator plugin class.
-
-        Parameters
-        ----------
-        plugin : str or None
-            The name of the plugin. If None, returns the base class.
-
-        Returns
-        -------
-        type
-            A class derived from DensityEstimatorBase.
-        """
-        assert (isinstance(plugin, str)) or (plugin is None)
-
-        if plugin is None:
-            return DensityEstimatorBase
-        if not _DensityEstimatorPlugins:
-            DensityEstimator._load_plugin()
-        return _DensityEstimatorPlugins[plugin]
-
-    @staticmethod
-    def _load_plugin():
-        """
-        Load all registered plugins under 'gal3d.point.density_estimator_plugins'.
-        """
-        import importlib
-        importlib.import_module("gal3d.point.density_estimator_plugins")
-        logger.info(f"Successfully loaded density estimator plugins: {list(_DensityEstimatorPlugins.keys())}")
-
-    @classproperty
-    def available_plugins(cls) -> List[str]:
-        """
-        List all available registered DensityEstimator plugin names.
-
-        Returns
-        -------
-        list of str
-            Names of available plugins.
-        """
-        if not _DensityEstimatorPlugins:
-            cls._load_plugin()
-        return list(_DensityEstimatorPlugins.keys())
-
+DensityEstimator = DensityEstimatorManager

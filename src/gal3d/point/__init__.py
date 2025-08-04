@@ -167,10 +167,10 @@ class Particles(GlobalCalculator):
         """
         return np.mean(self.mass)
     
-    
-    @classproperty
-    def available_estimator(cls):
+
+    @classmethod
+    def available_estimator(cls) -> list[str]:
         """
         Returns a list of available density estimator plugin names.
         """
-        return DensityEstimator.available_plugins
+        return DensityEstimator.available_plugins()

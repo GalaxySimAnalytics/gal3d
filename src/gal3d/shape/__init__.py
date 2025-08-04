@@ -8,8 +8,9 @@ from numpy.typing import ArrayLike
 from ..field.spherical_field.spherical_vector import fibonacci_sampling
 from ..util.func_signature import func_required_key
 from .coordinate import Coordinate, CoordinateBase
-from .geometry import Geometry, GeometryBase, Parameters
+from .geometry import Geometry, GeometryBase
 from .minimize_func import MinimizeFunc
+from ..optimization.parameter import Parameters
 
 logger = logging.getLogger("gal3d.shape")
 
@@ -51,9 +52,26 @@ class Structure3D:
         self._set_error_func(error_func)
         self._set_error_method(error_method)
 
-        self.parameters = (
+        self.parameters: Parameters = (
             self._coordinate.get_parameters() + self._geometry.get_parameters()
         )
+
+    @classmethod
+    def available_options(cls) -> dict[str, list[str]]:
+        """
+        Get available string options for the structure.
+
+        Returns
+        -------
+        dict
+            A dictionary of available options.
+        """
+        return {
+            "coordinate": Coordinate.available_plugins(),
+            "geometry": Geometry.available_plugins(),
+            "error_func": list(MinimizeFunc.minimize_fn.keys()),
+            "error_method": list(cls._compute_error_method.keys()),
+        }
 
     def init_parameters(self, *args, **kwargs) -> Parameters:
         """
@@ -478,40 +496,74 @@ class Structure3D:
         points = self._geometry(**geoty_pa).ray_point(cpos)
 
         return self._coordinate(**coord_pa).inverse(points)
-    
-    def generate_edge2D(self, n_angle_bins = 130, n_r_bins = 400,r_min=0.2,r_max=3,z_l=1.5,rotation=np.eye(3)):
+
+    def generate_slice2D(self, n_bins=100, z_slice=0.0):
         """
-        Generate the 2D boundary of a shape's projection.
+        Generate a 2D slice of the shape at a specific z-coordinate.
 
         Parameters
         ----------
+        n_bins : int, optional
+            Number of bins for the 2D slice, default is 100.
+        z_slice : float, optional
+            The z-coordinate at which to slice the shape, default is 0.0.
+
+        Returns
+        -------
+        X : np.ndarray
+            X coordinates of the 2D slice.
+        Y : np.ndarray
+            Y coordinates of the 2D slice.
+        """
+        ang_bins = np.linspace(0,2*np.pi,n_bins)
+        x = np.sin(ang_bins)
+        y = np.cos(ang_bins)
+        z = np.ones_like(x) * z_slice
+        pos = np.array([x, y, z]).T
+        points,_ = self.ray_intersect(pos)
+        return points[:,0], points[:,1]
+
+    def generate_edge2D(self, n_angle_bins = 130, n_r_bins = 400,r_min=0.2,r_max=3,z_l=1.5,rotation=np.eye(3)):
+        """
+        Generate the 2D projected boundary (edge) of the shape.
+        
+        This method computes the 2D outline of the 3D structure as seen from a given projection,
+        by scanning along multiple angles and radii, and finding the outermost intersection points
+        in the projected plane.
+        
+        Parameters
+        ----------
         n_angle_bins : int, optional
-            Number of bins for angles (default is 130).
+            Number of angular bins (sampling directions in the plane), default is 130.
         n_r_bins : int, optional
-            Number of bins for radius (default is 400).
+            Number of radial bins (sampling radii along each direction), default is 400.
         r_min : float, optional
-            Minimum radius value (default is 0.2).
+            Minimum radius to consider for projection, default is 0.2.
         r_max : float, optional
-            Maximum radius value (default is 3).
+            Maximum radius to consider for projection, default is 3.
         z_l : float, optional
-            The z-coordinate limit for the projection (default is 1.5).
-        rotation : ndarray, shape (3, 3), optional
-            A 3x3 rotation matrix for rotating the shape (default is the identity matrix).
+            Half-length along the projection axis (z), default is 1.5.
+        rotation : ndarray of shape (3, 3), optional
+            3x3 rotation matrix to apply to the shape before projection, default is identity.
 
         Returns
         -------
         X : ndarray
-            X coordinates of the 2D boundary.
+            X coordinates of the 2D boundary points.
         Y : ndarray
-            Y coordinates of the 2D boundary.
+            Y coordinates of the 2D boundary points.
 
         Notes
         -----
-        For an edge view along the x-z plane, use:
-            rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
-
-        Visualize example:
-            plt.plot(X, Y)
+        To obtain an edge-on view along the x-z plane, use:
+        ```python
+        rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
+        ```
+        Visualization
+        -------------
+        ```python
+        plt.plot(X, Y)
+        ```
         """
         ang_bins = np.linspace(0,2*np.pi,n_angle_bins)
         r_bins = np.linspace(r_min,r_max,n_r_bins)
@@ -548,28 +600,34 @@ class Structure3D:
     
     def generate_edge3D(self, n_phi_bins: int = 120, n_theta_bins: int = 60):
         """
-        Generate the 3D boundary of a shape.
+        Generate the 3D surface boundary of the shape.
+        
+        This method samples the 3D surface of the structure by scanning over spherical angles,
+        and computes the corresponding boundary points in 3D space.
 
         Parameters
         ----------
         n_phi_bins : int, optional
-            Number of bins for the azimuthal angle (0~2pi) (default is 120).
+            Number of bins for the azimuthal angle φ (0 to 2π), default is 120.
         n_theta_bins : int, optional
-            Number of bins for the polar angle (0~pi) (default is 60).
+            Number of bins for the polar angle θ (0 to π), default is 60.
 
         Returns
         -------
         X : ndarray
-            X coordinates of the 3D boundary.
+            X coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
         Y : ndarray
-            Y coordinates of the 3D boundary.
+            Y coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
         Z : ndarray
-            Z coordinates of the 3D boundary.
+            Z coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
 
-        Visualize example:
-            fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
-            ax = fig.add_subplot(111, projection='3d')
-            ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
+        Visualization
+        -------------
+        ```python
+        fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
+        ```
         """
         u = np.linspace(0, 2 * np.pi, n_phi_bins)
         v = np.linspace(0, np.pi, n_theta_bins)

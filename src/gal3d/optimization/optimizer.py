@@ -1,24 +1,14 @@
 import logging
-import os
-from abc import ABC, abstractmethod
-from typing import List
+from abc import abstractmethod
+from typing import List, overload, Type
 
-from .. import config_parser
-from ..util.func_decorator import classproperty
-from ..util.func_signature import generate_plugin_stub
+from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ['Optimizer', 'OptimizerBase']
 
 logger = logging.getLogger("gal3d.optimization.optimizer")
 
-_OptimizerPlugins = dict()
-
-_current_path = os.path.realpath(__file__)
-_current_dir = os.path.dirname(__file__)
-_current_file_name = os.path.basename(_current_path)
-_pyi_name = _current_file_name.replace('.py', '.pyi')
-
-class OptimizerBase(ABC):
+class OptimizerBase(PluginBase):
     """
     Abstract base class for implementing optimization algorithms.
     Subclasses must implement the fitting method and define available algorithms.
@@ -47,7 +37,7 @@ class OptimizerBase(ABC):
             ValueError: If the specified algorithm is not valid.
         """
 
-        if not self.has_algorim(algorithm):
+        if not self.has_algorithm(algorithm):
             raise ValueError(f"{algorithm} is not a valid algorithm name.\n")
 
         self.algo_name = algorithm
@@ -58,14 +48,8 @@ class OptimizerBase(ABC):
         """
         Register the subclass as an optimizer plugin and update the plugin stub if update_stub.
         """
-        _OptimizerPlugins[cls.__name__] = cls
-        logger.debug(f"OptimizerPlugin found: {cls.__name__} and loaded successfully")
-        if config_parser['general'].getboolean("update_stub"):
-            output_path = os.path.join(_current_dir, _pyi_name)
-            generate_plugin_stub(
-                Optimizer, OptimizerBase, _OptimizerPlugins, output_path
-            )
-            logger.info(f"✅ Updated stub: {output_path}")
+        super().__init_subclass__(**kwargs)
+        OptimizerManager.register(cls)
 
     @abstractmethod
     def fitting(
@@ -115,27 +99,17 @@ class OptimizerBase(ABC):
         """
         self.algo_options.update(**kwargs)
 
-    def has_algorim(self, algorithm: str) -> bool:
+    def has_algorithm(self, algorithm: str) -> bool:
         """
         Check if the given algorithm is available.
-
-        Parameters
-        ----------
-        algorithm : str
-            The name of the algorithm to check.
-
-        Returns
-        -------
-        bool
-            True if the algorithm is available, False otherwise.
         """
-        if algorithm in self.available_algorithm:
+        if algorithm in self.available_algorithm():
             return True
         return False
 
-    @classproperty
+    @classmethod
     @abstractmethod
-    def available_algorithm(self) -> List[str]:
+    def available_algorithm(cls) -> List[str]:
         """
         List of available algorithms.
 
@@ -147,64 +121,15 @@ class OptimizerBase(ABC):
         pass
 
 
-class Optimizer:
+class OptimizerManager(PluginManager[OptimizerBase]):
     """
     Factory class for accessing registered optimizer plugins.
-
-    This class provides static methods to load and retrieve available
-    optimizer plugins derived from `OptimizerBase`.
-
-    Methods
-    -------
-    get_plugin(plugin)
-        Retrieve a specific optimizer plugin by name.
-    available_plugins
-        List all available optimizer plugins.
     """
-
-    @staticmethod
-    def _updata_plugin_stub():
-        """
-        Update the plugin stub file for the optimizer.
-        """
-        output_path = os.path.join(_current_dir, _pyi_name)
-        generate_plugin_stub(Optimizer, OptimizerBase, _OptimizerPlugins, output_path)
-        logger.info(f"✅ Updated stub: {output_path}")
-
-    @staticmethod
-    def get_plugin(plugin: str | None) -> OptimizerBase:
-        """
-        Get an optimizer plugin
-
-        Parameters:
-        plugin: str,
-            the name of plugin, available see available_plugins
-
-        Returns
-        -------
-        OptimizerBase
-            The optimizer plugin corresponding to the provided name, or 
-            the base OptimizerBase if no plugin is specified.
-        """
-        assert (isinstance(plugin, str)) or (plugin is None)
-
-        if plugin is None:
-            return OptimizerBase
-        if not _OptimizerPlugins:
-            Optimizer._load_plugin()
-
-        return _OptimizerPlugins[plugin]
-
-    @staticmethod
-    def _load_plugin():
-        import importlib
-        importlib.import_module("gal3d.optimization.optimizer_plugins")
-        logger.info(f"Successfully loaded optimizer plugins: {list(_OptimizerPlugins.keys())}")
-
-    @classproperty
-    def available_plugins(cls) -> List[str]:
-        """ A list of available optimizer plugins. """
-        if not _OptimizerPlugins:
-            cls._load_plugin()
-        return list(_OptimizerPlugins.keys())
+    _plugins = {}
+    _plugin_module = "gal3d.optimization.optimizer_plugins"
+    _base_class = OptimizerBase
+    
+    
+    
+Optimizer = OptimizerManager
 

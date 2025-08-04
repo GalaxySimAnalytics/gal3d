@@ -2,7 +2,7 @@
 import numpy as np
 import optimagic as om
 
-from ..optimizer import OptimizerBase, classproperty
+from ..optimizer import OptimizerBase
 
 __all__ = ['OptimizerOptimagic']
 
@@ -39,6 +39,6 @@ class OptimizerOptimagic(OptimizerBase):
         )
         return res
 
-    @classproperty
+    @classmethod
     def available_algorithm(cls):
         return om.algos.AvailableNames

@@ -24,8 +24,6 @@ tests = [
     "pytest-cov"
 ]
 
-[project.scripts]
-gal3d = "gal3d.executor:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

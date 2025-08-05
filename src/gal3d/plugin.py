@@ -4,7 +4,7 @@ from typing import Dict, Type, List, TypeVar, Generic, ClassVar
 
 logger = logging.getLogger("gal3d.plugin")
 
-_PluginType = TypeVar("T", bound="PluginBase")
+_PluginType = TypeVar("_PluginType", bound="PluginBase")
 
 
 _ALL_PLUGIN_MANAGERS: Dict[str, Type["PluginManager"]] = {}
@@ -58,9 +58,9 @@ class PluginManager(Generic[_PluginType]):
     available_plugins()
         List all available plugin names.
     """
-    _plugins: ClassVar[Dict[str, Type[_PluginType]]]
+    _plugins: Dict[str, Type[_PluginType]]
     _plugin_module: ClassVar[str]
-    _base_class: ClassVar[Type[_PluginType]]
+    _base_class: Type[_PluginType]
     
     def __init_subclass__(cls,**kwargs):
         super().__init_subclass__(**kwargs)

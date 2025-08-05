@@ -7,8 +7,27 @@ import h5py
 logger = logging.getLogger('gal3d.optimization.util')
 
 
-def truncate(num, n):
-    return float(int(num * (10**n)) / 10**n)
+def truncate(num: float, n: int) -> float:
+    """
+    Truncate a float to n decimal places (without rounding).
+    
+    Parameters
+    ----------
+    num : float
+        The number to truncate.
+    n : int
+        Number of decimal places to keep.
+    
+    Returns
+    -------
+    float
+        The truncated number. If num is inf, -inf, or nan, returns num unchanged.
+    """
+    import numpy as np
+    if not np.isfinite(num):
+        return num
+    factor = 10.0 ** n
+    return float(int(num * factor) / factor)
 
 
 def provide_save_keys(shape_name, error_name):

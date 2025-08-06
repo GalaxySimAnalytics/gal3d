@@ -2,7 +2,7 @@ import copy
 import logging
 import time
 from dataclasses import is_dataclass, fields
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, overload, Self
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, overload, Self,cast
 
 import numpy as np
 
@@ -272,9 +272,9 @@ class ModelResult:
         """
         if isinstance(k, str):
             # Return parameter values for all sets
-            return np.array([params[k] for params in self._param_sets])
+            return cast(np.ndarray, np.array([params[k] for params in self._param_sets]))
         
-        if isinstance(k, int):
+        elif isinstance(k, int):
             # Return the Structure3D initialized with parameters at index k
             if k < 0 or k >= len(self._param_sets):
                 raise IndexError(f"Index {k} out of bounds (0-{len(self._param_sets)-1})")
@@ -283,14 +283,14 @@ class ModelResult:
                 **self._param_sets[k].structure_parameters
             )
             
-        if isinstance(k, slice):
+        elif isinstance(k, slice):
             # Create a new ModelResult with sliced parameters and results
             sliced_result = copy.copy(self)
             sliced_result._param_sets = self._param_sets[k]
             sliced_result._opt_results = self._opt_results[k]
             return sliced_result
-            
-        raise KeyError(f"Key must be a string, integer, or slice, got {type(k).__name__}")
+        else:
+            raise KeyError(f"Key must be a string, integer, or slice, got {type(k).__name__}")
 
     def __getattr__(self, name: str) -> Union[List[Any], np.ndarray]:
         """
@@ -476,7 +476,6 @@ def model_to_hdf5(
             'save_timestamp': time.time(),
             'geometry_name': getattr(model._structure, '_geometry_name', 'unknown'),
             'coordinate_name': getattr(model._structure, '_coordinate_name', 'unknown'),
-            'model_size': len(model)
         })
             
         logger.info(f"Saving model to {hdf5_file_name} (shape={shape_name}, error={error_name})")

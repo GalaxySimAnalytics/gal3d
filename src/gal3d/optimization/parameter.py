@@ -340,7 +340,7 @@ class ParameterDict(dict):
         >>> params.value
         {'a': 1.0, 'b': 2.0}
         """
-        return {key: value.value for key, value in self.items()}
+        return {key: float(value) for key, value in self.items()}
     
     @property
     def lb(self) -> Dict[str, float]:

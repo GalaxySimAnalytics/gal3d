@@ -1,10 +1,11 @@
 from typing import SupportsInt
 
+from numpy.typing import NDArray
+
 from scipy import optimize
 from scipy.optimize import OptimizeResult as ScipyOptimizeResult
 
-from ..optimizer import OptimizerBase
-from .util import InternalOptimizeResult
+from ..optimizer import OptimizerBase, OptimizeResult
 
 __all__ = ['OptimizerScipy']
 
@@ -16,24 +17,25 @@ def _int_if_not_none(value: SupportsInt | None) -> int | None:
 
 
 # from optimagic
-def process_scipy_result(scipy_res: ScipyOptimizeResult) -> InternalOptimizeResult:
-    res = InternalOptimizeResult(
-        x=scipy_res.x,
+def process_scipy_result(algorithm: str, x0: NDArray, start_fun: float, scipy_res: ScipyOptimizeResult) -> OptimizeResult:
+    res = OptimizeResult(
+        params=scipy_res.x,
         fun=scipy_res.fun,
+        start_params=x0,
+        start_fun=start_fun,
+        algorithm = algorithm,
         success=bool(scipy_res.success),
         message=str(scipy_res.message),
         n_fun_evals=_int_if_not_none(scipy_res.get("nfev")),
         n_jac_evals=_int_if_not_none(scipy_res.get("njev")),
         n_hess_evals=_int_if_not_none(scipy_res.get("nhev")),
         n_iterations=_int_if_not_none(scipy_res.get("nit")),
-        # TODO: Pass on more things once we can convert them to external
-        status=None,
-        jac=None,
-        hess=None,
+        status=scipy_res.get("status"),
+        jac=scipy_res.get("jac"),
+        hess=scipy_res.get("hess"),
         hess_inv=None,
-        max_constraint_violation=None,
-        info=None,
-        #history=None,
+        max_constraint_violation=scipy_res.get("maxcv"),
+        algorithm_output=None,
     )
     return res
 
@@ -67,7 +69,8 @@ class OptimizerScipy(OptimizerBase):
             options=self.algo_options,
             **kwargs,
         )
-        return process_scipy_result(res)
+        start_fun = fn(x0)
+        return process_scipy_result(self.algo_name,x0,start_fun,res)
 
     @classmethod
     def available_algorithm(cls):

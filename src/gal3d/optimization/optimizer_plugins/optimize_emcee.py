@@ -1,9 +1,7 @@
 import emcee
-from matplotlib.pyplot import cla
 import numpy as np
 
-from ..optimizer import OptimizerBase
-from .util import InternalOptimizeResult
+from ..optimizer import OptimizerBase, OptimizeResult
 
 
 class OptimizerEmcee(OptimizerBase):
@@ -37,6 +35,7 @@ class OptimizerEmcee(OptimizerBase):
             return -0.5 * chi2
 
         ndim = len(x0)
+        start_fun = fun(x0, *func_args, **func_kwargs)
         # Initialize sampler
         pos = x0 + 1e-4 * np.random.randn(nwalkers, ndim)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
@@ -48,21 +47,16 @@ class OptimizerEmcee(OptimizerBase):
         best_x = flat_samples[best_idx]
         best_fun = fun(best_x, *func_args, **func_kwargs)
 
-        res = InternalOptimizeResult(
-            x=best_x,
+        res = OptimizeResult(
+            params=best_x,
             fun=best_fun,
+            start_params = x0,
+            start_fun = start_fun,
+            algorithm = "emcee",
             success=True,
             message="emcee sampling finished",
             n_fun_evals=sampler.iteration * nwalkers,
-            n_jac_evals=None,
-            n_hess_evals=None,
             n_iterations=sampler.iteration,
-            status=None,
-            jac=None,
-            hess=None,
-            hess_inv=None,
-            max_constraint_violation=None,
-            info=None,
         )
         return res
 

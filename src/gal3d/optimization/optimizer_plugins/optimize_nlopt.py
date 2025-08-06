@@ -1,14 +1,12 @@
-from matplotlib.pyplot import cla
 import nlopt
 
-from ..optimizer import OptimizerBase
-from .util import InternalOptimizeResult
+from ..optimizer import OptimizerBase, OptimizeResult, NDArray
 
 __all__ = ['OptimizerNLopt']
 
 
 # from optimagic
-def _process_nlopt_results(nlopt_obj, solution_x, is_global):
+def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj, solution_x: NDArray, is_global: bool) -> OptimizeResult:
     messages = {
         1: "Convergence achieved ",
         2: (
@@ -33,12 +31,15 @@ def _process_nlopt_results(nlopt_obj, solution_x, is_global):
     success = nlopt_obj.last_optimize_result() in [1, 2, 3, 4]
     if is_global and not success:
         success = None
-    processed = InternalOptimizeResult(
-        x=solution_x,
+    processed = OptimizeResult(
+        params=solution_x,
         fun=nlopt_obj.last_optimum_value(),
-        n_fun_evals=nlopt_obj.get_numevals(),
+        start_params=x0,
+        start_fun=start_fun,
+        algorithm=algorithm,
         success=success,
         message=messages[nlopt_obj.last_optimize_result()],
+        n_fun_evals=nlopt_obj.get_numevals(),
     )
 
     return processed
@@ -77,8 +78,8 @@ class OptimizerNLopt(OptimizerBase):
         opt.set_maxeval(self.algo_options.get('maxeval', len(x0) * 1000))
 
         xopt = opt.optimize(x0)
-
-        return _process_nlopt_results(opt, xopt, is_global)
+        start_fun = fun(x0, *func_args, **func_kwargs)
+        return _process_nlopt_results(self.algo_name,x0, start_fun, opt, xopt, is_global)
 
     @classmethod
     def available_algorithm(cls):

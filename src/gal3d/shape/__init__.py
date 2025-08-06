@@ -433,10 +433,10 @@ class Structure3D:
 
     def _generate_normal(self, **kwargs) -> Tuple[dict, dict]:
         coord_pa = (
-            self._coordinate.init_parameters(**kwargs) if kwargs else self.parameters
+            self._coordinate.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
         geoty_pa = (
-            self._geometry.init_parameters(**kwargs) if kwargs else self.parameters
+            self._geometry.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
 
         return coord_pa, geoty_pa

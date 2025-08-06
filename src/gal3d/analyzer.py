@@ -1,4 +1,5 @@
 import logging
+from sys import exc_info
 import time
 from logging import config
 from typing import Callable, Dict, Iterable, Tuple, Union
@@ -218,9 +219,9 @@ class Gal3DAnalyzer:
                     resall.append(res)
                 except Exception as e:
                     errors.append(f"Radius {i:.2f}: {e}")
-            
+
             if errors:
-                logger.error("Skipped fitting at some radii due to errors:\n" + "\n".join(errors))
+                logger.error("Skipped fitting at some radii due to errors:\n" + "\n".join(errors), exc_info=True)
             
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])
@@ -435,15 +436,16 @@ def _fit_generalized_ellipsoid(self, data, a, var_a, var_cen, init_parameters, u
     ell_params = ellipsoid.parameters.new()
     
     for param_name in set(self.structure.parameters.keys()) & set(ell_params.keys()):
-        ell_params[param_name].ub = self.structure.parameters[param_name].ub
-        ell_params[param_name].lb = self.structure.parameters[param_name].lb
+        ell_params[param_name].assign_bounds(
+            self.structure.parameters[param_name].lb,
+            self.structure.parameters[param_name].ub
+        )
 
-    ell_params.set_lb(a=(a * (1 - var_a)))
-    ell_params.set_ub(a=(a * (1 + var_a)))
+    ell_params['a'].assign_bounds(a * (1 - var_a), a * (1 + var_a))
     if var_cen:
         cen = var_cen*a
-        ell_params.set_lb(x=-cen,y=-cen,z=-cen)
-        ell_params.set_ub(x=cen,y=cen,z=cen)
+        for name in ['x','y','z']:
+            ell_params[name].assign_bounds(-cen,cen)
     
     # Apply parameter constraints efficiently
     for param_name in set(upper_bounds) & set(ell_params.keys()):
@@ -476,8 +478,7 @@ def _fit_generalized_ellipsoid(self, data, a, var_a, var_cen, init_parameters, u
 
     # Set up parameters for the generalized ellipsoid
     parameters_set = self.structure.parameters.new()
-    parameters_set.set_lb(a=(a * (1 - var_a)))
-    parameters_set.set_ub(a=(a * (1 + var_a)))
+    parameters_set['a'].assign_bounds(a * (1 - var_a), a * (1 + var_a))
     
     # Apply initial values and lock shape parameters
     if init_parameters:

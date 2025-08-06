@@ -21,11 +21,11 @@ class ProjectorLineIntegration(ModelProjectorBase):
         
         sel = kwargs.get("sel", np.ones(len(self.model_sel), dtype=np.bool_))
         if model_cric:
-            sel = sel & (np.array(self.model.res['fun']) < model_cric)
+            sel = sel & (np.array(self.model.fun) < model_cric)
         if sigma_clip:
-            me = np.mean(np.array(self.model.res['fun']))
-            std = np.std(np.array(self.model.res['fun']))
-            sel = sel & (np.array(self.model.res['fun']) < me+sigma_clip*std)
+            me = np.mean(np.array(self.model.fun))
+            std = np.std(np.array(self.model.fun))
+            sel = sel & (np.array(self.model.fun) < me+sigma_clip*std)
         removed_count = np.sum(~sel)
         if removed_count:
             logger.info(f"Projector removed {removed_count} steps with relatively large fit error")

@@ -81,7 +81,7 @@ def save_model_hdf5(
         for i in save_keys:
             f.create_dataset(save_header + i, data=model[i])
         for i in res_keys:
-            f.create_dataset(save_header + i, data=model.res[i])
+            f.create_dataset(save_header + i, data=getattr(model,i))
         if other_info:
             save_dict_to_hdf5(f[all_header], other_info)
     return

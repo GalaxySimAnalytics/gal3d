@@ -45,8 +45,8 @@ cdef class MyPchipInterpolator:
     __call__(x, nu=0, extrapolate=None)
         Interpolate at given x (scalar or array). Optionally specify derivative order (nu) and extrapolation mode.
 
-    Example
-    -------
+    Examples
+    --------
     >>> interp = MyPchipInterpolator([0, 1, 2], [1, 2, 0])
     >>> interp(1.5)
     1.0

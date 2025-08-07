@@ -110,7 +110,7 @@ class PluginManager(Generic[_PluginType]):
         """
         Retrieve a plugin class by name.
         
-        Note
+        Notes
         -----
         See available_plugins() for valid names.
         """

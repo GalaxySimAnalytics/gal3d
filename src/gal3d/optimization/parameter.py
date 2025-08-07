@@ -838,8 +838,8 @@ class RichParameterDict(ParameterDict):
     def derived(self, f: Callable):
         """Add a derived parameter function.
 
-        Example
-        -------
+        Examples
+        --------
         >>> param = RichParameterDict(a = 2, b = 1)
         >>> @param.derived
         >>> def eps_ab(p: RichParameterDict):

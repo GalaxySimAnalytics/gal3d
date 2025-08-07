@@ -74,13 +74,13 @@ class SphVector:
         '''
         Assign each point in `pos` to the nearest ray.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         pos : ndarray, shape (m, 3)
             Cartesian coordinates (x, y, z) of the points to be assigned to the nearest ray.
 
-        Returns:
-        --------
+        Returns
+        -------
         indices : ndarray, shape (m,)
             The indices of the nearest rays for each point in `pos`.
         '''
@@ -94,13 +94,13 @@ class SphVector:
         '''
         Generate points on the unit sphere using the Fibonacci sphere sampling method.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         Num_sampling : int, optional, default 256
             The number of points to generate on the unit sphere.
 
-        Returns:
-        --------
+        Returns
+        -------
         pos : ndarray, shape (n, 3)
             Cartesian coordinates (x, y, z) of each point on the unit sphere.
 
@@ -115,13 +115,13 @@ class SphVector:
         '''
         Generate points on the unit sphere using the Muller method.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         Num_sampling : int, optional, default 256
             The number of points to generate on the unit sphere.
 
-        Returns:
-        --------
+        Returns
+        -------
         pos : ndarray, shape (n, 3)
             Cartesian coordinates (x, y, z) of each point on the unit sphere.
 

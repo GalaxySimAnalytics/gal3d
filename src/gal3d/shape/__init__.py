@@ -429,10 +429,13 @@ class StructureComponents:
         Notes
         -----
         To obtain an edge-on view along the x-z plane, use:
-        >>> rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
         
-        Visualization
-        -------------
+        >>> rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
+
+        Examples
+        --------
+        >>> import matplotlib.pyplot as plt
+        >>> X, Y = structure.generate_edge2D()
         >>> plt.plot(X, Y)
         """
         ang_bins = np.linspace(0,2*np.pi,n_angle_bins)
@@ -491,8 +494,10 @@ class StructureComponents:
         Z : ndarray
             Z coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
 
-        Visualization
-        -------------
+        Examples
+        --------
+        >>> import matplotlib.pyplot as plt
+        >>> X, Y, Z = structure.generate_edge3D()
         >>> fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
         >>> ax = fig.add_subplot(111, projection='3d')
         >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)

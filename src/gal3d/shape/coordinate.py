@@ -20,7 +20,7 @@ class CoordinateBase(WithParameter, PluginBase):
 
     Defines the interface for forward/inverse transformations and Jacobians.
 
-    Methods:
+    Methods
     -------
     __call__(pos): 
         Transforms the given position using the current coordinate system.

@@ -14,7 +14,7 @@ from numba import (
     types,
 )
 
-from ...point.util import abc_vect
+from ...point.util_nb import abc_vect
 from ...util.array_operate_nb import (
     Dot,
     Matmul,

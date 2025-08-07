@@ -109,7 +109,7 @@ class OptimizerBase(PluginBase):
     Abstract base class for implementing optimization algorithms.
     Subclasses must implement the fitting method and define available algorithms.
 
-    Attributes:
+    Attributes
     ----------
     algo_name (str): 
         Name of the optimization algorithm.

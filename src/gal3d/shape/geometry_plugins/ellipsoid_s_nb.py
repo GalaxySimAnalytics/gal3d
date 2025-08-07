@@ -14,7 +14,7 @@ from numba import (
     types,
 )
 
-from ...util.array_operate import RobustLength3d, unit_vector3d, vector_length3d
+from ...util.array_operate_nb import RobustLength3d, unit_vector3d, vector_length3d
 
 
 @jit(

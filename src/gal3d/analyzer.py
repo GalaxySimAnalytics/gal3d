@@ -221,7 +221,7 @@ class Gal3DAnalyzer:
                     errors.append(f"Radius {i:.2f}: {e}")
 
             if errors:
-                logger.error("Skipped fitting at some radii due to errors:\n" + "\n".join(errors), exc_info=True)
+                logger.error("Skipped fitting at some radii due to errors:\n" + "\n".join(errors))
             
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])

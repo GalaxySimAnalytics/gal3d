@@ -14,26 +14,16 @@ from ..optimization.parameter import Parameters
 
 logger = logging.getLogger("gal3d.shape")
 
-class Structure3D:
-    """
-    A 3D structure composed of a coordinate transformation and a geometry definition.
-    
-    This class combines a coordinate transformation (via `CoordinateBase`) and a 
-    shape definition (via `GeometryBase`). It also provides an error function from 
-    `MinimizeFunc` and an associated error evaluation method.
-    """
-
-    _compute_error_method: Dict[str, Callable] = {}
+class StructureComponents:
+    """Base class for managing coordinate transformations, geometry, and parameters of a 3D structure."""
 
     def __init__(
         self,
         coordinate: CoordinateBase | str,
         geometry: GeometryBase | str,
-        error_func: Callable | str,
-        error_method: Callable | str,
     ):
         """
-        Initialize a Structure3D instance.
+        Initialize structure components.
 
         Parameters
         ----------
@@ -41,25 +31,43 @@ class Structure3D:
             Coordinate transformation class or registered plugin name.
         geometry : GeometryBase or str
             Geometry class or registered plugin name.
-        error_func : Callable or str
-            Error function or its name in `MinimizeFunc`.
-        error_method : Callable or str
-            Method for computing the error or its name in `_compute_error_method`.
         """
-
         self._set_geometry(geometry)
         self._set_coordinate(coordinate)
-        self._set_error_func(error_func)
-        self._set_error_method(error_method)
-
+        
         self.parameters: Parameters = (
             self._coordinate.get_parameters() + self._geometry.get_parameters()
         )
 
+    def _set_geometry(self, geometry: GeometryBase | str):
+        assert (
+            isinstance(geometry, GeometryBase)
+            or isinstance(geometry, str)
+            or issubclass(geometry, GeometryBase)
+        )
+        self._geometry = (
+            Geometry.get_plugin(geometry) if isinstance(geometry, str) else geometry
+        )
+        self._geometry_name = self._geometry.__name__
+
+    def _set_coordinate(self, coordinate: CoordinateBase | str):
+        assert (
+            isinstance(coordinate, CoordinateBase)
+            or isinstance(coordinate, str)
+            or issubclass(coordinate, CoordinateBase)
+        )
+        self._coordinate = (
+            Coordinate.get_plugin(coordinate)
+            if isinstance(coordinate, str)
+            else coordinate
+        )
+        self._coordinate_name = self._coordinate.__name__
+        self.__coor_pa_num = len(self._coordinate.PN)
+
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:
         """
-        Get available string options for the structure.
+        Get available options for the coordinate and geometry.
 
         Returns
         -------
@@ -69,8 +77,6 @@ class Structure3D:
         return {
             "coordinate": Coordinate.available_plugins(),
             "geometry": Geometry.available_plugins(),
-            "error_func": list(MinimizeFunc.minimize_fn.keys()),
-            "error_method": list(cls._compute_error_method.keys()),
         }
 
     def init_parameters(self, *args, **kwargs) -> Parameters:
@@ -113,129 +119,40 @@ class Structure3D:
             Keyword arguments for parameters.
         """
         self.parameters = self.parameters + self.init_parameters(*args, **kwargs)
-
-    def from_parameters(self, *args, **kwargs) -> Self:
-        """
-        Create a new Structure3D with given parameters.
-
-        Parameters
-        ----------
-        *args : tuple
-            Positional arguments for initialization.
-        **kwargs : dict
-            Keyword arguments for initialization.
-
-        Returns
-        -------
-        Structure3D
-            A new instance with specified parameters.
-        """
-        ret = Structure3D(
-            coordinate=self._coordinate,
-            geometry=self._geometry,
-            error_func=self._error_func,
-            error_method=self._error_method,
+    
+    def _generate_normal(self, **kwargs) -> Tuple[dict, dict]:
+        coord_pa = (
+            self._coordinate.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
-        ret.set_parameters(*args, **kwargs)
-        return ret
-
-    def _set_geometry(self, geometry: GeometryBase | str):
-
-        assert (
-            isinstance(geometry, GeometryBase)
-            or isinstance(geometry, str)
-            or issubclass(geometry, GeometryBase)
-        )
-        self._geometry = (
-            Geometry.get_plugin(geometry) if isinstance(geometry, str) else geometry
-        )
-        self._geometry_name = self._geometry.__name__
-
-    def _set_coordinate(self, coordinate: CoordinateBase | str):
-
-        assert (
-            isinstance(coordinate, CoordinateBase)
-            or isinstance(coordinate, str)
-            or issubclass(coordinate, CoordinateBase)
-        )
-        self._coordinate = (
-            Coordinate.get_plugin(coordinate)
-            if isinstance(coordinate, str)
-            else coordinate
-        )
-        self._coordinate_name = self._coordinate.__name__
-        self.__coor_pa_num = len(self._coordinate.PN)
-
-    def _set_error_func(self, error_func: Callable | str):
-
-        assert callable(error_func) or isinstance(error_func, str)
-        self._error_func = (
-            MinimizeFunc.minimize_fn[error_func]
-            if isinstance(error_func, str)
-            else error_func
-        )
-        self._error_func_name = self._error_func.__name__
-
-        self._error_params = list(func_required_key(self._error_func).keys())
-        self._error_params = list(
-            filter(
-                lambda x: ('_call' not in x) and ('_call' not in x), self._error_params
-            )
+        geoty_pa = (
+            self._geometry.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
 
-    def _set_error_method(self, error_method: Callable | str):
+        return coord_pa, geoty_pa
 
-        assert callable(error_method) or isinstance(error_method, str)
+    def _generate_quick(self, *args, **kwargs) -> Tuple[dict, dict]:
+        if args:
+            flat_args = args[0] if (len(args) == 1 and isinstance(args[0], (list, tuple))) else args
+                
+            # Use pre-allocated dictionaries
+            coor_num = self.__coor_pa_num
+            coord_pa = dict(zip(self._coordinate.PN, flat_args[:coor_num]))
+            geoty_pa = dict(zip(self._geometry.PN, flat_args[coor_num:]))
+            return coord_pa, geoty_pa
 
-        self._error_method = (
-            MethodType(self._compute_error_method[error_method], self)
-            if isinstance(error_method, str)
-            else error_method
-        )
-        self._error_method_name = self._error_method.__name__
+        if kwargs:
+            try:
+                coord_pa = {i: kwargs[i] for i in self._coordinate.PN}
+                geoty_pa = {i: kwargs[i] for i in self._geometry.PN}
+            except KeyError:
+                coord_pa = self._coordinate.init_parameters(**kwargs)
+                geoty_pa = self._geometry.init_parameters(**kwargs)
+            return coord_pa, geoty_pa
 
-    def __repr__(self):
-        """
-        Return string representation of Structure3D.
-
-        Returns
-        -------
-        str
-            Human-readable string of the coordinate and geometry.
-        """
-        coor_repr = repr(self._coordinate(**self.parameters))
-        geometry_repr = repr(self._geometry(**self.parameters))
-        lin1 = [f"<{self.__class__.__name__}|: ", '\n']
-        lin2 = ["   ", coor_repr, '\n']
-        lin3 = ["   ", geometry_repr]
-        return ''.join(lin1 + lin2 + lin3)
-
-    def __eq__(self, other):
-        """
-        Check equality with another Structure3D.
-
-        Parameters
-        ----------
-        other : Structure3D
-            Object to compare against.
-
-        Returns
-        -------
-        bool
-            Whether the two objects are considered equal.
-        """
-
-        if (
-            isinstance(other, Structure3D)
-            and (self._coordinate_name == other._coordinate_name)
-            and (self._geometry_name == other._geometry_name)
-            and (self._error_func_name == other._error_func_name)
-            and (self._error_method_name == other._error_method_name)
-        ):
-            return True
-
-        return False
-
+        coord_pa = {i: self.parameters[i] for i in self._coordinate.PN}
+        geoty_pa = {i: self.parameters[i] for i in self._geometry.PN}
+        return coord_pa, geoty_pa
+    
     def __call__(self, pos, **kwargs):
         """
         Evaluate the structure at a given position.
@@ -431,50 +348,6 @@ class Structure3D:
             pos2=self._coordinate(**coord_pa)(pos2),
         )
 
-    def _generate_normal(self, **kwargs) -> Tuple[dict, dict]:
-        coord_pa = (
-            self._coordinate.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
-        )
-        geoty_pa = (
-            self._geometry.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
-        )
-
-        return coord_pa, geoty_pa
-
-    def _generate_quick(self, *args, **kwargs) -> Tuple[dict, dict]:
-        if args:
-            if len(args) == 1 and isinstance(args[0], (list, tuple)):
-                args = args[0]
-                
-            # Use pre-allocated dictionaries
-            coor_params = self.__coor_pa_num
-            coord_pa = {}
-            geoty_pa = {}
-            
-            # Manual assignment is faster than dict comprehension
-            for i in range(coor_params):
-                coord_pa[self._coordinate.PN[i]] = args[i]
-                
-            for i in range(coor_params, len(args)):
-                geoty_pa[self._geometry.PN[i-coor_params]] = args[i]
-                
-            return coord_pa, geoty_pa
-
-        if kwargs:
-            try:
-                coord_pa = {i: kwargs[i] for i in self._coordinate.PN}
-                geoty_pa = {i: kwargs[i] for i in self._geometry.PN}
-            except:
-                coord_parameters = self._coordinate.init_parameters(**kwargs)
-                geoty_parameters = self._geometry.init_parameters(**kwargs)
-                coord_pa = {i: coord_parameters[i] for i in self._coordinate.PN}
-                geoty_pa = {i: geoty_parameters[i] for i in self._geometry.PN}
-            return coord_pa, geoty_pa
-
-        coord_pa = {i: self.parameters[i] for i in self._coordinate.PN}
-        geoty_pa = {i: self.parameters[i] for i in self._geometry.PN}
-        return coord_pa, geoty_pa
-
     def generate_points(self, random_np: int = 1024):
         """
         Generate uniformly distributed points on the structure.
@@ -556,14 +429,11 @@ class Structure3D:
         Notes
         -----
         To obtain an edge-on view along the x-z plane, use:
-        ```python
-        rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
-        ```
+        >>> rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
+        
         Visualization
         -------------
-        ```python
-        plt.plot(X, Y)
-        ```
+        >>> plt.plot(X, Y)
         """
         ang_bins = np.linspace(0,2*np.pi,n_angle_bins)
         r_bins = np.linspace(r_min,r_max,n_r_bins)
@@ -623,11 +493,9 @@ class Structure3D:
 
         Visualization
         -------------
-        ```python
-        fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
-        ```
+        >>> fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
+        >>> ax = fig.add_subplot(111, projection='3d')
+        >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
         """
         u = np.linspace(0, 2 * np.pi, n_phi_bins)
         v = np.linspace(0, np.pi, n_theta_bins)
@@ -645,22 +513,198 @@ class Structure3D:
         Y = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,1]
         Z = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,2]
         return X,Y,Z
+    
+class StructureError:
+    """Base class for managing error functions and evaluation methods for structure fitting."""
+    
+    _compute_error_method: Dict[str, Callable] = {}
+    
+    def __init__(
+        self,
+        error_func: Callable | str,
+        error_method: Callable | str,
+    ):
+        """
+        Initialize error evaluation components.
+        
+        Parameters
+        ----------
+        error_func : Callable or str
+            Error function or its name in `MinimizeFunc`.
+        error_method : Callable or str
+            Method for computing the error or its name in `_compute_error_method`.
+        """
+        self._set_error_func(error_func)
+        self._set_error_method(error_method)
+    
+    def _set_error_func(self, error_func: Callable | str):
+        assert callable(error_func) or isinstance(error_func, str)
+        self._error_func = (
+            MinimizeFunc.minimize_fn[error_func]
+            if isinstance(error_func, str)
+            else error_func
+        )
+        self._error_func_name = self._error_func.__name__
 
-    @staticmethod
-    def compute_method_registry(fn: str | Callable) -> Callable:
+        self._error_params = list(func_required_key(self._error_func).keys())
+        self._error_params = list(
+            filter(
+                lambda x: ('_call' not in x) and ('_call' not in x), self._error_params
+            )
+        )
 
+    def _set_error_method(self, error_method: Callable | str):
+        assert callable(error_method) or isinstance(error_method, str)
+
+        self._error_method = (
+            MethodType(self._compute_error_method[error_method], self)
+            if isinstance(error_method, str)
+            else error_method
+        )
+        self._error_method_name = self._error_method.__name__
+        
+    @classmethod
+    def available_options(cls) -> dict[str, list[str]]:
+        """
+        Get available options for the error evaluation.
+
+        Returns
+        -------
+        dict
+            A dictionary of available options.
+        """
+        return {
+            "error_func": list(MinimizeFunc.minimize_fn.keys()),
+            "error_method": list(cls._compute_error_method.keys()),
+        }
+
+    @classmethod
+    def compute_method_registry(cls, fn: str | Callable) -> Callable:
         if callable(fn):
-            Structure3D._compute_error_method[fn.__name__] = fn
+            cls._compute_error_method[fn.__name__] = fn
             return fn
         fn_name = fn
 
         def decorator(fn: Callable) -> Callable:
             if callable(fn):
-                Structure3D._compute_error_method[fn_name] = fn
+                cls._compute_error_method[fn_name] = fn
                 return fn
             raise TypeError(f"try register {fn} as {fn_name}, but {fn} is not callable")
 
         return decorator
+
+class Structure3D(StructureComponents, StructureError):
+    """
+    A 3D structure composed of a coordinate transformation and a geometry definition.
+    
+    This class combines a coordinate transformation (via `CoordinateBase`) and a 
+    shape definition (via `GeometryBase`). It also provides an error function from 
+    `MinimizeFunc` and an associated error evaluation method.
+    """
+
+    def __init__(
+        self,
+        coordinate: CoordinateBase | str,
+        geometry: GeometryBase | str,
+        error_func: Callable | str,
+        error_method: Callable | str,
+    ):
+        """
+        Initialize a Structure3D instance.
+
+        Parameters
+        ----------
+        coordinate : CoordinateBase or str
+            Coordinate transformation class or registered plugin name.
+        geometry : GeometryBase or str
+            Geometry class or registered plugin name.
+        error_func : Callable or str
+            Error function or its name in `MinimizeFunc`.
+        error_method : Callable or str
+            Method for computing the error or its name in `_compute_error_method`.
+        """
+
+        StructureComponents.__init__(self, coordinate, geometry)
+        StructureError.__init__(self, error_func, error_method)
+
+    @classmethod
+    def available_options(cls) -> dict[str, list[str]]:
+        """
+        Get available string options for the structure.
+
+        Returns
+        -------
+        dict
+            A dictionary of available options.
+        """
+        return StructureComponents.available_options() | StructureError.available_options()
+
+    def from_parameters(self, *args, **kwargs) -> Self:
+        """
+        Create a new Structure3D with given parameters.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments for initialization.
+        **kwargs : dict
+            Keyword arguments for initialization.
+
+        Returns
+        -------
+        Structure3D
+            A new instance with specified parameters.
+        """
+        ret = Structure3D(
+            coordinate=self._coordinate,
+            geometry=self._geometry,
+            error_func=self._error_func,
+            error_method=self._error_method,
+        )
+        ret.set_parameters(*args, **kwargs)
+        return ret
+
+    def __repr__(self):
+        """
+        Return string representation of Structure3D.
+
+        Returns
+        -------
+        str
+            Human-readable string of the coordinate and geometry.
+        """
+        coor_repr = repr(self._coordinate(**self.parameters))
+        geometry_repr = repr(self._geometry(**self.parameters))
+        lin1 = [f"<{self.__class__.__name__}|: ", '\n']
+        lin2 = ["   ", coor_repr, '\n']
+        lin3 = ["   ", geometry_repr]
+        return ''.join(lin1 + lin2 + lin3)
+
+    def __eq__(self, other):
+        """
+        Check equality with another Structure3D.
+
+        Parameters
+        ----------
+        other : Structure3D
+            Object to compare against.
+
+        Returns
+        -------
+        bool
+            Whether the two objects are considered equal.
+        """
+
+        if (
+            isinstance(other, Structure3D)
+            and (self._coordinate_name == other._coordinate_name)
+            and (self._geometry_name == other._geometry_name)
+            and (self._error_func_name == other._error_func_name)
+            and (self._error_method_name == other._error_method_name)
+        ):
+            return True
+
+        return False
 
 
 @Structure3D.compute_method_registry

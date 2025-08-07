@@ -20,16 +20,16 @@ class SphVector:
         '''
         Initialize the SphVector class with N points uniformly distributed on the unit sphere.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         N_sample : int, optional, default 512
             The number of points to generate on the unit sphere.
 
         method : str, optional, default 'fibonacci'
             The method used to generate points on the sphere. Options are 'fibonacci' or 'muller'.
 
-        Attributes:
-        -----------
+        Attributes
+        ----------
         num : int
             The number of points on the sphere, equal to N_sample.
 

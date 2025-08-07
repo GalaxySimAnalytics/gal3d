@@ -40,7 +40,17 @@ class SphField:
         '''
 
         self._build_ray_vector(particles, num_ray, ray_method)
-
+        
+    def __repr__(self):
+        info = [
+            f"SphField(num_ray={getattr(self.rays, 'num', 'N/A')})",
+            f"particles={len(getattr(self.particles, 'pos', [])) if hasattr(self, 'particles') else 'N/A'}",
+        ]
+        if hasattr(self, 'inner_r') and hasattr(self, 'outer_r'):
+            info.append(f"inner_r=[{np.min(self.inner_r):.3g}, {np.max(self.inner_r):.3g}]")
+            info.append(f"outer_r=[{np.min(self.outer_r):.3g}, {np.max(self.outer_r):.3g}]")
+        return "<" + ", ".join(info) + ">"
+    
     @timing
     def _build_ray_vector(self, particles, num_ray, ray_method):
 

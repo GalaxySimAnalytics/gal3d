@@ -121,15 +121,15 @@ class OptimizerBase(PluginBase):
         """
         Initializes an optimizer with a specified algorithm and options.
 
-        Parameters:
+        Parameters
         ----------
         algorithm (str): 
             The name of the optimization algorithm.
         algo_options (dict, optional): 
             A dictionary of options specific to the algorithm. Defaults to None.
 
-        Raises:
-        -------
+        Raises
+        ------
             ValueError: If the specified algorithm is not valid.
         """
 

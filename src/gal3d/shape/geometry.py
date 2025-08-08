@@ -5,11 +5,10 @@ from typing import Annotated
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .. import config_parser
-
 from .with_parameter import WithParameter, abstractmethod
 from ..optimization.parameter import Parameters
 
+from gal3d.config import config
 from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ['Geometry', 'GeometryBase']

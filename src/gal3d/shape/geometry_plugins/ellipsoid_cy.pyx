@@ -8,12 +8,13 @@ cimport cython
 
 
 
-from gal3d import config
+from gal3d.config import config
 
 # Initialize numpy
 np.import_array()
 
-
+cdef int get_num_threads():
+    return config.general.number_of_threads
 
 # -------------------- Utility functions--------------------
 
@@ -25,7 +26,7 @@ cdef np.ndarray[np.float64_t, ndim=1] vector_length3d(np.ndarray[np.float64_t, n
     cdef np.ndarray[np.float64_t, ndim=1] result = np.zeros(n, dtype=np.float64)
     cdef double x, y, z
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
@@ -43,7 +44,7 @@ cdef np.ndarray[np.float64_t, ndim=2] unit_vector3d(np.ndarray[np.float64_t, ndi
     cdef double length
     cdef double x, y, z
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
@@ -69,7 +70,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] f_ellipsoid(double a, double b, double c,
     cdef np.ndarray[np.float64_t, ndim=1] result = np.zeros(n, dtype=np.float64)
     cdef double x, y, z
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
@@ -95,7 +96,7 @@ cpdef tuple f_ellipsoid_jacobian(double a, double b, double c,
     cdef np.ndarray[np.float64_t, ndim=1] dc = np.zeros(n, dtype=np.float64)
     cdef double x, y, z
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
@@ -124,7 +125,7 @@ cpdef tuple IntersectRaysEllipsoid(double a, double b, double c,
     cdef np.ndarray[np.float64_t, ndim=1] L = np.zeros(n, dtype=np.float64)
     cdef double x, y, z, xi, yi, zi, Li, di, denom
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
@@ -166,7 +167,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] f_ray_ellipsoid(double a, double b, doubl
     cdef np.ndarray[np.float64_t, ndim=1] r = np.zeros(n, dtype=np.float64)
     cdef double x, y, z, xi, yi, zi, Li, di, denom
     cdef int i
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Use sequential processing for small arrays
     if n < 1000:  # Higher threshold for small arrays
         for i in range(n):
@@ -210,7 +211,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] IntersectLinesEllipsoid(
     cdef double ell11, ell01, ell00, D, SqrtD
     cdef double vx, vy, vz
     cdef double x, y, z
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos1[i, 0]
         y = pos1[i, 1]

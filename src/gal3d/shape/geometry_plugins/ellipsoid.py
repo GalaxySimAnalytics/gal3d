@@ -3,11 +3,11 @@ import logging
 
 import numpy as np
 
-from gal3d import config
+from gal3d.config import config
 
 from ..geometry import GeometryBase, Parameters
 
-if config['general']['use_cython']:
+if config.general.use_cython:
     from .ellipsoid_cy import (
         IntersectLinesEllipsoid,
         IntersectRaysEllipsoid,
@@ -41,8 +41,6 @@ class Ellipsoid(GeometryBase):
     PN = ('a', 'eps_ab', 'eps_bc')  ### not use set !!!
     LB = {'a': 0.1, 'eps_ab': 0.01, 'eps_bc': 0.01}
     UB = {'a': np.inf, 'eps_ab': 0.99, 'eps_bc': 0.99}
-
-    MaxIterationClosed = 100
 
     def __init__(self, *args, **kwargs):
         """

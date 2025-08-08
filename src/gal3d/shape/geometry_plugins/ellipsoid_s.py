@@ -4,11 +4,11 @@ import logging
 import numpy as np
 from numpy.typing import ArrayLike
 
-from gal3d import config
+from gal3d.config import config
 
 from ..geometry import GeometryBase, Parameters
 
-if config['general']['use_cython']:
+if config.general.use_cython:
     from .ellipsoid_s_cy import (
         IntersectLinesEllipsoid_S,
         IntersectRaysEllipsoid_S,
@@ -39,9 +39,7 @@ class Ellipsoid_S(GeometryBase):
     PN = ('a', 'eps_ab', 'eps_bc', 'sa', 'sb', 'sc')
     LB = {'a': 0.1, 'eps_ab': 0.01, 'eps_bc': 0.01, 'sa': 0.2, 'sb': 0.2, 'sc': 0.2}
     UB = {'a': np.inf, 'eps_ab': 0.99, 'eps_bc': 0.99, 'sa': 2, 'sb': 2, 'sc': 2}
-
-    MaxIterationDist = 100
-    MaxIterationLine = 100
+    
     def __init__(self, *args, **kwargs):
         """
         Initializes the Ellipsoid_S instance with given parameters.
@@ -166,7 +164,7 @@ class Ellipsoid_S(GeometryBase):
             self['sb'],
             self['sc'],
             pos,
-            Ellipsoid_S.MaxIterationDist,
+            config.ellipsoid_s.MaxIterationDist,
         )
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike) -> np.ndarray:
@@ -183,7 +181,7 @@ class Ellipsoid_S(GeometryBase):
             self['sc'],
             pos1,
             pos2,
-            Ellipsoid_S.MaxIterationLine,
+            config.ellipsoid_s.MaxIterationLine,
         )
 
     def f_ray_d(self, pos: ArrayLike) -> np.ndarray:
@@ -205,7 +203,7 @@ class Ellipsoid_S(GeometryBase):
             self['sb'],
             self['sc'],
             pos,
-            Ellipsoid_S.MaxIterationDist,
+            config.ellipsoid_s.MaxIterationDist,
         )
 
     @staticmethod
@@ -251,7 +249,7 @@ class Ellipsoid_S(GeometryBase):
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
         return f_ray_shaped_ellipsoid(
-            a, b, c, sa, sb, sc, pos, Ellipsoid_S.MaxIterationDist
+            a, b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist
         )
 
     @staticmethod
@@ -288,7 +286,7 @@ class Ellipsoid_S(GeometryBase):
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
         return IntersectRaysEllipsoid_S(
-            float(a), b, c, sa, sb, sc, pos, Ellipsoid_S.MaxIterationDist
+            float(a), b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist
         )[1]
 
     @staticmethod
@@ -304,7 +302,7 @@ class Ellipsoid_S(GeometryBase):
             float(sc),
             pos1,
             pos2,
-            Ellipsoid_S.MaxIterationLine,
+            config.ellipsoid_s.MaxIterationLine,
         )
 
     @staticmethod

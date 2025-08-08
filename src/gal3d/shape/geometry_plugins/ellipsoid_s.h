@@ -19,12 +19,12 @@ void f_shaped_ellipsoid_jacobian_cpp(
 void IntersectRaysEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* tarpos, double* result, int num_threads);
+    double* tarpos, double* result, int method, int num_threads);
 
 void f_ray_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* result, int num_threads);
+    double* result, int method, int num_threads);
 
 void IntersectLinesEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,

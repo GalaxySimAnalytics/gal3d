@@ -73,13 +73,61 @@ void f_shaped_ellipsoid_jacobian_cpp(
     }
 }
 
+// Newton's method， 1 ord
+static double _ellipsoid_ray_newton(
+    double d0,
+    double Sa2, double ExddSa,
+    double Sb2, double EyddSb,
+    double Sc2, double EzddSc,
+    double f)
+{
+    double df = Sa2 * ExddSa + Sb2 * EyddSb + Sc2 * EzddSc;
+    return d0 - d0 * f / (2.0 * df);
+}
 
-// Helper function for ray-ellipsoid intersection Newton iteration
+
+// Halley's method, 2 ord
+static double _ellipsoid_ray_halley(
+    double d0,
+    double Sa2, double ExddSa,
+    double Sb2, double EyddSb,
+    double Sc2, double EzddSc,
+    double f)
+{
+    double df = Sa2 * ExddSa + Sb2 * EyddSb + Sc2 * EzddSc;
+    double ddf = Sa2 * (Sa2 - 1) * ExddSa + Sb2 * (Sb2 - 1) * EyddSb + Sc2 * (Sc2 - 1) * EzddSc;
+    return d0 - d0 * 2.0 * f * df / (3.0 * df * df - ddf * f);
+}
+
+// Householder's method, 3 ord
+static double _ellipsoid_ray_householder(
+    double d0,
+    double Sa2, double ExddSa,
+    double Sb2, double EyddSb,
+    double Sc2, double EzddSc,
+    double f)
+{
+    double df = Sa2 * ExddSa + Sb2 * EyddSb + Sc2 * EzddSc;
+    double ddf = Sa2 * (Sa2 - 1) * ExddSa + Sb2 * (Sb2 - 1) * EyddSb + Sc2 * (Sc2 - 1) * EzddSc;
+    double dddf = Sa2 * (Sa2 - 1) * (Sa2 - 2) * ExddSa
+                + Sb2 * (Sb2 - 1) * (Sb2 - 2) * EyddSb
+                + Sc2 * (Sc2 - 1) * (Sc2 - 2) * EzddSc;
+    return d0 - d0 * (3.0 * f * (3.0 * df * df - f * ddf)) / (12.0 * df * df * df - 9.0 * f * df * ddf + f * f * dddf);
+}
+
+typedef double (*EllipsoidIterFunc)(
+    double d0,
+    double Sa2, double ExddSa,
+    double Sb2, double EyddSb,
+    double Sc2, double EzddSc,
+    double f);
+
+// Helper function for ray-ellipsoid intersection iteration
 double solve_ray_shaped_ellipsoid(
     double x, double y, double z,
     double a, double b, double c,
     double Sa, double Sb, double Sc,
-    int maxIterations, double epsilon)
+    int maxIterations, double epsilon, int method)
 {
     double L = sqrt(x*x + y*y + z*z);
     double xi = x / L, yi = y / L, zi = z / L;
@@ -98,6 +146,19 @@ double solve_ray_shaped_ellipsoid(
     double log_ey_base = log(ey_base);
     double log_ez_base = log(ez_base);
 
+    double Sa2 = 2.0 * Sa;
+    double Sb2 = 2.0 * Sb;
+    double Sc2 = 2.0 * Sc;
+
+    EllipsoidIterFunc iter_func;
+    if (method == 1) {
+        iter_func = _ellipsoid_ray_newton;
+    } else if (method == 2) {
+        iter_func = _ellipsoid_ray_halley;
+    } else {
+        iter_func = _ellipsoid_ray_householder;
+    }
+
     double d0 = initial_guess, d1;
     for (int it = 0; it < maxIterations; ++it) {
         double log_dd = 2.0 * log(d0); // log(d0^2)
@@ -105,9 +166,10 @@ double solve_ray_shaped_ellipsoid(
         double EyddSb = exp(Sb * (log_ey_base + log_dd));
         double EzddSc = exp(Sc * (log_ez_base + log_dd));
         double f = ExddSa + EyddSb + EzddSc - 1.0;
-        double df = 2.0 * (Sa * ExddSa + Sb * EyddSb + Sc * EzddSc) / d0;
-        d1 = d0 - f / df;
-        if (fabs(d1 - d0) < epsilon) break;
+
+        d1 = iter_func(d0, Sa2, ExddSa, Sb2, EyddSb, Sc2, EzddSc, f);
+
+        if (fabs(d1 - d0) < epsilon && fabs(f) < epsilon) break;
         d0 = d1;
     }
     return d0;
@@ -117,7 +179,7 @@ double solve_ray_shaped_ellipsoid(
 void IntersectRaysEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* tarpos, double* result, int num_threads)
+    double* tarpos, double* result, int method, int num_threads)
 {
     double epsilon = 1e-7;
 
@@ -133,7 +195,7 @@ void IntersectRaysEllipsoid_S_cpp(
             x, y, z,
             a, b, c,
             Sa, Sb, Sc,
-            maxIterations, epsilon);
+            maxIterations, epsilon, method);
 
         tarpos[i*3+0] = d0 * xi;
         tarpos[i*3+1] = d0 * yi;
@@ -145,7 +207,7 @@ void IntersectRaysEllipsoid_S_cpp(
 void f_ray_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* result, int num_threads)
+    double* result, int method, int num_threads)
 {
     double epsilon = 1e-7;
 
@@ -160,7 +222,7 @@ void f_ray_shaped_ellipsoid_cpp(
             x, y, z,
             a, b, c,
             Sa, Sb, Sc,
-            maxIterations, epsilon);
+            maxIterations, epsilon, method);
 
         result[i] = L / d0;
     }

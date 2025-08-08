@@ -11,13 +11,23 @@ from libc.math cimport sqrt
 import cython
 from cython.parallel import prange
 
-from gal3d import config
+from gal3d.config import config
 
 from ...util.array_operate import unit_vector3d, vector_length3d
 
 np.import_array()
 
 ctypedef np.float64_t DTYPE_t
+
+
+cdef int get_num_threads():
+    return config.general.number_of_threads
+
+cdef int get_ray_method():
+    return config.ellipsoid_s.DistIteration.value
+
+cdef int get_line_method():
+    return config.ellipsoid_s.LineIteration.value
 
 
 cdef extern from "ellipsoid_s.h":
@@ -29,7 +39,7 @@ def f_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, doubl
                              np.ndarray[DTYPE_t, ndim=2] pos):
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     with nogil:
         f_shaped_ellipsoid_cpp(a, b, c, Sa, Sb, Sc,
                                &pos[0,0], n,
@@ -57,7 +67,7 @@ def f_shaped_ellipsoid_jacobian(double a, double b, double c, double Sa, double 
     cdef np.ndarray[DTYPE_t, ndim=1] dx = np.zeros(n, dtype=np.float64)
     cdef np.ndarray[DTYPE_t, ndim=1] dy = np.zeros(n, dtype=np.float64)
     cdef np.ndarray[DTYPE_t, ndim=1] dz = np.zeros(n, dtype=np.float64)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
 
     with nogil:
         f_shaped_ellipsoid_jacobian_cpp(a, b, c, Sa, Sb, Sc,
@@ -74,7 +84,7 @@ cdef extern from "ellipsoid_s.h":
     void IntersectRaysEllipsoid_S_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n, int maxIterations,
-        double* tarpos, double* result, int num_threads) nogil
+        double* tarpos, double* result, int method, int num_threads) nogil
 
 
 def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb, double Sc,
@@ -82,11 +92,12 @@ def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb,
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=2] tarpos = np.zeros((n, 3), dtype=np.float64)
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
+    cdef int method = get_ray_method()
     with nogil:
         IntersectRaysEllipsoid_S_cpp(a, b, c, Sa, Sb, Sc,
                                  &pos[0,0], n, maxIterations,
-                                 &tarpos[0,0], &result[0], num_threads)
+                                 &tarpos[0,0], &result[0], method, num_threads)
     return tarpos, result
 
 
@@ -96,17 +107,18 @@ cdef extern from "ellipsoid_s.h":
     void f_ray_shaped_ellipsoid_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,
         const double* pos, int n, int maxIterations,
-        double* result, int num_threads) nogil
+        double* result, int method, int num_threads) nogil
 
 def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, double Sc,
                                   np.ndarray[DTYPE_t, ndim=2] pos, int maxIterations):
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
+    cdef int method = get_ray_method()
     with nogil:
         f_ray_shaped_ellipsoid_cpp(a, b, c, Sa, Sb, Sc,
                                &pos[0,0], n, maxIterations,
-                               &result[0], num_threads)
+                               &result[0], method, num_threads)
     return result
 
 cdef extern from "ellipsoid_s.h":
@@ -121,7 +133,7 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                              int maxIteration):
     cdef int n = pos1.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=2] ts = np.zeros((n, 2), dtype=np.float64)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     with nogil:
         IntersectLinesEllipsoid_S_cpp(a, b, c, Sa, Sb, Sc,
                                       &pos1[0,0], &pos2[0,0], n, maxIteration,

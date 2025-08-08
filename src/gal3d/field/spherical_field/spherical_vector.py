@@ -4,7 +4,6 @@ import os
 import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi
 
-from ...configuration import config_parser
 from .util import *
 
 logger = logging.getLogger('gal3d.preprocessing.spherical_field.spherical_vector')

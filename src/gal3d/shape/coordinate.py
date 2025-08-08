@@ -5,7 +5,6 @@ from typing import List
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .. import config_parser
 from .with_parameter import Parameters, WithParameter, abstractmethod
 
 from gal3d.plugin import PluginBase, PluginManager

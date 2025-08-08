@@ -1,65 +1,8 @@
-import configparser
 import logging
-import os
 
-default_thread_count = None
-try:
-    import psutil
-    default_thread_count = psutil.cpu_count(logical=False)
-except ImportError:
-    pass
-
-if default_thread_count is None:
-    default_thread_count = max(os.cpu_count()//2, 1)
-
+from .config import config, LoggerConfig
 from .util.string_format import string_formatter
 
-try:
-    import numba
-except ImportError:
-    NUMBA_AVAILABLE = False
-else:
-    NUMBA_AVAILABLE = True
-
-
-def _set_config_parser()-> configparser.RawConfigParser:
-    config_parser = configparser.RawConfigParser(
-        comment_prefixes=('#', ';', '---'),
-        inline_comment_prefixes=('#'),
-        interpolation=configparser.ExtendedInterpolation(),
-    )
-    config_parser.optionxform = str  # it prevents option key from being lowercase,
-    return config_parser
-
-def _get_config_parser_with_defaults() -> configparser.RawConfigParser:
-    # Create config dictionaries which will be required by subpackages
-
-    config_parser = _set_config_parser()
-    default_config_path = os.path.join(os.path.dirname(__file__), "default_config.ini")
-    if not os.path.exists(default_config_path):
-        raise FileNotFoundError(f"Default configuration file not found: {default_config_path}")
-    config_parser.read(default_config_path)
-    return config_parser
-
-def _get_basic_config_from_parser(config_parser: configparser.RawConfigParser):
-    config = {}
-    config['logger'] = {}
-    for i in ['level','stream_level','file_level']:
-        config['logger'][i] = config_parser['logger'].getint(i, fallback=20)
-    config['logger']["save_file"] = config_parser['logger'].getboolean("save_file", fallback=True)
-    config['logger']["file_name"] = config_parser['logger'].get("file_name", fallback="gal3d.log")
-    
-    config['general'] = {}
-    config['general']["update_stub"] = config_parser['general'].getboolean("update_stub", fallback=False)
-    config['general']["min_batchsize"] = config_parser['general'].getint("min_batchsize", fallback=200000)
-
-    config['general']['number_of_threads'] = config_parser.getint('general', 'number_of_threads', fallback=default_thread_count)
-    config['general']['use_cython'] = config_parser.getboolean('general', 'use_cython', fallback=True)
-    config['general']['render_double'] = config_parser.getboolean('general', 'render_double', fallback=False)
-
-    if config['general']['number_of_threads']<0:
-        config['general']['number_of_threads']=default_thread_count
-    return config
 class ColorFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
 
@@ -184,22 +127,22 @@ class NoColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def _setup_logging(cfg: dict) -> logging.Logger:
+def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
     logger = logging.getLogger("gal3d")
-    if cfg['level'] not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
-        raise ValueError(f"Invalid logging level: {cfg['level']}")
-    logger.setLevel(cfg['level'])
-    
+    if cfg.level not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
+        raise ValueError(f"Invalid logging level: {cfg.level}")
+    logger.setLevel(cfg.level)
+
     ch = logging.StreamHandler()
-    ch.setLevel(cfg['stream_level'])
+    ch.setLevel(cfg.stream_level)
 
     ch.setFormatter(ColorFormatter())
     logger.addHandler(ch)
     
-    file_handle = cfg['save_file']
+    file_handle = cfg.save_file
     if file_handle:
-        fh = logging.FileHandler(cfg['file_name'], mode='w', encoding="utf-8")
-        fh.setLevel(cfg['file_level'])
+        fh = logging.FileHandler(cfg.file_name, mode='w', encoding="utf-8")
+        fh.setLevel(cfg.file_level)
         fh.setFormatter(NoColorFormatter())
         logger.addHandler(fh)
 
@@ -219,13 +162,8 @@ def set_logging_level(level=logging.INFO):
     """
     logger = logging.getLogger('gal3d')
     logger.setLevel(level)
+    
 
 
+logger = _setup_logging(config.logger)
 
-config_parser = _get_config_parser_with_defaults()
-config = _get_basic_config_from_parser(config_parser)
-logger = _setup_logging(config['logger'])
-
-if not config['general']['use_cython'] and not NUMBA_AVAILABLE:
-    logger.warning("Numba is not available, falling back to Cython.")
-    config['general']['use_cython'] = True

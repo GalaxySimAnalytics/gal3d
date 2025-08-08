@@ -7,7 +7,6 @@ from typing import Callable, Dict, Iterable, Tuple, Union
 import numpy as np
 from tqdm import tqdm
 
-from .configuration import _set_config_parser
 from .field import SphField, SphVector
 from .optimization.optimizer import Optimizer
 from .optimization.result import ModelResult
@@ -104,64 +103,6 @@ class Gal3DAnalyzer:
         ellipsoid_s.parameters.set_lb(x=-inner,y=-inner,z=-inner)
 
         return Gal3DAnalyzer(particle=particle,field=field,structure=ellipsoid_s,optimizer=optimizer)
-
-    @staticmethod
-    def from_config(pos, mass, config_file: str):
-        """
-        Create a Gal3DAnalyzer instance from a configuration file.
-
-        Parameters
-        ----------
-        pos : np.ndarray
-            The positions of the particles.
-        mass : np.ndarray
-            The masses of the particles.
-        config_file : str
-            The path to the configuration file.
-
-        Returns
-        -------
-        Gal3DAnalyzer
-            An instance of the Gal3DAnalyzer class.
-        """
-        cfg = _set_config_parser()
-        cfg.read(config_file)
-        particle_cfg = cfg['Point']
-        particle = Particles(pos = pos,mass=mass,rmax=particle_cfg.getfloat("r_max"),
-                             estimator_kwargs={"k_nearest":particle_cfg.getint("k_nearest",fallback=32),
-                                               "r_cut": particle_cfg.getint("r_cut")})
-        
-        field_cfg = cfg['Field']
-        field = SphField(particle,num_ray=field_cfg.getint("n_ray",fallback=1024),ray_method=field_cfg.get("ray_method",fallback="fibonacci")
-            ).build_field_boundary(inner=field_cfg.getfloat("inner"),inner_mode=field_cfg.get("inner_mode"),
-                                   outer=field_cfg.getfloat("outer"),outer_mode=field_cfg.get("outer_mode")  # softening_length/2
-                                
-            ).build_profile_sample(num_p=field_cfg.getint("n_step"),step_mode=field_cfg.get("step_mode")
-            ).build_profile_interpolator(interpolator_method=field_cfg.get("interpolator"),
-            ).build_isodensity_profile(method=field_cfg.get("isodensity_method"),from_rays_func=field_cfg.getboolean("from_rays_func"),
-                                       res_b=field_cfg.getfloat("res_b"),res_c=field_cfg.getfloat("res_c"),num_p=field_cfg.getint("iso_step"),
-                                       interpolator_method=field_cfg.get("isodensity_interpolator"))
-        
-        shape_cfg = cfg["Shape"]
-        shape = Structure3D(coordinate=shape_cfg.get("coordinate"),
-                            geometry=shape_cfg.get("geometry"),
-                            error_func=shape_cfg.get("error_func"),
-                            error_method=shape_cfg.get("error_method"),)
-        
-        optimizer_cfg = cfg['Optimizer']
-        try:
-            plugin_name = optimizer_cfg.get("optimizer")
-            algorithm_name = optimizer_cfg.get("algorithm")
-            optimizer_plugin = Optimizer.get_plugin(plugin=plugin_name)
-            optimizer = optimizer_plugin(algorithm=algorithm_name)
-        except KeyError as e:
-            logger.error(f"Missing configuration key: {e}")
-            raise ValueError(f"Configuration file is missing required key: {e}")
-        except AttributeError as e:
-            logger.error(f"Invalid optimizer plugin or algorithm: {e}")
-            raise ValueError(f"Invalid optimizer plugin '{plugin_name}' or algorithm '{algorithm_name}' specified in configuration.")
-        
-        return Gal3DAnalyzer(particle=particle,field=field,structure=shape,optimizer=optimizer)
     
     
     def fit(self, num_step:int = 200, step_mode: str = 'log', **kwargs):

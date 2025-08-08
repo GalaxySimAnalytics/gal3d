@@ -91,7 +91,7 @@ class MinimizeFunc:
         """
         Dynamically import minimization functions based on configuration.
         """
-        if config['general']['use_cython']:
+        if config.general.use_cython:
             from . import fns_cy
             return None
         else:

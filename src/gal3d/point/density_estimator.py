@@ -6,8 +6,6 @@ from typing import List
 
 import numpy as np
 
-from .. import config_parser
-
 from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ['DensityEstimator', 'DensityEstimatorBase']

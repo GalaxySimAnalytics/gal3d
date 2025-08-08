@@ -10,7 +10,7 @@ from cython.parallel import prange
 
 cimport cython
 
-from gal3d.configuration import config
+from gal3d.config import config
 
 #openmp.omp_set_num_threads(num_threads)
 
@@ -34,6 +34,8 @@ ctypedef fused DTYPE_t:
     np.float32_t
     np.float64_t
 
+cdef int get_num_threads():
+    return config.general.number_of_threads
 
 @cython.cdivision(True)
 cpdef double RobustLength2d(double v0, double v1):
@@ -77,7 +79,7 @@ def Matmul(np.ndarray[DTYPE_t, ndim=2] v1, np.ndarray[DTYPE_t, ndim=2] v2):
         int i, j, k
         double s
         np.ndarray[DTYPE_t, ndim=2] C = np.zeros((n, m), dtype=v1.dtype)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads):
         for k in range(p):
             s = v1[i, k]
@@ -96,7 +98,7 @@ def Hadamard(np.ndarray[DTYPE_t, ndim=2] v1, np.ndarray[DTYPE_t, ndim=2] v2):
         int m = v1.shape[1]
         int i, j
         np.ndarray[DTYPE_t, ndim=2] C = np.zeros((n, m), dtype=v1.dtype)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads):
         for j in range(m):
             C[i, j] = v1[i, j] * v2[i, j]
@@ -131,7 +133,7 @@ def RotateAndShift(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYPE_t, ndim=2] 
     cdef:
         int i, j, n = pos.shape[0] 
         np.ndarray[DTYPE_t, ndim=2] result = np.zeros((n, 3), dtype=pos.dtype)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Use num_threads parameter to control thread count
     for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
         for j in range(3):
@@ -150,7 +152,7 @@ def vector_length3d(np.ndarray[DTYPE_t, ndim=2] pos):
     cdef:
         int i, n = pos.shape[0]
         np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=pos.dtype)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Use chunking for better cache utilization
     for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
         result[i] = sqrt(pos[i, 0] * pos[i, 0] + pos[i, 1] * pos[i, 1] + pos[i, 2] * pos[i, 2])
@@ -167,7 +169,7 @@ def unit_vector3d(np.ndarray[DTYPE_t, ndim=2] pos):
         int i, j, n = pos.shape[0]
         np.ndarray[DTYPE_t, ndim=2] result = np.zeros((n, 3), dtype=pos.dtype)
         np.ndarray[DTYPE_t, ndim=1] r = vector_length3d(pos)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads):
         for j in range(3):
             if r[i] > 0:
@@ -186,7 +188,7 @@ def trans_to_Spherical_coordinates(np.ndarray[DTYPE_t, ndim=2] pos_data):
         double epsilon = 1e-10
         np.ndarray[DTYPE_t, ndim=2] sphere_data = np.zeros((nump, 3), dtype=pos_data.dtype)
         np.ndarray[DTYPE_t, ndim=1] lengths = vector_length3d(pos_data)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Process everything in a single parallel loop
     for i in prange(nump, nogil=True, num_threads=num_threads):
         # Calculate r and ensure not too small
@@ -218,7 +220,7 @@ def trans_to_Cartesian_coordinates(np.ndarray[DTYPE_t, ndim=2] sphere_coor):
     cdef:
         int i, nump = sphere_coor.shape[0]
         np.ndarray[DTYPE_t, ndim=2] pos_data = np.zeros((nump, 3), dtype=sphere_coor.dtype)
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(nump, num_threads=num_threads, nogil=True):
         pos_data[i, 0] = sphere_coor[i, 0] * sin(sphere_coor[i, 1]) * cos(sphere_coor[i, 2])
         pos_data[i, 1] = sphere_coor[i, 0] * sin(sphere_coor[i, 1]) * sin(sphere_coor[i, 2])

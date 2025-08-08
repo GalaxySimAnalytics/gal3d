@@ -5,9 +5,9 @@ from libcpp.vector cimport vector
 
 import numpy as np
 
-from ..configuration import config
+from gal3d.config import config
 
-DOUBLE = config['general']['render_double']
+DOUBLE = config.general.render_double
 
 
 
@@ -214,7 +214,7 @@ def get_kernel():
     else:
         return PyCubicSplineSmoothingKernelFloat()
 
-def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads = config['general']['number_of_threads']):
+def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads = config.general.number_of_threads):
     """
     Get a render image object for the specified parameters.
 

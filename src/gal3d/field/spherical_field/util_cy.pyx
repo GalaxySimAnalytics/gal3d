@@ -11,7 +11,7 @@ from libc.math cimport cos, pi, sin, sqrt
 import cython
 from cython.parallel import prange
 
-from gal3d import config
+from gal3d.config import config
 
 # Import dependencies
 from ...point.util import abc_vect
@@ -24,7 +24,8 @@ from ...util.array_operate_cy import (
 )
 
 # For OpenMP configuration
-
+cdef int get_num_threads():
+    return config.general.number_of_threads
 
 # Define numpy data types
 DTYPE = np.float64
@@ -54,7 +55,7 @@ def fibonacci_sampling(int Num_sampling=256):
         np.ndarray[DTYPE_t, ndim=2] sampling_pos = np.zeros((Num_sampling, 3), dtype=DTYPE)
         int n, i
         double term, z
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Parallelize the point generation
     for n in prange(Num_sampling, nogil=True, num_threads=num_threads):
         i = n + 1
@@ -88,7 +89,7 @@ def iso_profile_by_moi(
         np.ndarray[DTYPE_t, ndim=2] abc, rota, new_pos
         np.ndarray[np.uint8_t, ndim=1] sel1, sel2
 
-    #cdef int num_threads = config['general']['number_of_threads']
+    #cdef int num_threads = get_num_threads()
     
     for i in range(pas.shape[1]):
         result = abc_vect(points, pas[:, i])
@@ -148,7 +149,7 @@ def iso_profile_by_pair(
         DTYPE_t[:, :] pas_mv = pas
         np.uint8_t[:, :] sel_mv = sel
 
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
 
     for i in prange(n, nogil=True, num_threads=num_threads):
         iso_pro_pa[i] = compute_max_mean(pas_mv, sel_mv, m, i)

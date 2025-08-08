@@ -202,16 +202,12 @@ class ModelResult:
         """Alias for n_hess_evals (scipy.optimize compatibility)."""
         return self.n_hess_evals
 
-    def keys(self) -> List[str]:
+    def keys(self):
         """
         Get parameter keys from the first parameter set.
 
-        Returns
-        -------
-        list
-            List of parameter keys.
         """
-        return list(self._param_sets[0].keys())
+        return self._param_sets[0].keys()
 
     def __call__(
         self, 

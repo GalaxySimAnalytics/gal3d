@@ -361,10 +361,10 @@ def fontformat(
     str
         The ANSI escape codes for the font formatting.
     """
-    bold = bold and "\033[1m" or ""
-    thin = thin and "\033[2m" or ""
-    italics = italics and "\033[3m" or ""
-    underline = underline and "\033[4m" or ""
-    strikethrough = strikethrough and "\033[9m" or ""
+    bold_code: str = bold and "\033[1m" or ""
+    thin_code: str = thin and "\033[2m" or ""
+    italics_code: str = italics and "\033[3m" or ""
+    underline_code: str = underline and "\033[4m" or ""
+    strikethrough_code: str = strikethrough and "\033[9m" or ""
 
-    return "".join([bold, thin, italics, underline, strikethrough])
+    return "".join([bold_code, thin_code, italics_code, underline_code, strikethrough_code])

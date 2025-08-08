@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, List, NoReturn, Optional, Sequence, Tupl
 import numpy as np
 from numpy.typing import NDArray
 
-from .. import config_parser
 from ..util.func_cache import CacheDict
 
 from gal3d.plugin import PluginBase, PluginManager
@@ -15,9 +14,6 @@ from gal3d.plugin import PluginBase, PluginManager
 __all__ = ['ModelProjectorBase', 'ModelProjector']
 
 logger = logging.getLogger("gal3d.visualization.model_projector")
-
-_ModelProjectorPlugins = dict()
-
 
 class ModelProjectorBase(PluginBase):
     """Abstract base class for model projectors that generate 2D projections from 3D models.
@@ -37,10 +33,6 @@ class ModelProjectorBase(PluginBase):
 
     def __init_subclass__(cls, **kwargs):
         """Register subclass as a ModelProjector plugin.
-        
-        This method is automatically called when a subclass is created.
-        It registers the subclass in the _ModelProjectorPlugins dictionary
-        and updates the stub file when configured to do so.
         
         Parameters
         ----------

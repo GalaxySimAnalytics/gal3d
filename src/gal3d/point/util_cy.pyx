@@ -15,18 +15,21 @@ cimport numpy as np
 from libc.math cimport sqrt
 from cython.parallel import prange
 
-from gal3d import config
+from gal3d.config import config
 
 ctypedef fused DTYPE_t:
     np.float32_t
     np.float64_t
+
+cdef int get_num_threads():
+    return config.general.number_of_threads
 
 # Geometric centroid
 cpdef np.ndarray centroid(np.ndarray[DTYPE_t, ndim=2] pos):
     cdef int i, n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] cenpos = np.zeros(3, dtype=pos.dtype)
     # Use prange for parallel summation
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads):
         cenpos[0] += pos[i, 0]
         cenpos[1] += pos[i, 1]
@@ -115,7 +118,7 @@ cpdef np.ndarray center_of_mass(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYP
     cdef double s0 = 0.0
     cdef double s1 = 0.0
     cdef double s2 = 0.0
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     # Compute total mass
     for i in range(n):
         massum += mass[i]
@@ -138,7 +141,7 @@ cpdef np.ndarray moment_of_inertia(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[D
     cdef int i, j, k, n = pos.shape[0]
     cdef double total_mass = 0.0
     cdef double s
-    cdef int num_threads = config['general']['number_of_threads']
+    cdef int num_threads = get_num_threads()
     for k in range(n):
         total_mass += m[k]
     for i in range(3):

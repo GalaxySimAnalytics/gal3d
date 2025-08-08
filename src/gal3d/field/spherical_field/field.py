@@ -607,9 +607,9 @@ class SphField:
 
         return decorator
 
-from gal3d import config
+from gal3d.config import config
 
-if config['general']['use_cython']:
+if config.general.use_cython:
     from .util_cy import iso_profile_by_moi, iso_profile_by_pair
 else:
     from .util_nb import iso_profile_by_moi, iso_profile_by_pair

@@ -1,18 +1,37 @@
 import logging
 from abc import ABC
-from typing import Dict, Type, List, TypeVar, Generic, ClassVar
+from typing import Dict, Type, List, TypeVar, Generic, ClassVar, Union
+
+
+from gal3d.config import config
 
 logger = logging.getLogger("gal3d.plugin")
 
 _PluginType = TypeVar("_PluginType", bound="PluginBase")
 
+class PluginManagerRegistry:
+    """
+    Central registry for all plugin managers and their modules.
 
-_ALL_PLUGIN_MANAGERS: Dict[str, Type["PluginManager"]] = {}
+    This class tracks all plugin manager types, their associated plugin modules,
+    and provides unified import and lookup functionality.
+    """
+    _managers: Dict[str, Type["PluginManager"]] = {}
 
+    @classmethod
+    def register_manager(cls, manager: Type["PluginManager"]):
+        cls._managers[manager.__name__] = manager
 
-def all_plugin_manager_types() -> List[Type["PluginManager"]]:
-    """Return all registered plugin manager types."""
-    return list(_ALL_PLUGIN_MANAGERS.values())
+    @classmethod
+    def get_manager(cls, name: str) -> Type["PluginManager"]:
+        return cls._managers[name]
+
+    @classmethod
+    def all_managers(cls) -> Dict[str, Type["PluginManager"]]:
+        import importlib
+        for module_path in config.plugin_manager_modules:
+            importlib.import_module(module_path)
+        return dict(cls._managers)
 
 class PluginBase(ABC):
     """
@@ -66,7 +85,8 @@ class PluginManager(Generic[_PluginType]):
         super().__init_subclass__(**kwargs)
         if cls is not PluginManager:
             cls._check_subclass_config()
-            _ALL_PLUGIN_MANAGERS[cls.__name__] = cls
+            PluginManagerRegistry.register_manager(cls)
+            
 
     @classmethod
     def _check_subclass_config(cls) -> None:
@@ -89,13 +109,13 @@ class PluginManager(Generic[_PluginType]):
             raise AssertionError(f"{cls.__name__} must define _base_class")
 
     @classmethod
-    def register(cls, plugin_cls: Type) -> None:
+    def register(cls, plugin_cls: Type[_PluginType]) -> None:
         """
         Register a plugin class.
 
         Parameters
         ----------
-        plugin_cls : Type
+        plugin_cls : Type[_PluginType]
             The plugin class to register.
         """
         cls._check_subclass_config()

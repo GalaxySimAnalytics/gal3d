@@ -135,8 +135,8 @@ class EllipsoidConfig:
         Maximum iterations for line intersection.
 
     """
-    DistIteration: IterationMethod = IterationMethod.HOUSEHOLDER   # Distance iteration method
-    LineIteration: IterationMethod = IterationMethod.HOUSEHOLDER    # Line iteration method
+    DistIteration: IterationMethod = IterationMethod.HALLEY   # Distance iteration method
+    LineIteration: IterationMethod = IterationMethod.HALLEY    # Line iteration method  #TODO, currently only Newton
     MaxIterationDist: int = 100                          # Maximum iterations for ray distance
     MaxIterationLine: int = 100            
     # Maximum iterations for line intersection
@@ -145,6 +145,14 @@ class EllipsoidConfig:
             value = IterationMethod(value)
         super().__setattr__(name, value)
 
+PLUGIN_MANAGER_MODULES = {
+    "gal3d.point.density_estimator",
+    "gal3d.shape.geometry",
+    "gal3d.shape.coordinate",
+    "gal3d.visualization.model_projector",
+    "gal3d.optimization.optimizer",
+    "gal3d.characterization.characterizer"
+}
 
 @dataclass(frozen=True)
 class Config:
@@ -164,6 +172,7 @@ class Config:
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
+    plugin_manager_modules: tuple = field(default_factory=lambda: tuple(PLUGIN_MANAGER_MODULES))
         
 # Instantiate configuration
 config: Config = Config()

@@ -496,7 +496,7 @@ class StructureComponents:
 
         Notes
         -----
-        n_phi_bins will be adjusted to 4*a, with a at least 1.
+        n_phi_bins will be adjusted to 4*a+1, with a at least 1.
         n_theta_bins will be adjusted to 2*b + 1, with b at least 1.
 
         Examples
@@ -510,7 +510,7 @@ class StructureComponents:
         n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)
         n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
         # need include u = 0, pi 。v = 0, pi/2。
-        u = np.linspace(0, 2* np.pi, 4*n_phi_bins,endpoint=False)
+        u = np.linspace(0, 2* np.pi, 4*n_phi_bins+1,endpoint=True)
         v = np.linspace(0, np.pi, 2*n_theta_bins + 1, endpoint=True)
 
         x = np.outer(np.cos(u), np.sin(v))

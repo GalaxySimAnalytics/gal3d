@@ -7,8 +7,10 @@
 class PchipInterpolator {
 public:
     PchipInterpolator(const std::vector<double>& x, const std::vector<double>& y);
+    PchipInterpolator(const double* x, const double* y, size_t n);
     double interpolate(double xval, int nu = 0) const;
     std::vector<double> interpolate(const std::vector<double>& xvals, int nu = 0) const;
+    std::vector<double> interpolate(const double* xvals, size_t n, int nu = 0) const;
     
     double get_x_min() const { return x_.front(); }
     double get_x_max() const { return x_.back(); }
@@ -20,8 +22,8 @@ public:
     std::vector<double> interpolate(const std::vector<T>& xvals, int nu = 0) const;
 
 private:
-    std::vector<double> x_, y_, d_; // 节点、值、导数
-    std::vector<std::array<double, 4>> c_; // 每段的三次多项式系数
+    std::vector<double> x_, y_, d_; // nodes, values, derivatives
+    std::vector<std::array<double, 4>> c_; // coefficients of cubic polynomials for each segment
 
     void compute_derivatives();
     void compute_coefficients();

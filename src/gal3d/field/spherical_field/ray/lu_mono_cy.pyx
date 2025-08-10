@@ -6,9 +6,10 @@ import numpy as np
 
 cdef extern from "pchip.hpp":
     cdef cppclass PchipInterpolator:
-        PchipInterpolator(const vector[double]& x, const vector[double]& y)
+        PchipInterpolator(const double* x, const double* y, size_t n)
         double interpolate(double xval, int nu) const
         vector[double] interpolate(const vector[double]& xvals, int nu) const
+        vector[double] interpolate(const double* xvals, size_t n, int nu) const
         double get_x_min() const
         double get_x_max() const
 
@@ -73,11 +74,9 @@ cdef class MyPchipInterpolator:
                 - False: return NaN for out-of-bounds input
         """
 
-        x_arr = np.ascontiguousarray(np.asarray(x).ravel(), dtype=np.float64)
-        y_arr = np.ascontiguousarray(np.asarray(y).ravel(), dtype=np.float64)
-        cdef vector[double] vx = from_numpy_to_vector(x_arr)
-        cdef vector[double] vy = from_numpy_to_vector(y_arr)
-        self.cpp_interp = new PchipInterpolator(vx, vy)
+        cdef np.ndarray[np.float64_t, ndim=1] x_arr = np.ascontiguousarray(np.asarray(x).ravel(), dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=1] y_arr = np.ascontiguousarray(np.asarray(y).ravel(), dtype=np.float64)
+        self.cpp_interp = new PchipInterpolator(&x_arr[0], &y_arr[0], x_arr.shape[0])
         self.extrapolate_mode = extrapolate
 
     def __dealloc__(self):
@@ -106,7 +105,7 @@ cdef class MyPchipInterpolator:
         """
         mode = extrapolate if extrapolate is not None else self.extrapolate_mode
 
-        # 优先判断是否为标量
+        # First, check if input is scalar
         if np.isscalar(x) or (np.shape(x) == ()):
             xval = float(x)
             x_min = self.cpp_interp.get_x_min()
@@ -223,10 +222,10 @@ cdef class LU_Mono:
         is_decreasing = <bint>is_decreasing
         resample_order = <int>resample_order
 
-        # 只用 MyPchipInterpolator
+        # only use MyPchipInterpolator
         interpolate = MyPchipInterpolator
 
-        # 边界索引
+        # boundary index
         lower_mask, upper_mask = LU_Mono.profile_boundary(y_arr, is_decreasing)
 
         x_lower = x_arr[lower_mask]
@@ -240,15 +239,15 @@ cdef class LU_Mono:
         interp_upper = interpolate(x_upper, y_upper, extrapolate='const')
         interp_lower = interpolate(x_lower, y_lower, extrapolate='const')
 
-        # 共享节点
+        # shared nodes
         shared_nodes = x_arr[lower_mask & upper_mask]
 
-        # 插值
+        # interpolation
         upper_values = interp_upper(x_arr)
         lower_values = interp_lower(x_arr)
         mid_values = (upper_values + lower_values) / 2.0
 
-        # bin 分配
+        # bin assignment
         bin_indices = np.searchsorted(shared_nodes, x_arr, side='right')
 
         is_above_mid = y_arr > mid_values
@@ -257,7 +256,7 @@ cdef class LU_Mono:
         upper_bin_counts = np.bincount(bin_indices[is_above_mid], minlength=max_bin+1)
         lower_bin_counts = np.bincount(bin_indices[~is_above_mid], minlength=max_bin+1)
 
-        # 新采样
+        # resampling
         if resample_order < 1:
             x_resampled = x_arr
         else:

@@ -12,6 +12,18 @@ PchipInterpolator::PchipInterpolator(const std::vector<double>& x, const std::ve
     compute_coefficients();
 }
 
+PchipInterpolator::PchipInterpolator(const double* x, const double* y, size_t n)
+    : x_(x, x + n), y_(y, y + n), d_(n)
+{
+    if (n < 2)
+        throw std::invalid_argument("length must be >= 2");
+    for (size_t i = 1; i < n; ++i)
+        if (x[i] <= x[i-1])
+            throw std::invalid_argument("x must be strictly increasing");
+    compute_derivatives();
+    compute_coefficients();
+}
+
 void PchipInterpolator::compute_derivatives() {
     size_t n = x_.size();
     std::vector<double> h(n-1), m(n-1);
@@ -108,6 +120,13 @@ double PchipInterpolator::interpolate(double xval, int nu) const {
 std::vector<double> PchipInterpolator::interpolate(const std::vector<double>& xvals, int nu) const {
     std::vector<double> results(xvals.size());
     for (size_t i = 0; i < xvals.size(); ++i) {
+        results[i] = interpolate(xvals[i], nu);
+    }
+    return results;
+}
+std::vector<double> PchipInterpolator::interpolate(const double* xvals, size_t n, int nu) const {
+    std::vector<double> results(n);
+    for (size_t i = 0; i < n; ++i) {
         results[i] = interpolate(xvals[i], nu);
     }
     return results;

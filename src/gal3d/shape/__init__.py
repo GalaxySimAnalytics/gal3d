@@ -494,6 +494,11 @@ class StructureComponents:
         Z : ndarray
             Z coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
 
+        Notes
+        -----
+        n_phi_bins will be adjusted to 4*a, with a at least 1.
+        n_theta_bins will be adjusted to 2*b + 1, with b at least 1.
+
         Examples
         --------
         >>> import matplotlib.pyplot as plt
@@ -502,8 +507,11 @@ class StructureComponents:
         >>> ax = fig.add_subplot(111, projection='3d')
         >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
         """
-        u = np.linspace(0, 2 * np.pi, n_phi_bins)
-        v = np.linspace(0, np.pi, n_theta_bins)
+        n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)
+        n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
+        # need include u = 0, pi 。v = 0, pi/2。
+        u = np.linspace(0, 2* np.pi, 4*n_phi_bins,endpoint=False)
+        v = np.linspace(0, np.pi, 2*n_theta_bins + 1, endpoint=True)
 
         x = np.outer(np.cos(u), np.sin(v))
         y = np.outer(np.sin(u), np.sin(v))
@@ -514,9 +522,9 @@ class StructureComponents:
 
         pos_plot,_ =self.ray_intersect(pos)
 
-        X = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,0]
-        Y = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,1]
-        Z = pos_plot.reshape(n_phi_bins,n_theta_bins,3)[:,:,2]
+        X = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,0]
+        Y = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,1]
+        Z = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,2]
         return X,Y,Z
     
 class StructureError:

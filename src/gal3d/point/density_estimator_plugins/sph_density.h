@@ -1,4 +1,4 @@
-#include <cmath>
+#include <math.h>
 
 const double COEF1 = 5.092958178940650744;  // 16/pi  0.318309886183790671 5.092958178940650744
 const double COEF2 = 0.318309886183790671; // 1/pi

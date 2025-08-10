@@ -549,10 +549,11 @@ class SphField:
     def boundary_registry(fn: str | Callable) -> Callable:
         """Function decorator to define a new bound method.
 
-        @SphField.boundary_registry
-        def bound_dist(cls, value, **kwargs):
-            return value*np.ones(cls.rays.num)
-
+        Examples
+        --------
+        >>> @SphField.boundary_registry
+        >>> def bound_dist(cls, value, **kwargs):
+        >>>     return value*np.ones(cls.rays.num)
         """
         if callable(fn):
             SphField._bound_method[fn.__name__] = fn
@@ -572,10 +573,11 @@ class SphField:
     def step_registry(fn: str | Callable) -> Callable:
         """Function decorator to define a new step method.
 
-        @SphField.step_registry
-        def bound_dist(cls, value, **kwargs):
-            return value*np.ones(cls.rays.num)
-
+        Examples
+        --------
+        >>> @SphField.step_registry
+        >>> def bound_dist(cls, value, **kwargs):
+        >>>     return value*np.ones(cls.rays.num)
         """
         if callable(fn):
             SphField._step_method[fn.__name__] = fn

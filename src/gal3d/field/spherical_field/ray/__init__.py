@@ -45,46 +45,49 @@ class MonotonRay:
         interpolator_kwargs: dict = dict(),
         **kwargs,
     ):
-        '''
-        Interpolate f(r) and r(f) using specified methods.
-
+        """
         Parameters
         ----------
         r : 1-D array
             A 1-D array of monotonically increasing real values.
+
         f : 1-D array
             A 1-D array of real values, must be of the same length as `r`.
+
         is_decreasing : bool, optional
             If True, the function f(r) is assumed to be monotonically decreasing. Default is True.
+
         interpolator_method : {'LU'}, optional
             Determines the method used to smooth f(r).
             - 'LU': Uses the median of lower and upper values.
             Default is 'LU'.
+
         interpolator_kwargs : dict, optional
             Additional keyword arguments to pass to the interpolator. Default is an empty dictionary.
-        **kwargs : dict, optional
-            Additional keyword arguments:
-            - smoothlog : bool, default is False
-                If True, smooth f in log scale.
-            - mono_de : bool, default is True
-                If True, the function f(r) is assumed to be monotonically decreasing.
-            - extrapolate : bool, default is True
-                If True, extrapolate to out-of-bounds points based on the first and last intervals.
-                If False, return NaNs for out-of-bounds points.
-            - throw_point : bool, default is True
-                If True, when using 'SG' smoothing, some bad points will be thrown out.
+
+        smoothlog : bool, optional
+            If True, smooth f in log scale. Default is False.
+
+        mono_de : bool, optional
+            If True, the function f(r) is assumed to be monotonically decreasing. Default is True.
+
+        extrapolate : bool, optional
+            If True, extrapolate to out-of-bounds points based on the first and last intervals. Default is True.
+
+        throw_point : bool, optional
+            If True, when using 'SG' smoothing, some bad points will be thrown out. Default is True.
 
         Notes
         -----
         - If using `smooth_mode='LU'`, the function first calculates (r_upper, f_upper) and (r_lower, f_lower),
-          then interpolates them. The median value `f_median = (f_upper + f_lower)/2` is used as the smoothed
-          function, and the error at each point `r` can be obtained from `f_lower` and `f_upper`.
+        then interpolates them. The median value `f_median = (f_upper + f_lower)/2` is used as the smoothed
+        function, and the error at each point `r` can be obtained from `f_lower` and `f_upper`.
 
         Raises
         ------
         ValueError
             If `r` is not a strictly increasing sequence.
-        '''
+        """
 
         # r must be increasing
         if not judge_monoton(r, is_decreasing=False):

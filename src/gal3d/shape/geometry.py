@@ -27,7 +27,7 @@ class GeometryBase(WithParameter,PluginBase):
         if not super().__init_subclass__(**kwargs):
             logger.warning(f"GeometryPlugin found: {cls.__name__} but failed to load")
             return
-        GeometryManager.register(cls)
+        Geometry.register(cls)
 
     @abstractmethod
     def __call__(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -213,7 +213,7 @@ class GeometryBase(WithParameter,PluginBase):
         pass
 
 
-class GeometryManager(PluginManager[GeometryBase]):
+class Geometry(PluginManager[GeometryBase]):
     """
     Factory class for accessing registered Geometry plugins.
     """
@@ -221,4 +221,3 @@ class GeometryManager(PluginManager[GeometryBase]):
     _plugin_module = "gal3d.shape.geometry_plugins"
     _base_class = GeometryBase
 
-Geometry = GeometryManager

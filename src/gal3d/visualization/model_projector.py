@@ -40,7 +40,7 @@ class ModelProjectorBase(PluginBase):
             Additional keyword arguments passed to the parent __init_subclass__.
         """
         super().__init_subclass__(**kwargs)
-        ModelProjectorManager.register(cls)
+        ModelProjector.register(cls)
 
 
     def __init__(self, cache_len: int = 100):
@@ -278,7 +278,7 @@ class ModelProjectorBase(PluginBase):
         )
 
 
-class ModelProjectorManager(PluginManager[ModelProjectorBase]):
+class ModelProjector(PluginManager[ModelProjectorBase]):
     """
     Factory class for accessing registered ModelProjector plugins.
     """
@@ -287,6 +287,5 @@ class ModelProjectorManager(PluginManager[ModelProjectorBase]):
     _plugin_module = "gal3d.visualization.model_projector_plugins"
     _base_class = ModelProjectorBase
 
-ModelProjector = ModelProjectorManager
 
 # Removed unused imports: ProjectorLineIntegration, ProjectorSphGrid

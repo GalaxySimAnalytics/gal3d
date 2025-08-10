@@ -22,13 +22,13 @@ class CharacterizerBase(PluginBase):
     def __init_subclass__(cls, **kwargs):
 
         super().__init_subclass__(**kwargs)
-        CharacterizerManager.register(cls)
+        Characterizer.register(cls)
 
     @abstractmethod
     def measure(self,):
         pass
 
-class CharacterizerManager(PluginManager[CharacterizerBase]):
+class Characterizer(PluginManager[CharacterizerBase]):
     """
     Factory class for accessing registered characterizer plugins.
     """
@@ -36,5 +36,3 @@ class CharacterizerManager(PluginManager[CharacterizerBase]):
     _plugins = {}
     _plugin_module = "gal3d.characterization.characterizer_plugins"
     _base_class = CharacterizerBase
-
-Characterizer = CharacterizerManager

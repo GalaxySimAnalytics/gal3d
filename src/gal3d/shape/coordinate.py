@@ -37,7 +37,7 @@ class CoordinateBase(WithParameter, PluginBase):
         if not super().__init_subclass__():
             logger.warning(f"CoordinatePlugin found: {cls.__name__} but failed to load")
             return
-        CoordinateManager.register(cls)
+        Coordinate.register(cls)
 
     @abstractmethod
     def __call__(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -130,7 +130,7 @@ class CoordinateBase(WithParameter, PluginBase):
         pass
 
 
-class CoordinateManager(PluginManager[CoordinateBase]):
+class Coordinate(PluginManager[CoordinateBase]):
     """
     Factory class for accessing registered Coordinate plugins.
     """
@@ -138,5 +138,3 @@ class CoordinateManager(PluginManager[CoordinateBase]):
     _plugin_module = "gal3d.shape.coordinate_plugins"
     _base_class = CoordinateBase
 
-
-Coordinate = CoordinateManager

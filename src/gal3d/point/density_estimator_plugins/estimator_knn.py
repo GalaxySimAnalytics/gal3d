@@ -17,7 +17,28 @@ __all__ = ['DensityEstimatorKNN']
 
 
 class DensityEstimatorKNN(DensityEstimatorBase):
-    '''Estimate the parameter value at any position by kd-tree'''
+    """Estimate the parameter value at any position by kd-tree.
+    
+    Attributes
+    ----------
+    pos: ndarray, shape(n,3)
+        The coordinates (x, y, z) of the n data points, sorted by their distance from the origin.
+    mass: array, shape(n,)
+        The property of the n points, sorted by their distance from the origin.
+    r: array, shape(n,)
+        The radial distance of each point from the origin.
+    tree: scipy.spatial.KDTree
+        A KDTree object constructed from the input positions.
+    pa_mode: str
+        The parameter estimation mode ('Density' or 'Mean').
+
+    Methods
+    -------
+    get_parameter(target_pos)
+        Estimate the parameter value at the target positions.
+    get_gradient(target_pos)
+        Estimate the gradient of the parameter at the target positions.
+    """
 
     def __init__(
         self,
@@ -30,38 +51,27 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         **kwargs,
     ):
         """
-        Parameters:
-            pos: ndarray, shape(n,3)
-                The coordinates (x, y, z) of the n data points.
-            mass: array, shape(n,)
-                The property of the n points (e.g., mass, luminosity, etc.).
-            parameter_mode: str, optional
-                The mode of parameter estimation.
-                - If 'Density' (default), the function estimates the density.
-                  For example, if the input `mass` is mass, the function returns density.
-                - If 'Mean', the function returns the average value of the `mass` property.
-            k_nearest: int, default 32
-                The number of nearest points used to estimate the target parameter.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree constructor and query methods.
-
-        Attributes:
-            pos: ndarray, shape(n,3)
-                The coordinates (x, y, z) of the n data points, sorted by their distance from the origin.
-            mass: array, shape(n,)
-                The property of the n points, sorted by their distance from the origin.
-            r: array, shape(n,)
-                The radial distance of each point from the origin.
-            tree: scipy.spatial.KDTree
-                A KDTree object constructed from the input positions.
-            pa_mode: str
-                The parameter estimation mode ('Density' or 'Mean').
-
-        Methods:
-            get_parameter(target_pos)
-                Estimate the parameter value at the target positions.
-            get_gradient(target_pos)
-                Estimate the gradient of the parameter at the target positions.
+        Parameters
+        ----------
+        pos: ndarray, shape(n,3)
+            The coordinates (x, y, z) of the n data points.
+            
+        mass: array, shape(n,)
+            The property of the n points (e.g., mass, luminosity, etc.).
+            
+        parameter_mode : str, optional
+            The mode of parameter estimation. Choices are 'Density' (default) or 'Mean'.
+            If 'Density', the function estimates the density (e.g., returns density if input is mass).
+            If 'Mean', the function returns the average value of the `mass` property.
+        
+        kernel : optional
+            Kernel function or object (if used).
+        
+        k_nearest: int, default 32
+            The number of nearest points used to estimate the target parameter.
+            
+        **kwargs: dict, optional
+            Additional keyword arguments passed to the KDTree constructor and query methods.
         """
         super().__init__(pos, mass, parameter_mode, kernel)
 

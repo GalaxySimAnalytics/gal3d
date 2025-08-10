@@ -145,7 +145,7 @@ class OptimizerBase(PluginBase):
         Register the subclass as an optimizer plugin and update the plugin stub if update_stub.
         """
         super().__init_subclass__(**kwargs)
-        OptimizerManager.register(cls)
+        Optimizer.register(cls)
 
     @abstractmethod
     def fitting(
@@ -217,15 +217,10 @@ class OptimizerBase(PluginBase):
         pass
 
 
-class OptimizerManager(PluginManager[OptimizerBase]):
+class Optimizer(PluginManager[OptimizerBase]):
     """
     Factory class for accessing registered optimizer plugins.
     """
     _plugins = {}
     _plugin_module = "gal3d.optimization.optimizer_plugins"
     _base_class = OptimizerBase
-    
-    
-    
-Optimizer = OptimizerManager
-

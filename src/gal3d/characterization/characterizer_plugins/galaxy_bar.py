@@ -89,34 +89,42 @@ class Bar(CharacterizerBase):
         Returns
         -------
         result : dict
-            Dictionary containing bar parameters with keys:
-            - 'flag' : int
-                1 if bar detected, 0 otherwise
-            - 'eps_max' : float
-                Maximum ellipticity in bar region
-            - 'R_max' : float
-                Radius at maximum ellipticity
-            - 'R_bar' : float
-                bar radius
+            Dictionary containing bar parameters.
             
-            other info if return in detailed:
-                             
-            - 'R_in' : float
-                Start radius where eps >= eps_cond
-            - 'R_ou' : float
-                End radius where eps >= eps_cond
-            - 'R_dc' : float
-                where eps decreases to dec*eps_max
-            - 'eps_dc' : float
-                Ellipticity at R
-            - 'R_pa' : float
-                Radius where position angle deviates begins to > angle_dev
-            - 'eps_pa' : float
-                Ellipticity at Rpa
+            flag : int
+                1 if bar detected, 0 otherwise.
+
+            eps_max : float
+                Maximum ellipticity in bar region.
+
+            R_max : float
+                Radius at maximum ellipticity.
+
+            R_bar : float
+                Bar radius.
+
+            R_in : float, optional
+                Start radius where eps >= eps_cond (if detail=True).
+
+            R_ou : float, optional
+                End radius where eps >= eps_cond (if detail=True).
+
+            R_dc : float, optional
+                Where eps decreases to dec*eps_max (if detail=True).
+
+            eps_dc : float, optional
+                Ellipticity at R_dc (if detail=True).
+
+            R_pa : float, optional
+                Radius where position angle deviation begins to exceed angle_dev (if detail=True).
+
+            eps_pa : float, optional
+                Ellipticity at R_pa (if detail=True).
 
         Notes
         -----
         Bar detection criteria:
+        
         1. Starting radius (Rin) < start_max
         2. Bar region length (Rou-Rin) > range_min
         3. Peak ellipticity > eps_cond

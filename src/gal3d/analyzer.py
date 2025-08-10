@@ -510,18 +510,17 @@ def validate_fitting_data(self: Gal3DAnalyzer, a: float, **kwargs) -> ModelResul
         The analyzer instance containing particle data, field, structure, and optimizer.
     a : float
         The semi-major axis at which to validate and fit the structure data.
-    **kwargs : dict
-        Optional arguments for validation and fitting:
-        - var_a : float
-            Variance allowed for 'a' parameter (default: 0.1)
-        - uniformity_cut : float
-            Minimum required point distribution uniformity (default: 0.75)
-        - init_parameters : dict
-            Initial parameter values for the fit
-        - max_points : int
-            Maximum number of points to use for fitting (default: 10000)
-        - min_points : int
-            Minimum required points for fitting (default: 10)
+
+    var_a : float
+        Variance allowed for 'a' parameter (default: 0.1)
+    uniformity_cut : float
+        Minimum required point distribution uniformity (default: 0.75)
+    init_parameters : dict
+        Initial parameter values for the fit
+    max_points : int
+        Maximum number of points to use for fitting (default: 10000)
+    min_points : int
+        Minimum required points for fitting (default: 10)
         
     Returns
     -------

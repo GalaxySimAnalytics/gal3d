@@ -51,7 +51,7 @@ class DensityEstimatorBase(PluginBase):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        DensityEstimatorManager.register(cls)
+        DensityEstimator.register(cls)
 
     def _shape_check(self, pos):
         """
@@ -164,12 +164,10 @@ class DensityEstimatorBase(PluginBase):
         pass
 
 
-class DensityEstimatorManager(PluginManager[DensityEstimatorBase]):
+class DensityEstimator(PluginManager[DensityEstimatorBase]):
     """
     Factory class for accessing registered density estimator plugins.
     """
     _plugins = {}
     _plugin_module = "gal3d.point.density_estimator_plugins"
     _base_class = DensityEstimatorBase
-
-DensityEstimator = DensityEstimatorManager

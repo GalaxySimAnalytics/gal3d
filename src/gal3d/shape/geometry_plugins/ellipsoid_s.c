@@ -137,14 +137,18 @@ double solve_ray_shaped_ellipsoid(
     double inv_b2 = 1.0 / (b * b);
     double inv_c2 = 1.0 / (c * c);
 
-    double initial_guess = (a + c) / 2.0;
+    double initial_guess = (a+c+b) / 3.0;
 
     double ex_base = xi2 * inv_a2;
     double ey_base = yi2 * inv_b2;
     double ez_base = zi2 * inv_c2;
-    double log_ex_base = log(ex_base);
-    double log_ey_base = log(ey_base);
-    double log_ez_base = log(ez_base);
+    // double log_ex_base = log(ex_base);
+    // double log_ey_base = log(ey_base);
+    // double log_ez_base = log(ez_base);
+
+    double ex_base_Sa = pow(ex_base, Sa);
+    double ey_base_Sb = pow(ey_base, Sb);
+    double ez_base_Sc = pow(ez_base, Sc);
 
     double Sa2 = 2.0 * Sa;
     double Sb2 = 2.0 * Sb;
@@ -159,18 +163,63 @@ double solve_ray_shaped_ellipsoid(
         iter_func = _ellipsoid_ray_householder;
     }
 
-    double d0 = initial_guess, d1;
-    for (int it = 0; it < maxIterations; ++it) {
-        double log_dd = 2.0 * log(d0); // log(d0^2)
-        double ExddSa = exp(Sa * (log_ex_base + log_dd));
-        double EyddSb = exp(Sb * (log_ey_base + log_dd));
-        double EzddSc = exp(Sc * (log_ez_base + log_dd));
-        double f = ExddSa + EyddSb + EzddSc - 1.0;
 
+    double d0 = initial_guess, d1;
+    double f, f1;
+    double d2, ExddSa, EyddSb, EzddSc;
+
+    //  double log_dd = 2.0 * log(d0); // log(d0^2)
+    //  double ExddSa = exp(Sa * (log_ex_base + log_dd));
+    //  double EyddSb = exp(Sb * (log_ey_base + log_dd));
+    //  double EzddSc = exp(Sc * (log_ez_base + log_dd));
+    d2 = d0 * d0;
+    ExddSa = ex_base_Sa * pow(d2,Sa);
+    EyddSb = ey_base_Sb * pow(d2,Sb);
+    EzddSc = ez_base_Sc * pow(d2,Sc);
+
+    f = ExddSa + EyddSb + EzddSc - 1.0;
+
+    const int MAX_BACKTRACK = 10;
+
+
+    for (int it = 0; it < maxIterations; ++it) {
+
+        // Use the selected iterative method (Newton/Halley/Householder) to compute the next estimate d1
         d1 = iter_func(d0, Sa2, ExddSa, Sb2, EyddSb, Sc2, EzddSc, f);
 
-        if (fabs(d1 - d0) < epsilon && fabs(f) < epsilon) break;
+        // Update function values at new estimate
+        d2 = d1 * d1;
+        ExddSa = ex_base_Sa * pow(d2, Sa);
+        EyddSb = ey_base_Sb * pow(d2, Sb);
+        EzddSc = ez_base_Sc * pow(d2, Sc);
+        f1 = ExddSa + EyddSb + EzddSc - 1.0;
+
+        // Adaptive step size: if the new function value is worse, reduce the step size
+        double step_size = 1.0;
+        int backtrack_count = 0;
+        double delta_d = d1 - d0;
+
+        while (fabs(f1) > fabs(f) && backtrack_count < MAX_BACKTRACK) {
+            step_size *= 0.5;
+            d1 = d0 + delta_d * step_size; // Reduce step size
+            
+            // Recalculate function value at the new estimate
+            d2 = d1 * d1;
+            ExddSa = ex_base_Sa * pow(d2, Sa);
+            EyddSb = ey_base_Sb * pow(d2, Sb);
+            EzddSc = ez_base_Sc * pow(d2, Sc);
+            f1 = ExddSa + EyddSb + EzddSc - 1.0;
+            
+            backtrack_count++;
+        }
+
+        // Update current estimate and function value
         d0 = d1;
+        f = f1;
+
+        // Check for convergence
+        if (fabs(f) < epsilon) break;
+
     }
     return d0;
 }

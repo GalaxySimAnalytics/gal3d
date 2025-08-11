@@ -13,6 +13,10 @@ cdef extern from "pchip.hpp":
         double get_x_min() const
         double get_x_max() const
 
+        vector[double] solve(double y, bint discontinuity, bint extrapolate) const
+        vector[vector[double]] solve(const vector[double]& yvals, bint discontinuity, bint extrapolate) const
+        vector[vector[double]] solve(const double* yvals, size_t n, bint discontinuity, bint extrapolate) const
+
 cdef vector[double] from_numpy_to_vector(np.ndarray[np.float64_t] arr):
     cdef vector[double] v
     cdef Py_ssize_t i, n = arr.shape[0]
@@ -158,6 +162,55 @@ cdef class MyPchipInterpolator:
         if np.isscalar(x) or (np.shape(x) == ()):
             return float(result[0])
         return result
+
+    def solve(self, y, discontinuity=True, extrapolate=True):
+        """
+        Solve for x given y, i.e., find x such that f(x) = y.
+
+        Parameters
+        ----------
+        y : float or array-like
+            Target values to solve for.
+        discontinuity : bool, optional
+            Allow discontinuous solutions (default True).
+        extrapolate : bool, optional
+            Allow extrapolation outside the interpolation range (default True).
+
+        Returns
+        -------
+        float or np.ndarray or list of np.ndarray
+            Solution(s) for x such that f(x) = y.
+        """
+        # Scalar input
+        if np.isscalar(y) or (np.shape(y) == ()):
+            yval = float(y)
+            sols = self.cpp_interp.solve(yval, <bint>discontinuity, <bint>extrapolate)
+            if sols.size() == 0:
+                return np.nan
+            elif sols.size() == 1:
+                return sols[0]
+            else:
+                arr = np.empty(sols.size(), dtype=np.float64)
+                for i in range(sols.size()):
+                    arr[i] = sols[i]
+                return arr
+
+        # Array input
+        cdef np.ndarray[np.float64_t] y_np = np.ascontiguousarray(np.asarray(y).ravel(), dtype=np.float64)
+        results = self.cpp_interp.solve(&y_np[0], y_np.shape[0], <bint>discontinuity, <bint>extrapolate)
+        py_results = []
+        for i in range(results.size()):
+            sols = results[i]
+            if sols.size() == 0:
+                py_results.append(np.nan)
+            elif sols.size() == 1:
+                py_results.append(sols[0])
+            else:
+                arr = np.empty(sols.size(), dtype=np.float64)
+                for j in range(sols.size()):
+                    arr[j] = sols[j]
+                py_results.append(arr)
+        return py_results
 
 cdef class LU_Mono:
     """

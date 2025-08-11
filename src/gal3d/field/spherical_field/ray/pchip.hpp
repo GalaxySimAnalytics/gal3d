@@ -21,6 +21,18 @@ public:
     template<typename T>
     std::vector<double> interpolate(const std::vector<T>& xvals, int nu = 0) const;
 
+    std::vector<double> solve(double y = 0.0, bool discontinuity = true, bool extrapolate = true) const;
+    std::vector<std::vector<double>> solve(const std::vector<double>& yvals, bool discontinuity = true, bool extrapolate = true) const;
+    std::vector<std::vector<double>> solve(const double* yvals, size_t n, bool discontinuity = true, bool extrapolate = true) const;
+
+    template<typename T>
+    std::vector<double> solve(T y, bool discontinuity = true, bool extrapolate = true) const;
+
+    template<typename T>
+    std::vector<std::vector<double>> solve(const std::vector<T>& y, bool discontinuity = true, bool extrapolate = true) const;
+
+
+
 private:
     std::vector<double> x_, y_, d_; // nodes, values, derivatives
     std::vector<std::array<double, 4>> c_; // coefficients of cubic polynomials for each segment
@@ -44,6 +56,21 @@ std::vector<double> PchipInterpolator::interpolate(const std::vector<T>& xvals, 
     return results;
 }
 
+
+template<typename T>
+std::vector<double> PchipInterpolator::solve(T y, bool discontinuity, bool extrapolate) const {
+    return solve(static_cast<double>(y), discontinuity, extrapolate);
+}
+
+template<typename T>
+std::vector<std::vector<double>> PchipInterpolator::solve(const std::vector<T>& yvals, bool discontinuity, bool extrapolate) const {
+    std::vector<std::vector<double>> results(yvals.size());
+    for (size_t i = 0; i < yvals.size(); ++i) {
+        results[i] = solve(static_cast<double>(yvals[i]), discontinuity, extrapolate);
+    }
+    return results;
+}
+
 template<typename Tx, typename Ty>
 PchipInterpolator make_pchip_interpolator(const std::vector<Tx>& x, const std::vector<Ty>& y) {
     return PchipInterpolator(
@@ -51,3 +78,4 @@ PchipInterpolator make_pchip_interpolator(const std::vector<Tx>& x, const std::v
         std::vector<double>(y.begin(), y.end())
     );
 }
+

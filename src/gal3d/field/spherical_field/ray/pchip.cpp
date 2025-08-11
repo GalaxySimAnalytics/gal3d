@@ -1,3 +1,5 @@
+
+#include <cmath>
 #include "pchip.hpp"
 
 PchipInterpolator::PchipInterpolator(const std::vector<double>& x, const std::vector<double>& y)
@@ -128,6 +130,109 @@ std::vector<double> PchipInterpolator::interpolate(const double* xvals, size_t n
     std::vector<double> results(n);
     for (size_t i = 0; i < n; ++i) {
         results[i] = interpolate(xvals[i], nu);
+    }
+    return results;
+}
+
+
+
+std::vector<double> PchipInterpolator::solve(double y, bool discontinuity, bool extrapolate) const {
+    // Find all x such that interpolate(x) == y
+    // Only search within [x_[0], x_[n-1]]
+    std::vector<double> roots;
+    size_t n = x_.size();
+    for (size_t k = 0; k < n - 1; ++k) {
+        // Cubic: c0*(x-xk)^3 + c1*(x-xk)^2 + c2*(x-xk) + c3 - y = 0
+        double c0 = c_[k][0];
+        double c1 = c_[k][1];
+        double c2 = c_[k][2];
+        double c3 = c_[k][3] - y;
+        // Solve cubic in s = x - x_[k], s in [0, x_[k+1] - x_[k]]
+        double h = x_[k+1] - x_[k];
+        std::vector<double> local_roots;
+        // Use Cardano's method for cubic equation: c0*s^3 + c1*s^2 + c2*s + c3 = 0
+        // If c0 == 0, reduce to quadratic/linear
+        if (std::abs(c0) < 1e-14) {
+            if (std::abs(c1) < 1e-14) {
+                // Linear: c2*s + c3 = 0
+                if (std::abs(c2) > 1e-14) {
+                    double s = -c3 / c2;
+                    if (s >= 0 && s <= h)
+                        local_roots.push_back(x_[k] + s);
+                }
+            } else {
+                // Quadratic: c1*s^2 + c2*s + c3 = 0
+                double D = c2 * c2 - 4 * c1 * c3;
+                if (D >= 0) {
+                    double sqrtD = std::sqrt(D);
+                    double s1 = (-c2 + sqrtD) / (2 * c1);
+                    double s2 = (-c2 - sqrtD) / (2 * c1);
+                    if (s1 >= 0 && s1 <= h)
+                        local_roots.push_back(x_[k] + s1);
+                    if (s2 >= 0 && s2 <= h)
+                        local_roots.push_back(x_[k] + s2);
+                }
+            }
+        } else {
+            // Cubic: use standard roots formula
+            // Depressed cubic: s^3 + a*s^2 + b*s + c = 0
+            double a = c1 / c0;
+            double b = c2 / c0;
+            double c = c3 / c0;
+            // Convert to depressed cubic: t^3 + p*t + q = 0, t = s + a/3
+            double p = b - a * a / 3.0;
+            double q = 2.0 * a * a * a / 27.0 - a * b / 3.0 + c;
+            double offset = -a / 3.0;
+            double discriminant = (q * q) / 4.0 + (p * p * p) / 27.0;
+            if (discriminant > 0) {
+                // One real root
+                double sqrt_disc = std::sqrt(discriminant);
+                double A = std::cbrt(-q / 2.0 + sqrt_disc);
+                double B = std::cbrt(-q / 2.0 - sqrt_disc);
+                double t = A + B;
+                double s = t + offset;
+                if (s >= 0 && s <= h)
+                    local_roots.push_back(x_[k] + s);
+            } else {
+                // Three real roots
+                double r = std::sqrt(-p / 3.0);
+                double phi = std::acos(-q / (2.0 * r * r * r));
+                for (int j = 0; j < 3; ++j) {
+                    double t = 2.0 * r * std::cos((phi + 2.0 * M_PI * j) / 3.0);
+                    double s = t + offset;
+                    if (s >= 0 && s <= h)
+                        local_roots.push_back(x_[k] + s);
+                }
+            }
+        }
+        // If discontinuity==false, only take first root in interval
+        if (!local_roots.empty()) {
+            if (discontinuity)
+                roots.insert(roots.end(), local_roots.begin(), local_roots.end());
+            else
+                roots.push_back(local_roots[0]);
+        }
+    }
+    // If extrapolate==false, filter roots to [x_[0], x_[n-1]]
+    if (!extrapolate) {
+        roots.erase(std::remove_if(roots.begin(), roots.end(),
+            [this](double r) { return r < x_.front() || r > x_.back(); }), roots.end());
+    }
+    return roots;
+}
+
+std::vector<std::vector<double>> PchipInterpolator::solve(const std::vector<double>& yvals, bool discontinuity, bool extrapolate) const {
+    std::vector<std::vector<double>> results(yvals.size());
+    for (size_t i = 0; i < yvals.size(); ++i) {
+        results[i] = solve(yvals[i], discontinuity, extrapolate);
+    }
+    return results;
+}
+
+std::vector<std::vector<double>> PchipInterpolator::solve(const double* yvals, size_t n, bool discontinuity, bool extrapolate) const {
+    std::vector<std::vector<double>> results(n);
+    for (size_t i = 0; i < n; ++i) {
+        results[i] = solve(yvals[i], discontinuity, extrapolate);
     }
     return results;
 }

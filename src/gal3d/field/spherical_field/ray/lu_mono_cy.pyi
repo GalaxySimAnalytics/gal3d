@@ -1,7 +1,7 @@
 # lu_mono_cy.pyi
 
 import numpy as np
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List,overload
 
 class MyPchipInterpolator:
     """
@@ -25,7 +25,14 @@ class MyPchipInterpolator:
     """
 
     def __init__(self, x: Any, y: Any, extrapolate: Union[str, bool] = 'const') -> None: ...
-    def __call__(self, x: Union[float, np.ndarray], nu: int = 0, extrapolate: Optional[Union[str, bool]] = None) -> Union[float, np.ndarray]: ...
+    @overload
+    def __call__(self, x: float, nu: int = 0, extrapolate: Optional[Union[str, bool]] = None) -> float: ...
+    @overload
+    def __call__(self, x: np.ndarray, nu: int = 0, extrapolate: Optional[Union[str, bool]] = None) -> np.ndarray: ...
+    @overload
+    def solve(self, y: float, discontinuity: bool = True, extrapolate: bool = True) -> Union[float, np.ndarray]: ... 
+    @overload
+    def solve(self, y: np.ndarray, discontinuity: bool = True, extrapolate: bool = True) -> List[Union[float, np.ndarray]]: ...
     def __dealloc__(self) -> None: ...
 
 class LU_Mono:

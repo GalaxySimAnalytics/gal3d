@@ -234,6 +234,27 @@ class ModelResult:
         """
         return self[item](pos, **kwargs)
     
+    def get(self, key: str, default: Any = None) -> Any:
+        """ 
+        Mimic dict.get: Return the values for the given key from all parameter sets.
+
+        Parameters
+        ----------
+        key : str
+            The key to look up in the parameter sets.
+        default : Any, optional
+            Default value to return if key is not found.
+
+        Returns
+        -------
+        Any
+            The values for the given key from all parameter sets, or default if not found.
+        """
+        try:
+            return cast(np.ndarray, np.array([params[key] for params in self._param_sets]))
+        except KeyError:
+            return default
+
     # Type hint overloads for __getitem__
     @overload
     def __getitem__(self, k: int) -> Structure3D: ...

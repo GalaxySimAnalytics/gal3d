@@ -520,9 +520,9 @@ class StructureCore:
 
         pos_plot,_ =self.ray_intersect(pos)
 
-        X = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,0]
-        Y = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,1]
-        Z = pos_plot.reshape(n_phi_bins*4,n_theta_bins*2+1,3)[:,:,2]
+        X = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,0]
+        Y = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,1]
+        Z = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,2]
         return X,Y,Z
     
 class StructureError:

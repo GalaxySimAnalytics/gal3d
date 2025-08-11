@@ -38,53 +38,29 @@ class EulerShift(CoordinateBase):
             - seq : str, optional
                 The sequence of Euler angles for rotation. Default is 'zyx'.
         """
-        self.parameters = self.init_parameters(
-            x=x, y=y, z=z, ang1=ang1, ang2=ang2, ang3=ang3
-        )
+        super().__init__(x=x,y=y,z=z,ang1=ang1,ang2=ang2,ang3=ang3)
+
         self._seq = kwargs.get('seq', EulerShift.EulerSeq)
         self._rotation = EulerAngles.from_euler(
             seq=self._seq, angles=[ang1, ang2, ang3]
         )
-
-    @staticmethod
-    def init_parameters(**kwargs):
+        
+    @classmethod
+    def default_parameters(cls):
         """
-        Initialize the parameters for the coordinate transformation.
-
-        Parameters
-        ----------
-        **kwargs : dict
-            A dictionary of parameter values.
-
-        Returns
-        -------
-        Parameters
-            An instance of the Parameters class containing the initialized parameters.
+        Returns a default set of parameters for the EulerShift transformation.
         """
-
-        param = Parameters(**kwargs)
-        param._derived['pos'] = lambda d: np.array([d['x'], d['y'], d['z']])
-        param._derived['angle'] = lambda d: np.array([d['ang1'], d['ang2'], d['ang3']])
-
-        parameters = Parameters(**{i: param[i] for i in EulerShift.PN})
-        parameters._derived.update(param._derived)
-        parameters.set_lb(**EulerShift.LB)
-        parameters.set_ub(**EulerShift.UB)
-        return parameters
-
-    @staticmethod
-    def get_parameters():
-        """
-        Get the default parameters for the coordinate transformation.
-
-        Returns
-        -------
-        Parameters
-            An instance of the Parameters class with default values.
-        """
-        return EulerShift.init_parameters(
+        return cls.create_parameters(
             x=0.0, y=0.0, z=0.0, ang1=0.0, ang2=0.0, ang3=0.0
         )
+        
+    @classmethod
+    def derived_param_funcs(cls):
+        return {
+            'pos': lambda d: np.array([d['x'], d['y'], d['z']]),
+            'angle': lambda d: np.array([d['ang1'], d['ang2'], d['ang3']]),
+        }
+
 
     def jacobian(self, pos):
         """
@@ -183,31 +159,6 @@ class EulerShift(CoordinateBase):
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
         ).as_matrix()
         return RotateAndShift(pos, rot_matrix, pc)
-
-    @staticmethod
-    def quick_inverse(x, y, z, ang1, ang2, ang3, pos):
-        """
-        Quickly inverse transform the given positions using the specified translation and rotation parameters.
-
-        Parameters
-        ----------
-        x, y, z : float
-            The center position coordinates.
-        ang1, ang2, ang3 : float
-            The Euler angles for rotation, in units of pi.
-        pos : numpy.ndarray
-            An Nx3 array representing the positions [x, y, z] to be inverse transformed.
-
-        Returns
-        -------
-        numpy.ndarray
-            The inverse transformed positions.
-        """
-        pc = np.float64([x, y, z])
-        matrix = EulerAngles.from_euler(
-            seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
-        return Rotate(Shift(pos.copy(), -pc), matrix.T)
 
     @staticmethod
     def quick_inverse(x, y, z, ang1, ang2, ang3, pos):

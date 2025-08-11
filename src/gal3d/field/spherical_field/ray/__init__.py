@@ -34,7 +34,7 @@ def judge_monoton(x, is_decreasing: bool = True) -> bool:
     return judge_mono
 
 class MonotonRay:
-    _interpolator_method = {}
+    _interpolator_method: dict[str, Callable] = {}
 
     def __init__(
         self,
@@ -159,7 +159,7 @@ class MonotonRay:
     @staticmethod
     def interpolator_registry(fn: str | Callable) -> Callable:
         if callable(fn):
-            MonotonRay._interpolator_method[fn] = fn
+            MonotonRay._interpolator_method[fn.__name__] = fn
             return fn
 
         fn_name = fn

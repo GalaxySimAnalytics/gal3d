@@ -2,8 +2,8 @@
 from typing import List
 
 import numpy as np
-from scipy.interpolate import PchipInterpolator
-from scipy.spatial.transform import Rotation
+from scipy.interpolate import PchipInterpolator # type: ignore
+from scipy.spatial.transform import Rotation   # type: ignore
 
 from ..characterizer import CharacterizerBase
 

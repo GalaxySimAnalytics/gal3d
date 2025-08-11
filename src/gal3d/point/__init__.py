@@ -8,7 +8,6 @@ the principal axes of particle distributions, and density estimators.
 """
 import numpy as np
 
-from ..util.func_decorator import classproperty
 from .density_estimator import DensityEstimator, DensityEstimatorBase
 from .global_calculator import GlobalCalculator
 
@@ -57,7 +56,7 @@ class Particles(GlobalCalculator):
             self.estimator = DensityEstimator.get_plugin(density_estimator)(
                 self.pos, self.mass, parameter_mode, **estimator_kwargs
             )
-        elif issubclass(density_estimator, DensityEstimatorBase):
+        elif isinstance(density_estimator, type) and issubclass(density_estimator, DensityEstimatorBase):
             self.estimator = density_estimator(
                 self.pos, self.mass, parameter_mode, **estimator_kwargs
             )
@@ -65,8 +64,9 @@ class Particles(GlobalCalculator):
             self.estimator = density_estimator
         else:
             raise TypeError(
-    f"density_estimator must be either a string (plugin name), "
-    f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead.")
+                f"density_estimator must be either a string (plugin name), "
+                f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead."
+            )
             
     def __del__(self):
         """

@@ -594,7 +594,7 @@ class SphField:
         return decorator
 
     @staticmethod
-    def iso_registry(fn: Callable) -> Callable:
+    def iso_registry(fn: str | Callable) -> Callable:
 
         if callable(fn):
             SphField._iso_method[fn.__name__] = fn
@@ -611,10 +611,7 @@ class SphField:
 
 from gal3d.config import config
 
-if config.general.use_cython:
-    from .util_cy import iso_profile_by_moi, iso_profile_by_pair
-else:
-    from .util_nb import iso_profile_by_moi, iso_profile_by_pair
+from .util_cy import iso_profile_by_moi, iso_profile_by_pair
     
 SphField.iso_registry('moi')(iso_profile_by_moi)
 SphField.iso_registry('pair')(iso_profile_by_pair)

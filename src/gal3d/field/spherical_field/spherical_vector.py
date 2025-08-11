@@ -2,7 +2,7 @@ import logging
 import os
 
 import numpy as np
-from scipy.spatial import KDTree, SphericalVoronoi
+from scipy.spatial import KDTree, SphericalVoronoi  # type: ignore
 
 from .util import *
 

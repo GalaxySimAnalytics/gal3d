@@ -2,28 +2,19 @@
 import logging
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 
 from gal3d.config import config
 
 from ..geometry import GeometryBase, Parameters
 
-if config.general.use_cython:
-    from .ellipsoid_s_cy import (
-        IntersectLinesEllipsoid_S,
-        IntersectRaysEllipsoid_S,
-        f_ray_shaped_ellipsoid,
-        f_shaped_ellipsoid,
-        f_shaped_ellipsoid_jacobian,
-    )
-else:
-    from .ellipsoid_s_nb import (
-        IntersectLinesEllipsoid_S,
-        IntersectRaysEllipsoid_S,
-        f_ray_shaped_ellipsoid,
-        f_shaped_ellipsoid,
-        f_shaped_ellipsoid_jacobian,
-    )
+from .ellipsoid_s_cy import (
+    IntersectLinesEllipsoid_S,
+    IntersectRaysEllipsoid_S,
+    f_ray_shaped_ellipsoid,
+    f_shaped_ellipsoid,
+    f_shaped_ellipsoid_jacobian,
+)
 
 __all__ = ['Ellipsoid_S']
 
@@ -51,57 +42,37 @@ class Ellipsoid_S(GeometryBase):
         **kwargs : dict
             A dictionary of parameters to initialize the ellipsoid.
         """
-        self.parameters = self.init_parameters(**kwargs)
-        self.parameters = self.init_parameters(**kwargs)
+        super().__init__(**kwargs)
 
-    @staticmethod
-    def init_parameters(**kwargs):
+    @classmethod
+    def default_parameters(cls):
         """
-        Initializes and returns the parameters with derived values.
-
-        Parameters
-        ----------
-        **kwargs : dict
-            A dictionary of parameters to initialize the ellipsoid.
+        Return a default set of parameters for the shaped ellipsoid.
 
         Returns
         -------
         Parameters
-            An instance of Parameters with initialized and derived values.
+            An instance of the Parameters class containing default shaped ellipsoid parameters.
         """
-        param = Parameters(**kwargs)
-        param._derived['eps_ab'] = lambda d: 1.0 - d['b'] / d['a']
-        param._derived['eps_bc'] = lambda d: 1.0 - d['c'] / d['b']
-        param._derived['eps_ac'] = lambda d: 1.0 - d['c'] / d['a']
-        param._derived['b'] = lambda d: (
-            d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
-        )
-        param._derived['c'] = lambda d: (
-            d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
-        )
-        param._derived['a'] = lambda d: (
-            d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
-        )
+        return cls.create_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5, sa=1.0, sb=1.0, sc=1.0)
+    
+    @classmethod
+    def derived_param_funcs(cls):
+        return {
+            'eps_ab': lambda d: 1.0 - d['b'] / d['a'],
+            'eps_bc': lambda d: 1.0 - d['c'] / d['b'],
+            'eps_ac': lambda d: 1.0 - d['c'] / d['a'],
+            'b': lambda d: (
+                d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
+            ),
+            'c': lambda d: (
+                d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
+            ),
+            'a': lambda d: (
+                d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
+            ),
+        }
 
-        parameters = Parameters(**{i: param[i] for i in Ellipsoid_S.PN})
-        parameters._derived.update(param._derived)
-        parameters.set_lb(**Ellipsoid_S.LB)
-        parameters.set_ub(**Ellipsoid_S.UB)
-        return parameters
-
-    @staticmethod
-    def get_parameters():
-        """
-        Returns a default set of parameters for the ellipsoid.
-
-        Returns
-        -------
-        Parameters
-            An instance of Parameters with default values.
-        """
-        return Ellipsoid_S.init_parameters(
-            a=3.0, eps_ab=0.2, eps_bc=0.5, sa=1.0, sb=1.0, sc=1.0
-        )
 
     def __call__(self, pos):
         """
@@ -340,7 +311,7 @@ class Ellipsoid_S(GeometryBase):
         )
     
     @staticmethod
-    def _check_pos(pos):
+    def _check_pos(pos: ArrayLike) -> NDArray[np.float64]:
         """
         Ensure pos is a 2D numpy array of shape (N, 3).
         """

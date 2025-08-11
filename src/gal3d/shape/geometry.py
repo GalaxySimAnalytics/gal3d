@@ -23,8 +23,10 @@ class GeometryBase(WithParameter,PluginBase):
         """
         Automatically registers geometry plugins upon subclass initialization.
         """
-
-        if not super().__init_subclass__(**kwargs):
+        super().__init_subclass__(**kwargs)
+        valid = getattr(cls, "_parameter_valid", True)
+        delattr(cls, "_parameter_valid")
+        if not valid:
             logger.warning(f"GeometryPlugin found: {cls.__name__} but failed to load")
             return
         Geometry.register(cls)
@@ -177,6 +179,7 @@ class GeometryBase(WithParameter,PluginBase):
         pass
 
     @staticmethod
+    @abstractmethod
     def quick_ray_dist(*args, **kwargs) -> NDArray[np.float64]:
         """
         Quickly compute distance between points and corresponding ray-surface points.
@@ -189,6 +192,7 @@ class GeometryBase(WithParameter,PluginBase):
         pass
 
     @staticmethod
+    @abstractmethod
     def quick_line_intersect(*args, **kwargs) -> NDArray[np.float64]:
         """
         Quickly compute the intersection between a line segment and the geometry surface.
@@ -201,6 +205,7 @@ class GeometryBase(WithParameter,PluginBase):
         pass
 
     @staticmethod
+    @abstractmethod
     def quick_jacobian(*args, **kwargs) -> tuple:
         """
         Quickly compute the Jacobian of the geometry function.

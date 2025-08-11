@@ -2,8 +2,8 @@ from typing import SupportsInt
 
 from numpy.typing import NDArray
 
-from scipy import optimize
-from scipy.optimize import OptimizeResult as ScipyOptimizeResult
+from scipy import optimize  # type: ignore
+from scipy.optimize import OptimizeResult as ScipyOptimizeResult    # type: ignore
 
 from ..optimizer import OptimizerBase, OptimizeResult
 

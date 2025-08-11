@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Callable, Union, Optional, KeysView, Dict, Mapping,Iterable, Tuple, overload, Any, TypeVar,Self, Type
 
 import numpy as np
-from scipy import optimize
+from scipy.optimize import Bounds  # type: ignore
 
 from .util import truncate
 
@@ -488,7 +488,7 @@ class ParameterDict(dict):
         return self
     
     @property
-    def scipy_bounds(self) -> optimize.Bounds:
+    def scipy_bounds(self) -> Bounds:
         """
         Get the bounds in a format suitable for scipy.optimize.
         
@@ -505,7 +505,7 @@ class ParameterDict(dict):
         >>> bounds = params.scipy_bounds
         """
         param_keys = list(self.keys())
-        return optimize.Bounds(
+        return Bounds(
             lb=[self[key].lb for key in param_keys],
             ub=[self[key].ub for key in param_keys],
         )
@@ -831,10 +831,25 @@ class RichParameterDict(ParameterDict):
         self._derived = {}
         self._info = {}
 
-    def add_derived(self, name: str, func):
-        """Add a derived parameter function."""
-        self._derived[name] = func
-        
+    def add_derived(self, name_or_dict: str | dict[str, Callable], func = None):
+        """
+        Add a derived parameter function or a dict of derived functions.
+
+        Parameters
+        ----------
+        name_or_dict : str or dict
+            If str, must provide func. If dict, keys are names and values are functions.
+        func : callable, optional
+            The function for the derived parameter (if name_or_dict is str).
+        """
+        if isinstance(name_or_dict, str) and func is not None:
+            self._derived[name_or_dict] = func
+        elif isinstance(name_or_dict, dict):
+            for name, func in name_or_dict.items():
+                self._derived[name] = func
+        else:
+            raise TypeError("Invalid arguments for add_derived.")
+
     def derived(self, f: Callable):
         """Add a derived parameter function.
 

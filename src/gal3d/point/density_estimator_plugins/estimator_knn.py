@@ -4,7 +4,7 @@ import os
 from functools import cached_property
 
 import numpy as np
-from scipy.spatial import KDTree
+from scipy.spatial import KDTree    # type: ignore
 
 from ...util.func_signature import func_optional_key, update_dict_value
 from ..density_estimator import DensityEstimatorBase

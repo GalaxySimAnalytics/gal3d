@@ -64,8 +64,7 @@ class ModelResult:
         }
         
         # Include properties from OptimizeResult
-        for name in ['x', 'x0', 'nfev', 'nit', 'njev', 'nhev']:
-            self._optimize_result_attrs.add(name)
+        self._optimize_result_attrs.update({'x', 'x0', 'nfev', 'nit', 'njev', 'nhev'})
             
     # OptimizeResult property accessors with proper type hints
     @property
@@ -275,7 +274,7 @@ class ModelResult:
             if k < 0 or k >= len(self._param_sets):
                 raise IndexError(f"Index {k} out of bounds (0-{len(self._param_sets)-1})")
                 
-            return self._structure.from_parameters(
+            return self._structure.clone_with_parameters(
                 **self._param_sets[k].structure_parameters
             )
             
@@ -397,6 +396,12 @@ class ModelResult:
         TypeError
             If `other` is not an instance of ModelResult.
         """
+        # Handle empty results
+        if isinstance(other, EmptyModelResult):
+            return self
+        if isinstance(self, EmptyModelResult):
+            return other
+        
         if not isinstance(other, ModelResult):
             raise TypeError(f"{other} is not a ModelResult type")
             
@@ -420,8 +425,25 @@ class ModelResult:
             The number of parameter sets.
         """
         return len(self._param_sets)
+    
+class EmptyModelResult(ModelResult):
+    def __init__(self):
+        self._opt_results = []
+        self._param_sets = []
+        self._optimize_result_attrs = set()
+
+    def __call__(self, *args, **kwargs):
+        raise ValueError("EmptyModelResult: No results available.")
+
+    def __getitem__(self, k):
+        raise ValueError("EmptyModelResult: No results available.")
 
 
+    def __repr__(self):
+        return "<EmptyModelResult| No parameter sets |>"
+
+    def __bool__(self):
+        return False
 
 def model_to_hdf5(
     model: ModelResult,

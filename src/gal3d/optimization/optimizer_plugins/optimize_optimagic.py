@@ -29,7 +29,7 @@ class OptimizerOptimagic(OptimizerBase):
         func_kwargs = func_kwargs or {}
 
         fn = lambda x: fun(x, *func_args, **func_kwargs)
-        res = om.minimize(
+        om_result = om.minimize(
             fun=fn,
             params=np.asarray(x0),
             algorithm=self.algo_name,
@@ -37,29 +37,39 @@ class OptimizerOptimagic(OptimizerBase):
             algo_options=self.algo_options,
             **kwargs,
         )
+        if om_result.multistart_info:
+            multistart={
+                "start_parameters": om_result.multistart_info.start_parameters,
+                "local_optima": om_result.multistart_info.local_optima,
+                "exploration_sample": om_result.multistart_info.exploration_sample,
+                "exploration_results": om_result.multistart_info.exploration_results,
+                "n_optimizations": om_result.multistart_info.n_optimizations
+            }
+        else:
+            multistart = None
         
-        res = OptimizeResult(
-        params=res.x,
-        fun=res.fun,
+        result = OptimizeResult(
+        params=om_result.x,
+        fun=om_result.fun,
         start_params=x0,
-        start_fun=res.start_fun,
+        start_fun=om_result.start_fun,
         algorithm = self.algo_name,
-        success=res.success,
-        message=res.message,
-        n_fun_evals=res.n_fun_evals,
-        n_jac_evals=res.n_jac_evals,
-        n_hess_evals=res.n_hess_evals,
-        n_iterations=res.n_iterations,
-        status=res.status,
-        jac=res.jac,
-        hess=res.hess,
-        hess_inv=res.hess_inv,
-        max_constraint_violation=res.max_constraint_violation,
-        algorithm_output=res.algorithm_output,
-        history=res.history,
-        multistart_info=res.multistart_info
+        success=om_result.success,
+        message=om_result.message,
+        n_fun_evals=om_result.n_fun_evals,
+        n_jac_evals=om_result.n_jac_evals,
+        n_hess_evals=om_result.n_hess_evals,
+        n_iterations=om_result.n_iterations,
+        status=om_result.status,
+        jac=om_result.jac,
+        hess=om_result.hess,
+        hess_inv=om_result.hess_inv,
+        max_constraint_violation=om_result.max_constraint_violation,
+        algorithm_output=om_result.algorithm_output,
+        history=om_result.history,
+        multistart_info=multistart
     )
-        return res
+        return result
 
     @classmethod
     def available_algorithm(cls):

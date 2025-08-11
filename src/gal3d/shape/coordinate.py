@@ -33,8 +33,10 @@ class CoordinateBase(WithParameter, PluginBase):
         """
         Register a new coordinate plugin subclass and update the plugin stub.
         """
-
-        if not super().__init_subclass__():
+        super().__init_subclass__(**kwargs)
+        valid = getattr(cls, "_parameter_valid", True)
+        delattr(cls, "_parameter_valid")
+        if not valid:
             logger.warning(f"CoordinatePlugin found: {cls.__name__} but failed to load")
             return
         Coordinate.register(cls)

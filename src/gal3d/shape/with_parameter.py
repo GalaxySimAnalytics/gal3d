@@ -4,6 +4,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import (
     Any,
+    Callable,
     ClassVar,
     Dict,
     Generic,
@@ -48,7 +49,11 @@ class WithParameter(ABC):
     PN: ClassVar[Tuple[str, ...]]
     UB: ClassVar[Dict[str, float]]
     LB: ClassVar[Dict[str, float]]
-    
+
+
+    def __init__(self, **kwargs):
+        self.parameters = self.create_parameters(**kwargs)
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Validate that concrete subclasses properly define required parameter attributes.
@@ -63,48 +68,39 @@ class WithParameter(ABC):
         """
         # Call parent __init_subclass__
         super().__init_subclass__(**kwargs)
-        
+
+        # Mark parameters as valid
+        setattr(cls, "_parameter_valid", True)
+
         # Skip validation for abstract classes
         if inspect.isabstract(cls):
             return
             
         # For concrete implementations, verify required attributes
         for attr, typ in zip(required_attrs, required_type):
-            if not hasattr(cls, attr):
+            if not hasattr(cls, attr) or not isinstance(getattr(cls, attr), typ):
                 logger.error(
-                    f"{cls.__name__} missing required attribute '{attr}', "
-                    f"please add '{attr}' to the class definition."
+                    f"{cls.__name__} is missing required attribute '{attr}' or has incorrect type. Expected type {typ}."
                 )
-                return False
-            
-            attr_value = getattr(cls, attr)
-            if not isinstance(attr_value, typ):
-                logger.error(
-                    f"{cls.__name__} has attribute '{attr}' with incorrect type. "
-                    f"Expected {typ}, got {type(attr_value)}."
-                )
-                return False
-                
+                setattr(cls, "_parameter_valid", False)
+                return
+
         # Verify that all parameter names in PN have corresponding entries in UB and LB
         missing_in_ub = set(cls.PN) - set(cls.UB.keys())
         missing_in_lb = set(cls.PN) - set(cls.LB.keys())
-        
-        if missing_in_ub:
+        if missing_in_lb or missing_in_ub:
             logger.error(
-                f"{cls.__name__} missing upper bounds for parameters: {missing_in_ub}"
+                f"{cls.__name__} missing bounds for parameters: "
+                f"lower: {missing_in_lb}, upper: {missing_in_ub}"
             )
-            return False
+            setattr(cls, "_parameter_valid", False)
+            return
             
-        if missing_in_lb:
-            logger.error(
-                f"{cls.__name__} missing lower bounds for parameters: {missing_in_lb}"
-            )
-            return False
-            
-        return True
+        return
     
     @classmethod
-    def get_parameters(cls) -> Parameters:
+    @abstractmethod
+    def default_parameters(cls) -> Parameters:
         """
         Create a Parameters object with the default values and bounds.
         
@@ -113,34 +109,11 @@ class WithParameter(ABC):
         Parameters
             A new Parameters object initialized with default values
             and the bounds specified by UB and LB.
-            
-        Notes
-        -----
-        This method creates default parameters with values at the midpoint
-        between the lower and upper bounds.
         """
-        # Initialize parameters with midpoint values between bounds
-        param_dict = {}
-        for name in cls.PN:
-            lower = cls.LB[name]
-            upper = cls.UB[name]
-            if isinstance(lower, (int, float)) and isinstance(upper, (int, float)):
-                # Use midpoint if both bounds are numeric
-                param_dict[name] = (lower + upper) / 2
-            else:
-                # Use lower bound as default if not numeric
-                param_dict[name] = lower
-                
-        parameters = Parameters(**param_dict)
-        
-        # Set bounds
-        parameters.set_lb(**cls.LB)
-        parameters.set_ub(**cls.UB)
-        
-        return parameters
+        pass
     
     @classmethod
-    def init_parameters(cls, **kwargs: Any) -> Parameters:
+    def create_parameters(cls, **kwargs: Any) -> Parameters:
         """
         Initialize parameters with custom values while respecting bounds.
         
@@ -160,14 +133,20 @@ class WithParameter(ABC):
         This method is useful for creating parameters with specific initial values,
         while ensuring they stay within their defined bounds.
         """
-        parameters = cls.get_parameters()
+        param = Parameters(**kwargs)
+        param.add_derived(cls.derived_param_funcs())
         
-        # Update with provided values
-        for name, value in kwargs.items():
-            if name in cls.PN:
-                parameters[name] = max(min(value, cls.UB[name]), cls.LB[name])
-                
+        parameters = Parameters(**{i: param[i] for i in cls.PN})
+        parameters.add_derived(cls.derived_param_funcs())
+        parameters.set_lb(**cls.LB)
+        parameters.set_ub(**cls.UB)
         return parameters
+    
+    @classmethod
+    def derived_param_funcs(cls) -> dict[str, Callable]:
+        """Get derived parameter functions."""
+        return dict()
+
     
     @abstractmethod
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

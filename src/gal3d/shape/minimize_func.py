@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Optional, TypeVar, Union, cast
 from gal3d import config
 
 logger = logging.getLogger("gal3d.shape.minimize_func")
-T = TypeVar('T', bound=Callable[..., Any])
 
 
 class MinimizeFunc:
@@ -24,7 +23,7 @@ class MinimizeFunc:
     minimize_fn: Dict[str, Callable] = {}
 
     @staticmethod
-    def fn_registry(fn: Union[str, Callable[..., Any]]) -> Callable[[T], T]:
+    def fn_registry(fn: Union[str, Callable[..., Any]]) -> Callable:
         """
         Register a function to the minimization function registry.
 
@@ -66,12 +65,12 @@ class MinimizeFunc:
                 func_name = getattr(fn, "__name__", str(fn))
                 MinimizeFunc.minimize_fn[func_name] = fn
                 logger.debug(f"Registered function '{func_name}' to minimization registry")
-                return cast(T, fn)  # Return the function unchanged
+                return fn  # Return the function unchanged
 
             # Case 2: String name provided, return a decorator
             fn_name = str(fn)  # Ensure fn_name is a string
 
-            def decorator(func: T) -> T:
+            def decorator(func: Callable) -> Callable:
                 if not callable(func):
                     error_msg = f"Cannot register {func} as '{fn_name}', object is not callable"
                     logger.error(error_msg)
@@ -91,11 +90,6 @@ class MinimizeFunc:
         """
         Dynamically import minimization functions based on configuration.
         """
-        if config.general.use_cython:
-            from . import fns_cy
-            return None
-        else:
-            from . import fns_nb
-            return None
+        from . import fns_cy
 
 MinimizeFunc._load_func()

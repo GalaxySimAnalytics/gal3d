@@ -1,4 +1,4 @@
-import nlopt
+import nlopt    # type: ignore
 
 from ..optimizer import OptimizerBase, OptimizeResult, NDArray
 
@@ -28,7 +28,7 @@ def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_
         -4: "Halted because roundoff errors limited progress",
         -5: "Halted because of user specified forced stop",
     }
-    success = nlopt_obj.last_optimize_result() in [1, 2, 3, 4]
+    success: bool | None = nlopt_obj.last_optimize_result() in [1, 2, 3, 4]
     if is_global and not success:
         success = None
     processed = OptimizeResult(

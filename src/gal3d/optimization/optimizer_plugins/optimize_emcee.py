@@ -1,4 +1,4 @@
-import emcee
+import emcee    # type: ignore
 import numpy as np
 
 from ..optimizer import OptimizerBase, OptimizeResult

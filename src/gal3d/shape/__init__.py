@@ -1,6 +1,6 @@
 import logging
 from types import MethodType
-from typing import Callable, Dict, Self, Tuple
+from typing import Callable, Dict, Tuple, Union, Type, Sequence
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -14,13 +14,13 @@ from ..optimization.parameter import Parameters
 
 logger = logging.getLogger("gal3d.shape")
 
-class StructureComponents:
+class StructureCore:
     """Base class for managing coordinate transformations, geometry, and parameters of a 3D structure."""
 
     def __init__(
         self,
-        coordinate: CoordinateBase | str,
-        geometry: GeometryBase | str,
+        coordinate: CoordinateBase | type[CoordinateBase] | str,
+        geometry: GeometryBase | type[GeometryBase] | str,
     ):
         """
         Initialize structure components.
@@ -36,31 +36,29 @@ class StructureComponents:
         self._set_coordinate(coordinate)
         
         self.parameters: Parameters = (
-            self._coordinate.get_parameters() + self._geometry.get_parameters()
+            self._coordinate.default_parameters() + self._geometry.default_parameters()
         )
 
-    def _set_geometry(self, geometry: GeometryBase | str):
-        assert (
-            isinstance(geometry, GeometryBase)
-            or isinstance(geometry, str)
-            or issubclass(geometry, GeometryBase)
-        )
-        self._geometry = (
-            Geometry.get_plugin(geometry) if isinstance(geometry, str) else geometry
-        )
+    def _set_geometry(self, geometry: GeometryBase | type[GeometryBase] | str):
+        if isinstance(geometry, str):
+            self._geometry = Geometry.get_plugin(geometry)
+        elif isinstance(geometry, type) and issubclass(geometry, GeometryBase):
+            self._geometry = geometry
+        elif isinstance(geometry, GeometryBase):
+            self._geometry = type(geometry)
+        else:
+            raise TypeError("geometry must be a class, instance, or plugin name")
         self._geometry_name = self._geometry.__name__
 
-    def _set_coordinate(self, coordinate: CoordinateBase | str):
-        assert (
-            isinstance(coordinate, CoordinateBase)
-            or isinstance(coordinate, str)
-            or issubclass(coordinate, CoordinateBase)
-        )
-        self._coordinate = (
-            Coordinate.get_plugin(coordinate)
-            if isinstance(coordinate, str)
-            else coordinate
-        )
+    def _set_coordinate(self, coordinate: CoordinateBase | type[CoordinateBase] | str):
+        if isinstance(coordinate, str):
+            self._coordinate = Coordinate.get_plugin(coordinate)
+        elif isinstance(coordinate, type) and issubclass(coordinate, CoordinateBase):
+            self._coordinate = coordinate
+        elif isinstance(coordinate, CoordinateBase):
+            self._coordinate = type(coordinate)
+        else:
+            raise TypeError("coordinate must be a class, instance, or plugin name")
         self._coordinate_name = self._coordinate.__name__
         self.__coor_pa_num = len(self._coordinate.PN)
 
@@ -79,7 +77,7 @@ class StructureComponents:
             "geometry": Geometry.available_plugins(),
         }
 
-    def init_parameters(self, *args, **kwargs) -> Parameters:
+    def create_parameters(self, *args, **kwargs) -> Parameters:
         """
         Initialize parameters for coordinate and geometry.
 
@@ -97,15 +95,15 @@ class StructureComponents:
         """
         if args:
             params = dict(zip(self.parameters.keys(), *args))
-            return self._coordinate.init_parameters(
+            return self._coordinate.create_parameters(
                 **params
-            ) + self._geometry.init_parameters(**params)
+            ) + self._geometry.create_parameters(**params)
         if kwargs:
-            return self._coordinate.init_parameters(
+            return self._coordinate.create_parameters(
                 **kwargs
-            ) + self._geometry.init_parameters(**kwargs)
+            ) + self._geometry.create_parameters(**kwargs)
 
-        return self._coordinate.get_parameters() + self._geometry.get_parameters()
+        return self._coordinate.default_parameters() + self._geometry.default_parameters()
 
     def set_parameters(self, *args, **kwargs):
         """
@@ -118,19 +116,19 @@ class StructureComponents:
         **kwargs : dict
             Keyword arguments for parameters.
         """
-        self.parameters = self.parameters + self.init_parameters(*args, **kwargs)
-    
-    def _generate_normal(self, **kwargs) -> Tuple[dict, dict]:
+        self.parameters = self.parameters + self.create_parameters(*args, **kwargs)
+
+    def _split_parameters(self, **kwargs) -> Tuple[dict, dict]:
         coord_pa = (
-            self._coordinate.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
+            self._coordinate.create_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
         geoty_pa = (
-            self._geometry.init_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
+            self._geometry.create_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
         )
 
         return coord_pa, geoty_pa
 
-    def _generate_quick(self, *args, **kwargs) -> Tuple[dict, dict]:
+    def _split_quick_parameters(self, *args, **kwargs) -> Tuple[dict, dict]:
         if args:
             flat_args = args[0] if (len(args) == 1 and isinstance(args[0], (list, tuple))) else args
                 
@@ -145,8 +143,8 @@ class StructureComponents:
                 coord_pa = {i: kwargs[i] for i in self._coordinate.PN}
                 geoty_pa = {i: kwargs[i] for i in self._geometry.PN}
             except KeyError:
-                coord_pa = self._coordinate.init_parameters(**kwargs)
-                geoty_pa = self._geometry.init_parameters(**kwargs)
+                coord_pa = self._coordinate.create_parameters(**kwargs)
+                geoty_pa = self._geometry.create_parameters(**kwargs)
             return coord_pa, geoty_pa
 
         coord_pa = {i: self.parameters[i] for i in self._coordinate.PN}
@@ -171,7 +169,7 @@ class StructureComponents:
         """
         pos = np.asarray(pos)
 
-        coord_pa, geoty_pa = self._generate_normal(**kwargs)
+        coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
         return self._geometry(**geoty_pa)(self._coordinate(**coord_pa)(pos))
 
@@ -194,7 +192,7 @@ class StructureComponents:
 
         pos = np.asarray(pos)
 
-        coord_pa, geoty_pa = self._generate_normal(**kwargs)
+        coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
         return self._geometry(**geoty_pa).f_ray_d(self._coordinate(**coord_pa)(pos))
 
@@ -216,7 +214,7 @@ class StructureComponents:
         """
         pos = np.asarray(pos)
 
-        coord_pa, geoty_pa = self._generate_normal(**kwargs)
+        coord_pa, geoty_pa = self._split_parameters(**kwargs)
         
         pos_in,dist = self._geometry(**geoty_pa).ray_intersect(
             self._coordinate(**coord_pa)(pos)
@@ -247,7 +245,7 @@ class StructureComponents:
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
 
-        coord_pa, geoty_pa = self._generate_normal(**kwargs)
+        coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
         return self._geometry(**geoty_pa).line_intersect(
             pos1=self._coordinate(**coord_pa)(pos1),
@@ -279,7 +277,7 @@ class StructureComponents:
         '''
         pos = np.asarray(pos)
 
-        coord_pa, geoty_pa = self._generate_quick(*args, **kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
 
         return self._geometry.quick_call(
             **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
@@ -301,7 +299,7 @@ class StructureComponents:
             pos = np.asarray(pos)
             
         # Get parameters
-        coord_pa, geoty_pa = self._generate_quick(*args, **kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
         
         # First apply coordinate transformation
         transformed_pos = self._coordinate.quick_call(**coord_pa, pos=pos)
@@ -321,7 +319,7 @@ class StructureComponents:
 
         pos = np.asarray(pos)
 
-        coord_pa, geoty_pa = self._generate_quick(*args, **kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
 
         return self._geometry.quick_ray_dist(
             **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
@@ -340,7 +338,7 @@ class StructureComponents:
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
 
-        coord_pa, geoty_pa = self._generate_quick(**kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(**kwargs)
 
         return self._geometry.quick_line_intersect(
             **geoty_pa,
@@ -364,7 +362,7 @@ class StructureComponents:
         """
         cpos, spos = fibonacci_sampling(random_np)
 
-        coord_pa, geoty_pa = self._generate_quick()
+        coord_pa, geoty_pa = self._split_quick_parameters()
 
         points = self._geometry(**geoty_pa).ray_point(cpos)
 
@@ -606,7 +604,7 @@ class StructureError:
 
         return decorator
 
-class Structure3D(StructureComponents, StructureError):
+class Structure3D(StructureCore, StructureError):
     """
     A 3D structure composed of a coordinate transformation and a geometry definition.
     
@@ -617,8 +615,8 @@ class Structure3D(StructureComponents, StructureError):
 
     def __init__(
         self,
-        coordinate: CoordinateBase | str,
-        geometry: GeometryBase | str,
+        coordinate: Union[CoordinateBase, Type[CoordinateBase], str],
+        geometry: Union[GeometryBase, Type[GeometryBase], str],
         error_func: Callable | str,
         error_method: Callable | str,
     ):
@@ -637,7 +635,7 @@ class Structure3D(StructureComponents, StructureError):
             Method for computing the error or its name in `_compute_error_method`.
         """
 
-        StructureComponents.__init__(self, coordinate, geometry)
+        StructureCore.__init__(self, coordinate, geometry)
         StructureError.__init__(self, error_func, error_method)
 
     @classmethod
@@ -650,9 +648,9 @@ class Structure3D(StructureComponents, StructureError):
         dict
             A dictionary of available options.
         """
-        return StructureComponents.available_options() | StructureError.available_options()
+        return StructureCore.available_options() | StructureError.available_options()
 
-    def from_parameters(self, *args, **kwargs) -> Self:
+    def clone_with_parameters(self, *args, **kwargs) -> "Structure3D":
         """
         Create a new Structure3D with given parameters.
 
@@ -721,7 +719,7 @@ class Structure3D(StructureComponents, StructureError):
 
 
 @Structure3D.compute_method_registry
-def isodensity_fcall(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> float:
+def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs) -> float:
 
     f_call = self.quick_call(*params, pos=kwargs['pos']) - 1.0
     error_pa = {i: kwargs[i] for i in self._error_params}
@@ -731,7 +729,7 @@ def isodensity_fcall(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> 
 
 @Structure3D.compute_method_registry
 def isodensity_dcall(
-    self: Structure3D, params: tuple | ArrayLike, *args, **kwargs
+    self: Structure3D, params: Sequence[float], *args, **kwargs
 ) -> float:
     pos = kwargs['pos']
     f_call = self.quick_f_ray_d(*params, pos=pos) - 1.0
@@ -741,76 +739,9 @@ def isodensity_dcall(
 
 
 @Structure3D.compute_method_registry
-def isodensity_dist(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> float:
+def isodensity_dist(self: Structure3D, params: Sequence[float], **kwargs) -> float:
 
     f_call = self.quick_ray_dist(*params, pos=kwargs['pos'])
     error_pa = {i: kwargs[i] for i in self._error_params}
 
     return self._error_func(f_call, **error_pa)
-
-@Structure3D.compute_method_registry
-def validate_fitting_data(self: Structure3D, params: tuple | ArrayLike, **kwargs) -> float:
-    """
-    Validate data before computing error to catch issues early.
-    
-    This error computation method provides additional validation before calling
-    the standard error computation methods. It's helpful for debugging and testing.
-    
-    Parameters
-    ----------
-    self : Structure3D
-        The structure instance.
-    params : tuple or array_like
-        Parameter values for the structure.
-    **kwargs : dict
-        Additional arguments passed to the error function.
-        Must contain 'pos' key with position data.
-        
-    Returns
-    -------
-    float
-        The computed error value.
-        
-    Raises
-    ------
-    ValueError
-        If validation fails or required data is missing.
-    """
-    # Check that required position data exists
-    if 'pos' not in kwargs:
-        error_msg = "Missing required position data ('pos' key)"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    pos_data = kwargs['pos']
-    # Validate position data
-    if not isinstance(pos_data, np.ndarray):
-        error_msg = f"Position data must be a numpy array, got {type(pos_data)}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    if len(pos_data.shape) != 2 or pos_data.shape[1] != 3:
-        error_msg = f"Position data must have shape (N, 3), got {pos_data.shape}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    if np.isnan(pos_data).any():
-        error_msg = "Position data contains NaN values"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    # After validation, compute f_call using standard method
-    try:
-        f_call = self.quick_call(*params, pos=pos_data) - 1.0
-        error_pa = {i: kwargs[i] for i in self._error_params}
-        
-        # Log some statistics about the error values before returning
-        logger.debug(f"Error computation on {len(f_call)} points: "
-                    f"mean={np.mean(f_call**2):.6f}, "
-                    f"min={np.min(f_call**2):.6f}, "
-                    f"max={np.max(f_call**2):.6f}")
-        
-        return self._error_func(f_call, **error_pa)
-    except Exception as e:
-        logger.error(f"Error during validation fitting: {e}", exc_info=True)
-        raise

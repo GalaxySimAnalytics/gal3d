@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import sph_harm
+from scipy.special import sph_harm  # type: ignore
 
 
 def spherical_harmonics_in_real(phi, theta, m, l) -> float:
@@ -39,7 +39,7 @@ def spherical_harmonics_in_real(phi, theta, m, l) -> float:
         return np.real(sph_harm(m, l, phi, theta))
 
 
-def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict:
+def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict[int, np.ndarray]:
     '''
     Perform spherical harmonics decomposition on a given density distribution.
 
@@ -67,16 +67,16 @@ def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict:
     is approximated by a sum over the provided grid of theta and phi values.
     '''
 
-    coef = {}
+    coef: dict[int, np.ndarray] = {}
     for l in range(lmax + 1):
-        coef[l] = []
+        temp = []
         for m in np.linspace(l, -l, 2 * l + 1):
-            coef[l].append(
+            temp.append(
                 np.sum(
                     density
                     * spherical_harmonics_in_real(phi, theta, m, l)
                     * np.sin(theta)
                 )
             )
-        coef[l] = np.array(coef[l])
+        coef[l] = np.array(temp)
     return coef

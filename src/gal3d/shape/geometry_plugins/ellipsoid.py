@@ -7,22 +7,14 @@ from gal3d.config import config
 
 from ..geometry import GeometryBase, Parameters
 
-if config.general.use_cython:
-    from .ellipsoid_cy import (
-        IntersectLinesEllipsoid,
-        IntersectRaysEllipsoid,
-        f_ellipsoid,
-        f_ellipsoid_jacobian,
-        f_ray_ellipsoid,
-    )
-else:
-    from .ellipsoid_nb import (
-        IntersectLinesEllipsoid,
-        IntersectRaysEllipsoid,
-        f_ellipsoid,
-        f_ellipsoid_jacobian,
-        f_ray_ellipsoid,
-    )
+from .ellipsoid_cy import (
+    IntersectLinesEllipsoid,
+    IntersectRaysEllipsoid,
+    f_ellipsoid,
+    f_ellipsoid_jacobian,
+    f_ray_ellipsoid,
+)
+
 
 __all__ = ['Ellipsoid']
 
@@ -60,45 +52,27 @@ class Ellipsoid(GeometryBase):
         eps_ab = 1 - b/a : 0~1
         eps_bc = 1 - c/b : 0~1
         """
-        self.parameters = self.init_parameters(**kwargs)
+        super().__init__(**kwargs)
 
-    @staticmethod
-    def init_parameters(**kwargs):
-        """
-        Initialize and return the parameters of the ellipsoid.
-
-        Parameters
-        ----------
-        **kwargs : dict
-            Additional parameters to initialize the ellipsoid.
-
-        Returns
-        -------
-        Parameters
-            An instance of the Parameters class containing the ellipsoid parameters.
-        """
-        param = Parameters(**kwargs)
-        param._derived['eps_ab'] = lambda d: 1.0 - d['b'] / d['a']
-        param._derived['eps_bc'] = lambda d: 1.0 - d['c'] / d['b']
-        param._derived['eps_ac'] = lambda d: 1.0 - d['c'] / d['a']
-        param._derived['b'] = lambda d: (
-            d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
-        )
-        param._derived['c'] = lambda d: (
-            d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
-        )
-        param._derived['a'] = lambda d: (
-            d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
-        )
-
-        parameters = Parameters(**{i: param[i] for i in Ellipsoid.PN})
-        parameters._derived.update(param._derived)
-        parameters.set_lb(**Ellipsoid.LB)
-        parameters.set_ub(**Ellipsoid.UB)
-        return parameters
-
-    @staticmethod
-    def get_parameters():
+    @classmethod
+    def derived_param_funcs(cls):
+        return {
+            'eps_ab': lambda d: 1.0 - d['b'] / d['a'],
+            'eps_bc': lambda d: 1.0 - d['c'] / d['b'],
+            'eps_ac': lambda d: 1.0 - d['c'] / d['a'],
+            'b': lambda d: (
+                d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
+            ),
+            'c': lambda d: (
+                d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
+            ),
+            'a': lambda d: (
+                d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
+            ),
+        }
+    
+    @classmethod
+    def default_parameters(cls):
         """
         Return a default set of parameters for the ellipsoid.
 
@@ -107,7 +81,7 @@ class Ellipsoid(GeometryBase):
         Parameters
             An instance of the Parameters class containing default ellipsoid parameters.
         """
-        return Ellipsoid.init_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5)
+        return cls.create_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5)
 
     def __call__(self, pos):
         """

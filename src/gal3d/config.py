@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Literal
 
 try:
-    import numba
+    import numba    # type: ignore
 except ImportError:
     NUMBA_AVAILABLE = False
 else:
@@ -15,7 +15,7 @@ else:
 
 default_thread_count = None
 try:
-    import psutil
+    import psutil   # type: ignore
     default_thread_count = psutil.cpu_count(logical=False)
 except ImportError:
     pass

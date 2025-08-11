@@ -2,7 +2,7 @@ import logging
 import os
 from functools import wraps
 
-import h5py
+import h5py # type: ignore
 
 logger = logging.getLogger('gal3d.optimization.util')
 

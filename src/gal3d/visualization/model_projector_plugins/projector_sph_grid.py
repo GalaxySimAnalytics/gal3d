@@ -1,5 +1,7 @@
+from typing import Sequence, Any, Tuple
+
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm   # type: ignore
 
 from ...field.spherical_field.spherical_vector import SphVector
 from ...util.array_operate import Rotate
@@ -59,8 +61,14 @@ class ProjectorSphGrid(ModelProjectorBase):
         self.weight = weight
 
     def _image(
-        self, x_range, y_range, nbins: int = 100, z_range=(-20, 20), rotation=np.eye(3)
-    ):
+        self, 
+        x_range: Sequence[float], 
+        y_range: Sequence[float],
+        nbins: int = 100, 
+        z_range: Sequence[float] = (-20, 20),
+        rotation: np.ndarray = np.eye(3),
+        **kwargs: Any
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
 
         new_pos = Rotate(self.pos, rotation)
         sel = (new_pos[:, 2] > z_range[0]) & (new_pos[:, 2] < z_range[1])

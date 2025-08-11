@@ -4,8 +4,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scipy.ndimage import gaussian_filter
+from mpl_toolkits.axes_grid1 import make_axes_locatable # type: ignore
+from scipy.ndimage import gaussian_filter   # type: ignore
 
 from ..util.array_operate import Rotate
 from .render_wrapper import get_kernel, get_render_image

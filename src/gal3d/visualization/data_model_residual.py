@@ -460,7 +460,7 @@ def show_image_model_residual(
     for i in range(4):
         position = axes[0][i].get_position()
         cb_ax = fig.add_axes(
-            [position.x0, position.y1, position.x1 - position.x0, (1 - position.y1) / 6]
+            (position.x0, position.y1, position.x1 - position.x0, (1 - position.y1) / 6)
         )  # 设置colarbar位置
         cb_ax.set_visible(False)
         cb = add_colorbar(
@@ -520,3 +520,4 @@ def show_image_model_residual(
 
     if savefile is not None:
         plt.savefig(savefile, bbox_inches='tight')
+    return fig

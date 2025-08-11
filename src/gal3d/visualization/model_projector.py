@@ -123,7 +123,7 @@ class ModelProjectorBase(PluginBase):
         z_range: Sequence[float] = (-20, 20),
         rotation: Optional[NDArray[np.float64]] = None,
         **kwargs: Any
-    ) -> NDArray[np.float64]:
+    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
         """Generate a projected image of the model with caching.
         
         Parameters
@@ -144,9 +144,12 @@ class ModelProjectorBase(PluginBase):
             
         Returns
         -------
-        ndarray
-            The projected image.
-            
+        tuple
+            A tuple containing:
+            - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
+            - xs (numpy.ndarray): The x-coordinates of the bin centers.
+            - ys (numpy.ndarray): The y-coordinates of the bin centers.
+
         Raises
         ------
         ValueError
@@ -177,7 +180,7 @@ class ModelProjectorBase(PluginBase):
         z_range: Sequence[float] = (-20, 20),
         rotation: NDArray[np.float64] = np.eye(3),
         **kwargs: Any
-    ) -> NDArray[np.float64]:
+    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
         """Abstract method to generate a projected image.
         
         This method must be implemented by subclasses to perform
@@ -200,8 +203,10 @@ class ModelProjectorBase(PluginBase):
             
         Returns
         -------
-        ndarray
-            The projected image.
+        tuple: A tuple containing:
+            - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
+            - xs (numpy.ndarray): The x-coordinates of the bin centers.
+            - ys (numpy.ndarray): The y-coordinates of the bin centers.
         """
         raise NotImplementedError("Subclasses must implement the '_image' method to generate a projected image.")
 
@@ -230,7 +235,7 @@ class ModelProjectorBase(PluginBase):
             
         Returns
         -------
-        ndarray
+        tuple
             The projected image in the x-z plane.
         """
         return self.image(
@@ -266,7 +271,7 @@ class ModelProjectorBase(PluginBase):
             
         Returns
         -------
-        ndarray
+        tuple
             The projected image in the y-z plane.
         """
         return self.image(

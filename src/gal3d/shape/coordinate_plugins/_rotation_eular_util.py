@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation    # type: ignore
 
 from ...util.array_operate import Rotate
 

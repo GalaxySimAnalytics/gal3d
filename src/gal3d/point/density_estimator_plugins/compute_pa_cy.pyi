@@ -1,0 +1,17 @@
+import numpy as np
+
+def sph_density(
+    n_d: np.ndarray,
+    n_index: np.ndarray,
+    mass: np.ndarray,
+    hsm: np.ndarray
+) -> np.ndarray: ...
+
+def sph_gradient(
+    n_d: np.ndarray,
+    n_index: np.ndarray,
+    mass: np.ndarray,
+    pos: np.ndarray,
+    hsm: np.ndarray,
+    target_pos: np.ndarray
+) -> np.ndarray: ...

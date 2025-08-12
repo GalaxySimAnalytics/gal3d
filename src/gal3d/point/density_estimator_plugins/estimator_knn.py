@@ -99,19 +99,21 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return self.get_hsm(self.pos)
 
     def get_hsm(self, target_pos, **kwargs) -> np.ndarray:
-        '''
+        """
         Estimate the half-smooth length at the target positions.
 
-        Parameters:
-            target_pos: ndarray, shape(m,3)
-                The target positions (x, y, z) where the half-smooth length is to be estimated.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree query method.
+        Parameters
+        ----------
+        target_pos: ndarray, shape(m,3)
+            The target positions (x, y, z) where the half-smooth length is to be estimated.
+        **kwargs: dict, optional
+            Additional keyword arguments passed to the KDTree query method.
 
-        Returns:
-            results: array, shape(m,)
-                The estimated half-smooth lengths at the target positions.
-        '''
+        Returns
+        -------
+        results: array, shape(m,)
+            The estimated half-smooth lengths at the target positions.
+        """
         target_pos = self.to_3d_array(target_pos)
 
         query_options = update_dict_value(self._tree_query_options, kwargs)
@@ -121,19 +123,21 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return n_d[:,-1]
 
     def get_parameter(self, target_pos, **kwargs) -> np.ndarray:
-        '''
+        """
         Estimate the parameter value at the target positions.
 
-        Parameters:
-            target_pos: ndarray, shape(m,3)
-                The target positions (x, y, z) where the parameter values are to be estimated.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree query method.
+        Parameters
+        ----------
+        target_pos : ndarray of shape (m, 3)
+            The target positions (x, y, z) where the parameter values are to be estimated.
+        **kwargs
+            Additional keyword arguments passed to the KDTree query method.
 
-        Returns:
-            results: array, shape(m,)
-                The estimated parameter values at the target positions.
-        '''
+        Returns
+        -------
+        results : ndarray of shape (m,)
+            The estimated parameter values at the target positions.
+        """
         target_pos = self.to_3d_array(target_pos)
                     
         query_options = update_dict_value(self._tree_query_options, kwargs)
@@ -143,19 +147,21 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return self._cal_density(n_d, n_index, **query_options)
 
     def get_gradient(self, target_pos, **kwargs) -> np.ndarray:
-        '''
+        """
         Estimate the gradient of the parameter at the target positions.
 
-        Parameters:
-            target_pos: ndarray, shape(m,3)
-                The target positions (x, y, z) where the gradient is to be estimated.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree query method.
+        Parameters
+        ----------
+        target_pos: ndarray, shape(m,3)
+            The target positions (x, y, z) where the gradient is to be estimated.
+        **kwargs: dict, optional
+            Additional keyword arguments passed to the KDTree query method.
 
-        Returns:
-            gradient: array, shape(m, 3) 
-                The estimated gradients at the target positions.
-        '''
+        Returns
+        -------
+        gradient: array, shape(m, 3) 
+            The estimated gradients at the target positions.
+        """
         target_pos = self.to_3d_array(target_pos)
         query_options = update_dict_value(self._tree_query_options, kwargs)
 
@@ -164,52 +170,59 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return self._cal_gradient(target_pos, n_d, n_index)
 
     def _cal_gradient(self,target_pos, n_d, n_index, **kwargs) -> np.ndarray:
-        '''
+        """
         Calculate the gradient based on the nearest neighbors.
 
-        Parameters:
-            n_d: ndarray, shape(m, num_near)
-                The distances to the nearest neighbors for each target position.
-            n_index: ndarray, shape(m, num_near)
-                The indices of the nearest neighbors for each target position.
+        Parameters
+        ----------
+        n_d: ndarray, shape(m, num_near)
+            The distances to the nearest neighbors for each target position.
+        n_index: ndarray, shape(m, num_near)
+            The indices of the nearest neighbors for each target position.
 
-        Returns:
-            gradient: array, shape(m, 3)
-                The estimated gradients at the target positions.
-        '''
+        Returns
+        -------
+        gradient: array, shape(m, 3)
+            The estimated gradients at the target positions.
+        """
         # Placeholder implementation
         return sph_gradient(n_d.astype(np.float64),
             n_index.astype(np.int32),
             self.mass.astype(np.float64), self.pos.astype(np.float64), self.hsm.astype(np.float64), target_pos.astype(np.float64))
 
     def _cal_density(self, n_d, n_index, **kwargs) -> np.ndarray:
-        '''
+        """
         Calculate the parameter value based on the nearest neighbors.
 
-        Parameters:
-            n_d: ndarray, shape(m, num_near)
-                The distances to the nearest neighbors for each target position.
-            n_index: ndarray, shape(m, num_near)
-                The indices of the nearest neighbors for each target position.
+        Parameters
+        ----------
+        n_d: ndarray, shape(m, num_near)
+            The distances to the nearest neighbors for each target position.
+        n_index: ndarray, shape(m, num_near)
+            The indices of the nearest neighbors for each target position.
 
-        Returns:
-            fit_pa: array, shape(m,)
-                The estimated parameter values based on the nearest neighbors.
-        '''
+        Returns
+        -------
+        fit_pa: array, shape(m,)
+            The estimated parameter values based on the nearest neighbors.
+        """
         return sph_density(n_d.astype(np.float64),
             n_index.astype(np.int32),
             self.mass.astype(np.float64), self.hsm.astype(np.float64))
 
     def __generate_kd_options(self, k_nearest, r_cut, **kwargs):
-        '''
+        """
         Generate options for KDTree construction and query.
 
-        Parameters:
-            k_nearest: int
-                The number of nearest neighbors to consider.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree constructor and query methods.
-        '''
+        Parameters
+        ----------
+        k_nearest: int
+            The number of nearest neighbors to consider.
+        r_cut: float, optional
+            The maximum distance to consider for neighbors.
+        **kwargs: dict, optional
+            Additional keyword arguments passed to the KDTree constructor and query methods.
+        """
 
         self._tree_build_options = func_optional_key(KDTree)
         self._tree_query_options = func_optional_key(KDTree.query)

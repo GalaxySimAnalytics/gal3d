@@ -48,19 +48,34 @@ class Gal3DAnalyzer:
         self.optimizer = optimizer
         
     @staticmethod
-    def analyze(pos, mass, recenter:bool = True,**kwargs):
+    def analyze(
+        pos: np.ndarray,
+        mass: np.ndarray,
+        recenter: bool = True,
+        **kwargs
+    ) -> "Gal3DAnalyzer":
         """
         Analyze the given particle data.
 
         Parameters
         ----------
         pos : np.ndarray
-            The positions of the particles.
+            The positions of the particles. Shape: (N, 3)
         mass : np.ndarray
-            The masses of the particles.
-        **kwargs : dict
+            The masses of the particles. Shape: (N,)
+        recenter : bool, optional
+            Whether to recenter the particle positions (default is True).
+        **kwargs
             Additional keyword arguments for analysis.
+            res_r : float, optional
+                Spatial resolution to use.
+            res_r_max : float, optional
+                Maximum allowed spatial resolution.
 
+        Returns
+        -------
+        Gal3DAnalyzer
+            An instance of Gal3DAnalyzer initialized with the analyzed data.
         """
 
         particle = Particles(pos=pos, mass=mass, recenter=recenter)

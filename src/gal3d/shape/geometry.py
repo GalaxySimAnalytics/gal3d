@@ -10,13 +10,14 @@ from ..optimization.parameter import Parameters
 
 from gal3d.config import config
 from gal3d.plugin import PluginBase, PluginManager
+from gal3d.util.array_operate import Auto3DShape
 
 __all__ = ['Geometry', 'GeometryBase']
 
 logger = logging.getLogger("gal3d.shape.geometry")
 
 
-class GeometryBase(WithParameter,PluginBase):
+class GeometryBase(WithParameter,PluginBase,Auto3DShape):
     """Abstract base class for geometry models."""
 
     def __init_subclass__(cls, **kwargs):

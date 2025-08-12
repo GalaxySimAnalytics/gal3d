@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from typing import Callable, Union, overload,Any
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from .lu_mono_cy import LU_Mono
 logger = logging.getLogger('gal3d.field.ray.MonotonRay')
 
 
-def judge_monoton(x, is_decreasing: bool = True) -> bool:
+def judge_monoton(x: np.ndarray, is_decreasing: bool = True) -> bool:
     '''
     Judge whether the array `x` is monotonically decreasing or increasing.
 
@@ -34,12 +34,12 @@ def judge_monoton(x, is_decreasing: bool = True) -> bool:
     return judge_mono
 
 class MonotonRay:
-    _interpolator_method: dict[str, Callable] = {}
+    _interpolator_method: dict[str, Callable | type] = {}
 
     def __init__(
         self,
-        r,
-        f,
+        r: np.ndarray,
+        f: np.ndarray,
         is_decreasing=True,
         interpolator_method: str = 'LU',
         interpolator_kwargs: dict = dict(),
@@ -94,9 +94,13 @@ class MonotonRay:
             raise ValueError(f"'r' must be strictly increasing sequence.")
         interpolator = self._interpolator_method[interpolator_method]
 
-        self._interpolator = interpolator(r, f, is_decreasing=is_decreasing, **interpolator_kwargs)
-
-    def __call__(self, value, inv=False):
+        self._interpolator: LU_Mono = interpolator(r, f, is_decreasing=is_decreasing, **interpolator_kwargs)
+        
+    @overload
+    def __call__(self, value: float, inv: bool = False) -> float: ...
+    @overload
+    def __call__(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
+    def __call__(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
         '''
         Evaluate the interpolated function at a given value.
 
@@ -115,8 +119,12 @@ class MonotonRay:
         if inv:
             return self._interpolator.inv_f_value(value)
         return self._interpolator.f_value(value)
-
-    def lower(self, value, inv=False):
+    
+    @overload
+    def lower(self, value: float, inv: bool = False) -> float: ...
+    @overload
+    def lower(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
+    def lower(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
         '''
         Evaluate the lower bound of the interpolated function at a given value.
 
@@ -135,8 +143,12 @@ class MonotonRay:
         if inv:
             return self._interpolator.inv_f_lower(value)
         return self._interpolator.f_lower(value)
-
-    def upper(self, value, inv=False):
+    
+    @overload
+    def upper(self, value: float, inv: bool = False) -> float: ...
+    @overload
+    def upper(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
+    def upper(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
         '''
         Evaluate the upper bound of the interpolated function at a given value.
 
@@ -157,7 +169,7 @@ class MonotonRay:
         return self._interpolator.f_upper(value)
 
     @staticmethod
-    def interpolator_registry(fn: str | Callable) -> Callable:
+    def interpolator_registry(fn: Union[str, Callable[..., Any], type]) -> Callable[..., Any] | type:
         if callable(fn):
             MonotonRay._interpolator_method[fn.__name__] = fn
             return fn

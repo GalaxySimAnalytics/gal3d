@@ -857,8 +857,8 @@ class RichParameterDict(ParameterDict):
         --------
         >>> param = RichParameterDict(a = 2, b = 1)
         >>> @param.derived
-        >>> def eps_ab(p: RichParameterDict):
-        >>>     return 1 - p["b"] / p["a"]
+        ... def eps_ab(p: RichParameterDict):
+        ...     return 1 - p["b"] / p["a"]
         >>> param['eps_ab']
         >>> 0.5
         """

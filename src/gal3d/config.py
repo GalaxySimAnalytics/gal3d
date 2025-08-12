@@ -2,8 +2,8 @@
 import os
 import warnings
 from dataclasses import dataclass, field, is_dataclass
-from enum import Enum
-from typing import Literal
+from enum import IntEnum
+from typing import Literal, Optional
 
 try:
     import numba    # type: ignore
@@ -29,7 +29,7 @@ if default_thread_count is None:
     
 
 
-class IterationMethod(int,Enum):
+class IterationMethod(IntEnum):
     """
     Iteration methods for ray-ellipsoid intersection.
 
@@ -116,7 +116,24 @@ class LoggerConfig:
     stream_level: int = 20              # Console log level
 
 
+@dataclass
+class DensityKNNConfig:
+    """
+    DensityKNN configuration parameters.
 
+    Parameters
+    ----------
+    k_neighbors : int
+        Number of neighbors to use for KNN.
+    leafsize : int, optional
+        Leaf size for KNN tree construction. If None, will be set to max(k_neighbors // 2, 10).
+    """
+    k_neighbors: int = 32
+    leafsize: Optional[int] = None
+    
+    def __post_init__(self):
+        if self.leafsize is None:
+            self.leafsize = max(int(self.k_neighbors / 2), 10)
 
 @dataclass
 class EllipsoidConfig:
@@ -151,7 +168,8 @@ PLUGIN_MANAGER_MODULES = {
     "gal3d.shape.coordinate",
     "gal3d.visualization.model_projector",
     "gal3d.optimization.optimizer",
-    "gal3d.characterization.characterizer"
+    "gal3d.characterization.characterizer",
+    "gal3d.fit_workflow.fit_workflow"
 }
 
 @dataclass(frozen=True)
@@ -171,8 +189,10 @@ class Config:
     """
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
+    densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
     plugin_manager_modules: tuple = field(default_factory=lambda: tuple(PLUGIN_MANAGER_MODULES))
+    
         
 # Instantiate configuration
 config: Config = Config()

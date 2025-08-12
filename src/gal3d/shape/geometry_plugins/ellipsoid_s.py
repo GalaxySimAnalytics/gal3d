@@ -88,7 +88,7 @@ class Ellipsoid_S(GeometryBase):
         array_like
             The evaluated values of the ellipsoid function at the given positions.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_shaped_ellipsoid(
             self['a'], self['b'], self['c'], self['sa'], self['sb'], self['sc'], pos
         )
@@ -107,7 +107,7 @@ class Ellipsoid_S(GeometryBase):
         tuple
             The computed Jacobian values at the given positions.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_shaped_ellipsoid_jacobian(
             self['a'], self['b'], self['c'], self['sa'], self['sb'], self['sc'], pos
         )
@@ -126,7 +126,7 @@ class Ellipsoid_S(GeometryBase):
         array_like
             The computed distances between points and ray points on the ellipsoid.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return IntersectRaysEllipsoid_S(
             self['a'],
             self['b'],
@@ -140,8 +140,8 @@ class Ellipsoid_S(GeometryBase):
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike) -> np.ndarray:
 
-        pos1 = self._check_pos(pos1)
-        pos2 = self._check_pos(pos2)
+        pos1 = self.to_3d_array(pos1)
+        pos2 = self.to_3d_array(pos2)
 
         return IntersectLinesEllipsoid_S(
             self['a'],
@@ -165,7 +165,7 @@ class Ellipsoid_S(GeometryBase):
         array_like
             The evaluated distance values at the given positions.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_ray_shaped_ellipsoid(
             self['a'],
             self['b'],
@@ -309,15 +309,3 @@ class Ellipsoid_S(GeometryBase):
         return f_shaped_ellipsoid_jacobian(
             float(a), float(b), float(c), float(sa), float(sb), float(sc), pos
         )
-    
-    @staticmethod
-    def _check_pos(pos: ArrayLike) -> NDArray[np.float64]:
-        """
-        Ensure pos is a 2D numpy array of shape (N, 3).
-        """
-        pos = np.asarray(pos, dtype=np.float64)
-        if pos.ndim == 1:
-            pos = pos[np.newaxis, :]
-        if pos.shape[1] != 3:
-            raise ValueError("Input position must have shape (N, 3)")
-        return pos

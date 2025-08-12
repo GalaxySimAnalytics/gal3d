@@ -196,7 +196,7 @@ class StructureCore:
 
         return self._geometry(**geoty_pa).f_ray_d(self._coordinate(**coord_pa)(pos))
 
-    def ray_intersect(self, pos, **kwargs) -> tuple:
+    def ray_intersect(self, pos: ArrayLike, **kwargs) -> Tuple[np.ndarray,np.ndarray]:
         """
         Compute ray intersection with the structure.
 
@@ -252,7 +252,7 @@ class StructureCore:
             pos2=self._coordinate(**coord_pa)(pos2),
         )
 
-    def quick_call(self, *args, pos, **kwargs) -> np.ndarray:
+    def quick_call(self, *args, pos: ArrayLike, **kwargs) -> np.ndarray:
         '''
         Quick evaluation of the structure at the given position.
 
@@ -283,7 +283,7 @@ class StructureCore:
             **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
         )
 
-    def quick_f_ray_d(self, *args, pos, **kwargs) -> np.ndarray:
+    def quick_f_ray_d(self, *args, pos: ArrayLike, **kwargs) -> np.ndarray:
         """
         Quick the normalized ray distance evaluation.
 
@@ -307,7 +307,7 @@ class StructureCore:
         # Then compute ray distance with transformed positions
         return self._geometry.quick_f_ray_d(**geoty_pa, pos=transformed_pos)
 
-    def quick_ray_dist(self, *args, pos, **kwargs) -> np.ndarray:
+    def quick_ray_dist(self, *args, pos: ArrayLike, **kwargs) -> np.ndarray:
         """
         Quick ray distance evaluation.
 
@@ -325,7 +325,7 @@ class StructureCore:
             **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
         )
 
-    def quick_line_intersect(self, *args, pos1, pos2, **kwargs) -> np.ndarray:
+    def quick_line_intersect(self, *args, pos1: ArrayLike, pos2: ArrayLike, **kwargs) -> np.ndarray:
         """
         Quickly compute intersection of a line with the structure.
 
@@ -346,7 +346,7 @@ class StructureCore:
             pos2=self._coordinate(**coord_pa)(pos2),
         )
 
-    def generate_points(self, random_np: int = 1024):
+    def generate_points(self, random_np: int = 1024) -> np.ndarray:
         """
         Generate uniformly distributed points on the structure.
 
@@ -368,7 +368,7 @@ class StructureCore:
 
         return self._coordinate(**coord_pa).inverse(points)
 
-    def generate_slice2D(self, n_bins=100, z_slice=0.0):
+    def generate_slice2D(self, n_bins=100, z_slice=0.0) -> Tuple[np.ndarray,np.ndarray]:
         """
         Generate a 2D slice of the shape at a specific z-coordinate.
 
@@ -394,7 +394,7 @@ class StructureCore:
         points,_ = self.ray_intersect(pos)
         return points[:,0], points[:,1]
 
-    def generate_edge2D(self, n_angle_bins = 130, n_r_bins = 400,r_min=0.2,r_max=3,z_l=1.5,rotation=np.eye(3)):
+    def generate_edge2D(self, n_angle_bins = 130, n_r_bins = 400,r_min=0.2,r_max=3,z_l=1.5,rotation=np.eye(3)) -> Tuple[np.ndarray,np.ndarray]:
         """
         Generate the 2D projected boundary (edge) of the shape.
         
@@ -459,17 +459,14 @@ class StructureCore:
 
         lineinter = self.line_intersect(pos0_all,pos1_all)[:,0]
         lineinter = lineinter.reshape(n_angle_bins,n_r_bins)
-        R_all = []
-        for i in range(n_angle_bins):
-            R_all.append(r_bins[lineinter[i]>0][-1])
-            
-        R_all = np.asarray(R_all)
+
+        R_all: np.ndarray = np.array([r_bins[lineinter[i]>0][-1] for i in range(n_angle_bins)])
 
         X = R_all*x
         Y = R_all*y
         return X,Y
-    
-    def generate_edge3D(self, n_phi_bins: int = 120, n_theta_bins: int = 60):
+
+    def generate_edge3D(self, n_phi_bins: int = 120, n_theta_bins: int = 60) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate the 3D surface boundary of the shape.
         

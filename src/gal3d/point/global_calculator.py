@@ -3,14 +3,14 @@ from functools import cached_property
 
 import numpy as np
 
-from ..util.array_operate import vector_length3d
+from ..util.array_operate import vector_length3d, Auto3DShape
 from .util import abc_vect, center_of_mass, centroid, moment_of_inertia
 from .util import shrink_sphere_center as ssc
 
 logger = logging.getLogger('gal3d.particle.global_calculator')
 
 
-class GlobalCalculator:
+class GlobalCalculator(Auto3DShape):
     """
     A class to compute and store global properties of a collection of particles,
     such as their center of mass, moment of inertia tensor, and principal axes.
@@ -40,7 +40,7 @@ class GlobalCalculator:
             Whether to sort particles by their radial distance from the origin. Default is False.
         """
 
-        pos = self._shape_check(pos)
+        pos = self.to_3d_array(pos)
         if recenter:
             cen = self.shrink_sphere_center(pos,mass)
             pos = pos - cen
@@ -78,35 +78,8 @@ class GlobalCalculator:
             if hasattr(self, attr):
                 setattr(self, attr, None)
 
-    def _shape_check(self, pos):
-        """
-        Ensures the input position array has shape (N, 3).
-
-        Parameters
-        ----------
-        pos : numpy.ndarray
-            Input position array of arbitrary shape.
-
-        Returns
-        -------
-        numpy.ndarray
-            Reshaped position array of shape (N, 3).
-        """
-        if len(np.shape(pos)) != 2:
-            logger.info(f"pos is 1d array with shape={np.shape(pos)}, reshaping to (-1,3)")
-            pos = np.array(pos).reshape(-1, 3)
-        if np.shape(pos)[1] == 3:
-            return pos
-        if np.shape(pos)[0] == 3:
-            logger.info(f"pos have the shape= {np.shape(pos)}, transposing it")
-            return np.array(pos).T
-        logger.info(
-            f"pos have the shape={np.shape(pos)}, target shape: (n,3), reshaping it"
-        )
-        return np.array(pos).reshape(-1, 3)
-
     @cached_property
-    def ssc_center(self):
+    def ssc_center(self) -> np.ndarray:
         """
         Computes the center using the shrink-sphere method.
 
@@ -154,7 +127,7 @@ class GlobalCalculator:
         return moment_of_inertia(self.pos, self.mass)
 
     @cached_property
-    def abc(self):
+    def abc(self) -> tuple[np.ndarray,np.ndarray]:
         """
         Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
@@ -168,7 +141,7 @@ class GlobalCalculator:
     @staticmethod
     def shrink_sphere_center(
         pos, mass, shrink_factor=0.7, begin_r=None, min_points=100, itermax=100
-    ):
+    ) -> np.ndarray:
         """
         Computes the center using the shrink-sphere method.
 
@@ -237,7 +210,7 @@ class GlobalCalculator:
         return moment_of_inertia(pos, mass)
 
     @staticmethod
-    def compute_abc(pos, mass) -> tuple:
+    def compute_abc(pos, mass) -> tuple[np.ndarray,np.ndarray]:
         """
         Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 

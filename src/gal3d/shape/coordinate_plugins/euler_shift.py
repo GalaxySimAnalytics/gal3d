@@ -108,10 +108,7 @@ class EulerShift(CoordinateBase):
         numpy.ndarray
             The transformed positions.
         """
-        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
-            pos = np.float64(pos)
-        if len(np.shape(pos)) == 1:
-            pos = np.float64([pos])
+        pos = self.to_3d_array(pos)
         return Shift(Rotate(pos.copy(), self._rotation.as_matrix()), self['pos'])
 
     def inverse(self, pos):
@@ -128,10 +125,7 @@ class EulerShift(CoordinateBase):
         numpy.ndarray
             The inverse transformed positions.
         """
-        if (len(np.shape(pos)) == 2) and (np.shape(pos)[1] == 3):
-            pos = np.float64(pos)
-        if len(np.shape(pos)) == 1:
-            pos = np.float64([pos])
+        pos = self.to_3d_array(pos)
         return Rotate(Shift(pos.copy(), -self['pos']), self._rotation.as_matrix().T)
 
     @staticmethod

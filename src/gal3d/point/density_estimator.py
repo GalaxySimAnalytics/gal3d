@@ -7,6 +7,7 @@ from typing import List
 import numpy as np
 
 from gal3d.plugin import PluginBase, PluginManager
+from gal3d.util.array_operate import Auto3DShape
 
 __all__ = ['DensityEstimator', 'DensityEstimatorBase']
 
@@ -14,7 +15,7 @@ logger = logging.getLogger("gal3d.particle.density_estimator")
 
 
 # TODO kernel
-class DensityEstimatorBase(PluginBase):
+class DensityEstimatorBase(PluginBase,Auto3DShape):
     """
     Abstract base class for all density estimators.
 
@@ -43,7 +44,7 @@ class DensityEstimatorBase(PluginBase):
 
     def __init__(self, pos, mass, parameter_mode: str = 'Density', kernel: None = None):
 
-        self.pos = self._shape_check(pos)
+        self.pos = self.to_3d_array(pos)
         self.mass = mass
 
         self.pa_mode = parameter_mode
@@ -53,35 +54,8 @@ class DensityEstimatorBase(PluginBase):
         super().__init_subclass__(**kwargs)
         DensityEstimator.register(cls)
 
-    def _shape_check(self, pos):
-        """
-        Ensure that the position array has shape (n, 3).
-
-        Parameters
-        ----------
-        pos : array_like
-            Input positions of particles.
-
-        Returns
-        -------
-        numpy.ndarray
-            Reshaped position array with shape (n, 3).
-        """
-        if len(np.shape(pos)) != 2:
-            logger.debug(f"pos is 1d array with shape={np.shape(pos)}, reshaping to (-1,3)")
-            pos = np.array(pos).reshape(-1, 3)
-        if np.shape(pos)[1] == 3:
-            return pos
-        if np.shape(pos)[0] == 3:
-            logger.debug(f"pos have the shape= {np.shape(pos)}, transposing it")
-            return np.array(pos).T
-        logger.debug(
-            f"pos have the shape={np.shape(pos)}, target shape: (n,3), reshaping it"
-        )
-        return np.array(pos).reshape(-1, 3)
-
     @cached_property
-    def parameter(self):
+    def parameter(self) -> np.ndarray:
         """
         Estimate the parameter at the original particle positions.
 
@@ -93,7 +67,7 @@ class DensityEstimatorBase(PluginBase):
         return self.get_parameter(self.pos)
 
     @cached_property
-    def gradient(self):
+    def gradient(self) -> np.ndarray:
         """
         Estimate the gradient of the parameter at the original particle positions.
 
@@ -105,7 +79,7 @@ class DensityEstimatorBase(PluginBase):
         return self.get_gradient(self.pos)
 
     @abstractmethod
-    def get_hsm(self, target_pos, **kwargs):
+    def get_hsm(self, target_pos, **kwargs) -> np.ndarray:
         """
         Estimate the half-smooth length at the target positions.
 
@@ -124,7 +98,7 @@ class DensityEstimatorBase(PluginBase):
         pass
 
     @abstractmethod
-    def get_parameter(self, target_pos, **kwargs):
+    def get_parameter(self, target_pos, **kwargs) -> np.ndarray:
         """
         Estimate the parameter value at the target positions.
 
@@ -143,7 +117,7 @@ class DensityEstimatorBase(PluginBase):
         pass
 
     @abstractmethod
-    def get_gradient(self, target_pos, **kwargs):
+    def get_gradient(self, target_pos, **kwargs) -> np.ndarray:
         """
         Estimate the gradient of the parameter at the target positions.
 
@@ -156,10 +130,8 @@ class DensityEstimatorBase(PluginBase):
 
         Returns
         -------
-        tuple
-            Tuple of two elements:
-            - Upward gradient: (magnitude, direction)
-            - Downward gradient: (magnitude, direction)
+        gradient: array, shape(m, 3) 
+            The estimated gradients at the target positions.
         """
         pass
 

@@ -9,6 +9,7 @@ from scipy.spatial import KDTree    # type: ignore
 from ...util.func_signature import func_optional_key, update_dict_value
 from ..density_estimator import DensityEstimatorBase
 from .compute_pa_cy import sph_density, sph_gradient
+from gal3d.config import config
 
 logger = logging.getLogger('gal3d.particle.density_estimator.DensityEstimatorKNN')
 
@@ -46,7 +47,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         mass,
         parameter_mode: str = 'Density',
         kernel=None,
-        k_nearest: int = 32,
+        k_nearest: int = config.densityknn.k_neighbors,
         r_cut: float | None = None,
         **kwargs,
     ):
@@ -80,7 +81,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self.tree = KDTree(self.pos, **self._tree_build_options)
 
     @cached_property
-    def parameter(self):
+    def parameter(self) -> np.ndarray:
         '''Cached property that returns the parameter values at the input positions, and caches hsm.'''
         target_pos = self.pos
         query_options = self._tree_query_options
@@ -88,16 +89,16 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         return self._cal_density(n_d, n_index, **query_options)
 
     @cached_property
-    def gradient(self):
+    def gradient(self) -> np.ndarray:
         '''Cached property that returns the gradient of the parameter at the input positions.'''
         return self.get_gradient(self.pos)
     
     @cached_property
-    def hsm(self):
+    def hsm(self) -> np.ndarray:
         """Cached property that returns the half-smooth length at the input positions."""
         return self.get_hsm(self.pos)
 
-    def get_hsm(self, target_pos, **kwargs):
+    def get_hsm(self, target_pos, **kwargs) -> np.ndarray:
         '''
         Estimate the half-smooth length at the target positions.
 
@@ -111,7 +112,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             results: array, shape(m,)
                 The estimated half-smooth lengths at the target positions.
         '''
-        target_pos = self._shape_check(target_pos)
+        target_pos = self.to_3d_array(target_pos)
 
         query_options = update_dict_value(self._tree_query_options, kwargs)
 
@@ -119,7 +120,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
 
         return n_d[:,-1]
 
-    def get_parameter(self, target_pos, **kwargs):
+    def get_parameter(self, target_pos, **kwargs) -> np.ndarray:
         '''
         Estimate the parameter value at the target positions.
 
@@ -133,7 +134,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             results: array, shape(m,)
                 The estimated parameter values at the target positions.
         '''
-        target_pos = self._shape_check(target_pos)
+        target_pos = self.to_3d_array(target_pos)
                     
         query_options = update_dict_value(self._tree_query_options, kwargs)
         
@@ -141,7 +142,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         
         return self._cal_density(n_d, n_index, **query_options)
 
-    def get_gradient(self, target_pos, **kwargs):
+    def get_gradient(self, target_pos, **kwargs) -> np.ndarray:
         '''
         Estimate the gradient of the parameter at the target positions.
 
@@ -152,19 +153,17 @@ class DensityEstimatorKNN(DensityEstimatorBase):
                 Additional keyword arguments passed to the KDTree query method.
 
         Returns:
-            gradient: tuple of tuples
-                A tuple containing two tuples:
-                - The first tuple contains the upward gradient magnitude and direction.
-                - The second tuple contains the downward gradient magnitude and direction.
+            gradient: array, shape(m, 3) 
+                The estimated gradients at the target positions.
         '''
-        target_pos = self._shape_check(target_pos)
+        target_pos = self.to_3d_array(target_pos)
         query_options = update_dict_value(self._tree_query_options, kwargs)
 
         n_d, n_index = self.tree.query(target_pos, **query_options)
 
         return self._cal_gradient(target_pos, n_d, n_index)
 
-    def _cal_gradient(self,target_pos, n_d, n_index, **kwargs):
+    def _cal_gradient(self,target_pos, n_d, n_index, **kwargs) -> np.ndarray:
         '''
         Calculate the gradient based on the nearest neighbors.
 
@@ -183,7 +182,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
             n_index.astype(np.int32),
             self.mass.astype(np.float64), self.pos.astype(np.float64), self.hsm.astype(np.float64), target_pos.astype(np.float64))
 
-    def _cal_density(self, n_d, n_index, **kwargs):
+    def _cal_density(self, n_d, n_index, **kwargs) -> np.ndarray:
         '''
         Calculate the parameter value based on the nearest neighbors.
 
@@ -215,7 +214,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self._tree_build_options = func_optional_key(KDTree)
         self._tree_query_options = func_optional_key(KDTree.query)
 
-        self._tree_build_options['leafsize'] = max(int(k_nearest/2),10)
+        self._tree_build_options['leafsize'] = config.densityknn.leafsize
         self._tree_query_options['workers'] = os.cpu_count()
         self._tree_query_options['k'] = k_nearest
         if r_cut:

@@ -8,12 +8,13 @@ from numpy.typing import ArrayLike, NDArray
 from .with_parameter import Parameters, WithParameter, abstractmethod
 
 from gal3d.plugin import PluginBase, PluginManager
+from gal3d.util.array_operate import Auto3DShape
 
 __all__ = ['Coordinate', 'CoordinateBase']
 
 logger = logging.getLogger("gal3d.shape.coordinate")
 
-class CoordinateBase(WithParameter, PluginBase):
+class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
     """
     Abstract base class for coordinate transformation plugins.
 

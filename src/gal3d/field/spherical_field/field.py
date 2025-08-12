@@ -52,7 +52,7 @@ class SphField:
         return "<" + ", ".join(info) + ">"
     
     @timing
-    def _build_ray_vector(self, particles, num_ray, ray_method):
+    def _build_ray_vector(self, particles: Particles, num_ray: int, ray_method: str):
 
         self.rays = SphVector(num_ray, ray_method)
         self.particles = particles
@@ -147,7 +147,7 @@ class SphField:
 
     @timing
     def build_profile_interpolator(
-        self, interpolator_method='LU', is_decreasing=True, interpolator_kwargs=dict(), **kwargs
+        self, interpolator_method: str = 'LU', is_decreasing: bool = True, interpolator_kwargs: dict =dict(), **kwargs
     ):
         '''
         Build interpolators for the sampled points.
@@ -349,7 +349,7 @@ class SphField:
             self._assign_ray_points()
         return self.particles.parameter[self.points_index[n]]
 
-    def gradient_ray_n(self, n: int) -> tuple:
+    def gradient_ray_n(self, n: int) -> np.ndarray:
         '''
         Retrieve the gradients of particles closest to the nth ray.
 
@@ -360,21 +360,13 @@ class SphField:
 
         Returns
         -------
-        tuple
+        gradient: np.ndarray
             The gradients of the points closest to the nth ray.
         '''
         if not hasattr(self, 'points_index'):
             self._assign_ray_points()
-        return (
-            (
-                self.particles.gradient[0][0][self.points_index[n]],
-                self.particles.gradient[0][1][self.points_index[n]],
-            ),
-            (
-                self.particles.gradient[1][0][self.points_index[n]],
-                self.particles.gradient[1][1][self.points_index[n]],
-            ),
-        )
+            
+        return self.particles.gradient[self.points_index[n]]
 
     def generate(self, r: Iterable | float, for_fit=False, **kwargs) -> dict:
         '''
@@ -392,8 +384,13 @@ class SphField:
         '''
 
         level = kwargs.get('level', (0, 0))
+        rval: np.ndarray | float
+        if isinstance(r,Iterable):
+            rval = np.array(r)
+        else:
+            rval = r
 
-        ftarget = self.query_iso_f(r, which=level[0])
+        ftarget = self.query_iso_f(rval, which=level[0])
 
         rtarget = self.query_rays_r(
             ftarget, which=level[1]
@@ -437,15 +434,20 @@ class SphField:
             A dictionary containing the positions, radii, and isoradii of the equivalent surface.
         '''
         level = kwargs.get('level', (0, 0))
+        fval: np.ndarray | float
+        if isinstance(f,Iterable):
+            fval = np.array(f)
+        else:
+            fval = f
 
-        rtarget = self.query_rays_r(f, which=level[1])
+        rtarget = self.query_rays_r(fval, which=level[1])
 
         if isinstance(f, Iterable):
             target_pos = np.einsum('ji,ik->jik', rtarget, self.rays_vect)
         else:
             target_pos = np.einsum('i,ik->ik', rtarget, self.rays_vect)
 
-        iso_r = self.query_iso_r(f, which=level[0])
+        iso_r = self.query_iso_r(fval, which=level[0])
 
         Eq_surface = {}
         Eq_surface['pos'] = target_pos
@@ -453,7 +455,7 @@ class SphField:
         Eq_surface['iso_r'] = iso_r
         return Eq_surface
 
-    def query_rays_f(self, r, which=0):
+    def query_rays_f(self, r: float | np.ndarray, which=0) -> np.ndarray:
         '''
         Query the parameter value at a given radius along the rays.
 
@@ -476,7 +478,7 @@ class SphField:
 
         return np.array([i(r, inv=False) for i in self.rays_func]).T
 
-    def query_rays_r(self, f, which=0):
+    def query_rays_r(self, f: float | np.ndarray, which=0) -> np.ndarray:
         '''
         Query the radius for a given parameter value along the rays.
 
@@ -499,7 +501,7 @@ class SphField:
 
         return np.array([i(f, inv=True) for i in self.rays_func]).T
 
-    def query_iso_f(self, r, which=0):
+    def query_iso_f(self, r: float | np.ndarray, which=0) -> np.ndarray | float:
         '''
         Query the parameter value at a given radius for the isoprofile.
 
@@ -522,7 +524,7 @@ class SphField:
 
         return self.iso_pro_func(r, inv=False)
 
-    def query_iso_r(self, f, which=0):
+    def query_iso_r(self, f: float | np.ndarray, which=0) -> np.ndarray | float:
         '''
         Query the radius for a given parameter value for the isoprofile.
 
@@ -576,8 +578,8 @@ class SphField:
         Examples
         --------
         >>> @SphField.step_registry
-        >>> def bound_dist(cls, value, **kwargs):
-        >>>     return value*np.ones(cls.rays.num)
+        ... def step_lin(cls, num_p, **kwargs):
+        ...     return np.linspace(cls.inner_r, cls.outer_r, num_p).T
         """
         if callable(fn):
             SphField._step_method[fn.__name__] = fn
@@ -618,7 +620,7 @@ SphField.iso_registry('pair')(iso_profile_by_pair)
 
 
 @SphField.boundary_registry('dist')
-def bound_dist(self, value, **kwargs):
+def bound_dist(self: SphField, value: float, **kwargs) -> np.ndarray:
     '''
     Calculate the boundary based on a fixed distance.
 
@@ -638,7 +640,7 @@ def bound_dist(self, value, **kwargs):
 
 
 @SphField.boundary_registry('pct')
-def bound_pct(self, value, **kwargs):
+def bound_pct(self: SphField, value: float, **kwargs) -> np.ndarray:
     '''
     Calculate the boundary based on a percentile.
 
@@ -658,7 +660,7 @@ def bound_pct(self, value, **kwargs):
 
 
 @SphField.boundary_registry('value')
-def bound_value(self, value, **kwargs):
+def bound_value(self: SphField, value: float, **kwargs) -> np.ndarray:
     """
     Finds the outer boundary radius for each ray such that the parameter value along the ray equals or exceeds a specified target value.
     This function is registered as a boundary condition handler for the 'value' type. It iteratively searches along each ray direction to find the radius where the parameter (obtained from `self.particles.get_parameter`) crosses the given `target_value`. The search is performed in two stages: a coarse search to bracket the boundary, followed by a bisection method for refinement.
@@ -735,7 +737,7 @@ def bound_value(self, value, **kwargs):
 
 
 @SphField.step_registry('lin')
-def step_lin(self, num_p):
+def step_lin(self: SphField, num_p: int) -> np.ndarray:
     '''
     Generate linearly spaced points between the inner and outer boundaries.
 
@@ -749,11 +751,11 @@ def step_lin(self, num_p):
     np.ndarray
         The generated points.
     '''
-    return np.linspace(self.inner_r, self.outer_r, num_p).T
+    return np.linspace(self.inner_r, self.outer_r, num_p, endpoint=True).T
 
 
 @SphField.step_registry('log')
-def step_log(self, num_p):
+def step_log(self: SphField, num_p: int) -> np.ndarray:
     '''
     Generate logarithmically spaced points between the inner and outer boundaries.
 

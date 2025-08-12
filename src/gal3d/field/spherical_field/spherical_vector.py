@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Callable, Any
 
 import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi  # type: ignore
@@ -12,84 +13,9 @@ logger = logging.getLogger('gal3d.preprocessing.spherical_field.spherical_vector
 __all__ = ["SphVector"]
 
 
-class SphVector:
-    '''The coordinates of N points uniformly distributed on the unit sphere'''
-
-    def __init__(self, N_sample=512, method='fibonacci'):
-        '''
-        Initialize the SphVector class with N points uniformly distributed on the unit sphere.
-
-        Parameters
-        ----------
-        N_sample : int, optional, default 512
-            The number of points to generate on the unit sphere.
-
-        method : str, optional, default 'fibonacci'
-            The method used to generate points on the sphere. Options are 'fibonacci' or 'muller'.
-
-        Attributes
-        ----------
-        num : int
-            The number of points on the sphere, equal to N_sample.
-
-        pos : ndarray, shape (n, 3)
-            Cartesian coordinates (x, y, z) of each point on the unit sphere.
-
-        sph : ndarray, shape (n, 3)
-            Spherical coordinates (r, phi, theta) of each point on the unit sphere.
-
-        voronoi : SphericalVoronoi
-            Voronoi diagrams on the surface of the sphere. This is an instance of `scipy.spatial.SphericalVoronoi`.
-
-        area : ndarray
-            The areas of the Voronoi regions on the sphere.
-
-        uniformity : float
-            The ratio of the standard deviation to the mean of the Voronoi region areas,
-            which measures the uniformity of the point distribution on the sphere.
-        '''
-
-        METHOD = {
-            'fibonacci': self.fibonacci_sampling,
-            'muller': self.muller_sampling,
-            'golden_spiral': self.golden_spiral_sampling,
-            'thomson': self.thomson_sampling,
-        }
-        # Additional sampling methods can be implemented here if needed.
-        self.num = N_sample
-        self.pos, self.sph = METHOD[method](self.num)
-        self.voronoi = SphericalVoronoi(self.pos)
-        self.voronoi.sort_vertices_of_regions()
-        self.area = SphericalVoronoi.calculate_areas(self.voronoi)
-        target_area = 4*np.pi/N_sample
-        self.uniformity = 1 - np.mean(np.abs(self.area - target_area))/target_area
-        logger.info(
-            f"{self.num} points on the sphere by {method} method have the uniformity of {(self.uniformity*100):.3f}%"
-        )
-        self._tree =  None
-
-
-    def assign_points(self, pos):
-        '''
-        Assign each point in `pos` to the nearest ray.
-
-        Parameters
-        ----------
-        pos : ndarray, shape (m, 3)
-            Cartesian coordinates (x, y, z) of the points to be assigned to the nearest ray.
-
-        Returns
-        -------
-        indices : ndarray, shape (m,)
-            The indices of the nearest rays for each point in `pos`.
-        '''
-        if self._tree is None:
-            self._tree = KDTree(self.pos)
-        
-        return  self._tree.query(pos,k=1,workers = os.cpu_count())[1]
-
+class SphSampler:
     @staticmethod
-    def fibonacci_sampling(Num_sampling: int = 256):
+    def fibonacci_sampling(Num_sampling: int = 256) -> tuple[np.ndarray,np.ndarray]:
         '''
         Generate points on the unit sphere using the Fibonacci sphere sampling method.
 
@@ -110,7 +36,7 @@ class SphVector:
         return fibonacci_sampling(Num_sampling)
 
     @staticmethod
-    def muller_sampling(Num_sampling=256):
+    def muller_sampling(Num_sampling=256) -> tuple[np.ndarray,np.ndarray]:
         '''
         Generate points on the unit sphere using the Muller method.
 
@@ -137,7 +63,7 @@ class SphVector:
         return cartesian_coords, sampling_sphere_coor
     
     @staticmethod
-    def golden_spiral_sampling(Num_sampling: int = 256):
+    def golden_spiral_sampling(Num_sampling: int = 256) -> tuple[np.ndarray,np.ndarray]:
         """
         Generate points using the golden spiral method with improved uniformity.
         """
@@ -155,7 +81,7 @@ class SphVector:
         return pos, sph
     
     @staticmethod
-    def thomson_sampling(Num_sampling: int = 256, iterations: int = 300):
+    def thomson_sampling(Num_sampling: int = 256, iterations: int = 300) -> tuple[np.ndarray,np.ndarray]:
         """
         Generate points using a Thomson problem solver (electrostatic repulsion).
         
@@ -219,8 +145,87 @@ class SphVector:
                 
         sph = trans_to_Spherical_coordinates(best_pos)
         return best_pos, sph
+    
+
+
+class SphVector:
+    '''The coordinates of N points uniformly distributed on the unit sphere'''
+    
+    METHOD: dict[str, Callable[[int], tuple[np.ndarray, np.ndarray]]] = {
+    'fibonacci': SphSampler.fibonacci_sampling,
+    'muller': SphSampler.muller_sampling,
+    'golden_spiral': SphSampler.golden_spiral_sampling,
+    'thomson': SphSampler.thomson_sampling,
+    }
+    def __init__(self, N_sample=512, method='fibonacci'):
+        '''
+        Initialize the SphVector class with N points uniformly distributed on the unit sphere.
+
+        Parameters
+        ----------
+        N_sample : int, optional, default 512
+            The number of points to generate on the unit sphere.
+
+        method : str, optional, default 'fibonacci'
+            The method used to generate points on the sphere. Options are 'fibonacci' or 'muller'.
+
+        Attributes
+        ----------
+        num : int
+            The number of points on the sphere, equal to N_sample.
+
+        pos : ndarray, shape (n, 3)
+            Cartesian coordinates (x, y, z) of each point on the unit sphere.
+
+        sph : ndarray, shape (n, 3)
+            Spherical coordinates (r, phi, theta) of each point on the unit sphere.
+
+        voronoi : SphericalVoronoi
+            Voronoi diagrams on the surface of the sphere. This is an instance of `scipy.spatial.SphericalVoronoi`.
+
+        area : ndarray
+            The areas of the Voronoi regions on the sphere.
+
+        uniformity : float
+            The ratio of the standard deviation to the mean of the Voronoi region areas,
+            which measures the uniformity of the point distribution on the sphere.
+        '''
+
+        # Additional sampling methods can be implemented here if needed.
+        self.num = N_sample
+        self.pos, self.sph = self.METHOD[method](self.num)
+        self.voronoi = SphericalVoronoi(self.pos)
+        self.voronoi.sort_vertices_of_regions()
+        self.area = SphericalVoronoi.calculate_areas(self.voronoi)
+        target_area = 4*np.pi/N_sample
+        self.uniformity = 1 - np.mean(np.abs(self.area - target_area))/target_area
+        logger.info(
+            f"{self.num} points on the sphere by {method} method have the uniformity of {(self.uniformity*100):.3f}%"
+        )
+        self._tree =  None
+
+
+    def assign_points(self, pos) -> np.ndarray:
+        '''
+        Assign each point in `pos` to the nearest ray.
+
+        Parameters
+        ----------
+        pos : ndarray, shape (m, 3)
+            Cartesian coordinates (x, y, z) of the points to be assigned to the nearest ray.
+
+        Returns
+        -------
+        indices : ndarray, shape (m,)
+            The indices of the nearest rays for each point in `pos`.
+        '''
+        if self._tree is None:
+            self._tree = KDTree(self.pos)
+        
+        return  self._tree.query(pos,k=1,workers = os.cpu_count())[1]
+
     @staticmethod
-    def cal_uniformity(pos, cached_voronoi=None):
+    def cal_uniformity(pos: np.ndarray, cached_voronoi=None) -> float:
         pos_uni = unit_vector3d(pos)
         if cached_voronoi is None or not np.array_equal(cached_voronoi.points, pos_uni):
             cached_voronoi = SphericalVoronoi(pos_uni)
@@ -229,3 +234,4 @@ class SphVector:
         target_area = 4 * np.pi / len(pos)
         uniformity = 1 - np.mean(np.abs(area - target_area)) / target_area
         return uniformity
+

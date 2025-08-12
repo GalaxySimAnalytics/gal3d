@@ -97,7 +97,7 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The value of the ellipsoid function at the given positions.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_ellipsoid(self['a'], self['b'], self['c'], pos)
 
     def jacobian(self, pos) -> tuple:
@@ -114,7 +114,7 @@ class Ellipsoid(GeometryBase):
         tuple
             The Jacobian matrix of the ellipsoid function at the given positions.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_ellipsoid_jacobian(self['a'], self['b'], self['c'], pos)
 
     def ray_intersect(self, pos):
@@ -131,18 +131,18 @@ class Ellipsoid(GeometryBase):
         float or ndarray
             The distance between the points and the ray point on the ellipsoid.
         """
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return IntersectRaysEllipsoid(self['a'], self['b'], self['c'], pos)
 
     def line_intersect(self, pos1, pos2):
 
-        pos1 = self._check_pos(pos1)
-        pos2 = self._check_pos(pos2)
+        pos1 = self.to_3d_array(pos1)
+        pos2 = self.to_3d_array(pos2)
 
         return IntersectLinesEllipsoid(self['a'], self['b'], self['c'], pos1, pos2)
 
     def f_ray_d(self, pos):
-        pos = self._check_pos(pos)
+        pos = self.to_3d_array(pos)
         return f_ray_ellipsoid(self['a'], self['b'], self['c'], pos)
 
     @staticmethod
@@ -248,15 +248,3 @@ class Ellipsoid(GeometryBase):
             The Jacobian matrix of the ellipsoid function at the given positions.
         """
         return f_ellipsoid_jacobian(float(a), float(b), float(c), pos)
-
-    @staticmethod
-    def _check_pos(pos):
-        """
-        Ensure pos is a 2D numpy array of shape (N, 3).
-        """
-        pos = np.asarray(pos, dtype=np.float64)
-        if pos.ndim == 1:
-            pos = pos[np.newaxis, :]
-        if pos.shape[1] != 3:
-            raise ValueError("Input position must have shape (N, 3)")
-        return pos

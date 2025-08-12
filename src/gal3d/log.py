@@ -4,7 +4,11 @@ from .config import config, LoggerConfig
 from .util.string_format import string_formatter
 
 class ColorFormatter(logging.Formatter):
-    """Logging Formatter to add colors and count warning / errors"""
+    """
+    Logging Formatter to add colors and count warning / errors.
+
+    Formats log messages with ANSI color codes for different log levels.
+    """
 
     FORMATS = {
         logging.DEBUG: "".join(
@@ -101,12 +105,17 @@ class ColorFormatter(logging.Formatter):
 
 class NoColorFormatter(logging.Formatter):
     """
-    A logging formatter that outputs log messages without color formatting.
+    Format the specified record as text.
 
-    This formatter is useful for environments where ANSI escape codes for colors
-    are not supported or desired. It removes any ANSI escape sequences from the
-    log messages and provides a plain-text format, unlike `ColorFormatter` which
-    adds color and styling to the log output.
+    Parameters
+    ----------
+    record : logging.LogRecord
+        The log record to format.
+
+    Returns
+    -------
+    str
+        The formatted log message.
     """
     import re
 
@@ -128,6 +137,19 @@ class NoColorFormatter(logging.Formatter):
 
 
 def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
+    """ 
+    Set up the gal3d logger according to the provided configuration.
+
+    Parameters
+    ----------
+    cfg : LoggerConfig
+        Logger configuration dataclass.
+
+    Returns
+    -------
+    logging.Logger
+        Configured logger instance.
+    """
     logger = logging.getLogger("gal3d")
     if cfg.level not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
         raise ValueError(f"Invalid logging level: {cfg.level}")
@@ -149,16 +171,20 @@ def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
     return logger
 
 
-def set_logging_level(level=logging.INFO):
+def set_logging_level(level=logging.INFO) -> None:
     """
     Set the logging level for the 'gal3d' logger.
 
-    Valid levels:
-    - logging.DEBUG: Detailed information, typically of interest only when diagnosing problems.
-    - logging.INFO: Confirmation that things are working as expected.
-    - logging.WARNING: An indication that something unexpected happened, or indicative of some problem in the near future.
-    - logging.ERROR: Due to a more serious problem, the software has not been able to perform some function.
-    - logging.CRITICAL: A very serious error, indicating that the program itself may be unable to continue running.
+    Parameters
+    ----------
+    level : int, optional
+        Logging level to set for the 'gal3d' logger. Valid values are:
+            - logging.DEBUG
+            - logging.INFO
+            - logging.WARNING
+            - logging.ERROR
+            - logging.CRITICAL
+        Default is logging.INFO.
     """
     logger = logging.getLogger('gal3d')
     logger.setLevel(level)

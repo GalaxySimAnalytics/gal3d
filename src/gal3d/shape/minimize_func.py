@@ -1,7 +1,6 @@
 import logging
-from typing import Any, Callable, Dict, Optional, TypeVar, Union, cast
-
-from gal3d import config
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("gal3d.shape.minimize_func")
 
@@ -20,10 +19,10 @@ class MinimizeFunc:
         A dictionary mapping function names to callable objects.
     """
 
-    minimize_fn: Dict[str, Callable] = {}
+    minimize_fn: dict[str, Callable] = {}
 
     @staticmethod
-    def fn_registry(fn: Union[str, Callable[..., Any]]) -> Callable:
+    def fn_registry(fn: str | Callable[..., Any]) -> Callable:
         """
         Register a function to the minimization function registry.
 
@@ -64,7 +63,8 @@ class MinimizeFunc:
             if callable(fn):
                 func_name = getattr(fn, "__name__", str(fn))
                 MinimizeFunc.minimize_fn[func_name] = fn
-                logger.debug(f"Registered function '{func_name}' to minimization registry")
+                logger.debug("Registered function '%s' to minimization registry",
+                             func_name)
                 return fn  # Return the function unchanged
 
             # Case 2: String name provided, return a decorator
@@ -72,24 +72,19 @@ class MinimizeFunc:
 
             def decorator(func: Callable) -> Callable:
                 if not callable(func):
-                    error_msg = f"Cannot register {func} as '{fn_name}', object is not callable"
-                    logger.error(error_msg)
-                    raise TypeError(error_msg)
-
+                    raise TypeError("Cannot register %s as '%s', object is not callable", func, fn_name)
                 MinimizeFunc.minimize_fn[fn_name] = func
-                logger.debug(f"Registered function '{func.__name__}' as '{fn_name}' to minimization registry")
+                logger.debug("Registered function '%s' as '%s' to minimization registry",
+                             func.__name__, fn_name)
                 return func
 
             return decorator
 
         except Exception as e:
-            logger.error(f"Error registering function to minimization registry: {e}", exc_info=True)
-            raise
-    @staticmethod
-    def _load_func():
-        """
-        Dynamically import minimization functions based on configuration.
-        """
-        from . import fns_cy
-
-MinimizeFunc._load_func()
+            logger.exception(
+                "Error registering function to minimization registry: %s",
+                repr(e),
+            )
+            raise RuntimeError(
+                f"Error registering function to minimization registry: {repr(e)}"
+            ) from e

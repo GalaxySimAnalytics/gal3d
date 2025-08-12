@@ -1,7 +1,8 @@
 import logging
 
-from .config import config, LoggerConfig
+from .config import LoggerConfig, config
 from .util.string_format import string_formatter
+
 
 class ColorFormatter(logging.Formatter):
     """
@@ -18,10 +19,10 @@ class ColorFormatter(logging.Formatter):
                     italics=True,
                 ),"< ",
                 string_formatter(
-                    "%(name)s", fg_color='bright_blue', underline=True
+                    "%(name)s", fg_color="bright_blue", underline=True
                 )," >",
-                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
-                string_formatter(" | %(levelname)s | ", fg_color='cyan', bold=True),
+                string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
+                string_formatter(" | %(levelname)s | ", fg_color="cyan", bold=True),
                 "%(message)s",
             ]
         ),
@@ -31,9 +32,9 @@ class ColorFormatter(logging.Formatter):
                     "[%(asctime)s.%(msecs)03d] ", italics=True, underline=False
                 ),"< ",
                 string_formatter(
-                    "%(name)s", fg_color='bright_blue', underline=True
+                    "%(name)s", fg_color="bright_blue", underline=True
                 )," >",
-                string_formatter(" | %(levelname)s | ", fg_color='green', bold=True),
+                string_formatter(" | %(levelname)s | ", fg_color="green", bold=True),
                 "%(message)s",
             ]
         ),
@@ -41,17 +42,17 @@ class ColorFormatter(logging.Formatter):
             [
                 string_formatter(
                     "[%(asctime)s.%(msecs)03d] ",
-                    fg_color='yellow',
+                    fg_color="yellow",
                     italics=True,
                     underline=False,
                 ), "from < ",
                 string_formatter(
-                    "%(filename)s", fg_color='bright_blue', underline=True
+                    "%(filename)s", fg_color="bright_blue", underline=True
                 )," >",
-                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
-                string_formatter("| %(levelname)s | ", fg_color='yellow', bold=True),
+                string_formatter("| %(levelname)s | ", fg_color="yellow", bold=True),
                 "%(message)s",
             ]
         ),
@@ -64,9 +65,9 @@ class ColorFormatter(logging.Formatter):
                     underline=False,
                 ),"from < ",
                 string_formatter(
-                    "%(filename)s", fg_color='bright_blue', underline=True
+                    "%(filename)s", fg_color="bright_blue", underline=True
                 )," >",
-                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
                 string_formatter(
@@ -83,9 +84,9 @@ class ColorFormatter(logging.Formatter):
                     underline=False,
                 ),"from < ",
                 string_formatter(
-                    "%(filename)s", fg_color='bright_blue', underline=True
+                    "%(filename)s", fg_color="bright_blue", underline=True
                 )," >",
-                string_formatter(" line: %(lineno)d ", fg_color='purple', italics=True),
+                string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
                 string_formatter(
@@ -126,18 +127,18 @@ class NoColorFormatter(logging.Formatter):
         logging.ERROR: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
         logging.CRITICAL: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
     }
-    ANSI_ESCAPE = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+    ANSI_ESCAPE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
         if record.levelno not in logging._levelToName:
-            return self.ANSI_ESCAPE.sub('', formatter.format(record))
+            return self.ANSI_ESCAPE.sub("", formatter.format(record))
         return formatter.format(record)
 
 
 def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
-    """ 
+    """
     Set up the gal3d logger according to the provided configuration.
 
     Parameters
@@ -160,10 +161,10 @@ def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
 
     ch.setFormatter(ColorFormatter())
     logger.addHandler(ch)
-    
+
     file_handle = cfg.save_file
     if file_handle:
-        fh = logging.FileHandler(cfg.file_name, mode='w', encoding="utf-8")
+        fh = logging.FileHandler(cfg.file_name, mode="w", encoding="utf-8")
         fh.setLevel(cfg.file_level)
         fh.setFormatter(NoColorFormatter())
         logger.addHandler(fh)
@@ -171,7 +172,7 @@ def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
     return logger
 
 
-def set_logging_level(level=logging.INFO) -> None:
+def set_logging_level(level: int = logging.INFO) -> None:
     """
     Set the logging level for the 'gal3d' logger.
 
@@ -186,9 +187,9 @@ def set_logging_level(level=logging.INFO) -> None:
             - logging.CRITICAL
         Default is logging.INFO.
     """
-    logger = logging.getLogger('gal3d')
+    logger = logging.getLogger("gal3d")
     logger.setLevel(level)
-    
+
 
 
 logger = _setup_logging(config.logger)

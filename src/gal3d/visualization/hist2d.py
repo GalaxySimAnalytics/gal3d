@@ -1,14 +1,21 @@
 # This code is inspired by or adapted from the plotting utilities in the following repository:
 # https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py
 
+from collections.abc import Sequence
+from typing import Literal, overload
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable # type: ignore
-from scipy.ndimage import gaussian_filter   # type: ignore
+from matplotlib.colorbar import Colorbar
+from matplotlib.contour import QuadContourSet
+from matplotlib.image import AxesImage
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.ndimage import gaussian_filter
 
-from ..util.array_operate import Rotate
-from .render_wrapper import get_kernel, get_render_image
+from gal3d.util.array_operate import Rotate
+
+from .render_wrapper import PyRenderImage, PyRenderImageFloat, get_kernel, get_render_image
 
 
 def which_pos_to_rotation(which_pos):
@@ -36,7 +43,7 @@ def hist_2d(
     y_range=None,
     **kwargs,
 ):
-    '''
+    """
     Generate a 2D histogram from input data.
 
     Parameters
@@ -74,7 +81,7 @@ def hist_2d(
         Bin centers for the x-axis.
     ys : ndarray
         Bin centers for the y-axis.
-    '''
+    """
     if nbins is not None:
         gridsize = (nbins, nbins)
 
@@ -137,20 +144,47 @@ def hist_2d(
     ys = 0.5 * (ys[:-1] + ys[1:])
     return hist, xs, ys
 
-def render_2d(pos,mass,hsm, which_pos=(0, 1),
-            rotation_matrix=np.eye(3),
-            x_range=(-15, 15),
-            y_range=(-15, 15),
-            nbins=200,
+@overload
+def render_2d(
+    pos: np.ndarray,
+    mass: np.ndarray,
+    hsm: np.ndarray,
+    which_pos: Sequence[int] = ...,
+    rotation_matrix: np.ndarray | None = ...,
+    x_range: Sequence[float] = ...,
+    y_range: Sequence[float] = ...,
+    nbins: int = ...,
+    subsamples: int = ...,
+    ret_image: Literal[True] = True
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
+@overload
+def render_2d(
+    pos: np.ndarray,
+    mass: np.ndarray,
+    hsm: np.ndarray,
+    which_pos: Sequence[int] = ...,
+    rotation_matrix: np.ndarray | None = ...,
+    x_range: Sequence[float] = ...,
+    y_range: Sequence[float] = ...,
+    nbins: int = ...,
+    subsamples: int = ...,
+    ret_image: Literal[False] = False
+) -> PyRenderImage | PyRenderImageFloat: ...
+def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Sequence[int] = (0, 1),
+            rotation_matrix: np.ndarray | None = None,
+            x_range: Sequence[float] = (-15, 15),
+            y_range: Sequence[float] = (-15, 15),
+            nbins: int = 200,
             subsamples: int = 1,
             ret_image: bool = True
-            ):
-    
-    render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, get_kernel(), subsamples, subsamples)
-    # Ensure rotation_matrix dtype matches particle.pos
-    rot = rotation_matrix.T.astype(pos.dtype)
-    pos = Rotate(pos, rot)
+            ) -> (tuple[np.ndarray,np.ndarray, np.ndarray] | PyRenderImage | PyRenderImageFloat):
 
+    render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1],
+                              nbins, nbins, get_kernel(), subsamples, subsamples)
+    # Ensure rotation_matrix dtype matches particle.pos
+    if rotation_matrix is not None:
+        rot = rotation_matrix.T.astype(pos.dtype)
+        pos = Rotate(pos, rot)
 
     render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],mass,hsm)
 
@@ -165,17 +199,17 @@ def render_2d(pos,mass,hsm, which_pos=(0, 1),
 
 
 def show_image(
-    imageData,
-    extent=None,
-    axesObj=None,
-    scale="linear",
-    logscale=True,
-    vmin=None,
-    vmax=None,
-    cmap="jet",
-    clip=True,
-    noErase=False,
-):
+    imageData: np.ndarray,
+    extent: tuple[float, float, float, float] | None = None,
+    axesObj: plt.Axes | None = None,
+    scale: str = "linear",
+    logscale: bool = True,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    cmap: str = "jet",
+    clip: bool = True,
+    noErase: bool = False,
+) -> AxesImage:
     """
     Display a 2D image with optional scaling and color normalization.
 
@@ -206,18 +240,17 @@ def show_image(
         The image object created by imshow.
     """
     imageData = np.asarray(imageData).copy()
-    
+
     if logscale:
         scale = "log"
-
-    if scale == "log":
+    if scale == "linear":
+        cont_color = colors.Normalize(vmin=vmin, vmax=vmax, clip=clip)
+    elif scale == "log":
         vmin = vmin or np.percentile(imageData[imageData > 0], 1)
         vmax = vmax or np.max(imageData[imageData > 0])
         cont_color = colors.LogNorm(vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "symlog":
         cont_color = colors.SymLogNorm(linthresh=1e-3, vmin=vmin, vmax=vmax, clip=clip)
-    elif scale == "linear":
-        cont_color = colors.Normalize(vmin=vmin, vmax=vmax, clip=clip)
     else:
         raise ValueError(f"Unsupported scale: {scale}")
 
@@ -227,9 +260,9 @@ def show_image(
             plt.clf()
         axesImg = plt.imshow(
             imageData,
-            interpolation='nearest',
-            origin='lower',
-            aspect='equal',
+            interpolation="nearest",
+            origin="lower",
+            aspect="equal",
             extent=extent,
             norm=cont_color,
             cmap=cmap,
@@ -237,9 +270,9 @@ def show_image(
     else:
         axesImg = axesObj.imshow(
             imageData,
-            interpolation='nearest',
-            origin='lower',
-            aspect='equal',
+            interpolation="nearest",
+            origin="lower",
+            aspect="equal",
             extent=extent,
             norm=cont_color,
             cmap=cmap,
@@ -249,22 +282,22 @@ def show_image(
 
 
 def show_contour(
-    imageData,
-    xs,
-    ys,
-    axesObj=None,
-    withfilter=False,
-    sigma=None,
-    vmin=None,
-    vmax=None,
-    nlevels=10,
-    levels=None,
-    logscale=True,
-    noErase=False,
-    color='k',
-    linewidth=0.5,
-    linestyle='-',
-):
+    imageData: np.ndarray,
+    xs: np.ndarray,
+    ys: np.ndarray,
+    axesObj: plt.Axes | None = None,
+    withfilter: bool = False,
+    sigma: float | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    nlevels: int = 10,
+    levels: np.ndarray | None = None,
+    logscale: bool = True,
+    noErase: bool = False,
+    color: str = "k",
+    linewidth: float = 0.5,
+    linestyle: str = "-",
+) -> QuadContourSet:
     """
     Function which contour-plots an image.
 
@@ -370,8 +403,14 @@ def show_contour(
 
 
 def add_colorbar(
-    mappable, ax=None, loc="right", size="5%", pad=0.05, label_pad=2, tick_label_size=10
-):
+    mappable: plt.ColorizingArtist,
+    ax: plt.Axes | None = None,
+    loc: str = "right",
+    size: str ="5%",
+    pad: float =0.05,
+    label_pad: float =2,
+    tick_label_size: float = 10
+) -> Colorbar:
     """
     Function which adds a colorbar to a "mappable" object (e.g., the result of
     calling plt.imshow).
@@ -409,18 +448,24 @@ def add_colorbar(
     if loc in ["top", "bottom"]:
         orient = "horizontal"
         if loc == "top":
-            tickPos = 'top'
+            tickPos = "top"
         else:
-            tickPos = 'bottom'
+            tickPos = "bottom"
     else:
         orient = "vertical"
         if loc == "left":
-            tickPos = 'left'
+            tickPos = "left"
         else:
-            tickPos = 'right'
-    ax = ax or mappable.axes
-    fig = ax.figure
-    divider = make_axes_locatable(ax)
+            tickPos = "right"
+    axe: plt.Axes | plt._AxesBase
+    if ax is not None:
+        axe = ax
+    elif mappable.axes is not None:
+        axe = mappable.axes
+    else:
+        raise ValueError("No axes found for colorbar.")
+    fig = axe.figure
+    divider = make_axes_locatable(axe)
     cbar_axes = divider.append_axes(loc, size=size, pad=pad)
     cbar = fig.colorbar(mappable, cax=cbar_axes, orientation=orient)
 

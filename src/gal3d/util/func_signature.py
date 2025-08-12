@@ -1,12 +1,12 @@
 import inspect
 import logging
-import textwrap
+from collections.abc import Callable
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
+from typing import Any, TypeVar
 
 logger = logging.getLogger("gal3d.util.func_signature")
 
-T = TypeVar('T', bound=Callable[..., Any])
+T = TypeVar("T", bound=Callable[..., Any])
 
 class MySignature(inspect.Signature):
     """
@@ -32,7 +32,7 @@ class MySignature(inspect.Signature):
     """
 
     @cached_property
-    def params(self) -> Dict[str, tuple]:
+    def params(self) -> dict[str, tuple]:
         """
         Returns a dictionary mapping parameter names to their kind and default values.
 
@@ -48,8 +48,8 @@ class MySignature(inspect.Signature):
                 for i in self.parameters
             }
         except Exception as e:
-            logger.error(f"Error retrieving parameter information: {e}")
-            raise ValueError(f"Failed to retrieve parameter information: {e}") from e
+            logger.error("Error retrieving parameter information")
+            raise ValueError("Failed to retrieve parameter information") from e
 
     @cached_property
     def kwargs(self) -> bool:
@@ -60,10 +60,10 @@ class MySignature(inspect.Signature):
         -------
         bool
             True if the function accepts keyword arguments, False otherwise.
-            
+
         Notes
         -----
-        This checks for VAR_KEYWORD parameter kind (kind=4), 
+        This checks for VAR_KEYWORD parameter kind (kind=4),
         which represents **kwargs style parameters.
         """
         try:
@@ -71,8 +71,8 @@ class MySignature(inspect.Signature):
                 if self.params[param_name][0] == inspect.Parameter.VAR_KEYWORD:  # 4
                     return True
             return False
-        except Exception as e:
-            logger.error(f"Error checking for kwargs parameter: {e}")
+        except Exception:
+            logger.error("Error checking for kwargs parameter")
             return False
 
     @cached_property
@@ -84,10 +84,10 @@ class MySignature(inspect.Signature):
         -------
         bool
             True if the function accepts positional arguments, False otherwise.
-            
+
         Notes
         -----
-        This checks for VAR_POSITIONAL parameter kind (kind=2), 
+        This checks for VAR_POSITIONAL parameter kind (kind=2),
         which represents *args style parameters.
         """
         try:
@@ -95,11 +95,11 @@ class MySignature(inspect.Signature):
                 if self.params[param_name][0] == inspect.Parameter.VAR_POSITIONAL:  # 2
                     return True
             return False
-        except Exception as e:
-            logger.error(f"Error checking for args parameter: {e}")
+        except Exception:
+            logger.error("Error checking for args parameter")
             return False
 
-    def get_params(self, positional: int = 0, keyword: int = 0, empty: int = 0) -> Dict[str, Any]:
+    def get_params(self, positional: int = 0, keyword: int = 0, empty: int = 0) -> dict[str, Any]:
         """
         Filters and returns parameters based on their kind and default values.
 
@@ -140,7 +140,7 @@ class MySignature(inspect.Signature):
             - VAR_POSITIONAL: 2
             - KEYWORD_ONLY: 3
             - VAR_KEYWORD: 4
-            
+
         Raises
         ------
         ValueError
@@ -176,8 +176,8 @@ class MySignature(inspect.Signature):
             if keyword == 1:
                 # Parameters that can be keyword (POSITIONAL_OR_KEYWORD, KEYWORD_ONLY)
                 available_kinds = [
-                    k for k in available_kinds if 
-                    k == inspect.Parameter.POSITIONAL_OR_KEYWORD or k == inspect.Parameter.KEYWORD_ONLY
+                    k for k in available_kinds if
+                    k in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
                 ]
             elif keyword == 2:
                 # Only strictly keyword parameters
@@ -186,13 +186,16 @@ class MySignature(inspect.Signature):
             # Create filter function based on empty parameter
             if empty == 0:
                 # Include all parameters regardless of default value
-                empty_filter = lambda x: True
+                def empty_filter(x):
+                    return True
             elif empty == 1:
                 # Only parameters with no default value
-                empty_filter = lambda x: x == inspect.Parameter.empty
+                def empty_filter(x):
+                    return x == inspect.Parameter.empty
             else:  # empty == 2
                 # Only parameters with a default value
-                empty_filter = lambda x: x != inspect.Parameter.empty
+                def empty_filter(x):
+                    return x != inspect.Parameter.empty
 
             # Apply filters and build result
             params_result = {}
@@ -202,19 +205,19 @@ class MySignature(inspect.Signature):
                     params_result[param_name] = param_default
 
             return params_result
-            
-        except ValueError as e:
+
+        except ValueError:
             # Re-raise validation errors
-            logger.error(f"Invalid parameter for get_params: {e}")
+            logger.exception("Invalid parameter for get_params")
             raise
         except Exception as e:
             # Handle unexpected errors
             err_msg = f"Error filtering parameters: {e}"
-            logger.error(err_msg, exc_info=True)
+            logger.exception(err_msg)
             raise RuntimeError(err_msg) from e
 
 
-def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
+def update_dict_value(origin: dict, other: dict, **kwargs: dict) -> dict:
     """
     Updates the values in `origin` dictionary with values from `other` dictionary and `kwargs`.
 
@@ -238,7 +241,7 @@ def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
         If `origin` or `other` is not a dictionary.
     RuntimeError
         If an error occurs during the update operation.
-        
+
     Examples
     --------
     >>> original = {'a': 1, 'b': 2}
@@ -251,31 +254,33 @@ def update_dict_value(origin: dict, other: dict, **kwargs) -> dict:
     try:
         # Create a copy of the original dictionary to avoid modifying it
         result_dict = origin.copy()
-        
+
         # Update values from 'other' dictionary
         common_keys = result_dict.keys() & other.keys()
         for key in common_keys:
             result_dict[key] = other[key]
-        
+
         # Update values from kwargs
         common_keys = result_dict.keys() & kwargs.keys()
         for key in common_keys:
             result_dict[key] = kwargs[key]
-            
+
         return result_dict
     except Exception as e:
         error_msg = f"Failed to update dictionary: {e}"
-        logger.error(error_msg, exc_info=True)
+        logger.exception("Failed to update dictionary: %s", origin)
         raise RuntimeError(error_msg) from e
 
 
 # Helper functions to extract parameters from callable objects
-func_optional_key = lambda x: MySignature.from_callable(x).get_params(
+def func_optional_key(x):
+    return MySignature.from_callable(x).get_params(
     positional=0,
     keyword=1,
     empty=2,
 )
-func_required_key = lambda x: MySignature.from_callable(x).get_params(
+def func_required_key(x):
+    return MySignature.from_callable(x).get_params(
     positional=0,
     keyword=0,
     empty=1,

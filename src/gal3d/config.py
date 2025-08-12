@@ -1,21 +1,13 @@
 
 import os
 import warnings
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Literal, Optional
-
-try:
-    import numba    # type: ignore
-except ImportError:
-    NUMBA_AVAILABLE = False
-else:
-    NUMBA_AVAILABLE = True
-
+from typing import Literal
 
 default_thread_count = None
 try:
-    import psutil   # type: ignore
+    import psutil
     default_thread_count = psutil.cpu_count(logical=False)
 except ImportError:
     pass
@@ -26,7 +18,7 @@ if default_thread_count is None:
         default_thread_count = 1
     else:
         default_thread_count = max(default_thread_count // 2, 1)
-    
+
 
 
 class IterationMethod(IntEnum):
@@ -52,7 +44,7 @@ class IterationMethod(IntEnum):
     NEWTON = 1
     HALLEY = 2
     HOUSEHOLDER = 3
-    
+
     @property
     def value(self) -> Literal[1, 2, 3]:
         return super().value
@@ -84,11 +76,11 @@ class GeneralConfig:
         if self.number_of_threads <= 0:
             self.number_of_threads = default_thread_count
 
-        if  not NUMBA_AVAILABLE and not self.use_cython:
+        if  not self.use_cython:
             self.use_cython = True
             warnings.warn(
-                "Numba is not available. Using Cython as a fallback.",
-                UserWarning
+                "Numba support has been disabled. Using Cython as a fallback.",
+                UserWarning, stacklevel=2
             )
 
 @dataclass
@@ -129,8 +121,8 @@ class DensityKNNConfig:
         Leaf size for KNN tree construction. If None, will be set to max(k_neighbors // 2, 10).
     """
     k_neighbors: int = 32
-    leafsize: Optional[int] = None
-    
+    leafsize: int | None = None
+
     def __post_init__(self):
         if self.leafsize is None:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
@@ -155,7 +147,7 @@ class EllipsoidConfig:
     DistIteration: IterationMethod = IterationMethod.HALLEY   # Distance iteration method
     LineIteration: IterationMethod = IterationMethod.HALLEY    # Line iteration method  #TODO, currently only Newton
     MaxIterationDist: int = 100                          # Maximum iterations for ray distance
-    MaxIterationLine: int = 100            
+    MaxIterationLine: int = 100
     # Maximum iterations for line intersection
     def __setattr__(self, name, value):
         if name in ("DistIteration", "LineIteration"):
@@ -192,7 +184,7 @@ class Config:
     densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
     plugin_manager_modules: tuple = field(default_factory=lambda: tuple(PLUGIN_MANAGER_MODULES))
-    
-        
+
+
 # Instantiate configuration
 config: Config = Config()

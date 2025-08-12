@@ -15,7 +15,7 @@ from .minimize_func import MinimizeFunc
 np.import_array()
 
 # Register functions after definition
-def _register_all():
+def register_all():
     """Register all functions with MinimizeFunc"""
     MinimizeFunc.fn_registry(sums_dev)
     MinimizeFunc.fn_registry(sums_dev_byw)
@@ -130,5 +130,3 @@ cpdef double sums_dev_rscale_byw(double[:] f_call, double[:] r, double[:] w):
         h += scaled * scaled * w[i]
     
     return h / n
-
-_register_all()

@@ -1,11 +1,12 @@
 from collections import OrderedDict
+from typing import Any
 
 
 # https://gist.github.com/davesteele/44793cd0348f59f8fadd49d7799bd306
 class CacheDict(OrderedDict):
     """Dict with a limited length, ejecting LRUs as needed."""
 
-    def __init__(self, *args, cache_len: int = 10, **kwargs):
+    def __init__(self, *args: Any, cache_len: int = 10, **kwargs: Any):
         assert cache_len > 0
         self.cache_len = cache_len
 

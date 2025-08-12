@@ -1,27 +1,27 @@
 import numpy as np
-from numpy.typing import ArrayLike
 
-from ...util.array_operate import Rotate, RotateAndShift, Shift
-from ..coordinate import Coordinate, CoordinateBase, Parameters
+from gal3d.shape.coordinate import CoordinateBase
+from gal3d.util.array_operate import Rotate, RotateAndShift, Shift
+
 from ._rotation_eular_util import EulerAngles
 
-__all__ = ['EulerShift']
+__all__ = ["EulerShift"]
 
 
 class EulerShift(CoordinateBase):
 
-    PN = ('x', 'y', 'z', 'ang1', 'ang2', 'ang3')  ##!!!! not use set !!!!
+    PN = ("x", "y", "z", "ang1", "ang2", "ang3")  ##!!!! not use set !!!!
     LB = {
-        'x': -0.2,
-        'y': -0.2,
-        'z': -0.2,
-        'ang1': -np.pi,
-        'ang2': -np.pi / 2,
-        'ang3': -np.pi,
+        "x": -0.2,
+        "y": -0.2,
+        "z": -0.2,
+        "ang1": -np.pi,
+        "ang2": -np.pi / 2,
+        "ang3": -np.pi,
     }
-    UB = {'x': 0.2, 'y': 0.2, 'z': 0.2, 'ang1': np.pi, 'ang2': np.pi / 2, 'ang3': np.pi}
+    UB = {"x": 0.2, "y": 0.2, "z": 0.2, "ang1": np.pi, "ang2": np.pi / 2, "ang3": np.pi}
 
-    EulerSeq = 'zyx'
+    EulerSeq = "zyx"
 
     def __init__(self, x, y, z, ang1, ang2, ang3, **kwargs):
         """
@@ -40,11 +40,11 @@ class EulerShift(CoordinateBase):
         """
         super().__init__(x=x,y=y,z=z,ang1=ang1,ang2=ang2,ang3=ang3)
 
-        self._seq = kwargs.get('seq', EulerShift.EulerSeq)
+        self._seq = kwargs.get("seq", EulerShift.EulerSeq)
         self._rotation = EulerAngles.from_euler(
             seq=self._seq, angles=[ang1, ang2, ang3]
         )
-        
+
     @classmethod
     def default_parameters(cls):
         """
@@ -53,12 +53,12 @@ class EulerShift(CoordinateBase):
         return cls.create_parameters(
             x=0.0, y=0.0, z=0.0, ang1=0.0, ang2=0.0, ang3=0.0
         )
-        
+
     @classmethod
     def derived_param_funcs(cls):
         return {
-            'pos': lambda d: np.array([d['x'], d['y'], d['z']]),
-            'angle': lambda d: np.array([d['ang1'], d['ang2'], d['ang3']]),
+            "pos": lambda d: np.array([d["x"], d["y"], d["z"]]),
+            "angle": lambda d: np.array([d["ang1"], d["ang2"], d["ang3"]]),
         }
 
 
@@ -77,10 +77,10 @@ class EulerShift(CoordinateBase):
             A tuple of six arrays representing the Jacobian matrices for the transformed positions
             with respect to the translation and rotation parameters.
         """
-        pos1 = Shift(pos, -self['pos'])
+        pos1 = Shift(pos, -self["pos"])
         N_p = len(pos)
         d_ang1, d_ang2, d_ang3 = self._rotation.jacobian_euler(pos=pos1, seq=self._seq)
-        rotmatrix = self._rotation.as_matrix()
+        self._rotation.as_matrix()
 
         d_Px = np.array(
             [
@@ -109,7 +109,7 @@ class EulerShift(CoordinateBase):
             The transformed positions.
         """
         pos = self.to_3d_array(pos)
-        return Shift(Rotate(pos.copy(), self._rotation.as_matrix()), self['pos'])
+        return Shift(Rotate(pos.copy(), self._rotation.as_matrix()), self["pos"])
 
     def inverse(self, pos):
         """
@@ -126,7 +126,7 @@ class EulerShift(CoordinateBase):
             The inverse transformed positions.
         """
         pos = self.to_3d_array(pos)
-        return Rotate(Shift(pos.copy(), -self['pos']), self._rotation.as_matrix().T)
+        return Rotate(Shift(pos.copy(), -self["pos"]), self._rotation.as_matrix().T)
 
     @staticmethod
     def quick_call(x, y, z, ang1, ang2, ang3, pos):
@@ -184,7 +184,7 @@ class EulerShift(CoordinateBase):
 
         pc = np.float64([x, y, z])
 
-        matrix = EulerAngles.from_euler(
+        EulerAngles.from_euler(
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
         ).as_matrix()
         pos1 = Shift(pos, -pc)
@@ -192,7 +192,7 @@ class EulerShift(CoordinateBase):
         Rt = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3])
         d_ang1, d_ang2, d_ang3 = Rt.jacobian_euler(pos=pos1, seq=EulerShift.EulerSeq)
 
-        rotmatrix = Rt.as_matrix()
+        Rt.as_matrix()
 
         d_Px = np.array(
             [

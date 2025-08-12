@@ -1,15 +1,16 @@
 import logging
-from typing import Callable, Union, overload,Any
+from collections.abc import Callable
+from typing import Any, overload
 
 import numpy as np
 
 from .lu_mono_cy import LU_Mono
 
-logger = logging.getLogger('gal3d.field.ray.MonotonRay')
+logger = logging.getLogger("gal3d.field.ray.MonotonRay")
 
 
 def judge_monoton(x: np.ndarray, is_decreasing: bool = True) -> bool:
-    '''
+    """
     Judge whether the array `x` is monotonically decreasing or increasing.
 
     Parameters
@@ -24,7 +25,7 @@ def judge_monoton(x: np.ndarray, is_decreasing: bool = True) -> bool:
     -------
     bool
         True if `x` is monotonic (either decreasing or increasing based on `is_decreasing`), False otherwise.
-    '''
+    """
 
     if is_decreasing:
         judge_mono = all(np.diff(x) < 0)
@@ -40,10 +41,10 @@ class MonotonRay:
         self,
         r: np.ndarray,
         f: np.ndarray,
-        is_decreasing=True,
-        interpolator_method: str = 'LU',
-        interpolator_kwargs: dict = dict(),
-        **kwargs,
+        is_decreasing: bool = True,
+        interpolator_method: str = "LU",
+        interpolator_kwargs: dict | None = None,
+        **kwargs: Any,
     ):
         """
         Parameters
@@ -90,18 +91,20 @@ class MonotonRay:
         """
 
         # r must be increasing
+        if interpolator_kwargs is None:
+            interpolator_kwargs = {}
         if not judge_monoton(r, is_decreasing=False):
-            raise ValueError(f"'r' must be strictly increasing sequence.")
+            raise ValueError("'r' must be strictly increasing sequence.")
         interpolator = self._interpolator_method[interpolator_method]
 
         self._interpolator: LU_Mono = interpolator(r, f, is_decreasing=is_decreasing, **interpolator_kwargs)
-        
+
     @overload
     def __call__(self, value: float, inv: bool = False) -> float: ...
     @overload
     def __call__(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def __call__(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
-        '''
+    def __call__(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+        """
         Evaluate the interpolated function at a given value.
 
         Parameters
@@ -115,17 +118,17 @@ class MonotonRay:
         -------
         float or array-like
             The interpolated value(s) of f(r) or r(f).
-        '''
+        """
         if inv:
             return self._interpolator.inv_f_value(value)
         return self._interpolator.f_value(value)
-    
+
     @overload
     def lower(self, value: float, inv: bool = False) -> float: ...
     @overload
     def lower(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def lower(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
-        '''
+    def lower(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+        """
         Evaluate the lower bound of the interpolated function at a given value.
 
         Parameters
@@ -139,17 +142,17 @@ class MonotonRay:
         -------
         float or array-like
             The lower bound value(s) of f(r) or r(f).
-        '''
+        """
         if inv:
             return self._interpolator.inv_f_lower(value)
         return self._interpolator.f_lower(value)
-    
+
     @overload
     def upper(self, value: float, inv: bool = False) -> float: ...
     @overload
     def upper(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def upper(self, value: Union[float, np.ndarray], inv: bool =False) -> Union[float, np.ndarray]:
-        '''
+    def upper(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+        """
         Evaluate the upper bound of the interpolated function at a given value.
 
         Parameters
@@ -163,13 +166,13 @@ class MonotonRay:
         -------
         float or array-like
             The upper bound value(s) of f(r) or r(f).
-        '''
+        """
         if inv:
             return self._interpolator.inv_f_upper(value)
         return self._interpolator.f_upper(value)
 
     @staticmethod
-    def interpolator_registry(fn: Union[str, Callable[..., Any], type]) -> Callable[..., Any] | type:
+    def interpolator_registry(fn: str | Callable[..., Any] | type) -> Callable[..., Any] | type:
         if callable(fn):
             MonotonRay._interpolator_method[fn.__name__] = fn
             return fn
@@ -186,4 +189,4 @@ class MonotonRay:
 
 
 
-MonotonRay.interpolator_registry('LU')(LU_Mono)
+MonotonRay.interpolator_registry("LU")(LU_Mono)

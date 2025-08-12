@@ -1,8 +1,8 @@
 import numpy as np
-from scipy.special import sph_harm  # type: ignore
+from scipy.special import sph_harm
 
 
-def spherical_harmonics_in_real(phi, theta, m, l) -> float:
+def spherical_harmonics_in_real(phi: np.ndarray | float, theta: np.ndarray | float, m: int, l: int) -> float:
     """
     Calculate the real part of spherical harmonics for given angles and indices.
 
@@ -20,15 +20,15 @@ def spherical_harmonics_in_real(phi, theta, m, l) -> float:
     Returns
     -------
     float or np.ndarray
-        The real part of the spherical harmonic :math:`Y_l^m(\phi, \theta)`.
+        The real part of the spherical harmonic :math:`Y_l^m(\\phi, \theta)`.
 
     Notes
     -----
     The function computes the real part of the spherical harmonic using the relation:
 
-    - For :math:`m < 0`: :math:`Y_l^m = (-1)^m \sqrt{2} \, \mathrm{Im}(Y_l^{|m|})`
-    - For :math:`m > 0`: :math:`Y_l^m = (-1)^m \sqrt{2} \, \mathrm{Re}(Y_l^{|m|})`
-    - For :math:`m = 0`: :math:`Y_l^0 = \mathrm{Re}(Y_l^0)`
+    - For :math:`m < 0`: :math:`Y_l^m = (-1)^m \\sqrt{2} \\, \\mathrm{Im}(Y_l^{|m|})`
+    - For :math:`m > 0`: :math:`Y_l^m = (-1)^m \\sqrt{2} \\, \\mathrm{Re}(Y_l^{|m|})`
+    - For :math:`m = 0`: :math:`Y_l^0 = \\mathrm{Re}(Y_l^0)`
     """
 
     if m < 0:
@@ -39,8 +39,8 @@ def spherical_harmonics_in_real(phi, theta, m, l) -> float:
         return np.real(sph_harm(m, l, phi, theta))
 
 
-def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict[int, np.ndarray]:
-    '''
+def spherical_harmonics_dec(theta: np.ndarray, phi: np.ndarray, density: np.ndarray, lmax: int = 4) -> dict[int, np.ndarray]:
+    """
     Perform spherical harmonics decomposition on a given density distribution.
 
     Parameters
@@ -65,7 +65,7 @@ def spherical_harmonics_dec(theta, phi, density, lmax=4) -> dict[int, np.ndarray
     The function computes the spherical harmonics coefficients by integrating the density
     distribution multiplied by the spherical harmonics over the sphere. The integration
     is approximated by a sum over the provided grid of theta and phi values.
-    '''
+    """
 
     coef: dict[int, np.ndarray] = {}
     for l in range(lmax + 1):

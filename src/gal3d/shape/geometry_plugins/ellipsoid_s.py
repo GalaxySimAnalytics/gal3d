@@ -1,12 +1,10 @@
 
-import logging
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike
 
 from gal3d.config import config
-
-from ..geometry import GeometryBase, Parameters
+from gal3d.shape.geometry import GeometryBase
 
 from .ellipsoid_s_cy import (
     IntersectLinesEllipsoid_S,
@@ -16,21 +14,21 @@ from .ellipsoid_s_cy import (
     f_shaped_ellipsoid_jacobian,
 )
 
-__all__ = ['Ellipsoid_S']
+__all__ = ["Ellipsoid_S"]
 
 class Ellipsoid_S(GeometryBase):
     """
     A shaped ellipsoid geometry class.
-    
+
     This class implements a generalized ellipsoid with shape parameters that allow
     for more flexible modeling of 3D geometric shapes.
     """
 
     # Using a tuple instead of a set to maintain order and allow duplicates if needed.
-    PN = ('a', 'eps_ab', 'eps_bc', 'sa', 'sb', 'sc')
-    LB = {'a': 0.1, 'eps_ab': 0.01, 'eps_bc': 0.01, 'sa': 0.2, 'sb': 0.2, 'sc': 0.2}
-    UB = {'a': np.inf, 'eps_ab': 0.99, 'eps_bc': 0.99, 'sa': 2, 'sb': 2, 'sc': 2}
-    
+    PN = ("a", "eps_ab", "eps_bc", "sa", "sb", "sc")
+    LB = {"a": 0.1, "eps_ab": 0.01, "eps_bc": 0.01, "sa": 0.2, "sb": 0.2, "sc": 0.2}
+    UB = {"a": np.inf, "eps_ab": 0.99, "eps_bc": 0.99, "sa": 2, "sb": 2, "sc": 2}
+
     def __init__(self, *args, **kwargs):
         """
         Initializes the Ellipsoid_S instance with given parameters.
@@ -55,21 +53,21 @@ class Ellipsoid_S(GeometryBase):
             An instance of the Parameters class containing default shaped ellipsoid parameters.
         """
         return cls.create_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5, sa=1.0, sb=1.0, sc=1.0)
-    
+
     @classmethod
     def derived_param_funcs(cls):
         return {
-            'eps_ab': lambda d: 1.0 - d['b'] / d['a'],
-            'eps_bc': lambda d: 1.0 - d['c'] / d['b'],
-            'eps_ac': lambda d: 1.0 - d['c'] / d['a'],
-            'b': lambda d: (
-                d['a'] * (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_bc'])
+            "eps_ab": lambda d: 1.0 - d["b"] / d["a"],
+            "eps_bc": lambda d: 1.0 - d["c"] / d["b"],
+            "eps_ac": lambda d: 1.0 - d["c"] / d["a"],
+            "b": lambda d: (
+                d["a"] * (1 - d["eps_ab"]) if "eps_ab" in d else d["c"] / (1 - d["eps_bc"])
             ),
-            'c': lambda d: (
-                d['b'] * (1 - d['eps_bc']) if 'eps_bc' in d else d['a'] * (1 - d['eps_ac'])
+            "c": lambda d: (
+                d["b"] * (1 - d["eps_bc"]) if "eps_bc" in d else d["a"] * (1 - d["eps_ac"])
             ),
-            'a': lambda d: (
-                d['b'] / (1 - d['eps_ab']) if 'eps_ab' in d else d['c'] / (1 - d['eps_ac'])
+            "a": lambda d: (
+                d["b"] / (1 - d["eps_ab"]) if "eps_ab" in d else d["c"] / (1 - d["eps_ac"])
             ),
         }
 
@@ -90,7 +88,7 @@ class Ellipsoid_S(GeometryBase):
         """
         pos = self.to_3d_array(pos)
         return f_shaped_ellipsoid(
-            self['a'], self['b'], self['c'], self['sa'], self['sb'], self['sc'], pos
+            self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos
         )
 
     def jacobian(self, pos: ArrayLike) -> tuple:
@@ -109,7 +107,7 @@ class Ellipsoid_S(GeometryBase):
         """
         pos = self.to_3d_array(pos)
         return f_shaped_ellipsoid_jacobian(
-            self['a'], self['b'], self['c'], self['sa'], self['sb'], self['sc'], pos
+            self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos
         )
 
     def ray_intersect(self, pos: ArrayLike) -> tuple:
@@ -128,12 +126,12 @@ class Ellipsoid_S(GeometryBase):
         """
         pos = self.to_3d_array(pos)
         return IntersectRaysEllipsoid_S(
-            self['a'],
-            self['b'],
-            self['c'],
-            self['sa'],
-            self['sb'],
-            self['sc'],
+            self["a"],
+            self["b"],
+            self["c"],
+            self["sa"],
+            self["sb"],
+            self["sc"],
             pos,
             config.ellipsoid_s.MaxIterationDist,
         )
@@ -144,12 +142,12 @@ class Ellipsoid_S(GeometryBase):
         pos2 = self.to_3d_array(pos2)
 
         return IntersectLinesEllipsoid_S(
-            self['a'],
-            self['b'],
-            self['c'],
-            self['sa'],
-            self['sb'],
-            self['sc'],
+            self["a"],
+            self["b"],
+            self["c"],
+            self["sa"],
+            self["sb"],
+            self["sc"],
             pos1,
             pos2,
             config.ellipsoid_s.MaxIterationLine,
@@ -167,24 +165,24 @@ class Ellipsoid_S(GeometryBase):
         """
         pos = self.to_3d_array(pos)
         return f_ray_shaped_ellipsoid(
-            self['a'],
-            self['b'],
-            self['c'],
-            self['sa'],
-            self['sb'],
-            self['sc'],
+            self["a"],
+            self["b"],
+            self["c"],
+            self["sa"],
+            self["sb"],
+            self["sc"],
             pos,
             config.ellipsoid_s.MaxIterationDist,
         )
 
     @staticmethod
-    def quick_call(a, eps_ab, eps_bc, sa, sb, sc, pos) -> np.ndarray:
+    def quick_call(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> np.ndarray:
         """
         Quickly evaluates the ellipsoid function with the given parameters and positions.
 
         This method is a simplified and faster version of the `__call__` method, designed for use in scenarios
-        where performance is critical, such as optimization or error function evaluations. It computes the 
-        ellipsoid function values directly using the provided parameters without relying on the instance's 
+        where performance is critical, such as optimization or error function evaluations. It computes the
+        ellipsoid function values directly using the provided parameters without relying on the instance's
         internal state.
 
         Parameters
@@ -214,7 +212,7 @@ class Ellipsoid_S(GeometryBase):
         return f_shaped_ellipsoid(a, b, c, sa, sb, sc, pos)
 
     @staticmethod
-    def quick_f_ray_d(a, eps_ab, eps_bc, sa, sb, sc, pos) -> np.ndarray:
+    def quick_f_ray_d(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> np.ndarray:
         """Quickly evaluates the distance fraction of the geometry function with given parameters and positions, useful in error function"""
 
         b = a * (1 - eps_ab)
@@ -224,7 +222,7 @@ class Ellipsoid_S(GeometryBase):
         )
 
     @staticmethod
-    def quick_ray_dist(a, eps_ab, eps_bc, sa, sb, sc, pos) -> np.ndarray:
+    def quick_ray_dist(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> np.ndarray:
         """
         Quickly computes the distance between points and ray points on the ellipsoid.
 
@@ -261,7 +259,7 @@ class Ellipsoid_S(GeometryBase):
         )[1]
 
     @staticmethod
-    def quick_line_intersect(a, eps_ab, eps_bc, sa, sb, sc, pos1, pos2) -> np.ndarray:
+    def quick_line_intersect(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos1: np.ndarray, pos2: np.ndarray) -> np.ndarray:
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
         return IntersectLinesEllipsoid_S(
@@ -277,7 +275,7 @@ class Ellipsoid_S(GeometryBase):
         )
 
     @staticmethod
-    def quick_jacobian(a, b, c, sa, sb, sc, pos) -> tuple:
+    def quick_jacobian(a: float, b: float, c: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> tuple:
         """
         Quickly computes the Jacobian of the ellipsoid function at the given positions.
 

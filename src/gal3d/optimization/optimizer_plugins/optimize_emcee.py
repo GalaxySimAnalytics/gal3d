@@ -1,7 +1,12 @@
-import emcee    # type: ignore
-import numpy as np
+from collections.abc import Callable
+from typing import Any
 
-from ..optimizer import OptimizerBase, OptimizeResult
+import emcee
+import numpy as np
+from numpy.typing import ArrayLike
+from scipy.optimize import Bounds
+
+from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
 
 
 class OptimizerEmcee(OptimizerBase):
@@ -9,20 +14,22 @@ class OptimizerEmcee(OptimizerBase):
     Optimization using the emcee library (MCMC sampling). Converts least squares fun to log_prob and applies bounds.
     """
 
-    def __init__(self, algorithm="emcee", algo_options=dict()):
+    def __init__(self, algorithm:str ="emcee", algo_options: dict | None=None):
+        if algo_options is None:
+            algo_options = {}
         super().__init__(algorithm, algo_options)
 
     def fitting(
         self,
-        fun,
-        x0,
-        bounds,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
         nwalkers: int = 32,
         nsteps: int = 1000,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> OptimizeResult:
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
 
@@ -33,11 +40,12 @@ class OptimizerEmcee(OptimizerBase):
             # fun is sum of squared residuals, convert to log_prob
             chi2 = fun(x, *func_args, **func_kwargs)
             return -0.5 * chi2
-
-        ndim = len(x0)
+        start_params = np.asarray(x0)
+        ndim: int = len(start_params)
         start_fun = fun(x0, *func_args, **func_kwargs)
         # Initialize sampler
-        pos = x0 + 1e-4 * np.random.randn(nwalkers, ndim)
+        rng = np.random.default_rng()
+        pos = start_params + 1e-4 * rng.normal(size=(nwalkers, ndim))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
 
         sampler.run_mcmc(pos, nsteps, progress=False)
@@ -50,7 +58,7 @@ class OptimizerEmcee(OptimizerBase):
         res = OptimizeResult(
             params=best_x,
             fun=best_fun,
-            start_params = x0,
+            start_params = start_params,
             start_fun = start_fun,
             algorithm = "emcee",
             success=True,

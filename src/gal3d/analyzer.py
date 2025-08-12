@@ -1,16 +1,16 @@
 import logging
-
-from typing import Callable, Dict, Iterable, Tuple, Union
+from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
-from tqdm import tqdm   # type: ignore
+from tqdm import tqdm
 
-from .field import SphField, SphVector
+from .field import SphField
+from .fit_workflow.fit_workflow import FitWorkflow
 from .optimization.optimizer import Optimizer, OptimizerBase
-from .optimization.result import ModelResult, EmptyModelResult
+from .optimization.result import EmptyModelResult, ModelResult
 from .point import Particles
 from .shape import Structure3D
-from .fit_workflow.fit_workflow import FitWorkflow
 
 logger = logging.getLogger("gal3d.analyzer")
 
@@ -46,13 +46,13 @@ class Gal3DAnalyzer:
         self.field = field
         self.structure = structure
         self.optimizer = optimizer
-        
+
     @staticmethod
     def analyze(
         pos: np.ndarray,
         mass: np.ndarray,
         recenter: bool = True,
-        **kwargs
+        **kwargs: Any
     ) -> "Gal3DAnalyzer":
         """
         Analyze the given particle data.
@@ -79,25 +79,25 @@ class Gal3DAnalyzer:
         """
 
         particle = Particles(pos=pos, mass=mass, recenter=recenter)
-        
+
         if "res_r" not in kwargs:
             res_r = particle.estimate_spatial_resolution()
         else:
             res_r = kwargs["res_r"]
         if "res_r_max" in kwargs:
-            res_r = min(res_r, kwargs['res_r_max'])
-        
+            res_r = min(res_r, kwargs["res_r_max"])
+
         res_m = particle.estimate_mass_resolution()
         logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
 
         Num_rays = min(1024,int(len(particle.r)/150))
         Num_rays = max(Num_rays,64)
-        
+
         inner = res_r/2
-        inner_mode = 'dist'
-        
+        inner_mode = "dist"
+
         outer = res_m/(4*np.pi/3*(3*res_r)**3)
-        outer_mode = 'value'
+        outer_mode = "value"
 
         logger.info("Set inner radius to %f", inner)
         logger.info("Set outer value to %f", outer)
@@ -108,18 +108,18 @@ class Gal3DAnalyzer:
                 ).build_profile_interpolator(
                 ).build_isodensity_profile(
                 )
-                
-        ellipsoid_s = Structure3D(coordinate='EulerShift',geometry='Ellipsoid_S',error_func='sums_dev_rscale',error_method='isodensity_dcall')
-        optimizer = Optimizer.get_plugin(name = 'OptimizerScipy')(algorithm='Powell') # OptimizerScipy Powell
-        
+
+        ellipsoid_s = Structure3D(coordinate="EulerShift",geometry="Ellipsoid_S",error_func="sums_dev_rscale",error_method="isodensity_dcall")
+        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell") # OptimizerScipy Powell
+
         ellipsoid_s.parameters.set_ub(x=inner,y=inner,z=inner)
         ellipsoid_s.parameters.set_lb(x=-inner,y=-inner,z=-inner)
 
         return Gal3DAnalyzer(particle=particle,field=field,structure=ellipsoid_s,optimizer=optimizer)
-    
-    
-    def fit(self, num_step:int = 200, step_mode: str = 'log', **kwargs):
-        """ 
+
+
+    def fit(self, num_step:int = 200, step_mode: str = "log", **kwargs: Any) -> ModelResult:
+        """
         Fit the model to the data.
 
         Parameters
@@ -133,15 +133,15 @@ class Gal3DAnalyzer:
         r_min = max(np.median(self.field.inner_r)*6,self.field.iso_pro_r[0]*3)
         r_max = min(self.field.iso_pro_r[-1],np.median(self.field.outer_r))
 
-        if step_mode == 'log':
+        if step_mode == "log":
             r = np.geomspace(r_min, r_max, num_step)
         else:
             r = np.linspace(r_min, r_max, num_step)
 
         return self._fit(r,**kwargs)
-        
 
-    def _fit(self, r: Union[float, Iterable] = np.geomspace(1, 10, 200), **kwargs) -> ModelResult:
+
+    def _fit(self, r: float | Iterable = np.geomspace(1, 10, 200), **kwargs: Any) -> ModelResult:
         """
         Fit the model to a single radius or a sequence of radii.
 
@@ -155,10 +155,10 @@ class Gal3DAnalyzer:
 
         Returns
         -------
-        ModelResult 
+        ModelResult
         """
         workflow = self.get_workflow()
-        logger.info(f"Using workflow: {workflow.__class__.__name__}")
+        logger.info("Using workflow: %s", workflow.__class__.__name__)
 
         if not isinstance(r, Iterable):
             return workflow(self, r, **kwargs)
@@ -169,7 +169,7 @@ class Gal3DAnalyzer:
                 try:
                     if resall:
                         res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
-                        kwargs['init_parameters'] = res_value
+                        kwargs["init_parameters"] = res_value
                     res = workflow(self, i, **kwargs)
                     resall.append(res)
                 except Exception as e:
@@ -180,8 +180,8 @@ class Gal3DAnalyzer:
 
             if errors:
                 for etype, radii in errors.items():
-                    logger.error(f"{etype}: Skipped radii: {', '.join(radii)}")
-            
+                    logger.error("%s: Skipped radii: %s", etype, ", ".join(radii))
+
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])
             else:

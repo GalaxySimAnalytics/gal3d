@@ -1,18 +1,15 @@
 import logging
-import os
-from typing import Annotated
+from typing import Any
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import NDArray
 
-from .with_parameter import WithParameter, abstractmethod
-from ..optimization.parameter import Parameters
-
-from gal3d.config import config
 from gal3d.plugin import PluginBase, PluginManager
 from gal3d.util.array_operate import Auto3DShape
 
-__all__ = ['Geometry', 'GeometryBase']
+from .with_parameter import WithParameter, abstractmethod
+
+__all__ = ["Geometry", "GeometryBase"]
 
 logger = logging.getLogger("gal3d.shape.geometry")
 
@@ -20,7 +17,7 @@ logger = logging.getLogger("gal3d.shape.geometry")
 class GeometryBase(WithParameter,PluginBase,Auto3DShape):
     """Abstract base class for geometry models."""
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any):
         """
         Automatically registers geometry plugins upon subclass initialization.
         """
@@ -28,7 +25,8 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         valid = getattr(cls, "_parameter_valid", True)
         delattr(cls, "_parameter_valid")
         if not valid:
-            logger.warning(f"GeometryPlugin found: {cls.__name__} but failed to load")
+            logger.warning("GeometryPlugin found: %s but failed to load",
+                           cls.__name__)
             return
         Geometry.register(cls)
 
@@ -47,7 +45,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Evaluated results at the given positions.
         """
-        pass
 
     @abstractmethod
     def jacobian(self, pos: NDArray[np.float64]) -> tuple:
@@ -64,7 +61,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         tuple
             The Jacobian matrix.
         """
-        pass
 
     @abstractmethod
     def ray_intersect(self, pos: NDArray[np.float64]) -> tuple:
@@ -81,7 +77,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         tuple
             A tuple (position, distance) of intersection point and distance along the ray.
         """
-        pass
 
     @abstractmethod
     def line_intersect(
@@ -102,7 +97,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Intersection point(s) with the geometry surface.
         """
-        pass
 
     @abstractmethod
     def f_ray_d(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -119,7 +113,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Normalized distances; 1.0 means exactly on the surface.
         """
-        pass
 
     def ray_point(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
         """
@@ -155,7 +148,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
     @staticmethod
     @abstractmethod
-    def quick_call(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_call(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Quickly evaluate the geometry function with given parameters.
 
@@ -164,11 +157,10 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Evaluated result.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_f_ray_d(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_f_ray_d(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Quickly compute normalized ray distance with given parameters.
 
@@ -177,11 +169,10 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Normalized ray distances.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_ray_dist(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_ray_dist(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Quickly compute distance between points and corresponding ray-surface points.
 
@@ -190,11 +181,10 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Distances to the surface.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_line_intersect(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_line_intersect(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Quickly compute the intersection between a line segment and the geometry surface.
 
@@ -203,11 +193,10 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         ndarray of float64
             Intersection point(s).
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_jacobian(*args, **kwargs) -> tuple:
+    def quick_jacobian(*args: Any, **kwargs: Any) -> tuple:
         """
         Quickly compute the Jacobian of the geometry function.
 
@@ -216,7 +205,6 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         tuple
             The Jacobian matrix.
         """
-        pass
 
 
 class Geometry(PluginManager[GeometryBase]):

@@ -1,16 +1,15 @@
 import logging
-import os
-from typing import List
+from typing import Any
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
-
-from .with_parameter import Parameters, WithParameter, abstractmethod
+from numpy.typing import NDArray
 
 from gal3d.plugin import PluginBase, PluginManager
 from gal3d.util.array_operate import Auto3DShape
 
-__all__ = ['Coordinate', 'CoordinateBase']
+from .with_parameter import WithParameter, abstractmethod
+
+__all__ = ["Coordinate", "CoordinateBase"]
 
 logger = logging.getLogger("gal3d.shape.coordinate")
 
@@ -22,11 +21,11 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
 
     Methods
     -------
-    __call__(pos): 
+    __call__(pos):
         Transforms the given position using the current coordinate system.
-    jacobian(pos): 
+    jacobian(pos):
         Computes the Jacobian of the transformation at the given positions.
-    inverse(pos): 
+    inverse(pos):
         Inverse transforms the given position.
     """
 
@@ -38,7 +37,8 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         valid = getattr(cls, "_parameter_valid", True)
         delattr(cls, "_parameter_valid")
         if not valid:
-            logger.warning(f"CoordinatePlugin found: {cls.__name__} but failed to load")
+            logger.warning("CoordinatePlugin found: %s but failed to load",
+                           cls.__name__)
             return
         Coordinate.register(cls)
 
@@ -57,7 +57,6 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         ndarray of float64
             The transformed positions.
         """
-        pass
 
     @abstractmethod
     def jacobian(self, pos: NDArray[np.float64]) -> tuple:
@@ -74,7 +73,6 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         tuple
             The Jacobian matrices.
         """
-        pass
 
     @abstractmethod
     def inverse(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -91,11 +89,10 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         ndarray of float64
             The original (inverse-transformed) positions.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_call(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_call(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Fast version of the coordinate transformation.
 
@@ -104,11 +101,10 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         ndarray of float64
             Transformed positions.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_jacobian(*args, **kwargs) -> tuple:
+    def quick_jacobian(*args: Any, **kwargs: Any) -> tuple:
         """
         Fast version of the Jacobian computation.
 
@@ -117,11 +113,10 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         tuple
             Jacobian matrices.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def quick_inverse(*args, **kwargs) -> NDArray[np.float64]:
+    def quick_inverse(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
         """
         Fast version of the inverse coordinate transformation.
 
@@ -130,7 +125,6 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         ndarray of float64
             Inverse-transformed positions.
         """
-        pass
 
 
 class Coordinate(PluginManager[CoordinateBase]):

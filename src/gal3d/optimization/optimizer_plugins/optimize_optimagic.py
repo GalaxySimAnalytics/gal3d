@@ -1,10 +1,15 @@
 
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 import optimagic as om
+from numpy.typing import ArrayLike
+from scipy.optimize import Bounds
 
-from ..optimizer import OptimizerBase,OptimizeResult
+from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
 
-__all__ = ['OptimizerOptimagic']
+__all__ = ["OptimizerOptimagic"]
 
 
 class OptimizerOptimagic(OptimizerBase):
@@ -13,25 +18,28 @@ class OptimizerOptimagic(OptimizerBase):
     optimagic is a Python package for numerical optimization.
     """
 
-    def __init__(self, algorithm, algo_options=dict()):
+    def __init__(self, algorithm: str, algo_options: dict | None = None):
+        if algo_options is None:
+            algo_options = {}
         super().__init__(algorithm, algo_options)
 
     def fitting(
         self,
-        fun,
-        x0,
-        bounds,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> OptimizeResult:
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
-
-        fn = lambda x: fun(x, *func_args, **func_kwargs)
+        start_params = np.asarray(x0)
+        def fn(x):
+            return fun(x, *func_args, **func_kwargs)
         om_result = om.minimize(
             fun=fn,
-            params=np.asarray(x0),
+            params=start_params,
             algorithm=self.algo_name,
             bounds=bounds,
             algo_options=self.algo_options,
@@ -47,11 +55,11 @@ class OptimizerOptimagic(OptimizerBase):
             }
         else:
             multistart = None
-        
+
         result = OptimizeResult(
         params=om_result.x,
         fun=om_result.fun,
-        start_params=x0,
+        start_params=start_params,
         start_fun=om_result.start_fun,
         algorithm = self.algo_name,
         success=om_result.success,

@@ -1,12 +1,18 @@
-import nlopt    # type: ignore
+from collections.abc import Callable
+from typing import Any
 
-from ..optimizer import OptimizerBase, OptimizeResult, NDArray
+import nlopt
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+from scipy.optimize import Bounds
 
-__all__ = ['OptimizerNLopt']
+from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
+
+__all__ = ["OptimizerNLopt"]
 
 
 # from optimagic
-def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj, solution_x: NDArray, is_global: bool) -> OptimizeResult:
+def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj: Any, solution_x: NDArray, is_global: bool) -> OptimizeResult:
     messages = {
         1: "Convergence achieved ",
         2: (
@@ -49,38 +55,42 @@ class OptimizerNLopt(OptimizerBase):
     NLopt is a free/open-source library for nonlinear optimization
     """
 
-    def __init__(self, algorithm, algo_options=dict()):
+    def __init__(self, algorithm: str, algo_options: dict | None=None):
+        if algo_options is None:
+            algo_options = {}
         super().__init__(algorithm, algo_options)
 
     def fitting(
         self,
-        fun,
-        x0,
-        bounds,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> OptimizeResult:
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
 
-        is_global = self.algo_name[0] == 'G'
-        opt = nlopt.opt(getattr(nlopt, self.algo_name), len(x0))
-        fn = lambda x, *_: fun(x, *func_args, **func_kwargs)
+        is_global = self.algo_name[0] == "G"
+        start_params = np.asarray(x0)
+        opt = nlopt.opt(getattr(nlopt, self.algo_name), len(start_params))
+        def fn(x, *_):
+            return fun(x, *func_args, **func_kwargs)
         opt.set_min_objective(fn)
         opt.set_lower_bounds(bounds.lb)
         opt.set_upper_bounds(bounds.ub)
 
-        opt.set_ftol_abs(self.algo_options.get('ftol_abs', 0))
+        opt.set_ftol_abs(self.algo_options.get("ftol_abs", 0))
         # opt.set_ftol_rel(algo_options.get('ftol_res',0))
-        opt.set_xtol_rel(self.algo_options.get('xtol_rel', 1e-5))
-        opt.set_xtol_abs(self.algo_options.get('xtol_abs', 0))
-        opt.set_maxeval(self.algo_options.get('maxeval', len(x0) * 1000))
+        opt.set_xtol_rel(self.algo_options.get("xtol_rel", 1e-5))
+        opt.set_xtol_abs(self.algo_options.get("xtol_abs", 0))
+        opt.set_maxeval(self.algo_options.get("maxeval", len(start_params) * 1000))
 
-        xopt = opt.optimize(x0)
-        start_fun = fun(x0, *func_args, **func_kwargs)
-        return _process_nlopt_results(self.algo_name,x0, start_fun, opt, xopt, is_global)
+        xopt = opt.optimize(start_params)
+        start_fun = fun(start_params, *func_args, **func_kwargs)
+        return _process_nlopt_results(self.algo_name, start_params, start_fun, opt, xopt, is_global)
 
     @classmethod
     def available_algorithm(cls):
-        return list(filter(lambda x: x[:3] in ['GN_', 'GD_', 'LN_', 'LD_'], dir(nlopt)))
+        return list(filter(lambda x: x[:3] in ["GN_", "GD_", "LN_", "LD_"], dir(nlopt)))

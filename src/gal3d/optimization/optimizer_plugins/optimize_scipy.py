@@ -1,13 +1,14 @@
-from typing import SupportsInt
+from collections.abc import Callable
+from typing import Any, SupportsInt
 
-from numpy.typing import NDArray
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+from scipy import optimize
+from scipy.optimize import Bounds, OptimizeResult as ScipyOptimizeResult
 
-from scipy import optimize  # type: ignore
-from scipy.optimize import OptimizeResult as ScipyOptimizeResult    # type: ignore
+from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
 
-from ..optimizer import OptimizerBase, OptimizeResult
-
-__all__ = ['OptimizerScipy']
+__all__ = ["OptimizerScipy"]
 
 # from optimagic
 def _int_if_not_none(value: SupportsInt | None) -> int | None:
@@ -46,21 +47,24 @@ class OptimizerScipy(OptimizerBase):
     The minimize function provides a common interface to unconstrained and constrained minimization algorithms for multivariate scalar functions in scipy.optimize
     """
 
-    def __init__(self, algorithm, algo_options=dict()):
+    def __init__(self, algorithm: str, algo_options: dict | None =None):
+        if algo_options is None:
+            algo_options = {}
         super().__init__(algorithm, algo_options)
 
     def fitting(
         self,
-        fun,
-        x0,
-        bounds,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> OptimizeResult:
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
-        fn = lambda x: fun(x, *func_args, **func_kwargs)
+        def fn(x):
+            return fun(x, *func_args, **func_kwargs)
         res = optimize.minimize(
             fun=fn,
             x0=x0,
@@ -70,24 +74,25 @@ class OptimizerScipy(OptimizerBase):
             **kwargs,
         )
         start_fun = fn(x0)
-        return process_scipy_result(self.algo_name,x0,start_fun,res)
+        start_params = np.array(x0)
+        return process_scipy_result(self.algo_name,start_params,start_fun,res)
 
     @classmethod
     def available_algorithm(cls):
         return [
-            'Nelder-Mead',
-            'Powell',
-            'CG',
-            'BFGS',
-            'Newton-CG',
-            'L-BFGS-B',
-            'TNC',
-            'COBYLA',
-            'COBYQA', 
-            'SLSQP',
-            'trust-constr',
-            'dogleg',
-            'trust-ncg',
-            'trust-exact',
-            'trust-krylov',
+            "Nelder-Mead",
+            "Powell",
+            "CG",
+            "BFGS",
+            "Newton-CG",
+            "L-BFGS-B",
+            "TNC",
+            "COBYLA",
+            "COBYQA",
+            "SLSQP",
+            "trust-constr",
+            "dogleg",
+            "trust-ncg",
+            "trust-exact",
+            "trust-krylov",
         ]

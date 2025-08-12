@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from gal3d.plugin import PluginBase, PluginManager
 from gal3d.optimization.result import ModelResult
+from gal3d.plugin import PluginBase, PluginManager
 
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
@@ -25,7 +25,7 @@ class FitWorkflowBase(PluginBase):
         """
         super().__init_subclass__(**kwargs)
         FitWorkflow.register(cls)
-    
+
     @staticmethod
     def condition(analyzer: "Gal3DAnalyzer") -> bool:
         """
@@ -43,7 +43,7 @@ class FitWorkflowBase(PluginBase):
         """
         return False
 
-    def __call__(self, analyzer: "Gal3DAnalyzer", *args, **kwargs) -> ModelResult:
+    def __call__(self, analyzer: "Gal3DAnalyzer", *args: Any, **kwargs: Any) -> ModelResult:
         """
         Fit the model using the provided arguments.
 
@@ -65,8 +65,8 @@ class FitWorkflowBase(PluginBase):
             If not implemented in subclass.
         """
         raise NotImplementedError
-    
-    
+
+
 class FitWorkflow(PluginManager[FitWorkflowBase]):
     """
     Factory class for accessing registered fitting workflows.

@@ -1,14 +1,17 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+
+from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from annotated_types import T
 from matplotlib.axes import Axes
+from matplotlib.contour import QuadContourSet
+from matplotlib.image import AxesImage
 from matplotlib.patches import ConnectionPatch, Rectangle
 from numpy.typing import NDArray
 
-from ..point import Particles
-from ..util.array_operate import Rotate
+from gal3d.point import Particles
+from gal3d.util.array_operate import Rotate
+
 from .hist2d import (
     add_colorbar,
     hist_2d,
@@ -21,23 +24,25 @@ from .model_projector import ModelProjectorBase
 
 
 def show_data_model(
-    axes,
+    axes: list[plt.Axes],
     model: ModelProjectorBase,
-    data,
-    which_pos=(0, 1),
-    rotation_matrix=np.eye(3),
-    x_range=(-15, 15),
-    y_range=(-15, 15),
-    z_range=(-20, 20),
-    nbins=200,
-    logscale=True,
-    cmap='turbo',
-    nlevels: int | Tuple[int, int] = 20,
-    linewidth=0.8,
-    color='k',
-    linestyle='-',
-    render = True
-):
+    data: Particles,
+    which_pos: Sequence[int] = (0, 1),
+    rotation_matrix: np.ndarray | None = None,
+    x_range: tuple[float, float] = (-15, 15),
+    y_range: tuple[float, float] = (-15, 15),
+    z_range: tuple[float, float] = (-20, 20),
+    nbins: int = 200,
+    logscale: bool = True,
+    cmap: str = "turbo",
+    nlevels: int | tuple[int, int] | None = 20,
+    linewidth: float = 0.8,
+    color: str = "k",
+    linestyle: str = "-",
+    render: bool = True
+) -> tuple[tuple[AxesImage, AxesImage, AxesImage], tuple[QuadContourSet, QuadContourSet, QuadContourSet]]:
+    if rotation_matrix is None:
+        rotation_matrix = np.eye(3)
     if render:
         data_image, xs, ys = render_2d(
             data.pos,data.mass,data.hsm,
@@ -58,7 +63,7 @@ def show_data_model(
             density=True,
             nbins=nbins,
         )
-        
+
     if nlevels is None:
         nlevels = int(np.sqrt(data_image.size))
     if isinstance(nlevels, int):
@@ -170,17 +175,17 @@ def set_xlabel(*args, **kwargs):
 def plot_zoom(
     main_axs: Axes,
     zoom_axs: Axes,
-    xy: Tuple[float, float] = (0, 0),
+    xy: tuple[float, float] = (0, 0),
     length: float = 10,
     height: float = 10,
-    linestyle: str = ':',
+    linestyle: str = ":",
     linewidth: float = 1,
-    color: str = 'red',
-    zoom_loc: str = 'right',
-    arrowstyle: str = '-',
-    arrowcolor: str = 'red',
+    color: str = "red",
+    zoom_loc: str = "right",
+    arrowstyle: str = "-",
+    arrowcolor: str = "red",
     arrowwidth: float = 1,
-) -> Tuple[Rectangle, ConnectionPatch, ConnectionPatch]:
+) -> tuple[Rectangle, ConnectionPatch, ConnectionPatch]:
     """
     Create a zoomed view of a specific region in the main axes.
 
@@ -233,21 +238,21 @@ def plot_zoom(
         linestyle=linestyle,
         linewidth=linewidth,
         edgecolor=color,
-        facecolor='none',
+        facecolor="none",
     )
     main_axs.add_patch(square)
 
     # Determine connection points based on zoom location
-    if zoom_loc == 'right':
+    if zoom_loc == "right":
         line1 = ((xy[0] + length, xy[1]), (xy[0], xy[1]))
         line2 = ((xy[0] + length, xy[1] + height), (xy[0], xy[1] + height))
-    elif zoom_loc == 'left':
+    elif zoom_loc == "left":
         line1 = ((xy[0], xy[1]), (xy[0] + length, xy[1]))
         line2 = ((xy[0], xy[1] + height), (xy[0] + length, xy[1] + height))
-    elif zoom_loc == 'top':
+    elif zoom_loc == "top":
         line1 = ((xy[0] + length, xy[1] + height), (xy[0] + length, xy[1]))
         line2 = ((xy[0], xy[1] + height), (xy[0], xy[1]))
-    elif zoom_loc == 'bottom':
+    elif zoom_loc == "bottom":
         line1 = ((xy[0] + length, xy[1]), (xy[0] + length, xy[1] + height))
         line2 = ((xy[0], xy[1]), (xy[0], xy[1] + height))
     else:
@@ -284,25 +289,25 @@ def plot_zoom(
 def show_image_model_residual(
     data: Particles,
     model: ModelProjectorBase,
-    large_box_x_range: Tuple[float, float] = (-15, 15),
-    large_box_y_range: Tuple[float, float] = (-15, 15),
-    zoom_x_range: Tuple[float, float] = (-5, 5),
-    zoom_y_range: Tuple[float, float] = (-5, 5),
-    depth_z_range: Tuple[float, float] = (-20, 20),
+    large_box_x_range: tuple[float, float] = (-15, 15),
+    large_box_y_range: tuple[float, float] = (-15, 15),
+    zoom_x_range: tuple[float, float] = (-5, 5),
+    zoom_y_range: tuple[float, float] = (-5, 5),
+    depth_z_range: tuple[float, float] = (-20, 20),
     nbins_large: int = 200,
     nbins_zoom: int = 100,
-    nlevels_large: int | Tuple[int, int] = 13,
-    nlevels_zoom: int | Tuple[int, int] = 17,
-    which_pos_all: List[Tuple[int, int]] = [(0, 1), (0, 2)],
-    rotation_matrix: NDArray[np.float64] = np.eye(3),
-    cmap: str = 'turbo',
-    title_text: List[str] = ['Face', 'Edge'],
+    nlevels_large: int | tuple[int, int] = 13,
+    nlevels_zoom: int | tuple[int, int] = 17,
+    which_pos_all: list[tuple[int, int]] | None = None,
+    rotation_matrix: NDArray[np.float64] | None = None,
+    cmap: str = "turbo",
+    title_text: list[str] | None= None,
     titlesize: float = 25,
-    ylabel_all: List[str] = ["Data", "Model", "Residual"],
-    xlabel_all: List[str] = ["R [kpc]", "R [kpc]", "R [kpc]", "R [kpc]"],
+    ylabel_all: list[str] | None = None,
+    xlabel_all: list[str] | None = None,
     labelsize: float = 13,
-    savefile: Optional[str] = None,
-) -> Union[plt.Figure, List[plt.Figure]]:
+    savefile: str | None = None,
+) -> plt.Figure | list[plt.Figure]:
     """
     Create a comprehensive visualization comparing observed data, model, and residuals.
 
@@ -368,6 +373,14 @@ def show_image_model_residual(
 
     Each projection can be shown from different viewpoints (e.g., face-on, edge-on).
     """
+    if xlabel_all is None:
+        xlabel_all = ["R [kpc]", "R [kpc]", "R [kpc]", "R [kpc]"]
+    if ylabel_all is None:
+        ylabel_all = ["Data", "Model", "Residual"]
+    if title_text is None:
+        title_text = ["Face", "Edge"]
+    if which_pos_all is None:
+        which_pos_all = [(0, 1), (0, 2)]
     fig = plt.figure(dpi=300, figsize=(17, 13))
     gs = fig.add_gridspec(3, 4, hspace=0, wspace=0)
     axes = [[plt.subplot(gs[i, j]) for j in range(4)] for i in range(3)]
@@ -416,9 +429,9 @@ def show_image_model_residual(
         axes[2][1],
         axes[2][2],
         axes[2][3],
-        axis='y',
-        which='both',
-        direction='out',
+        axis="y",
+        which="both",
+        direction="out",
         left=True,
         right=True,
         labelright=False,
@@ -434,9 +447,9 @@ def show_image_model_residual(
         axes[1][1],
         axes[1][2],
         axes[1][3],
-        axis='x',
-        which='both',
-        direction='out',
+        axis="x",
+        which="both",
+        direction="out",
         bottom=True,
         top=True,
         labelbottom=False,
@@ -448,9 +461,9 @@ def show_image_model_residual(
         axes[2][1],
         axes[2][2],
         axes[2][3],
-        axis='x',
-        which='both',
-        direction='out',
+        axis="x",
+        which="both",
+        direction="out",
         bottom=True,
         top=True,
         labelbottom=True,
@@ -461,12 +474,12 @@ def show_image_model_residual(
         position = axes[0][i].get_position()
         cb_ax = fig.add_axes(
             (position.x0, position.y1, position.x1 - position.x0, (1 - position.y1) / 6)
-        )  # 设置colarbar位置
+        )
         cb_ax.set_visible(False)
         cb = add_colorbar(
             allpanels[i][0][0],
             ax=cb_ax,
-            loc='top',
+            loc="top",
             size="100%",
             pad=-(1 - position.y1) / 12,
         )
@@ -481,7 +494,7 @@ def show_image_model_residual(
             height=(zoom_y_range[1] - zoom_y_range[0]),
             linewidth=2,
             arrowwidth=1.5,
-            arrowstyle='->',
+            arrowstyle="->",
         )
         plot_zoom(
             axes[i][2],
@@ -491,7 +504,7 @@ def show_image_model_residual(
             height=(zoom_y_range[1] - zoom_y_range[0]),
             linewidth=2,
             arrowwidth=1.5,
-            arrowstyle='->',
+            arrowstyle="->",
         )
 
     for i in range(2):
@@ -502,8 +515,8 @@ def show_image_model_residual(
             0.95,
             title_text[i],
             fontsize=titlesize,
-            va='center',
-            ha='center',
+            va="center",
+            ha="center",
         )
 
     for i in range(3):
@@ -519,5 +532,5 @@ def show_image_model_residual(
         )
 
     if savefile is not None:
-        plt.savefig(savefile, bbox_inches='tight')
+        plt.savefig(savefile, bbox_inches="tight")
     return fig

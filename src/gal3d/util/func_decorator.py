@@ -1,15 +1,13 @@
 import functools
-import json
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-import numpy as np
-
-__all__ = ['timer', 'classproperty', 'lru_cache']
+__all__ = ["timer"]
 
 # Define type variables for better type checking
-F = TypeVar('F', bound=Callable[..., Any])
-T = TypeVar('T')
+F = TypeVar("F", bound=Callable[..., Any])
+T = TypeVar("T")
 LoggerType = Any  # Ideally would be logging.Logger, but avoiding import
 
 
@@ -26,7 +24,7 @@ def timer(logger: LoggerType) -> Callable[[F], F]:
     -------
     _timer : callable
         A decorator that wraps the target function to log its execution time.
-        
+
     Examples
     --------
     >>> import logging
@@ -38,7 +36,6 @@ def timer(logger: LoggerType) -> Callable[[F], F]:
     >>> slow_function()
     # Logger will record: "Slow function: 1.00000 sec"
     """
-    logger = logger
 
     def _timer(fun: F) -> F:
         name = fun.__name__
@@ -49,13 +46,22 @@ def timer(logger: LoggerType) -> Callable[[F], F]:
             try:
                 result = fun(*args, **kwargs)
                 end_time = time.time()
-                logger.info(name.replace('_', ' ').capitalize() + ': ' + f"{(end_time-start_time):.5f} sec")
+                logname = name.replace("_", " ").capitalize()
+                usetime = (end_time - start_time)
+                logger.info("%s: %.2f sec", logname, usetime)
                 return result
             except Exception as e:
                 end_time = time.time()
-                logger.error(f"Error in {name}: {str(e)} after {(end_time-start_time):.5f} sec")
-                raise
-        
+                logger.exception(
+                    "Error in %s after %.5f sec: %s",
+                    name,
+                    end_time - start_time,
+                    repr(e),
+                )
+                raise RuntimeError(
+                    f"Error in {name} after {end_time - start_time:.5f} sec: {repr(e)}"
+                ) from e
+
         return wrapper  # type: ignore
 
     return _timer

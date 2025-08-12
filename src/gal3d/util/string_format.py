@@ -1,35 +1,10 @@
 """
 String formatting utilities for terminal output.
-
-This module provides utilities for formatting terminal output with ANSI escape codes,
-including support for colors, font styles, and text formatting.
-
-Author: Shuai Lu (卢帅)
-Email: lushuai@stu.xmu.edu.cn
-Created: 2025-04-20
-Last Modified: 2025-06-06
-Version: 1.0.0
-
-License: MIT
-
-Dependencies:
-    - functools (standard library)
-
-Examples:
-    >>> from string_format import string_formatter
-    >>> formatted_text = string_formatter("Hello World", fg_color="red", bold=True)
-    >>> print(formatted_text)
-
+Modified from https://github.com/wx-ys/ansi-string-formatter
 """
-
-
 from functools import singledispatch
 
-__version__ = "1.0.0"
-__author__ = "Shuai Lu (卢帅)"
-__email__ = "lushuai@stu.xmu.edu.cn"
-
-__all__ = ['string_formatter']
+__all__ = ["string_formatter"]
 
 def string_formatter(
     string: str,
@@ -76,7 +51,7 @@ def string_formatter(
 
 
 @singledispatch
-def escape_codes_color_fg(color):
+def escape_codes_color_fg(color: int | str | tuple) -> str:
     """
     Generate an ANSI escape code for the foreground color.
 
@@ -94,7 +69,7 @@ def escape_codes_color_fg(color):
 
 
 @escape_codes_color_fg.register
-def _(color: str):
+def _(color: str) -> str:
     """
     Generate an ANSI escape code for the foreground color from a string.
 
@@ -130,7 +105,7 @@ def _(color: str):
 
 
 @escape_codes_color_fg.register
-def _(color: tuple):
+def _(color: tuple) -> str:
     """
     Generate an ANSI escape code for the foreground color from a tuple of RGB values.
 
@@ -148,7 +123,7 @@ def _(color: tuple):
 
 
 @escape_codes_color_fg.register
-def _(color: int):
+def _(color: int) -> str:
     """
     Generate an ANSI escape code for the foreground color from a 256-color code.
 
@@ -166,7 +141,7 @@ def _(color: int):
 
 
 @singledispatch
-def escape_codes_color_bg(color):
+def escape_codes_color_bg(color: int | str | tuple) -> str:
     """
     Generate an ANSI escape code for the background color.
 
@@ -184,7 +159,7 @@ def escape_codes_color_bg(color):
 
 
 @escape_codes_color_bg.register
-def _(color: str):
+def _(color: str) -> str:
     """
     Generate an ANSI escape code for the background color from a string.
 
@@ -207,20 +182,20 @@ def _(color: str):
         "purple": 45,
         "cyan": 46,
         "white": 47,
-        "black": 100,
-        "red": 101,
-        "green": 102,
-        "yellow": 103,
-        "blue": 104,
-        "purple": 105,
-        "cyan": 106,
-        "white": 107,
+        "bright_black": 100,
+        "bright_red": 101,
+        "bright_green": 102,
+        "bright_yellow": 103,
+        "bright_blue": 104,
+        "bright_purple": 105,
+        "bright_cyan": 106,
+        "bright_white": 107,
     }
     return f"\033[{color_bg[color]}m"
 
 
 @escape_codes_color_bg.register
-def _(color: tuple):
+def _(color: tuple) -> str:
     """
     Generate an ANSI escape code for the background color from a tuple of RGB values.
 
@@ -238,7 +213,7 @@ def _(color: tuple):
 
 
 @escape_codes_color_bg.register
-def _(color: int):
+def _(color: int) -> str:
     """
     Generate an ANSI escape code for the background color from a 256-color code.
 
@@ -255,7 +230,7 @@ def _(color: int):
     return f"\033[48;5;{color}m"
 
 
-def foreground_color(*args):
+def foreground_color(*args: (str | int | tuple)) -> str:
     """
     Generate the ANSI escape code for the foreground color.
 
@@ -282,7 +257,7 @@ def foreground_color(*args):
         raise TypeError("Invalid input format for foreground_color")
 
 
-def background_color(*args):
+def background_color(*args: (str | int | tuple)) -> str:
     """
     Generate the ANSI escape code for the background color.
 
@@ -328,7 +303,7 @@ def color(
         The combined ANSI escape codes for the background and foreground colors.
     """
     bg_color = bg_color and background_color(bg_color) or ""
-    fg_color = bg_color and background_color(fg_color) or ""
+    fg_color = fg_color and foreground_color(fg_color) or ""
 
     return "".join([bg_color, fg_color])
 

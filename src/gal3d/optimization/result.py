@@ -1,15 +1,18 @@
 import copy
 import logging
 import time
-from dataclasses import is_dataclass, fields
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, overload, Self,cast
+from dataclasses import fields
+from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
 
-from ..shape import Structure3D
+from gal3d.shape import Structure3D
+
 from .optimizer import OptimizeResult
-from .parameter import Parameters
 from .util import save_model_hdf5
+
+if TYPE_CHECKING:
+    from .parameter import Parameters
 
 logger = logging.getLogger("gal3d.optimization.result")
 
@@ -37,14 +40,14 @@ class ModelResult:
     """
 
     def __init__(
-        self, 
-        structure: Structure3D, 
+        self,
+        structure: Structure3D,
         optimize_result: OptimizeResult,
-        parameters: Parameters, 
+        parameters: "Parameters",
     ):
         """
         Initialize the ModelResult with structure, optimization results, and parameters.
-        
+
         Parameters
         ----------
         structure : Structure3D
@@ -57,145 +60,145 @@ class ModelResult:
         self._structure = structure
         self._opt_results = [optimize_result]
         self._param_sets = [parameters]
-        
+
         # Cache OptimizeResult fields for __getattr__ and __dir__
         self._optimize_result_attrs = {
             field.name for field in fields(OptimizeResult)
         }
-        
+
         # Include properties from OptimizeResult
-        self._optimize_result_attrs.update({'x', 'x0', 'nfev', 'nit', 'njev', 'nhev'})
-            
+        self._optimize_result_attrs.update({"x", "x0", "nfev", "nit", "njev", "nhev"})
+
     # OptimizeResult property accessors with proper type hints
     @property
     def params(self) -> np.ndarray:
         """Get parameter arrays from all optimization results."""
         return np.array([r.params for r in self._opt_results])
-    
+
     @property
     def fun(self) -> np.ndarray:
         """Get objective function values from all optimization results."""
         return np.array([r.fun for r in self._opt_results])
-    
+
     @property
     def start_params(self) -> np.ndarray:
         """Get starting parameter arrays from all optimization results."""
         return np.array([r.start_params for r in self._opt_results])
-    
+
     @property
     def start_fun(self) -> np.ndarray:
         """Get starting objective function values from all optimization results."""
         return np.array([r.start_fun for r in self._opt_results])
-    
+
     @property
-    def algorithm(self) -> List[str | None]:
+    def algorithm(self) -> list[str | None]:
         """Get algorithm names from all optimization results."""
         return [r.algorithm for r in self._opt_results]
-    
+
     @property
     def success(self) -> np.ndarray:
         """Get success flags from all optimization results."""
         values = [r.success if r.success is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
-    def message(self) -> List[str]:
+    def message(self) -> list[str]:
         """Get messages from all optimization results."""
         return [r.message if r.message is not None else "" for r in self._opt_results]
-    
+
     @property
     def status(self) -> np.ndarray:
         """Get status codes from all optimization results."""
         values = [r.status if r.status is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
     def n_fun_evals(self) -> np.ndarray:
         """Get number of function evaluations from all optimization results."""
         values = [r.n_fun_evals if r.n_fun_evals is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
     def n_jac_evals(self) -> np.ndarray:
         """Get number of Jacobian evaluations from all optimization results."""
         values = [r.n_jac_evals if r.n_jac_evals is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
     def n_hess_evals(self) -> np.ndarray:
         """Get number of Hessian evaluations from all optimization results."""
         values = [r.n_hess_evals if r.n_hess_evals is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
     def n_iterations(self) -> np.ndarray:
         """Get number of iterations from all optimization results."""
         values = [r.n_iterations if r.n_iterations is not None else np.nan for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
-    def jac(self) -> List[Optional[np.ndarray]]:
+    def jac(self) -> list[np.ndarray | None]:
         """Get Jacobian arrays from all optimization results."""
         return [r.jac for r in self._opt_results]
-    
+
     @property
-    def hess(self) -> List[Optional[np.ndarray]]:
+    def hess(self) -> list[np.ndarray | None]:
         """Get Hessian arrays from all optimization results."""
         return [r.hess for r in self._opt_results]
-    
+
     @property
-    def hess_inv(self) -> List[Optional[np.ndarray]]:
+    def hess_inv(self) -> list[np.ndarray | None]:
         """Get inverse Hessian arrays from all optimization results."""
         return [r.hess_inv for r in self._opt_results]
-    
+
     @property
     def max_constraint_violation(self) -> np.ndarray:
         """Get maximum constraint violations from all optimization results."""
-        values = [r.max_constraint_violation if r.max_constraint_violation is not None else np.nan 
+        values = [r.max_constraint_violation if r.max_constraint_violation is not None else np.nan
                  for r in self._opt_results]
         return np.array(values, dtype=float)
-    
+
     @property
-    def history(self) -> List[Any]:
+    def history(self) -> list[Any]:
         """Get optimization histories from all optimization results."""
         return [r.history for r in self._opt_results]
-    
+
     @property
-    def algorithm_output(self) -> List[Optional[Dict[str, Any]]]:
+    def algorithm_output(self) -> list[dict[str, Any] | None]:
         """Get algorithm outputs from all optimization results."""
         return [r.algorithm_output for r in self._opt_results]
-    
+
     @property
-    def multistart_info(self) -> List[Optional[Dict[str, Any]]]:
+    def multistart_info(self) -> list[dict[str, Any] | None]:
         """Get multistart information from all optimization results."""
         return [r.multistart_info for r in self._opt_results]
-    
+
     # Property aliases for scipy.optimize compatibility
     @property
     def x(self) -> np.ndarray:
         """Alias for params (scipy.optimize compatibility)."""
         return self.params
-    
+
     @property
     def x0(self) -> np.ndarray:
         """Alias for start_params (scipy.optimize compatibility)."""
         return self.start_params
-    
+
     @property
     def nfev(self) -> np.ndarray:
         """Alias for n_fun_evals (scipy.optimize compatibility)."""
         return self.n_fun_evals
-    
+
     @property
     def nit(self) -> np.ndarray:
         """Alias for n_iterations (scipy.optimize compatibility)."""
         return self.n_iterations
-    
+
     @property
     def njev(self) -> np.ndarray:
         """Alias for n_jac_evals (scipy.optimize compatibility)."""
         return self.n_jac_evals
-    
+
     @property
     def nhev(self) -> np.ndarray:
         """Alias for n_hess_evals (scipy.optimize compatibility)."""
@@ -209,11 +212,11 @@ class ModelResult:
         return self._param_sets[0].keys()
 
     def __call__(
-        self, 
-        pos: Union[np.ndarray, list, tuple], 
-        *, 
-        item: int = 0, 
-        **kwargs
+        self,
+        pos: np.ndarray | list | tuple,
+        *,
+        item: int = 0,
+        **kwargs: Any
     ) -> np.ndarray:
         """
         Evaluate the 3D structure model at given positions using specified parameter set.
@@ -233,9 +236,9 @@ class ModelResult:
             Model values at the given positions.
         """
         return self[item](pos, **kwargs)
-    
+
     def get(self, key: str, default: Any = None) -> Any:
-        """ 
+        """
         Mimic dict.get: Return the values for the given key from all parameter sets.
 
         Parameters
@@ -251,21 +254,21 @@ class ModelResult:
             The values for the given key from all parameter sets, or default if not found.
         """
         try:
-            return cast(np.ndarray, np.array([params[key] for params in self._param_sets]))
+            return cast("np.ndarray", np.array([params[key] for params in self._param_sets]))
         except KeyError:
             return default
 
     # Type hint overloads for __getitem__
     @overload
     def __getitem__(self, k: int) -> Structure3D: ...
-    
+
     @overload
     def __getitem__(self, k: str) -> np.ndarray: ...
 
     @overload
-    def __getitem__(self, k: slice) -> 'ModelResult': ...
+    def __getitem__(self, k: slice) -> "ModelResult": ...
 
-    def __getitem__(self, k: Union[int, str, slice]) -> Union[Structure3D, np.ndarray, 'ModelResult']:
+    def __getitem__(self, k: int | str | slice) -> Union[Structure3D, np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
@@ -288,17 +291,17 @@ class ModelResult:
         """
         if isinstance(k, str):
             # Return parameter values for all sets
-            return cast(np.ndarray, np.array([params[k] for params in self._param_sets]))
-        
+            return cast("np.ndarray", np.array([params[k] for params in self._param_sets]))
+
         elif isinstance(k, int):
             # Return the Structure3D initialized with parameters at index k
             if k < 0 or k >= len(self._param_sets):
                 raise IndexError(f"Index {k} out of bounds (0-{len(self._param_sets)-1})")
-                
+
             return self._structure.clone_with_parameters(
                 **self._param_sets[k].structure_parameters
             )
-            
+
         elif isinstance(k, slice):
             # Create a new ModelResult with sliced parameters and results
             sliced_result = copy.copy(self)
@@ -308,45 +311,45 @@ class ModelResult:
         else:
             raise KeyError(f"Key must be a string, integer, or slice, got {type(k).__name__}")
 
-    def __getattr__(self, name: str) -> Union[List[Any], np.ndarray]:
+    def __getattr__(self, name: str) -> list[Any] | np.ndarray:
         """
         Access attributes from all OptimizeResult instances.
-        
+
         This provides access to optimization result attributes like 'fun', 'success',
         'message', etc. from all results as a list or array.
-        
+
         Parameters
         ----------
         name : str
             Name of the OptimizeResult attribute to access
-            
+
         Returns
         -------
         numpy.ndarray or list
             Array of values for numeric attributes, list for others
-            
+
         Raises
         ------
         AttributeError
             If attribute doesn't exist in OptimizeResult
         """
-        if name.startswith('__') and name.endswith('__'):
+        if name.startswith("__") and name.endswith("__"):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        if not hasattr(self, '_optimize_result_attrs'):
+        if not hasattr(self, "_optimize_result_attrs"):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         if name in self._optimize_result_attrs:
             # Get attribute from all optimization results
             values = [getattr(res, name) for res in self._opt_results]
-            
+
             # Convert to numpy array if all values are numeric
-            if all(isinstance(v, (int, float, bool, np.number)) or v is None for v in values):
+            if all(isinstance(v, int | float | bool | np.number) or v is None for v in values):
                 # Replace None with np.nan for numeric arrays
                 clean_values = [np.nan if v is None else v for v in values]
                 return np.array(clean_values)
             return values
-        
+
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-    
+
     def __copy__(self):
         """
         Create a shallow copy of this ModelResult object.
@@ -362,7 +365,7 @@ class ModelResult:
         return new_obj
 
     # Define __dir__ to show available attributes including OptimizeResult attributes
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         """List all attributes including those from OptimizeResult."""
         return sorted(set(super().__dir__()) | self._optimize_result_attrs)
 
@@ -392,11 +395,11 @@ class ModelResult:
         lin2 = "Parameters: " + str(list(self.keys()))
         lenmax = max(len(lin1), len(lin2))
         lins = [lin1, lin2]
-        result = ''.join([i.center(lenmax, " ") + "\n" for i in lins])
+        result = "".join([i.center(lenmax, " ") + "\n" for i in lins])
 
         return result
 
-    def __add__(self, other) -> Self:
+    def __add__(self, other: "ModelResult") -> "ModelResult":
         """
         Combines two ModelResult objects if they share the same structure.
 
@@ -422,13 +425,13 @@ class ModelResult:
             return self
         if isinstance(self, EmptyModelResult):
             return other
-        
+
         if not isinstance(other, ModelResult):
             raise TypeError(f"{other} is not a ModelResult type")
-            
-        if self._structure != other._structure:
+
+        if not self._structure.is_equal(other._structure):
             raise ValueError(f"{other} has a different structure")
-            
+
         # Create a new copy of self
         combined = self.__copy__()
         # Append the other's parameters and results
@@ -446,7 +449,7 @@ class ModelResult:
             The number of parameter sets.
         """
         return len(self._param_sets)
-    
+
 class EmptyModelResult(ModelResult):
     def __init__(self):
         self._opt_results = []
@@ -471,13 +474,13 @@ def model_to_hdf5(
     hdf5_file_name: str,
     shape_name: str,
     error_name: str,
-    all_header: str = '/',
+    all_header: str = "/",
     large_model_threshold: int = 1000,
-    other_info: Optional[Dict[str, Any]] = None,
+    other_info: dict[str, Any] | None = None,
 ) -> None:
     """
     Save model results to an HDF5 file.
-    
+
     Parameters
     ----------
     model : ModelResult
@@ -507,46 +510,47 @@ def model_to_hdf5(
     try:
         start_time = time.time()
         max_time = 300  # 5 minutes timeout
-        
+
         info_dict = {} if other_info is None else other_info.copy()
-        
+
         # Record metadata
         info_dict.update({
-            'save_timestamp': time.time(),
-            'geometry_name': getattr(model._structure, '_geometry_name', 'unknown'),
-            'coordinate_name': getattr(model._structure, '_coordinate_name', 'unknown'),
+            "save_timestamp": time.time(),
+            "geometry_name": getattr(model._structure, "_geometry_name", "unknown"),
+            "coordinate_name": getattr(model._structure, "_coordinate_name", "unknown"),
         })
-            
-        logger.info(f"Saving model to {hdf5_file_name} (shape={shape_name}, error={error_name})")
-        
+
+        logger.info("Saving model to %s (shape=%s, error=%s)", hdf5_file_name, shape_name, error_name)
+
         # Warn for large models
         if len(model) > large_model_threshold:
             logger.warning(
-                f"Large model with {len(model)} parameter sets exceeds threshold "
-                f"({large_model_threshold}) and may take time to save"
+                "Large model with %d parameter sets exceeds threshold "
+                "(%d) and may take time to save",
+                len(model), large_model_threshold
             )
-            
+
         save_model_hdf5(
             model, hdf5_file_name, shape_name, error_name, all_header, info_dict
         )
-        
+
         elapsed = time.time() - start_time
         if elapsed > 5.0:  # Log timing if significant
-            logger.info(f"Model saving completed in {elapsed:.1f} seconds")
-            
-        logger.info(f"Successfully saved model with {len(model)} parameter sets")
-        
+            logger.info("Model saving completed in %.1f seconds", elapsed)
+
+        logger.info("Successfully saved model with %d parameter sets", len(model))
+
     except ImportError as e:
         logger.error(
-            f"Failed to save model to HDF5: {e}. "
-            f"Possible causes: insufficient disk space, file permission issues, "
-            f"or invalid model structure.",
-            exc_info=True
+            "Failed to save model to HDF5: %s. "
+            "Possible causes: insufficient disk space, file permission issues, "
+            "or invalid model structure.",
+            e
         )
         raise
     except TimeoutError:
-        logger.error(f"Save operation timed out after {max_time} seconds")
+        logger.error("Save operation timed out after %d seconds", max_time)
         raise
     except Exception as e:
-        logger.error(f"Failed to save model to HDF5: {e}", exc_info=True)
+        logger.error("Failed to save model to HDF5: %s", e)
         raise

@@ -7,6 +7,7 @@ including calculating the geometric center, mass-weighted center of mass, the mo
 the principal axes of particle distributions, and density estimators.
 """
 import numpy as np
+from numpy.typing import ArrayLike
 
 from .density_estimator import DensityEstimator, DensityEstimatorBase
 from .global_calculator import GlobalCalculator
@@ -19,12 +20,12 @@ class Particles(GlobalCalculator):
 
     def __init__(
         self,
-        pos,
-        mass,
+        pos: ArrayLike,
+        mass: np.ndarray,
         rmax: float | None = None,
         recenter: bool = True,
-        parameter_mode: str = 'Density',
-        density_estimator: str | DensityEstimatorBase = 'DensityEstimatorKNN',
+        parameter_mode: str = "Density",
+        density_estimator: str | DensityEstimatorBase = "DensityEstimatorKNN",
         estimator_kwargs: dict | None = None,
     ):
         """
@@ -67,37 +68,37 @@ class Particles(GlobalCalculator):
                 f"density_estimator must be either a string (plugin name), "
                 f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead."
             )
-            
+
     def __del__(self):
         """
         Clean up estimator and call parent class cleanup.
         """
         # Clear estimator reference which may hold significant data
-        if hasattr(self, 'estimator'):
+        if hasattr(self, "estimator"):
             self.estimator = None
-            
+
         # Clear cached properties if they exist
-        for attr in ['_parameter', '_gradient']:
+        for attr in ["_parameter", "_gradient"]:
             if hasattr(self, attr):
                 setattr(self, attr, None)
-                
+
         # Call parent class __del__ method
         try:
             super().__del__()
         except (AttributeError, TypeError):
             pass  # Handle case where parent doesn't have __del__
-    
+
     def __enter__(self):
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__del__()
-    
+
     @property
     def parameter(self):
         """Cached property that returns the parameter values at the input positions."""
         return self.estimator.parameter
-    
+
     @property
     def hsm(self):
         """Cached property that returns the half-smooth length at the input positions."""
@@ -141,8 +142,8 @@ class Particles(GlobalCalculator):
                 - The second tuple contains the downward gradient magnitude and direction.
         """
         return self.estimator.get_gradient(target_pos, **kwargs)
-    
-    
+
+
     def estimate_spatial_resolution(self):
         """
         Estimate the spatial resolution based on the half-smooth length (hsm).
@@ -166,7 +167,7 @@ class Particles(GlobalCalculator):
             Estimated mass resolution.
         """
         return np.mean(self.mass)
-    
+
 
     @classmethod
     def available_estimator(cls) -> list[str]:

@@ -1,17 +1,19 @@
-from typing import Sequence, Any, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
-from tqdm import tqdm   # type: ignore
+from tqdm import tqdm
 
-from ...field.spherical_field.spherical_vector import SphVector
-from ...util.array_operate import Rotate
-from ..hist2d import hist_2d
-from ..model_projector import ModelProjectorBase
+from gal3d.field.spherical_field.spherical_vector import SphVector
+from gal3d.optimization.result import ModelResult
+from gal3d.util.array_operate import Rotate
+from gal3d.visualization.hist2d import hist_2d
+from gal3d.visualization.model_projector import ModelProjectorBase
 
 
 class ProjectorSphGrid(ModelProjectorBase):
     def __init__(
-        self, model, N_ray: int = 6000, num_p: int = 200, cache_len=100, **kwargs
+        self, model: ModelResult, N_ray: int = 6000, num_p: int = 200, cache_len: int = 100, **kwargs: Any
     ):
 
         inner_model = kwargs.get("inner_model", model[0])
@@ -29,7 +31,7 @@ class ProjectorSphGrid(ModelProjectorBase):
                 np.convolve(
                     points_r[i],
                     [0.5, 0.5],
-                    mode='same',
+                    mode="same",
                 )
                 for i in range(len(points_r))
             ]
@@ -38,10 +40,10 @@ class ProjectorSphGrid(ModelProjectorBase):
         outer_r = np.roll(inner_r, -1, axis=1)
         outer_r[:, -1] = (points_r[:, -1] * 3 - points_r[:, -2]) / 2
 
-        volumn = np.einsum('ij,i->ij', (outer_r**3 - inner_r**3), ray_model.area / 3)
+        volumn = np.einsum("ij,i->ij", (outer_r**3 - inner_r**3), ray_model.area / 3)
         volumn = volumn.flatten()
 
-        posall = np.einsum('ij,ik->ijk', points_r, ray_model.pos).reshape(-1, 3)
+        posall = np.einsum("ij,ik->ijk", points_r, ray_model.pos).reshape(-1, 3)
 
         self.pos = posall
         self.volumn = volumn
@@ -51,7 +53,7 @@ class ProjectorSphGrid(ModelProjectorBase):
 
         for i in tqdm(range(len(model))):
             sel = model[i](self.pos[indices]) <= 1
-            density[indices[sel]] = model['parameter'][i]
+            density[indices[sel]] = model["parameter"][i]
 
             indices = indices[~sel]
 
@@ -61,16 +63,18 @@ class ProjectorSphGrid(ModelProjectorBase):
         self.weight = weight
 
     def _image(
-        self, 
-        x_range: Sequence[float], 
+        self,
+        x_range: Sequence[float],
         y_range: Sequence[float],
-        nbins: int = 100, 
+        nbins: int = 100,
         z_range: Sequence[float] = (-20, 20),
-        rotation: np.ndarray = np.eye(3),
+        rotation: np.ndarray | None = None,
         **kwargs: Any
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-
-        new_pos = Rotate(self.pos, rotation)
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if rotation is not None:
+            new_pos = Rotate(self.pos, rotation)
+        else:
+            new_pos = self.pos
         sel = (new_pos[:, 2] > z_range[0]) & (new_pos[:, 2] < z_range[1])
         model_image, xs, ys = hist_2d(
             new_pos[:, 0][sel],

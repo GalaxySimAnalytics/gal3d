@@ -2,12 +2,19 @@ import logging
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import ArrayLike
 
-from ..util.array_operate import vector_length3d, Auto3DShape
-from .util import abc_vect, center_of_mass, centroid, moment_of_inertia
-from .util import shrink_sphere_center as ssc
+from gal3d.util.array_operate import Auto3DShape, vector_length3d
 
-logger = logging.getLogger('gal3d.particle.global_calculator')
+from .util import (
+    abc_vect,
+    center_of_mass,
+    centroid,
+    moment_of_inertia,
+    shrink_sphere_center as ssc,
+)
+
+logger = logging.getLogger("gal3d.particle.global_calculator")
 
 
 class GlobalCalculator(Auto3DShape):
@@ -26,7 +33,7 @@ class GlobalCalculator(Auto3DShape):
 
     """
 
-    def __init__(self, pos: np.ndarray, mass: np.ndarray, recenter: bool = True, sort_by_radius: bool = False):
+    def __init__(self, pos: ArrayLike, mass: np.ndarray, recenter: bool = True, sort_by_radius: bool = False):
         """
         Parameters
         ----------
@@ -40,41 +47,41 @@ class GlobalCalculator(Auto3DShape):
             Whether to sort particles by their radial distance from the origin. Default is False.
         """
 
-        pos = self.to_3d_array(pos)
+        posarr: np.ndarray = self.to_3d_array(pos)
         if recenter:
-            cen = self.shrink_sphere_center(pos,mass)
-            pos = pos - cen
-            logger.info(f"Recentered positions by subtracting center: {cen}")
-        r = vector_length3d(pos)
+            cen: np.ndarray = self.shrink_sphere_center(posarr,mass)
+            posarr = posarr - cen
+            logger.info("Recentered positions by subtracting center: %s", cen)
+        r: np.ndarray = vector_length3d(posarr)
         if sort_by_radius:
             ind = np.argsort(r)
-            self.pos = pos[ind]
+            self.pos = posarr[ind]
             self.mass = mass[ind]
             self.r = r[ind]
         else:
-            self.pos = pos
+            self.pos = posarr
             self.mass = mass
             self.r = r
-        
+
         if self.pos.shape[0] != self.mass.shape[0]:
             raise ValueError(
                 f"Mismatch between number of positions ({self.pos.shape[0]}) and masses ({self.mass.shape[0]})."
             )
-            
+
     def __del__(self):
         """
         Clean up large data arrays to assist garbage collection.
         """
         # Clear large arrays
-        if hasattr(self, 'pos'):
+        if hasattr(self, "pos"):
             self.pos = None
-        if hasattr(self, 'mass'):
+        if hasattr(self, "mass"):
             self.mass = None
-        if hasattr(self, 'r'):
+        if hasattr(self, "r"):
             self.r = None
-            
+
         # Clear cached properties if they've been accessed
-        for attr in ['_ssc_center', '_mass_center', '_shape_center', '_moi', '_abc']:
+        for attr in ["_ssc_center", "_mass_center", "_shape_center", "_moi", "_abc"]:
             if hasattr(self, attr):
                 setattr(self, attr, None)
 
@@ -140,7 +147,7 @@ class GlobalCalculator(Auto3DShape):
 
     @staticmethod
     def shrink_sphere_center(
-        pos, mass, shrink_factor=0.7, begin_r=None, min_points=100, itermax=100
+        pos: np.ndarray, mass: np.ndarray, shrink_factor: float=0.7, begin_r: float | None =None, min_points: int=100, itermax: int =100
     ) -> np.ndarray:
         """
         Computes the center using the shrink-sphere method.
@@ -167,7 +174,7 @@ class GlobalCalculator(Auto3DShape):
         """
         begin_r = begin_r or (np.max(pos[:, 0]) - np.min(pos[:, 0])) / 2
 
-        logger.debug(f"Using a begin_r= {begin_r:.2f}")
+        logger.debug("Using a begin_r= %.2f", begin_r)
 
         cen, final_r, v_r, iternum = ssc(
             np.array(pos),
@@ -179,19 +186,19 @@ class GlobalCalculator(Auto3DShape):
             itermax,
         )
 
-        logger.debug(f"Iteration num= {iternum}")
+        logger.debug("Iteration num= %d", iternum)
 
         if iternum > itermax:
             logger.error(
-                f"shrink_sphere_center failed to converge after {iternum} iterations"
+                "shrink_sphere_center failed to converge after %d iterations", iternum
             )
 
-        logger.debug(f"After iteration, final_r= {final_r:.2f}")
+        logger.debug("After iteration, final_r= %.2f", final_r)
 
         return cen
 
     @staticmethod
-    def moment_of_inertia(pos, mass) -> np.ndarray:
+    def moment_of_inertia(pos: np.ndarray, mass: np.ndarray) -> np.ndarray:
         """
         Computes the moment of inertia tensor.
 
@@ -210,7 +217,7 @@ class GlobalCalculator(Auto3DShape):
         return moment_of_inertia(pos, mass)
 
     @staticmethod
-    def compute_abc(pos, mass) -> tuple[np.ndarray,np.ndarray]:
+    def compute_abc(pos: np.ndarray, mass: np.ndarray) -> tuple[np.ndarray,np.ndarray]:
         """
         Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
@@ -220,14 +227,14 @@ class GlobalCalculator(Auto3DShape):
             Position array of shape (N, 3).
         mass : numpy.ndarray
             Mass array of shape (N,).
-            
+
         Returns
         -------
         tuple of numpy.ndarray
             A tuple ([a, b, c], rotation_matrix), where a >= b >= c are the principal axis lengths.
         """
         return abc_vect(pos, mass)
-    
+
     def as_dict(self) -> dict:
         """
         Returns a dictionary of all computed global properties.
@@ -242,4 +249,4 @@ class GlobalCalculator(Auto3DShape):
                 "mass_center": self.mass_center.tolist(),
                 "shape_center": self.shape_center.tolist(),
                 "abc": self.abc}
-        
+

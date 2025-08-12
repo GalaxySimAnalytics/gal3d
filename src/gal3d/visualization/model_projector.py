@@ -1,17 +1,16 @@
-from abc import abstractmethod
 import logging
-import os
+from abc import abstractmethod
+from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import Any, Callable, Dict, List, NoReturn, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ..util.func_cache import CacheDict
-
 from gal3d.plugin import PluginBase, PluginManager
+from gal3d.util.func_cache import CacheDict
 
-__all__ = ['ModelProjectorBase', 'ModelProjector']
+__all__ = ["ModelProjectorBase", "ModelProjector"]
 
 logger = logging.getLogger("gal3d.visualization.model_projector")
 
@@ -33,7 +32,7 @@ class ModelProjectorBase(PluginBase):
 
     def __init_subclass__(cls, **kwargs):
         """Register subclass as a ModelProjector plugin.
-        
+
         Parameters
         ----------
         **kwargs
@@ -45,7 +44,7 @@ class ModelProjectorBase(PluginBase):
 
     def __init__(self, cache_len: int = 100):
         """Initialize the model projector.
-        
+
         Parameters
         ----------
         cache_len : int, default=100
@@ -56,22 +55,22 @@ class ModelProjectorBase(PluginBase):
     @staticmethod
     def ImageCache(func: Callable) -> Callable:
         """Decorator for caching image results based on input parameters.
-        
+
         Prevents recomputation of images with the same input parameters.
-        
+
         Parameters
         ----------
         func : callable
             The function to be decorated, typically the _image method.
-            
+
         Returns
         -------
         callable
             Wrapped function that includes caching behavior.
         """
         @wraps(func)
-        def wrapper(self, x_range: Sequence[float], y_range: Sequence[float], 
-                   nbins: int, z_range: Sequence[float], rotation: NDArray[np.float64], 
+        def wrapper(self: "ModelProjectorBase", x_range: Sequence[float], y_range: Sequence[float],
+                   nbins: int, z_range: Sequence[float], rotation: NDArray[np.float64],
                    **kwargs: Any) -> NDArray[np.float64]:
             rotation_bytes = rotation.tobytes()
             recod = (
@@ -85,10 +84,14 @@ class ModelProjectorBase(PluginBase):
                 rotation_bytes,
             )
             if recod in self._image_cache:
-                logger.debug(f"Get image from cache for input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
+                logger.debug("Get image from cache for input: x:%s, y:%s, "
+                             "z:%s, nbins:%d, rotation:%s",
+                             x_range, y_range, z_range, nbins, rotation)
                 return self._image_cache[recod]
             else:
-                logger.debug(f"Cache image, register input: x:{x_range}, y:{y_range}, z:{z_range}, nbins:{nbins}, rotation:{rotation}")
+                logger.debug("Cache image, register input: x:%s, y:%s, "
+                             "z:%s, nbins:%d, rotation:%s",
+                             x_range, y_range, z_range, nbins, rotation)
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )
@@ -98,14 +101,14 @@ class ModelProjectorBase(PluginBase):
 
     def _validate_range(self, value_range: Sequence[float], name: str) -> None:
         """Validate that a range is a tuple of two floats with min < max.
-        
+
         Parameters
         ----------
         value_range : sequence of float
             The range to validate.
         name : str
             The name of the range for error messages.
-        
+
         Raises
         ------
         ValueError
@@ -121,11 +124,11 @@ class ModelProjectorBase(PluginBase):
         y_range: Sequence[float],
         nbins: int = 100,
         z_range: Sequence[float] = (-20, 20),
-        rotation: Optional[NDArray[np.float64]] = None,
+        rotation: NDArray[np.float64] | None = None,
         **kwargs: Any
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
         """Generate a projected image of the model with caching.
-        
+
         Parameters
         ----------
         x_range : sequence of float
@@ -141,7 +144,7 @@ class ModelProjectorBase(PluginBase):
             If None, no rotation is applied (identity matrix).
         **kwargs : dict
             Additional keyword arguments for specific projection implementations.
-            
+
         Returns
         -------
         tuple
@@ -162,9 +165,7 @@ class ModelProjectorBase(PluginBase):
         if nbins <= 0:
             raise ValueError(f"Invalid nbins: {nbins}. Must be positive")
 
-        if rotation is None:
-            rotation = np.eye(3).copy()
-        elif rotation.shape != (3, 3):
+        if rotation is not None and rotation.shape != (3, 3):
             raise ValueError(f"Rotation matrix must be 3x3, got {rotation.shape}")
 
         return self._image(
@@ -178,14 +179,14 @@ class ModelProjectorBase(PluginBase):
         y_range: Sequence[float],
         nbins: int = 100,
         z_range: Sequence[float] = (-20, 20),
-        rotation: NDArray[np.float64] = np.eye(3),
+        rotation: NDArray[np.float64] | None = None,
         **kwargs: Any
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
         """Abstract method to generate a projected image.
-        
+
         This method must be implemented by subclasses to perform
         the actual image generation.
-        
+
         Parameters
         ----------
         x_range : sequence of float
@@ -200,7 +201,7 @@ class ModelProjectorBase(PluginBase):
             3x3 rotation matrix to apply to the model before projection.
         **kwargs : dict
             Additional keyword arguments for specific projection methods.
-            
+
         Returns
         -------
         tuple: A tuple containing:
@@ -212,16 +213,16 @@ class ModelProjectorBase(PluginBase):
 
     def image_xz(
         self,
-        x_range,
-        y_range,
+        x_range: tuple[float,float],
+        y_range: tuple[float,float],
         nbins: int = 100,
-        z_range: Sequence = (-20, 20),
-    ):
+        z_range: tuple[float,float] = (-20, 20),
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Generate a projection in the x-z plane.
-        
+
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the y direction.
-        
+
         Parameters
         ----------
         x_range : sequence of float
@@ -232,7 +233,7 @@ class ModelProjectorBase(PluginBase):
             Number of bins in each dimension for the projection.
         z_range : sequence of float, default=(-20, 20)
             The (min, max) range in y-direction (after rotation) to include in the projection.
-            
+
         Returns
         -------
         tuple
@@ -248,16 +249,16 @@ class ModelProjectorBase(PluginBase):
 
     def image_yz(
         self,
-        x_range,
-        y_range,
+        x_range: tuple[float,float],
+        y_range: tuple[float,float],
         nbins: int = 100,
-        z_range: Sequence = (-20, 20),
-    ):
+        z_range: tuple[float,float] = (-20, 20),
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Generate a projection in the y-z plane.
-        
+
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the x direction.
-        
+
         Parameters
         ----------
         x_range : sequence of float
@@ -268,7 +269,7 @@ class ModelProjectorBase(PluginBase):
             Number of bins in each dimension for the projection.
         z_range : sequence of float, default=(-20, 20)
             The (min, max) range in x-direction (after rotation) to include in the projection.
-            
+
         Returns
         -------
         tuple
@@ -287,7 +288,7 @@ class ModelProjector(PluginManager[ModelProjectorBase]):
     """
     Factory class for accessing registered ModelProjector plugins.
     """
-    
+
     _plugins = {}
     _plugin_module = "gal3d.visualization.model_projector_plugins"
     _base_class = ModelProjectorBase

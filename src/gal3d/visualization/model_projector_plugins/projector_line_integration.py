@@ -1,9 +1,10 @@
 import logging
-from typing import Sequence, Any, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
-import scipy.integrate as integrate     # type: ignore
-from tqdm import tqdm   # type: ignore
+from scipy import integrate
+from tqdm import tqdm
 
 from gal3d.util.array_operate import Rotate
 from gal3d.visualization.model_projector import ModelProjectorBase
@@ -16,10 +17,10 @@ class ProjectorLineIntegration(ModelProjectorBase):
 
         self.model = model
         try:
-            self.model_sel = np.arange(len(self.model['parameter']))
-        except KeyError:
-            raise KeyError("The model dictionary must contain the key 'parameter'.")
-        
+            self.model_sel = np.arange(len(self.model["parameter"]))
+        except KeyError as err:
+            raise KeyError("The model dictionary must contain the key 'parameter'.") from err
+
         sel = kwargs.get("sel", np.ones(len(self.model_sel), dtype=np.bool_))
         if model_cric:
             sel = sel & (np.array(self.model.fun) < model_cric)
@@ -29,7 +30,8 @@ class ProjectorLineIntegration(ModelProjectorBase):
             sel = sel & (np.array(self.model.fun) < me+sigma_clip*std)
         removed_count = np.sum(~sel)
         if removed_count:
-            logger.info(f"Projector removed {removed_count} steps with relatively large fit error")
+            logger.info("Projector removed %d steps with relatively large fit error",
+                        removed_count)
             self.model_sel = self.model_sel[sel]
 
     def _setup_grid(self, x_range, y_range, nbins):
@@ -46,10 +48,10 @@ class ProjectorLineIntegration(ModelProjectorBase):
 
         pos[:, 0] = (indices - cen_indices)[:, 0] * (x_range[1] - x_range[0]) / nbins
         pos[:, 1] = (indices - cen_indices)[:, 1] * (y_range[1] - y_range[0]) / nbins
-        
+
         return indices, pos, xs, ys
-    
-    def _prepare_sight_lines(self, pos, z_range, rotation):
+
+    def _prepare_sight_lines(self, pos, z_range, rotation = None):
         """Prepare the sight lines for integration."""
         pos1 = np.zeros((len(pos), 3))
         pos2 = np.zeros((len(pos), 3))
@@ -61,12 +63,12 @@ class ProjectorLineIntegration(ModelProjectorBase):
         pos2[:, 0] = pos[:, 0]
         pos2[:, 1] = pos[:, 1]
         pos2[:, 2] = z_range[0]
+        if rotation is not None:
+            pos1 = Rotate(pos1, rotation)
+            pos2 = Rotate(pos2, rotation)
 
-        pos1 = Rotate(pos1, rotation)
-        pos2 = Rotate(pos2, rotation)
-        
         return pos1, pos2
-    
+
     def _calculate_intersections(self, pos1, pos2):
         """Calculate intersections between sight lines and model components."""
         model_sel = self.model_sel
@@ -76,8 +78,8 @@ class ProjectorLineIntegration(ModelProjectorBase):
         n = len(pos1)
         intersections = [[] for _ in range(n)]
         parameters = [[] for _ in range(n)]
-        
-        para = self.model['parameter']
+
+        para = self.model["parameter"]
         quick_line_intersect = self.model[int(model_sel[-1])].quick_line_intersect
 
         alll = quick_line_intersect(pos1=pos1, pos2=pos2)
@@ -111,17 +113,17 @@ class ProjectorLineIntegration(ModelProjectorBase):
             inte = integrate.trapezoid(y[xsort], x[xsort])
             deproject_array[tuple(indices[i])] = inte
         return deproject_array
-    
-    
+
+
     def _image(
         self,
         x_range: Sequence[float],
         y_range: Sequence[float],
         nbins: int = 100,
         z_range: Sequence[float] = (-20, 20),
-        rotation: np.ndarray = np.eye(3),
+        rotation: np.ndarray | None = None,
         **kwargs: Any
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate a 2D projection image by integrating along a specified line of sight.
 
@@ -140,14 +142,14 @@ class ProjectorLineIntegration(ModelProjectorBase):
         """
         # Set up projection grid
         indices, pos, xs, ys = self._setup_grid(x_range, y_range, nbins)
-        
+
         # Prepare sight lines
         pos1, pos2 = self._prepare_sight_lines(pos, z_range, rotation)
-        
+
         # Calculate intersections
         intersections, parameters, ind_total = self._calculate_intersections(pos1, pos2)
-        
+
         # Integrate profiles
         deproject_array = self._integrate_profiles(intersections, parameters, ind_total, indices, nbins)
-        
+
         return deproject_array.T, xs, ys

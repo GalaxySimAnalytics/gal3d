@@ -1,14 +1,16 @@
 import logging
 from abc import abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import List, Any
+from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
+from scipy.optimize import Bounds
 
 from gal3d.plugin import PluginBase, PluginManager
 
-__all__ = ['Optimizer', 'OptimizerBase', 'OptimizeResult']
+__all__ = ["Optimizer", "OptimizerBase", "OptimizeResult"]
 
 logger = logging.getLogger("gal3d.optimization.optimizer")
 
@@ -25,22 +27,22 @@ class OptimizeResult:
     start_params: NDArray[np.float64]
     start_fun: float
     algorithm: str | None = None
-    
-    
+
+
     success: bool | None = None
     message: str | None = None
     status: int | None = None
-    
+
     n_fun_evals: int | None = None
     n_jac_evals: int | None = None
     n_hess_evals: int | None = None
     n_iterations: int | None = None
-    
+
     jac: NDArray[np.float64] | None = None
     hess: NDArray[np.float64] | None = None
     hess_inv: NDArray[np.float64] | None = None
     max_constraint_violation: float | None = None
-    
+
     history: Any | None = None
     algorithm_output: dict[str, Any] | None = None
     multistart_info: dict[str, Any] | None = None
@@ -70,14 +72,14 @@ class OptimizeResult:
             val = getattr(self, field, None)
             if val is not None and not isinstance(val, typ):
                 report.append(f"{field} must be a {typ.__name__} or None")
-        
+
         if report:
             msg = (
                 "The following arguments to OptimizeResult are invalid:\n"
                 + "\n".join(report)
             )
             raise TypeError(msg)
-        
+
     @property
     def x(self):
         return self.params
@@ -101,7 +103,7 @@ class OptimizeResult:
     @property
     def nhev(self) -> int | None:
         return self.n_hess_evals
-    
+
     def __getitem__(self, key):
         return getattr(self, key)
 class OptimizerBase(PluginBase):
@@ -111,9 +113,9 @@ class OptimizerBase(PluginBase):
 
     Attributes
     ----------
-    algo_name (str): 
+    algo_name (str):
         Name of the optimization algorithm.
-    algo_options (dict): 
+    algo_options (dict):
         Options specific to the algorithm.
     """
 
@@ -123,9 +125,9 @@ class OptimizerBase(PluginBase):
 
         Parameters
         ----------
-        algorithm (str): 
+        algorithm (str):
             The name of the optimization algorithm.
-        algo_options (dict, optional): 
+        algo_options (dict, optional):
             A dictionary of options specific to the algorithm. Defaults to None.
 
         Raises
@@ -150,12 +152,12 @@ class OptimizerBase(PluginBase):
     @abstractmethod
     def fitting(
         self,
-        fun,
-        x0,
-        bounds,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> OptimizeResult:
         """
         Perform the fitting process.
@@ -182,7 +184,6 @@ class OptimizerBase(PluginBase):
         result : OptimizeResult
             The result of the fitting.
         """
-        pass
 
     def set_options(self, **kwargs):
         """
@@ -205,7 +206,7 @@ class OptimizerBase(PluginBase):
 
     @classmethod
     @abstractmethod
-    def available_algorithm(cls) -> List[str]:
+    def available_algorithm(cls) -> list[str]:
         """
         List of available algorithms.
 
@@ -214,7 +215,6 @@ class OptimizerBase(PluginBase):
         List[str]
             A list of available algorithm names.
         """
-        pass
 
 
 class Optimizer(PluginManager[OptimizerBase]):

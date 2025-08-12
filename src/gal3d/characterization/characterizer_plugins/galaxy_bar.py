@@ -1,17 +1,17 @@
 
-from typing import List, Any, Tuple, Union
+from typing import Any
 
 import numpy as np
 
-from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
+from gal3d.characterization.characterizer import CharacterizerBase
 from gal3d.field.spherical_field.ray.lu_mono_cy import MyPchipInterpolator
 from gal3d.optimization.result import ModelResult
-from ..characterizer import CharacterizerBase
+from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
 
-__all__ = ['Bar']
+__all__ = ["Bar"]
 class Bar(CharacterizerBase):
     def __init__(self, data: dict[str, np.ndarray] | ModelResult):
-        '''
+        """
         Class for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
 
         Parameters
@@ -25,7 +25,7 @@ class Bar(CharacterizerBase):
                     If 'eps' is not provided, 'eps_ab' will be used as a fallback.
                 pa,: array_like
                     Position angle values in radians (0-pi or 2pi, 1D array)
-                    
+
         Attributes
         ----------
         a : ndarray
@@ -34,23 +34,23 @@ class Bar(CharacterizerBase):
             Stored ellipticity array
         pa : ndarray
             Stored position angle array
-        '''
+        """
         super().__init__(data)
-        dex = np.argsort(data['a'])
+        dex = np.argsort(data["a"])
         self.data={i: data[i][dex] for i in data.keys()}
-        
-        self.a = self.data['a']
 
-        if data.get('eps') is not None:
-            self.eps = self.data['eps']
-        elif data.get('eps_ab') is not None:
-            self.eps = self.data['eps_ab']
+        self.a = self.data["a"]
+
+        if data.get("eps") is not None:
+            self.eps = self.data["eps"]
+        elif data.get("eps_ab") is not None:
+            self.eps = self.data["eps_ab"]
         else:
             raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
-        if data.get('pa') is not None:
-            self.pa = self.data['pa']*180/np.pi         # radians to degrees
-        elif data.get('angle') is not None:
-            rota = EulerAngles.from_euler(seq='zyx',angles=self.data['angle'])
+        if data.get("pa") is not None:
+            self.pa = self.data["pa"]*180/np.pi         # radians to degrees
+        elif data.get("angle") is not None:
+            rota = EulerAngles.from_euler(seq="zyx",angles=self.data["angle"])
             self.pa = rota.magnitude()*180/np.pi
         else:
             raise KeyError("Both 'pa' and 'angle' are missing from the data dictionary.")
@@ -61,16 +61,16 @@ class Bar(CharacterizerBase):
         self._f_eps_R = MyPchipInterpolator(self.a, self.eps,extrapolate=True)
 
     def measure(
-        self, 
-        eps_cond=0.25, 
-        range_min=0.2, 
-        start_max=3, 
-        angle_dev=10, 
-        dec=0.85, 
-        detail: bool = False, 
-        other_keys: List[str] | str | None = None
+        self,
+        eps_cond: float = 0.25,
+        range_min: float = 0.2,
+        start_max: float = 3,
+        angle_dev: float = 10,
+        dec: float = 0.85,
+        detail: bool = False,
+        other_keys: list[str] | str | None = None
     ) -> dict[str, Any]:
-        '''
+        """
         Measure galaxy bar parameters using ellipticity profile analysis.
 
         Parameters
@@ -94,7 +94,7 @@ class Bar(CharacterizerBase):
         -------
         result : dict
             Dictionary containing bar parameters.
-            
+
             flag : int
                 1 if bar detected, 0 otherwise.
 
@@ -128,12 +128,12 @@ class Bar(CharacterizerBase):
         Notes
         -----
         Bar detection criteria:
-        
+
         1. Starting radius (Rin) < start_max
         2. Bar region length (Rou-Rin) > range_min
         3. Peak ellipticity > eps_cond
         4. Position angle stability within angle_dev
-        '''
+        """
 
         R_start, R_end = self.select_region(eps_cond=eps_cond)
         R_start, R_end = self.filter_region(
@@ -151,27 +151,27 @@ class Bar(CharacterizerBase):
         if (R_start_val > 0) and (eps_max > eps_cond) and ((R_pa - R_max) > range_min):
             bar_flag = 1
         result = {"flag": bar_flag, "eps_max":eps_max, "R_max": R_max, "R_bar": min(R_dc,R_pa)}
-        
-        if other_keys and not isinstance(other_keys, (str, list, type(None))):
+
+        if other_keys and not isinstance(other_keys, str | list | type(None)):
             raise TypeError("Parameter 'other_keys' must be a string, list, or None.")
         if other_keys:
             if isinstance(other_keys,str):
                 other_keys = [other_keys]
             for i in other_keys:
                 f_r = MyPchipInterpolator(self.a, self.data[i],extrapolate=False)
-                result[f"R_max_{i}"] = f_r(result['R_max'])
-                result[f"R_bar_{i}"] = f_r(result['R_bar'])
+                result[f"R_max_{i}"] = f_r(result["R_max"])
+                result[f"R_bar_{i}"] = f_r(result["R_bar"])
 
         if not detail:
             return result
 
         update: dict[str, float] = {
-            'R_in': R_start_val,
-            'R_ou': R_end_val,
-            'eps_dc': eps_dc,
-            'R_dc': R_dc,
-            'eps_pa': eps_pa,
-            'R_pa': R_pa,
+            "R_in": R_start_val,
+            "R_ou": R_end_val,
+            "eps_dc": eps_dc,
+            "R_dc": R_dc,
+            "eps_pa": eps_pa,
+            "R_pa": R_pa,
         }
         result.update(update)
         return result
@@ -179,7 +179,7 @@ class Bar(CharacterizerBase):
     def select_region(
         self,
         eps_cond: float = 0.25,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Identify regions with ellipticity above threshold.
 
@@ -196,19 +196,18 @@ class Bar(CharacterizerBase):
             Ending radii of high-ellipticity regions
         """
         begin_flag = True
-        R_start: List[float] = []
-        R_end: List[float] = []
+        R_start: list[float] = []
+        R_end: list[float] = []
         for i in range(len(self.eps)):
             if self.eps[i] >= eps_cond:
                 if begin_flag:
                     R_st = self.a[i]
                     begin_flag = False
-            else:
-                if not begin_flag:
-                    R_ed = self.a[i - 1]
-                    begin_flag = True
-                    R_start.append(R_st)
-                    R_end.append(R_ed)
+            elif not begin_flag:
+                R_ed = self.a[i - 1]
+                begin_flag = True
+                R_start.append(R_st)
+                R_end.append(R_ed)
             if (i == len(self.eps) - 1) and (not begin_flag):
                 R_start.append(R_st)
                 R_end.append(self.a[i])
@@ -218,7 +217,7 @@ class Bar(CharacterizerBase):
 
     def filter_region(
         self, R_start: np.ndarray, R_end: np.ndarray, start_max: float = 3, range_min: float = 0.3
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Filter regions based on spatial constraints.
 
@@ -249,7 +248,7 @@ class Bar(CharacterizerBase):
 
         return R_start, R_end
 
-    def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float =3) -> Tuple[float, float, float]:
+    def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float =3) -> tuple[float, float, float]:
         """
         Find maximum ellipticity and corresponding parameters in a region.
 
@@ -282,7 +281,7 @@ class Bar(CharacterizerBase):
             pa_max = float(self.pa[np.argmax(self.eps[self.a < R_cond])])
         return eps_max, R_max, pa_max
 
-    def get_dec_epsRpa(self, R_max: float, eps_max: float, dec: float = 0.85) -> Tuple[float, float, MyPchipInterpolator]:
+    def get_dec_epsRpa(self, R_max: float, eps_max: float, dec: float = 0.85) -> tuple[float, float, MyPchipInterpolator]:
         """
         Determine bar length using ellipticity decrease criterion.
 
@@ -317,7 +316,7 @@ class Bar(CharacterizerBase):
             R_dc_val = float(R_dc[R_dc > R_max][0])
         return eps_dc, R_dc_val, f_eps_R
 
-    def get_dev_epsRpa(self, R_max: float, angle_cond: float = 10) -> Tuple[float, float]:
+    def get_dev_epsRpa(self, R_max: float, angle_cond: float = 10) -> tuple[float, float]:
         """
         Find position angle deviation point.
 

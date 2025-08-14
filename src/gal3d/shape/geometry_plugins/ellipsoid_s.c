@@ -13,8 +13,9 @@ void f_shaped_ellipsoid_cpp(
 
     omp_set_num_threads(num_threads);
 
+    int i; // fix, windows compile error C3015: initialization in OpenMP 'for' statement has improper form
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         double x = pos[i*3+0];
         double y = pos[i*3+1];
         double z = pos[i*3+2];
@@ -40,8 +41,9 @@ void f_shaped_ellipsoid_jacobian_cpp(
 
     omp_set_num_threads(num_threads);
 
+    int i;
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         double x = pos[i*3+0];
         double y = pos[i*3+1];
         double z = pos[i*3+2];
@@ -234,8 +236,9 @@ void IntersectRaysEllipsoid_S_cpp(
 
     omp_set_num_threads(num_threads);
 
+    int i;
     #pragma omp parallel for
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
         double xi = x / L, yi = y / L, zi = z / L;
@@ -262,8 +265,9 @@ void f_ray_shaped_ellipsoid_cpp(
 
     omp_set_num_threads(num_threads);
 
+    int i;
     #pragma omp parallel for
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
 
@@ -358,8 +362,9 @@ void IntersectLinesEllipsoid_S_cpp(
 
     omp_set_num_threads(num_threads);
 
+    int i;
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         // pos1, pos2: [n, 3] row-major
         double x1 = pos1[i*3+0], y1 = pos1[i*3+1], z1 = pos1[i*3+2];
         double x2 = pos2[i*3+0], y2 = pos2[i*3+1], z2 = pos2[i*3+2];

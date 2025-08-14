@@ -25,7 +25,7 @@ public:
 
     static std::vector<T> density_table;
     static std::vector<T> column_table;
-    static constexpr T dr = 0.002; // Density table resolution
+    static constexpr T dr = static_cast<T>(0.002); // Density table resolution
 
     CubicSplineSmoothingKernel();
 

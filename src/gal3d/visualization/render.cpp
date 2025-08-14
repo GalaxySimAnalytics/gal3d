@@ -1,5 +1,10 @@
 #include "render.hpp"
 
+// Define M_PI if not defined (for Windows compatibility)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 template<typename T>
 std::vector<T> CubicSplineSmoothingKernel<T>::density_table;
 
@@ -12,10 +17,10 @@ Grid<T>::Grid(T xmin_, T ymin_, T xmax_, T ymax_, int nx_, int ny_)
     dx = (xmax - xmin) / nx;
     dy = (ymax - ymin) / ny;
     dxdy = dx * dy;
-    xcenter0 = xmin + 0.5 * dx; // Initialize
-    ycenter0 = ymin + 0.5 * dy;
-    inv_dxdy = 1.0 / dxdy;
-    qty.resize(nx * ny, 0.0);
+    xcenter0 = xmin + static_cast<T>(0.5) * dx; // Initialize
+    ycenter0 = ymin + static_cast<T>(0.5) * dy;
+    inv_dxdy = static_cast<T>(1.0) / dxdy;
+    qty.resize(nx * ny, static_cast<T>(0.0));
 }
 
 template<typename T>
@@ -41,11 +46,11 @@ T CubicSplineSmoothingKernel<T>::operator()(T r) const {
 
 template<typename T>
 T CubicSplineSmoothingKernel<T>::density(T r) {
-    if (r < 0.0 || r >= 1.0) return 0.0;
-    if (r < 0.5)
-        return 8.0 / M_PI * (1.0 - 6.0 * r * r * (1.0 - r));
+    if (r < static_cast<T>(0.0) || r >= static_cast<T>(1.0)) return static_cast<T>(0.0);
+    if (r < static_cast<T>(0.5))
+        return static_cast<T>(8.0) / static_cast<T>(M_PI) * (static_cast<T>(1.0) - static_cast<T>(6.0) * r * r * (static_cast<T>(1.0) - r));
     else
-        return 8.0 / M_PI * 2.0 * pow(1.0 - r, 3);
+        return static_cast<T>(8.0) / static_cast<T>(M_PI) * static_cast<T>(2.0) * pow(static_cast<T>(1.0) - r, static_cast<T>(3.0));
 }
 
 template<typename T>

@@ -7,22 +7,22 @@ from setuptools import Extension, setup
 
 
 def is_macos():
-    return platform.system() == 'Darwin'
+    return platform.system() == "Darwin"
 
 def is_windows():
-    return platform.system() == 'Windows'
+    return platform.system() == "Windows"
 
 def get_xcode_version():
-    result = subprocess.run(['pkgutil', '--pkg-info=com.apple.pkg.CLTools_Executables'], capture_output=True, text=True)
+    result = subprocess.run(["pkgutil", "--pkg-info=com.apple.pkg.CLTools_Executables"], check=False, capture_output=True, text=True)
     try:
-        version_line = result.stdout.split('\n')[1]
-        version = version_line.split(' ')[1]
+        version_line = result.stdout.split("\n")[1]
+        version = version_line.split(" ")[1]
     except IndexError:
         return 0 # looks like xcode-cltools not installed? try to proceed anyway
     return version
 
 def xcode_fix_needed():
-    if is_macos() and int(get_xcode_version().split('.')[0]) >= 15:
+    if is_macos() and int(get_xcode_version().split(".")[0]) >= 15:
         return True
     else:
         return False
@@ -31,28 +31,20 @@ def xcode_fix_needed():
 # Platform-specific compiler settings
 if is_windows():
     # MSVC compiler flags
-    openmp_args = ['/openmp']
-    extra_compile_args = ['/O2', '/std:c++14']
-    extra_link_args = ['/openmp']
+    openmp_args = ["/openmp"]
+    extra_compile_args = ["/O2", "/std:c++14"]
+    extra_link_args = ["/openmp"]
 else:
     # GCC/Clang compiler flags
-    openmp_args = ['-fopenmp']
-    
-    extra_link_args = openmp_args + ['-std=c++14']
+    openmp_args = ["-fopenmp"]
+
+    extra_link_args = openmp_args + ["-std=c++14"]
 
 # https://mac.r-project.org/openmp/
 if xcode_fix_needed():
     # workaround for XCode bug FB13097713
     # https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking
-    extra_link_args += ['-Wl,-ld_classic']
-
-
-def with_cpp(compiler_flags):
-    if is_windows():
-        return compiler_flags + ['/std:c++14']
-    else:
-        return compiler_flags + ['-std=c++14']
-
+    extra_link_args += ["-Wl,-ld_classic"]
 
 #optimization_flags = ['-O3','-march=native', '-ffast-math'] # '-march=native'
 #define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
@@ -161,5 +153,5 @@ extensions =[
 
 setup(
     ext_modules=extensions,
-    cmdclass={'build_ext': build_ext},
+    cmdclass={"build_ext": build_ext},
 )

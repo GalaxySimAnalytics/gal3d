@@ -76,8 +76,8 @@ doc = [
 ]
 dev = [
     "pre-commit",
-    "mypy",
-    "ruff"
+    "mypy>=1.17",
+    "ruff>=0.11"
 ]
 
 

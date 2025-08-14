@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (run "ruff check src/gal3d")
+        entry: ruff
+        language: system
+        types: [python]
+        args: ["check", "src/gal3d"]
+      - id: mypy
+        name: mypy (run "mypy src/gal3d")
+        entry: mypy
+        language: system
+        types: [python]
+        args: ["src/gal3d", "--config-file=pyproject.toml"]

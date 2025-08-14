@@ -7,6 +7,8 @@ description = "Build galaxy 3D morphology model"
 authors = [
     {name = "Shuai LU", email = "lushuai@stu.xmu.edu.cn"}
 ]
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=2,<3",
@@ -28,9 +30,6 @@ dynamic = ["version"]
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
-
-[project.license]
-file = "LICENSE"
 
 [project.urls]
 Repository = "https://github.com/GalaxySimAnalytics/gal3d"

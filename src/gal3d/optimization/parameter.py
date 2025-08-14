@@ -153,6 +153,8 @@ class Parameter(float):
         value : float
             The new lower bound of the parameter.
         """
+        if value > self._ub:
+            raise ValueError(f"Lower bound ({value}) for '{self}' cannot be greater than upper bound ({self._ub})")
         self._lb = float(value)
 
     @property
@@ -177,6 +179,8 @@ class Parameter(float):
         value : float
             The new upper bound of the parameter.
         """
+        if value < self._lb:
+            raise ValueError(f"Upper bound ({value}) for '{self}' cannot be less than lower bound ({self._lb})")
         self._ub = float(value)
 
     def __hash__(self):
@@ -190,52 +194,23 @@ class ParameterDict(dict):
     of the `Parameter` class. When assigning a value that is not a `Parameter`,
     it automatically converts it to a `Parameter` instance.
 
-    Attributes
+    Parameters
     ----------
-    None
+    *args : dict or iterable
+        Dictionary or iterable of key-value pairs to initialize with.
+    **kwargs : dict
+        Additional key-value pairs to initialize with.
 
-    Methods
-    -------
-    __setitem__(key, value)
-        Sets the value for a key, converting non-Parameter values to Parameter.
-    deepcopy()
-        Creates a deep copy of the ParameterDict.
-    update(*args, **kwargs)
-        Updates the dictionary, ensuring all values are converted to Parameter.
-    get_rounded(n: int = 3, round_value: bool = True, round_bound: bool = False) -> 'ParameterDict'
-        Returns a new ParameterDict with rounded values and/or bounds.
-    lb
-        Property getter for the lower bounds of all parameters.
-    ub
-        Property getter for the upper bounds of all parameters.
-    set_lb(**kwargs)
-        Sets the lower bounds of multiple parameters.
-    set_ub(**kwargs)
-        Sets the upper bounds of multiple parameters.
+    Examples
+    --------
+    >>> params = ParameterDict(a=1.0, b=2.0)
+    >>> params = ParameterDict({'a': 1.0, 'b': 2.0})
     """
 
     def __init__(self, *args: Mapping[str,float] | Sequence[tuple[str, float]] | _ParamDict, **kwargs: float):
-        """
-        Initialize a new ParameterDict.
-
-        Parameters
-        ----------
-        *args : dict or iterable
-            Dictionary or iterable of key-value pairs to initialize with.
-        **kwargs : dict
-            Additional key-value pairs to initialize with.
-
-        Examples
-        --------
-        >>> params = ParameterDict(a=1.0, b=2.0)
-        >>> params = ParameterDict({'a': 1.0, 'b': 2.0})
-        """
         super().__init__()
         self.update(*args, **kwargs)
 
-    def __getitem__(self, key: str) -> Parameter:
-
-        return super().__getitem__(key)
 
     def __setitem__(self, key: str, value: float | Parameter) -> None:
         """
@@ -275,19 +250,16 @@ class ParameterDict(dict):
         >>> params.update({'a': 1.0, 'b': 2.0})
         >>> params.update(c=3.0, d=4.0)
         """
-        # Handle positional argument (dictionary or iterable of key-value pairs)
-        if args:
-            for other in args:
-                if isinstance(other, Mapping):
-                    for key in other:
-                        self[key] = other[key]
-                else:
-                    # Assume it's an iterable of key-value pairs
-                    for key, value in other:
-                        self[key] = value
-        # Handle keyword arguments
-        for key, value in kwargs.items():
-            self[key] = value
+        for k, v in dict(*args, **kwargs).items():
+            self[k] = v
+
+    def get_parameter(self, name: str) -> Parameter:
+        if name in self:
+            return self[name]
+        raise KeyError(f"Parameter '{name}' not found.")
+
+    def parameter_keys(self):
+        return self.keys()
 
     def get_rounded(self, n: int = 3, round_value: bool = True, round_bound: bool = False, only_value: bool = False) -> Union[dict[str, float], "ParameterDict"]:
         """
@@ -418,12 +390,14 @@ class ParameterDict(dict):
             self[key] = self[key].assign_value(value)
         return self
 
-    def set_lb(self, **kwargs: float) -> "ParameterDict":
+    def set_lb(self, *, only_infs: bool = False, **kwargs: float) -> "ParameterDict":
         """
         Sets the lower bounds of multiple parameters.
 
         Parameters
         ----------
+        only_infs : bool, optional
+            If True, only set bounds for parameters with infinite lower bounds.
         **kwargs : dict
             A dictionary of parameter names and their new lower bounds.
 
@@ -432,31 +406,27 @@ class ParameterDict(dict):
         ParameterDict
             The updated ParameterDict instance.
 
-        Raises
-        ------
-        KeyError
-            If a parameter name does not exist in the dictionary.
-
         Examples
         --------
         >>> params = ParameterDict(a=1.0, b=2.0)
         >>> params.set_lb(a=0.0, b=1.0)
         """
-        for key, value in kwargs.items():
-            if key not in self:
-                raise KeyError(f"Parameter '{key}' does not exist")
-            if not np.isfinite(value) and value != -np.inf:
-                self[key].lb = -np.inf
-            else:
-                self[key].lb = value
+        keys = set(kwargs) & set(self.keys())
+        for key in keys:
+            if only_infs and np.isfinite(self[key].lb):
+                continue
+            value = kwargs[key]
+            self[key].lb = value if np.isfinite(value) else -np.inf
         return self
 
-    def set_ub(self, **kwargs: float) -> "ParameterDict":
+    def set_ub(self, *, only_infs: bool = False, **kwargs: float) -> "ParameterDict":
         """
         Sets the upper bounds of multiple parameters.
 
         Parameters
         ----------
+        only_infs : bool, optional
+            If True, only set bounds for parameters with infinite upper bounds.
         **kwargs : dict
             A dictionary of parameter names and their new upper bounds.
 
@@ -465,27 +435,17 @@ class ParameterDict(dict):
         ParameterDict
             The updated ParameterDict instance.
 
-        Raises
-        ------
-        KeyError
-            If a parameter name does not exist in the dictionary.
-        ValueError
-            If an upper bound is less than the corresponding lower bound.
-
         Examples
         --------
         >>> params = ParameterDict(a=1.0, b=2.0)
         >>> params.set_ub(a=2.0, b=3.0)
         """
-        for key, value in kwargs.items():
-            if key not in self:
-                raise KeyError(f"Parameter '{key}' does not exist")
-            if self[key].lb > value:
-                raise ValueError(f"Upper bound ({value}) for '{key}' cannot be less than lower bound ({self[key].lb})")
-            if not np.isfinite(value) and value != np.inf:
-                self[key].ub = np.inf
-            else:
-                self[key].ub = value
+        keys = set(kwargs) & set(self.keys())
+        for key in keys:
+            if only_infs and np.isfinite(self[key].ub):
+                continue
+            value = kwargs[key]
+            self[key].ub = value if np.isfinite(value) else np.inf
         return self
 
     @property
@@ -575,9 +535,9 @@ class ConstrainedParameterDict(ParameterDict):
         **kwargs : dict
             Additional key-value pairs to initialize with.
         """
-        self._equal_constraints = {}
-        self._constraints_parameters = {}
-        self._parameter_names = []
+        self._equal_constraints: dict[str, Callable[[dict[str, float]], float]] = {}
+        self._constraints_parameters: dict[str, Parameter] = {}
+        self._parameter_names: list[str] = []
         super().__init__(*args, **kwargs)
         self._parameter_names = list(self.keys())
 
@@ -639,8 +599,7 @@ class ConstrainedParameterDict(ParameterDict):
         Raises
         ------
         ValueError
-            If there is no constraint on the parameter or if the parameter
-            was not properly recorded in _constraints_parameters.
+            If constraint or parameter is not found.
 
         Examples
         --------
@@ -665,7 +624,7 @@ class ConstrainedParameterDict(ParameterDict):
         self.update(items)
 
 
-    def __getitem__(self, key: str) -> Parameter:
+    def __getitem__(self, key: str) -> Parameter | float:
         """
         Get a parameter value, applying constraints if necessary.
 
@@ -684,8 +643,10 @@ class ConstrainedParameterDict(ParameterDict):
         KeyError
             If the key is not found in parameters or constraints
         """
-        if key in self._equal_constraints:
-            return self._equal_constraints[key](self)
+        try:
+            return self.get_constraint(key)
+        except KeyError:
+            pass
         return super().__getitem__(key)
 
     def decorate_func_constraints(self, function):
@@ -735,6 +696,12 @@ class ConstrainedParameterDict(ParameterDict):
         else:
             return function
 
+    def get_constraint(self, name: str) -> float:
+
+        if name in self._equal_constraints:
+            return self._equal_constraints[name](self)
+        raise KeyError(f"Constraint '{name}' not found.")
+
     def constraint_keys(self) -> KeysView:
         """
         Returns all constraint keys.
@@ -762,7 +729,12 @@ class ConstrainedParameterDict(ParameterDict):
     @property
     def all_parameter_dict(self):
         """
-        Returns a new ParameterDict with keys ordered according to all_parameter_names.
+        Get all parameters, including constrained ones.
+
+        Returns
+        -------
+        ParameterDict
+            All parameters.
         """
         result = ParameterDict()
         for k in self.all_parameter_names:
@@ -773,6 +745,10 @@ class ConstrainedParameterDict(ParameterDict):
                 result[k] = self[k]
         return result
 
+    def __setitem__(self, key: str, value: float) -> None:
+        if key not in self._parameter_names:
+            self._parameter_names.append(key)
+        return super().__setitem__(key, value)
 
     def update(self: "ConstrainedParameterDict", *args: Union["ConstrainedParameterDict",Mapping[str, float],Sequence[tuple[str, float]]], **kwargs: float) -> None: # type: ignore[override]
         """
@@ -815,17 +791,6 @@ class RichParameterDict(ParameterDict):
         Functions that compute derived parameters.
     _info : dict
         Additional information associated with the parameters.
-
-    Methods
-    -------
-    add_derived(name, func)
-        Add a derived parameter function.
-    add_info(**kwargs)
-        Add additional info.
-    get_derived(name)
-        Get the value of a derived parameter.
-    get_info(name)
-        Get info by key.
     """
 
     def __init__(self, *args, **kwargs):
@@ -843,6 +808,11 @@ class RichParameterDict(ParameterDict):
             If str, must provide func. If dict, keys are names and values are functions.
         func : callable, optional
             The function for the derived parameter (if name_or_dict is str).
+
+        Raises
+        ------
+        TypeError
+            If arguments are invalid.
         """
         if isinstance(name_or_dict, str) and func is not None:
             self._derived[name_or_dict] = func
@@ -886,7 +856,9 @@ class RichParameterDict(ParameterDict):
 
     def get_info(self, name: str) -> Any:
         """Get info by key."""
-        return self._info.get(name)
+        if name in self._info:
+            return self._info[name]
+        raise KeyError(f"Info '{name}' not found.")
 
     def derived_keys(self) -> KeysView:
         """Get all derived parameter keys."""
@@ -902,13 +874,19 @@ class RichParameterDict(ParameterDict):
         """
         return super().available_keys() | self.derived_keys() | self.info_keys()
 
-    def __getitem__(self, key: str) -> Parameter:
-        if key in self:
+    def __getitem__(self, key: str) -> Parameter | float | Any:
+        try:
             return super().__getitem__(key)
-        if key in self._derived:
+        except KeyError:
+            pass
+        try:
             return self.get_derived(key)
-        if key in self._info:
+        except KeyError:
+            pass
+        try:
             return self.get_info(key)
+        except KeyError:
+            pass
         raise KeyError(key)
 
     def update(self: "RichParameterDict", *args: Union["RichParameterDict", Mapping[str, float], Sequence[tuple[str, float]]], **kwargs: float) -> None: # type: ignore[override]
@@ -933,7 +911,7 @@ class RichParameterDict(ParameterDict):
         if kwargs:
             super().update(kwargs)
 
-class Parameters(ConstrainedParameterDict, RichParameterDict):
+class Parameters(RichParameterDict,ConstrainedParameterDict):
     """
     A class as a container for parameters with constraints and rich metadata.
     """
@@ -947,17 +925,49 @@ class Parameters(ConstrainedParameterDict, RichParameterDict):
 
     def new(self,*args: Iterable[float] | float,**kwargs: float) -> "Parameters":
         """
-        Create a new instance of the Parameters class.
+        Create a new instance with updated values.
+
+        Parameters
+        ----------
+        *args, **kwargs
+            Arguments for set_value.
+
+        Returns
+        -------
+        Parameters
+            New instance.
         """
         new = self.deepcopy()
         new.set_value(*args, **kwargs)
         return new
     @property
     def structure_parameters(self):
+        """
+        Get all parameters including constraints.
+
+        Returns
+        -------
+        ParameterDict
+            All parameters.
+        """
         return self.all_parameter_dict
 
     def get_rounded_values_dict(self, n: int = 3) -> dict[str, float]:
+        """
+        Get rounded parameter values.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of decimal places. Default is 3.
+
+        Returns
+        -------
+        dict
+            Rounded parameter values.
+        """
         return self.get_rounded(n, only_value=True)
+
 
     def __add__(self, other: Union[dict, "Parameters"]) -> "Parameters":
         h1 = self.deepcopy()

@@ -72,18 +72,9 @@ class GlobalCalculator(Auto3DShape):
         """
         Clean up large data arrays to assist garbage collection.
         """
-        # Clear large arrays
-        if hasattr(self, "pos"):
-            self.pos = None
-        if hasattr(self, "mass"):
-            self.mass = None
-        if hasattr(self, "r"):
-            self.r = None
-
-        # Clear cached properties if they've been accessed
-        for attr in ["_ssc_center", "_mass_center", "_shape_center", "_moi", "_abc"]:
+        for attr in ["pos", "mass", "r", "_ssc_center", "_mass_center", "_shape_center", "_moi", "_abc"]:
             if hasattr(self, attr):
-                setattr(self, attr, None)
+                delattr(self, attr)
 
     @cached_property
     def ssc_center(self) -> np.ndarray:

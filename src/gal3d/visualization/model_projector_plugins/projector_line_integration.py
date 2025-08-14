@@ -76,8 +76,8 @@ class ProjectorLineIntegration(ModelProjectorBase):
             raise ValueError("model_sel is empty. Ensure that the selection criteria result in a non-empty model_sel.")
 
         n = len(pos1)
-        intersections = [[] for _ in range(n)]
-        parameters = [[] for _ in range(n)]
+        intersections: list[list[float]] = [[] for _ in range(n)]
+        parameters: list[list[float]] = [[] for _ in range(n)]
 
         para = self.model["parameter"]
         quick_line_intersect = self.model[int(model_sel[-1])].quick_line_intersect

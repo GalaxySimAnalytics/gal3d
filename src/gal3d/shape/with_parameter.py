@@ -134,8 +134,9 @@ class WithParameter(ABC):
 
         parameters = Parameters(**{i: param[i] for i in cls.PN})
         parameters.add_derived(cls.derived_param_funcs())
-        parameters.set_lb(**cls.LB)
-        parameters.set_ub(**cls.UB)
+        # only set bounds for parameters with original infinite bounds
+        parameters.set_lb(only_infs=True, **cls.LB)
+        parameters.set_ub(only_infs=True, **cls.UB)
         return parameters
 
     @classmethod

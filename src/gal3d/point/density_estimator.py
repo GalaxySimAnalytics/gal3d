@@ -78,6 +78,18 @@ class DensityEstimatorBase(PluginBase,Auto3DShape):
         """
         return self.get_gradient(self.pos)
 
+    @cached_property
+    def hsm(self) -> np.ndarray:
+        """
+        Estimate the half-smooth length at the original particle positions.
+
+        Returns
+        -------
+        numpy.ndarray
+            Estimated half-smooth length values.
+        """
+        return self.get_hsm(self.pos)
+
     @abstractmethod
     def get_hsm(self, target_pos: ArrayLike, **kwargs: Any) -> np.ndarray:
         """

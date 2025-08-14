@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import ClassVar, Generic, TypeVar
 
 from gal3d.config import config
@@ -15,14 +16,19 @@ class PluginManagerRegistry:
     and provides unified import and lookup functionality.
     """
     _managers: dict[str, type["PluginManager"]] = {}
+    _lock = threading.Lock()
 
     @classmethod
     def register_manager(cls, manager: type["PluginManager"]) -> None:
-        cls._managers[manager.__name__] = manager
+        with cls._lock:
+            cls._managers[manager.__name__] = manager
 
     @classmethod
     def get_manager(cls, name: str) -> type["PluginManager"]:
-        return cls._managers[name]
+        try:
+            return cls._managers[name]
+        except KeyError as err:
+            raise LookupError(f"PluginManager '{name}' not found.") from err
 
     @classmethod
     def all_managers(cls) -> dict[str, type["PluginManager"]]:
@@ -117,9 +123,8 @@ class PluginManager(Generic[_PluginType]):
             The plugin class to register.
         """
         cls._check_subclass_config()
-        assert issubclass(plugin_cls, cls._base_class), (
-            f"{plugin_cls.__name__} must be a subclass of {cls._base_class.__name__}"
-        )
+        if not issubclass(plugin_cls, cls._base_class):
+            raise TypeError(f"{plugin_cls.__name__} must be a subclass of {cls._base_class.__name__}")
         cls._plugins[plugin_cls.__name__] = plugin_cls
         logger.debug("%s found: %s", cls.__name__, plugin_cls.__name__)
 
@@ -135,7 +140,10 @@ class PluginManager(Generic[_PluginType]):
         cls._check_subclass_config()
         if not cls._plugins:
             cls._load_plugins()
-        return cls._plugins[name]
+        try:
+            return cls._plugins[name]
+        except KeyError as err:
+            raise LookupError(f"Plugin '{name}' not found in {cls.__name__}") from err
 
     @classmethod
     def available_plugins(cls) -> list[str]:

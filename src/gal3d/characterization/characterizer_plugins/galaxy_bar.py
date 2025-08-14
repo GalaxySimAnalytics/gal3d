@@ -42,14 +42,18 @@ class Bar(CharacterizerBase):
         self.a = self.data["a"]
 
         if data.get("eps") is not None:
+            self.data["eps"] = data["eps"][dex]
             self.eps = self.data["eps"]
         elif data.get("eps_ab") is not None:
+            self.data["eps_ab"] = data["eps_ab"][dex]
             self.eps = self.data["eps_ab"]
         else:
             raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
         if data.get("pa") is not None:
+            self.data["pa"] = data["pa"][dex]
             self.pa = self.data["pa"]*180/np.pi         # radians to degrees
         elif data.get("angle") is not None:
+            self.data["angle"] = data["angle"][dex]
             rota = EulerAngles.from_euler(seq="zyx",angles=self.data["angle"])
             self.pa = rota.magnitude()*180/np.pi
         else:

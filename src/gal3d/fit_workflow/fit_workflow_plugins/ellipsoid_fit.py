@@ -126,9 +126,9 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Apply custom bounds using set operations for efficiency
         for param_name in set(upper_bounds) & set(parameters_set.keys()):
-            parameters_set[param_name].ub = upper_bounds[param_name]
+            parameters_set.get_parameter(param_name).ub = upper_bounds[param_name]
         for param_name in set(lower_bounds) & set(parameters_set.keys()):
-            parameters_set[param_name].lb = lower_bounds[param_name]
+            parameters_set.get_parameter(param_name).lb = lower_bounds[param_name]
 
         if init_parameters:
             parameters_set = parameters_set.set_value(**init_parameters)
@@ -167,21 +167,21 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         # Reuse parameter setup logic
         ell_params = ellipsoid.parameters.new()
         for param_name in set(analyzer.structure.parameters.keys()) & set(ell_params.keys()):
-            ell_params[param_name].assign_bounds(
-                analyzer.structure.parameters[param_name].lb,
-                analyzer.structure.parameters[param_name].ub
+            ell_params.get_parameter(param_name).assign_bounds(
+                analyzer.structure.parameters.get_parameter(param_name).lb,
+                analyzer.structure.parameters.get_parameter(param_name).ub
             )
-        ell_params["a"].assign_bounds(a * (1 - var_a), a * (1 + var_a))
+        ell_params.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
         if var_cen:
             cen = var_cen * a
             for name in ["x", "y", "z"]:
-                ell_params[name].assign_bounds(-cen, cen)
+                ell_params.get_parameter(name).assign_bounds(-cen, cen)
 
         # Apply parameter constraints efficiently
         for param_name in set(upper_bounds) & set(ell_params.keys()):
-            ell_params[param_name].ub = upper_bounds[param_name]
+            ell_params.get_parameter(param_name).ub = upper_bounds[param_name]
         for param_name in set(lower_bounds) & set(ell_params.keys()):
-            ell_params[param_name].lb = lower_bounds[param_name]
+            ell_params.get_parameter(param_name).lb = lower_bounds[param_name]
 
         # Set initial values
         if init_parameters:
@@ -207,7 +207,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Set up parameters for the generalized ellipsoid
         parameters_set = analyzer.structure.parameters.new()
-        parameters_set["a"].assign_bounds(a * (1 - var_a), a * (1 + var_a))
+        parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
 
         # Apply initial values and lock shape parameters
         if init_parameters:

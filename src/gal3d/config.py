@@ -5,19 +5,17 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Literal
 
-default_thread_count = None
+default_thread_count: int
 try:
     import psutil
     default_thread_count = psutil.cpu_count(logical=False)
 except ImportError:
-    pass
-
-if default_thread_count is None:
-    default_thread_count = os.cpu_count()
-    if default_thread_count is None:
-        default_thread_count = 1
-    else:
+    os_cpu = os.cpu_count()
+    if os_cpu is not None:
+        default_thread_count = os_cpu
         default_thread_count = max(default_thread_count // 2, 1)
+    else:
+        default_thread_count = 1
 
 
 

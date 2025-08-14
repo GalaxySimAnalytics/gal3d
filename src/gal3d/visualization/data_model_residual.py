@@ -53,7 +53,8 @@ def show_data_model(
             nbins=nbins,
         )
     else:
-        pos = Rotate(data.pos, rotation_matrix.T)
+        rot = rotation_matrix.T.astype(data.pos.dtype)
+        pos = Rotate(data.pos, rot)
         data_image, xs, ys = hist_2d(
             pos[:, which_pos[0]],
             pos[:, which_pos[1]],
@@ -306,6 +307,7 @@ def show_image_model_residual(
     ylabel_all: list[str] | None = None,
     xlabel_all: list[str] | None = None,
     labelsize: float = 13,
+    render: bool = True,
     savefile: str | None = None,
 ) -> plt.Figure | list[plt.Figure]:
     """
@@ -399,6 +401,7 @@ def show_image_model_residual(
             z_range=depth_z_range,
             nbins=nbins_large,
             nlevels=nlevels_large,
+            render=render
         )
         allpanels.append(h1)
         h2 = show_data_model(
@@ -413,6 +416,7 @@ def show_image_model_residual(
             z_range=depth_z_range,
             nbins=nbins_zoom,
             nlevels=nlevels_zoom,
+            render=render
         )
         allpanels.append(h2)
 

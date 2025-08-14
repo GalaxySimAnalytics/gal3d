@@ -73,14 +73,10 @@ class Particles(GlobalCalculator):
         """
         Clean up estimator and call parent class cleanup.
         """
-        # Clear estimator reference which may hold significant data
-        if hasattr(self, "estimator"):
-            self.estimator = None
-
-        # Clear cached properties if they exist
-        for attr in ["_parameter", "_gradient"]:
+        for attr in ["_parameter", "_gradient", "estimator"]:
             if hasattr(self, attr):
                 setattr(self, attr, None)
+                delattr(self, attr)
 
         # Call parent class __del__ method
         try:

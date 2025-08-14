@@ -47,8 +47,9 @@ class Gal3DAnalyzer:
         self.structure = structure
         self.optimizer = optimizer
 
-    @staticmethod
+    @classmethod
     def analyze(
+        cls,
         pos: np.ndarray,
         mass: np.ndarray,
         recenter: bool = True,
@@ -80,42 +81,43 @@ class Gal3DAnalyzer:
 
         particle = Particles(pos=pos, mass=mass, recenter=recenter)
 
-        if "res_r" not in kwargs:
-            res_r = particle.estimate_spatial_resolution()
-        else:
-            res_r = kwargs["res_r"]
-        if "res_r_max" in kwargs:
-            res_r = min(res_r, kwargs["res_r_max"])
-
+        res_r = kwargs.get("res_r", particle.estimate_spatial_resolution())
+        res_r_max = kwargs.get("res_r_max")
+        if res_r_max is not None:
+            res_r = min(res_r, res_r_max)
         res_m = particle.estimate_mass_resolution()
         logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
 
-        Num_rays = min(1024,int(len(particle.r)/150))
-        Num_rays = max(Num_rays,64)
+        field = cls._build_field(particle=particle, res_r=res_r, res_m=res_m)
+        structure = cls._build_structure(res_r)
+        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell") # OptimizerScipy Powell
 
-        inner = res_r/2
-        inner_mode = "dist"
+        return Gal3DAnalyzer(particle=particle,field=field,structure=structure,optimizer=optimizer)
 
-        outer = res_m/(4*np.pi/3*(3*res_r)**3)
-        outer_mode = "value"
-
+    @staticmethod
+    def _build_field(particle: Particles, res_r: float, res_m: float) -> SphField:
+        num_ray = min(1024, int(len(particle.r) / 150))
+        num_ray = max(num_ray, 64)
+        inner = res_r / 2
+        outer = res_m / (4 * np.pi / 3 * (3 * res_r) ** 3)
         logger.info("Set inner radius to %f", inner)
         logger.info("Set outer value to %f", outer)
-
-        field = SphField(particle, num_ray=Num_rays
-                ).build_field_boundary(inner = inner, outer=outer,inner_mode=inner_mode,outer_mode=outer_mode
+        field = SphField(particle, num_ray=num_ray
+                ).build_field_boundary(inner=inner, outer=outer, inner_mode="dist", outer_mode="value"
                 ).build_profile_sample(
                 ).build_profile_interpolator(
                 ).build_isodensity_profile(
                 )
+        return field
 
-        ellipsoid_s = Structure3D(coordinate="EulerShift",geometry="Ellipsoid_S",error_func="sums_dev_rscale",error_method="isodensity_dcall")
-        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell") # OptimizerScipy Powell
-
-        ellipsoid_s.parameters.set_ub(x=inner,y=inner,z=inner)
-        ellipsoid_s.parameters.set_lb(x=-inner,y=-inner,z=-inner)
-
-        return Gal3DAnalyzer(particle=particle,field=field,structure=ellipsoid_s,optimizer=optimizer)
+    @staticmethod
+    def _build_structure(res_r: float) -> Structure3D:
+        inner = res_r / 2
+        structure = Structure3D(coordinate="EulerShift", geometry="Ellipsoid_S",
+                                error_func="sums_dev_rscale", error_method="isodensity_dcall")
+        structure.parameters.set_ub(x=inner, y=inner, z=inner)
+        structure.parameters.set_lb(x=-inner, y=-inner, z=-inner)
+        return structure
 
 
     def fit(self, num_step:int = 200, step_mode: str = "log", **kwargs: Any) -> ModelResult:
@@ -161,7 +163,12 @@ class Gal3DAnalyzer:
         logger.info("Using workflow: %s", workflow.__class__.__name__)
 
         if not isinstance(r, Iterable):
-            return workflow(self, r, **kwargs)
+            try:
+                res = workflow(self, r, **kwargs)
+            except Exception as e:
+                logger.error("Error fitting radius %f: %s", r, e)
+                res = EmptyModelResult()
+            return res
         else:
             resall: list[ModelResult] = []
             errors: dict[str, list[str]] = {}

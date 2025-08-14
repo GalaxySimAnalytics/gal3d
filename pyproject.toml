@@ -164,3 +164,4 @@ warn_unreachable = true
 warn_redundant_casts = true
 
 disallow_incomplete_defs = true
+check_untyped_defs = true

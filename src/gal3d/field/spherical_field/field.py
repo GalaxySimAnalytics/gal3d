@@ -77,7 +77,7 @@ class SphField:
         if self.rays_points_num[min_num_dex] < 3:
             logger.error("It should be > 2, so please make the ray num smaller. ")
 
-        ind = [[] for _ in range(self.rays.num)]
+        ind: list[list[int]] = [[] for _ in range(self.rays.num)]
         for i, j in enumerate(self.rays_index):
             ind[j].append(i)
 

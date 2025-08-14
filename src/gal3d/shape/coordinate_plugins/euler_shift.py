@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 from gal3d.shape.coordinate import CoordinateBase
@@ -23,7 +25,7 @@ class EulerShift(CoordinateBase):
 
     EulerSeq = "zyx"
 
-    def __init__(self, x, y, z, ang1, ang2, ang3, **kwargs):
+    def __init__(self, x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, **kwargs: Any):
         """
         Initialize the EulerShift object with translation and rotation parameters.
 
@@ -62,7 +64,7 @@ class EulerShift(CoordinateBase):
         }
 
 
-    def jacobian(self, pos):
+    def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute the Jacobian of the transformed positions with respect to the translation and rotation parameters.
 
@@ -94,7 +96,7 @@ class EulerShift(CoordinateBase):
 
         return (d_Px.T, d_Py.T, d_Pz.T, d_ang1, d_ang2, d_ang3)
 
-    def __call__(self, pos):
+    def __call__(self, pos: np.ndarray) -> np.ndarray:
         """
         Transform the given positions using the current translation and rotation parameters.
 
@@ -111,7 +113,7 @@ class EulerShift(CoordinateBase):
         pos = self.to_3d_array(pos)
         return Shift(Rotate(pos.copy(), self._rotation.as_matrix()), self["pos"])
 
-    def inverse(self, pos):
+    def inverse(self, pos: np.ndarray) -> np.ndarray:
         """
         Inverse transform the given positions using the current translation and rotation parameters.
 
@@ -129,7 +131,7 @@ class EulerShift(CoordinateBase):
         return Rotate(Shift(pos.copy(), -self["pos"]), self._rotation.as_matrix().T)
 
     @staticmethod
-    def quick_call(x, y, z, ang1, ang2, ang3, pos):
+    def quick_call(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> np.ndarray:
         """
         Quickly transform the given positions using the specified translation and rotation parameters.
 
@@ -155,7 +157,7 @@ class EulerShift(CoordinateBase):
         return RotateAndShift(pos, rot_matrix, pc)
 
     @staticmethod
-    def quick_inverse(x, y, z, ang1, ang2, ang3, pos):
+    def quick_inverse(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> np.ndarray:
         """
         Quickly inverse transform the given positions using the specified translation and rotation parameters.
 
@@ -173,16 +175,16 @@ class EulerShift(CoordinateBase):
         numpy.ndarray
             The inverse transformed positions.
         """
-        pc = np.float64([x, y, z])
+        pc: np.ndarray = np.asarray([x, y, z],dtype=np.float64)
         matrix = EulerAngles.from_euler(
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
         ).as_matrix()
         return Rotate(Shift(pos.copy(), -pc), matrix.T)
 
     @staticmethod
-    def quick_jacobian(x, y, z, ang1, ang2, ang3, pos):
+    def quick_jacobian(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
-        pc = np.float64([x, y, z])
+        pc: np.ndarray = np.asarray([x, y, z],dtype=np.float64)
 
         EulerAngles.from_euler(
             seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]

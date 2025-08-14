@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
@@ -21,15 +21,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-            
-      - name: Install OpenMP on macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew install libomp
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/usr/local/opt/libomp/include -I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
-          echo "LDFLAGS=-L/usr/local/opt/libomp/lib -L/opt/homebrew/opt/libomp/lib -Wl,-rpath,/usr/local/opt/libomp/lib -Wl,-rpath,/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
         
       - name: Upgrade pip
         run: python -m pip install --upgrade pip

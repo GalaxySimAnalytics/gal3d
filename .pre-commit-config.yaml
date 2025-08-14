@@ -6,10 +6,14 @@ repos:
         entry: ruff
         language: system
         types: [python]
+        files: '^src/'               # only trigger in src
         args: ["check", "src/gal3d"]
+        pass_filenames: false
       - id: mypy
         name: mypy (run "mypy src/gal3d")
         entry: mypy
         language: system
         types: [python]
+        files: '^src/'               # only trigger in src
         args: ["src/gal3d", "--config-file=pyproject.toml"]
+        pass_filenames: false

@@ -2,7 +2,7 @@ import platform
 import subprocess
 
 import numpy
-from Cython.Build import build_ext, cythonize
+from Cython.Build import build_ext
 from setuptools import Extension, setup
 
 

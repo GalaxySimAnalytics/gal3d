@@ -22,7 +22,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 dynamic = ["version"]

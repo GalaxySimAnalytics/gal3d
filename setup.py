@@ -40,7 +40,7 @@ else:
     
     extra_link_args = openmp_args + ['-std=c++14']
 
-
+# https://mac.r-project.org/openmp/
 if xcode_fix_needed():
     # workaround for XCode bug FB13097713
     # https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking

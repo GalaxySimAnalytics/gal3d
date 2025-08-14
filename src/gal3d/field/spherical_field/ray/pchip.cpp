@@ -2,6 +2,11 @@
 #include <cmath>
 #include "pchip.hpp"
 
+// Define M_PI if not already defined, fix error in windows compile.
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 PchipInterpolator::PchipInterpolator(const std::vector<double>& x, const std::vector<double>& y)
     : x_(x), y_(y), d_(x.size())
 {

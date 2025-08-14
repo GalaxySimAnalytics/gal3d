@@ -63,7 +63,6 @@ def test_model_result_invalid_attribute(res_ellipsoid_s: ModelResult):
     """Test ModelResult invalid attribute access."""
     with pytest.raises(AttributeError):
         _ = res_ellipsoid_s.non_existent_attribute
-        _ = res_ellipsoid_s.__a__
 
 
 def test_model_result_addition(res_ellipsoid_s: ModelResult):
@@ -136,8 +135,8 @@ def test_gal3d_field_and_visualization(gal: Gal3DAnalyzer, res_ellipsoid_s: Mode
         zoom_x_range=(-zoom_lh_max, zoom_lh_max),
         zoom_y_range=(-zoom_lh_max, zoom_lh_max),
         depth_z_range=(-box_lh_max, box_lh_max),
-        nbins_large=60,
-        nbins_zoom=30,
+        nbins_large=50,
+        nbins_zoom=25,
         nlevels_large=0,
         nlevels_zoom=22
     )
@@ -148,8 +147,8 @@ def test_gal3d_field_and_visualization(gal: Gal3DAnalyzer, res_ellipsoid_s: Mode
         zoom_x_range=(-zoom_lh_max, zoom_lh_max),
         zoom_y_range=(-zoom_lh_max, zoom_lh_max),
         depth_z_range=(-box_lh_max, box_lh_max),
-        nbins_large=60,
-        nbins_zoom=30,
+        nbins_large=50,
+        nbins_zoom=25,
         nlevels_large=0,
         nlevels_zoom=22,
         render=False

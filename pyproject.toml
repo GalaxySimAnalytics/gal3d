@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=1.26", #but recomend > 2;    1.26 for python 3.9-3.12.; 2.02: 3.9-3.12; 2.2.0: 3.10-3.13.; 2.3.0: 3.11-3.13.
     "scipy",
     "tqdm",
     "matplotlib",

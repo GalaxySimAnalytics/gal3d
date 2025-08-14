@@ -1,26 +1,47 @@
 
 
-
+# Sphinx documentation
 docs/source/reference/_autosummary/*
 
-src/gal3d.egg-info
-src/gal3d/visualization/render_wrapper.cpp
+# Unit test / coverage reports
+htmlcov/
+tests/test_data
+**/.coverage
+.pytest_cache
 
+# Byte-compiled 
 **/__pycache__
 
-# 
-**/*.ipynb
-
-**/gal3d.log
+# C extensions
 **/*.so
 **/*cy.cpp
 **/*cy.c
 
-tests/test_data
-**/.coverage
 
-.venv
-.pytest_cache
+# PyInstaller or Distribution
 dist/
 build/
+
+src/gal3d.egg-info
+src/gal3d/visualization/render_wrapper.cpp
+
+
+
+# Jupyter Notebook
+**/*.ipynb
+
+# runtime logs
+**/gal3d.log
+
+# Environments
+.venv
+
+
+# VSCode project settings
 .VSCodeCounter
+
+# mypy
+.mypy_cache
+
+# ruff
+.ruff_cache

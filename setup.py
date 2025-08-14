@@ -32,17 +32,14 @@ def xcode_fix_needed():
 if is_windows():
     # MSVC compiler flags
     openmp_args = ['/openmp']
-    extra_compile_args = ['/O2']
+    extra_compile_args = ['/O2', '/std:c++14']
     extra_link_args = ['/openmp']
 else:
     # GCC/Clang compiler flags
     openmp_args = ['-fopenmp']
     
-    extra_link_args = ['-fopenmp']
+    extra_link_args = openmp_args + ['-std=c++14']
 
-
-ext_modules = []
-libraries=[ ]
 
 if xcode_fix_needed():
     # workaround for XCode bug FB13097713
@@ -132,8 +129,8 @@ monotonic_interpolate = Extension(
         "src/gal3d/field/spherical_field/ray/pchip.cpp"
     ],
     include_dirs=incdir + ["src/gal3d/field/spherical_field/ray"],
-    extra_compile_args=with_cpp(openmp_args),
-    extra_link_args=with_cpp(extra_link_args),
+    extra_compile_args=openmp_args,
+    extra_link_args=extra_link_args,
     language="c++",
 )
 
@@ -145,8 +142,8 @@ sph_render = Extension(
         "src/gal3d/visualization/render.cpp"
     ],
     include_dirs=incdir + ["src/gal3d/visualization"],
-    extra_compile_args=with_cpp(openmp_args),
-    extra_link_args=with_cpp(extra_link_args),
+    extra_compile_args=openmp_args,
+    extra_link_args=extra_link_args,
    # language="c++",
 )
 

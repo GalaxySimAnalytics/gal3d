@@ -44,7 +44,7 @@ def show_data_model(
     if rotation_matrix is None:
         rotation_matrix = np.eye(3)
     if render:
-        data_image, xs, ys = render_2d(
+        data_image = render_2d(
             data.pos,data.mass,data.hsm,
             which_pos=which_pos,
             rotation_matrix=rotation_matrix,
@@ -55,7 +55,7 @@ def show_data_model(
     else:
         rot = rotation_matrix.T.astype(data.pos.dtype)
         pos = Rotate(data.pos, rot)
-        data_image, xs, ys = hist_2d(
+        data_image = hist_2d(
             pos[:, which_pos[0]],
             pos[:, which_pos[1]],
             weights=data.mass,
@@ -66,7 +66,7 @@ def show_data_model(
         )
 
     if nlevels is None:
-        nlevels = int(np.sqrt(data_image.size))
+        nlevels = int(np.sqrt(data_image.value.size))
     if isinstance(nlevels, int):
         nlevel1 = nlevels
         nlevel2 = nlevels
@@ -79,15 +79,12 @@ def show_data_model(
     data_im = show_image(
         data_image,
         axesObj=axes[0],
-        extent=(*x_range, *y_range),
         logscale=logscale,
         cmap=cmap,
     )
 
     data_contour = show_contour(
         data_image,
-        xs,
-        ys,
         withfilter=True,
         sigma=0.9,
         axesObj=axes[0],
@@ -100,14 +97,13 @@ def show_data_model(
 
     rota = which_pos_to_rotation(which_pos)
     rota = Rotate(rotation_matrix, rota.T)
-    model_image, xs, ys = model.image(
+    model_image = model.image(
         x_range=x_range, y_range=y_range, nbins=nbins, z_range=z_range, rotation=rota
     )
 
     model_im = show_image(
         model_image,
         axesObj=axes[1],
-        extent=(*x_range, *y_range),
         logscale=logscale,
         cmap=cmap,
         vmin=data_im.colorizer.vmin,
@@ -116,8 +112,6 @@ def show_data_model(
 
     model_contour = show_contour(
         model_image,
-        xs,
-        ys,
         withfilter=True,
         sigma=0.9,
         axesObj=axes[1],
@@ -131,7 +125,7 @@ def show_data_model(
     )
 
     residual_im = show_image(
-        np.abs(data_image - model_image),
+        np.abs(data_image.value - model_image.value),
         axesObj=axes[2],
         extent=(*x_range, *y_range),
         logscale=logscale,
@@ -141,9 +135,9 @@ def show_data_model(
     )
 
     residual_contour = show_contour(
-        np.abs(data_image - model_image),
-        xs,
-        ys,
+        np.abs(data_image.value - model_image.value),
+        data_image.xs,
+        data_image.ys,
         withfilter=True,
         sigma=0.9,
         axesObj=axes[2],

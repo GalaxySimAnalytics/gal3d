@@ -6,13 +6,19 @@ from libcpp.vector cimport vector
 import numpy as np
 
 from gal3d.config import config
+from .model_projector import ImageData
 
-DOUBLE = config.general.render_double
 
 
 
 cdef extern from "render.hpp":
     cdef cppclass Grid "Grid<double>":
+        double xmin
+        double ymin
+        double xmax
+        double ymax
+        int nx
+        int ny
         Grid(double, double, double, double, int, int)
         void add_qty(double, double, double)
 
@@ -23,6 +29,7 @@ cdef extern from "render.hpp":
         double columnDensity(double) const
 
     cdef cppclass RenderImage "RenderImage<double>":
+        Grid image_grid
         RenderImage(double, double, double, double, int, int,
                     CubicSplineSmoothingKernel&, int, int, int)
         void add_particle(double, double, double, double)
@@ -34,6 +41,12 @@ cdef extern from "render.hpp":
 cdef extern from "render.hpp":
 
     cdef cppclass GridFloat "Grid<float>":
+        float xmin
+        float ymin
+        float xmax
+        float ymax
+        int nx
+        int ny
         GridFloat(float, float, float, float, int, int)
         void add_qty(float, float, float)
     cdef cppclass CubicSplineSmoothingKernelFloat "CubicSplineSmoothingKernel<float>":
@@ -43,6 +56,7 @@ cdef extern from "render.hpp":
         float columnDensity(float) const
 
     cdef cppclass RenderImageFloat "RenderImage<float>":
+        GridFloat image_grid
         RenderImageFloat(float, float, float, float, int, int,
                     CubicSplineSmoothingKernelFloat&, int, int, int)
         void add_particle(float, float, float, float)
@@ -168,7 +182,16 @@ cdef class PyRenderImage:
         """
         返回 image_grid.qty 作为 numpy 数组
         """
-        return matrix_to_numpy(self.cpp_image.get_values())
+        arr = matrix_to_numpy(self.cpp_image.get_values())
+        x_range = (self.cpp_image.image_grid.xmin, self.cpp_image.image_grid.xmax)
+        y_range = (self.cpp_image.image_grid.ymin, self.cpp_image.image_grid.ymax)
+        nx = arr.shape[0]
+        ny = arr.shape[1]
+        xs = np.linspace(x_range[0], x_range[1], nx+1)
+        ys = np.linspace(y_range[0], y_range[1], ny+1)
+        xs = 0.5 * (xs[:-1] + xs[1:])
+        ys = 0.5 * (ys[:-1] + ys[1:])
+        return ImageData(arr, xs, ys, tuple(x_range), tuple(y_range))
 
 
 cdef class PyRenderImageFloat:
@@ -205,11 +228,20 @@ cdef class PyRenderImageFloat:
         return self.cpp_image.circle_vs_canvas(x, y, hsml)
 
     def get_image(self):
-        return matrix_to_numpy_float(self.cpp_image.get_values())
+        arr = matrix_to_numpy_float(self.cpp_image.get_values())
+        x_range = (self.cpp_image.image_grid.xmin, self.cpp_image.image_grid.xmax)
+        y_range = (self.cpp_image.image_grid.ymin, self.cpp_image.image_grid.ymax)
+        nx = arr.shape[0]
+        ny = arr.shape[1]
+        xs = np.linspace(x_range[0], x_range[1], nx+1)
+        ys = np.linspace(y_range[0], y_range[1], ny+1)
+        xs = 0.5 * (xs[:-1] + xs[1:])
+        ys = 0.5 * (ys[:-1] + ys[1:])
+        return ImageData(arr, xs, ys, tuple(x_range), tuple(y_range))
 
 
 def get_kernel():
-    if DOUBLE:
+    if config.sph_render.render_double:
         return PyCubicSplineSmoothingKernel()
     else:
         return PyCubicSplineSmoothingKernelFloat()
@@ -242,7 +274,7 @@ def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, s
         Number of threads to use for rendering.
 
     """
-    if DOUBLE:
+    if config.sph_render.render_double:
         return PyRenderImage(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)
     else:
         return PyRenderImageFloat(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)

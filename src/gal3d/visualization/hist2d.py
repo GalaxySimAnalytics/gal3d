@@ -13,8 +13,10 @@ from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 
+from gal3d.config import config
 from gal3d.util.array_operate import Rotate
 
+from .model_projector import ImageData
 from .render_wrapper import PyRenderImage, PyRenderImageFloat, get_kernel, get_render_image
 
 
@@ -142,7 +144,8 @@ def hist_2d(
 
     xs = 0.5 * (xs[:-1] + xs[1:])
     ys = 0.5 * (ys[:-1] + ys[1:])
-    return hist, xs, ys
+
+    return ImageData(hist, xs, ys, x_range, y_range)
 
 @overload
 def render_2d(
@@ -153,10 +156,10 @@ def render_2d(
     rotation_matrix: np.ndarray | None = ...,
     x_range: Sequence[float] = ...,
     y_range: Sequence[float] = ...,
-    nbins: int = ...,
-    subsamples: int = ...,
+    nbins: int | None = ...,
+    subsample: int | None = ...,
     ret_image: Literal[True] = True
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
+) -> ImageData: ...
 @overload
 def render_2d(
     pos: np.ndarray,
@@ -166,21 +169,25 @@ def render_2d(
     rotation_matrix: np.ndarray | None = ...,
     x_range: Sequence[float] = ...,
     y_range: Sequence[float] = ...,
-    nbins: int = ...,
-    subsamples: int = ...,
+    nbins: int | None = ...,
+    subsample: int | None = ...,
     ret_image: Literal[False] = False
 ) -> PyRenderImage | PyRenderImageFloat: ...
 def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Sequence[int] = (0, 1),
             rotation_matrix: np.ndarray | None = None,
             x_range: Sequence[float] = (-15, 15),
             y_range: Sequence[float] = (-15, 15),
-            nbins: int = 200,
-            subsamples: int = 1,
+            nbins: int | None = None,
+            subsample: int | None = None,
             ret_image: bool = True
-            ) -> (tuple[np.ndarray,np.ndarray, np.ndarray] | PyRenderImage | PyRenderImageFloat):
+            ) -> (ImageData | PyRenderImage | PyRenderImageFloat):
+    if nbins is None:
+        nbins = config.sph_render.resolution
+    if subsample is None:
+        subsample = config.sph_render.subsample
 
     render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1],
-                              nbins, nbins, get_kernel(), subsamples, subsamples)
+                              nbins, nbins, get_kernel(), subsample, subsample)
     # Ensure rotation_matrix dtype matches particle.pos
     if rotation_matrix is not None:
         rot = rotation_matrix.T.astype(pos.dtype)
@@ -193,13 +200,13 @@ def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Seq
         ys = np.linspace(y_range[0], y_range[1], nbins+1)
         xs = 0.5 * (xs[:-1] + xs[1:])
         ys = 0.5 * (ys[:-1] + ys[1:])
-        return render.get_image(),xs,ys
+        return render.get_image()
     else:
         return render
 
 
 def show_image(
-    imageData: np.ndarray,
+    imageData: np.ndarray | ImageData,
     extent: tuple[float, float, float, float] | None = None,
     axesObj: plt.Axes | None = None,
     scale: str = "linear",
@@ -239,15 +246,19 @@ def show_image(
     axesImg : matplotlib.image.AxesImage
         The image object created by imshow.
     """
-    imageData = np.asarray(imageData).copy()
+    if isinstance(imageData, ImageData):
+        im_arr = np.asarray(imageData.value).copy()
+        extent = extent if extent is not None else imageData.extent
+    else:
+        im_arr = np.asarray(imageData).copy()
 
     if logscale:
         scale = "log"
     if scale == "linear":
         cont_color = colors.Normalize(vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "log":
-        vmin = vmin or np.percentile(imageData[imageData > 0], 1)
-        vmax = vmax or np.max(imageData[imageData > 0])
+        vmin = vmin or np.percentile(im_arr[im_arr > 0], 1)
+        vmax = vmax or np.max(im_arr[im_arr > 0])
         cont_color = colors.LogNorm(vmin=vmin, vmax=vmax, clip=clip)
     elif scale == "symlog":
         cont_color = colors.SymLogNorm(linthresh=1e-3, vmin=vmin, vmax=vmax, clip=clip)
@@ -259,7 +270,7 @@ def show_image(
         if noErase is False:
             plt.clf()
         axesImg = plt.imshow(
-            imageData,
+            im_arr,
             interpolation="nearest",
             origin="lower",
             aspect="equal",
@@ -269,7 +280,7 @@ def show_image(
         )
     else:
         axesImg = axesObj.imshow(
-            imageData,
+            im_arr,
             interpolation="nearest",
             origin="lower",
             aspect="equal",
@@ -282,9 +293,9 @@ def show_image(
 
 
 def show_contour(
-    imageData: np.ndarray,
-    xs: np.ndarray,
-    ys: np.ndarray,
+    imageData: np.ndarray | ImageData,
+    xs: np.ndarray | None = None,
+    ys: np.ndarray | None = None,
     axesObj: plt.Axes | None = None,
     withfilter: bool = False,
     sigma: float | None = None,
@@ -348,30 +359,38 @@ def show_contour(
     linestyle = one of 'solid', 'dashed', 'dashdot', 'dotted'
 
     """
+    if isinstance(imageData, ImageData):
+        im_arr = np.asarray(imageData.value).copy()
+        xs = xs if xs is not None else imageData.xs
+        ys = ys if ys is not None else imageData.ys
+    else:
+        im_arr = np.asarray(imageData).copy()
+        if xs is None or ys is None:
+            raise ValueError("xs and ys must be provided when imageData is not an ImageData instance")
 
     if logscale:
-        vmin = vmin or np.min(imageData[imageData > 0])
-        vmax = vmax or np.max(imageData[imageData > 0])
+        vmin = vmin or np.min(im_arr[im_arr > 0])
+        vmax = vmax or np.max(im_arr[im_arr > 0])
         if levels is None:
             levels = np.logspace(np.log10(vmin), np.log10(vmax), nlevels)
         # cont_color = colors.LogNorm(vmin = vmin, vmax = vmax)
     else:
-        vmin = vmin or np.min(imageData)
-        vmax = vmax or np.max(imageData)
+        vmin = vmin or np.min(im_arr)
+        vmax = vmax or np.max(im_arr)
         if levels is None:
             levels = np.linspace(vmin, vmax, nlevels)
         # cont_color = colors.Normalize(vmin = vmin, vmax = vmax)
     levels = np.atleast_1d(levels)
     if withfilter:
         sigma = sigma or 1
-        imageData = gaussian_filter(imageData, sigma=sigma)
+        im_arr = gaussian_filter(im_arr, sigma=sigma)
     if axesObj is None:
         if noErase is False:
             plt.clf()
             axesCont = plt.contour(
                 xs,
                 ys,
-                imageData,
+                im_arr,
                 levels,
                 colors=color,
                 linewidths=linewidth,
@@ -382,7 +401,7 @@ def show_contour(
             axesCont = plt.contour(
                 xs,
                 ys,
-                imageData,
+                im_arr,
                 levels,
                 colors=color,
                 linewidths=linewidth,
@@ -393,7 +412,7 @@ def show_contour(
         axesCont = axesObj.contour(
             xs,
             ys,
-            imageData,
+            im_arr,
             levels,
             colors=color,
             linewidths=linewidth,

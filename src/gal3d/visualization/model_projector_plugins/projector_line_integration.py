@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -7,7 +6,7 @@ from scipy import integrate
 from tqdm import tqdm
 
 from gal3d.util.array_operate import Rotate
-from gal3d.visualization.model_projector import ModelProjectorBase
+from gal3d.visualization.model_projector import ImageData, ModelProjectorBase
 
 logger = logging.getLogger("gal3d.visualization.ModelProjector")
 class ProjectorLineIntegration(ModelProjectorBase):
@@ -117,13 +116,13 @@ class ProjectorLineIntegration(ModelProjectorBase):
 
     def _image(
         self,
-        x_range: Sequence[float],
-        y_range: Sequence[float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: Sequence[float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
         rotation: np.ndarray | None = None,
         **kwargs: Any
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> ImageData:
         """
         Generate a 2D projection image by integrating along a specified line of sight.
 
@@ -152,4 +151,10 @@ class ProjectorLineIntegration(ModelProjectorBase):
         # Integrate profiles
         deproject_array = self._integrate_profiles(intersections, parameters, ind_total, indices, nbins)
 
-        return deproject_array.T, xs, ys
+        return ImageData(
+            value=deproject_array.T,
+            xs=xs,
+            ys=ys,
+            xrange=x_range,
+            yrange=y_range
+        )

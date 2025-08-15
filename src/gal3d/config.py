@@ -60,13 +60,10 @@ class GeneralConfig:
         Number of threads for parallel processing; -1 means auto-select.
     use_cython : bool
         Use Cython for acceleration; if False and numba is available, use numba.
-    render_double : bool
-        Use double precision for rendering.
     """
     min_batchsize: int = 200000         # Minimum batch size for processing
     number_of_threads: int = -1         # Number of threads for parallel processing
     use_cython: bool = True             # Use Cython for acceleration
-    render_double: bool = False         # Use double precision for rendering
 
     def __post_init__(self):
         if self.min_batchsize <= 0:
@@ -125,6 +122,25 @@ class DensityKNNConfig:
         if self.leafsize is None:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
 
+
+@dataclass
+class SPHRenderConfig:
+    """
+    SPH rendering configuration parameters.
+
+    Parameters
+    ----------
+    resolution : int
+        Resolution of the rendered image.
+    render_double : bool
+        Whether to use double precision for rendering.
+    subsample : int
+        Subsampling factor. Particles subsampled by this factor.
+    """
+    resolution: int = 500
+    render_double: bool = False         # Use double precision for rendering
+    subsample: int = 1                   # Subsampling factor
+
 @dataclass
 class EllipsoidConfig:
     """
@@ -180,6 +196,7 @@ class Config:
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
     densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
+    sph_render: SPHRenderConfig = field(default_factory=SPHRenderConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
     plugin_manager_modules: tuple = field(default_factory=lambda: tuple(PLUGIN_MANAGER_MODULES))
 

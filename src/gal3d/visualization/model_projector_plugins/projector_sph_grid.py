@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -8,7 +7,7 @@ from gal3d.field.spherical_field.spherical_vector import SphVector
 from gal3d.optimization.result import ModelResult
 from gal3d.util.array_operate import Rotate
 from gal3d.visualization.hist2d import hist_2d
-from gal3d.visualization.model_projector import ModelProjectorBase
+from gal3d.visualization.model_projector import ImageData, ModelProjectorBase
 
 
 class ProjectorSphGrid(ModelProjectorBase):
@@ -64,13 +63,13 @@ class ProjectorSphGrid(ModelProjectorBase):
 
     def _image(
         self,
-        x_range: Sequence[float],
-        y_range: Sequence[float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: Sequence[float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
         rotation: np.ndarray | None = None,
         **kwargs: Any
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> ImageData:
         if rotation is not None:
             new_pos = Rotate(self.pos, rotation)
         else:
@@ -86,4 +85,10 @@ class ProjectorSphGrid(ModelProjectorBase):
             nbins=nbins,
         )
 
-        return model_image, xs, ys
+        return ImageData(
+            value=model_image,
+            xs=xs,
+            ys=ys,
+            xrange=x_range,
+            yrange=y_range
+        )

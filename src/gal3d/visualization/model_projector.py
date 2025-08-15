@@ -1,6 +1,7 @@
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from functools import wraps
 from typing import Any
 
@@ -13,6 +14,34 @@ from gal3d.util.func_cache import CacheDict
 __all__ = ["ModelProjectorBase", "ModelProjector"]
 
 logger = logging.getLogger("gal3d.visualization.model_projector")
+
+
+@dataclass
+class ImageData:
+    value: np.ndarray
+    xs: np.ndarray
+    ys: np.ndarray
+    xrange: tuple[float, float]
+    yrange: tuple[float, float]
+
+    @property
+    def extent(self) -> tuple[float, float, float, float]:
+        return (self.xrange[0], self.xrange[1], self.yrange[0], self.yrange[1])
+
+    @property
+    def nx(self) -> int:
+        return self.xs.size
+
+    @property
+    def ny(self) -> int:
+        return self.ys.size
+
+    @property
+    def pixel_area(self) -> float:
+        return (self.xrange[1] - self.xrange[0]) * (self.yrange[1] - self.yrange[0]) / (self.nx * self.ny)
+    @property
+    def total_quantity(self) -> float:
+        return np.sum(self.value) * self.pixel_area
 
 class ModelProjectorBase(PluginBase):
     """Abstract base class for model projectors that generate 2D projections from 3D models.
@@ -69,8 +98,8 @@ class ModelProjectorBase(PluginBase):
             Wrapped function that includes caching behavior.
         """
         @wraps(func)
-        def wrapper(self: "ModelProjectorBase", x_range: Sequence[float], y_range: Sequence[float],
-                   nbins: int, z_range: Sequence[float], rotation: NDArray[np.float64],
+        def wrapper(self: "ModelProjectorBase", x_range: tuple[float, float], y_range: tuple[float, float],
+                   nbins: int, z_range: tuple[float, float], rotation: NDArray[np.float64],
                    **kwargs: Any) -> NDArray[np.float64]:
             rotation_bytes = rotation.tobytes()
             recod = (
@@ -120,24 +149,24 @@ class ModelProjectorBase(PluginBase):
     @ImageCache
     def image(
         self,
-        x_range: Sequence[float],
-        y_range: Sequence[float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: Sequence[float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
         rotation: NDArray[np.float64] | None = None,
         **kwargs: Any
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    ) -> ImageData:
         """Generate a projected image of the model with caching.
 
         Parameters
         ----------
-        x_range : sequence of float
+        x_range : Tuple of float
             The (min, max) range in x-direction for the projection.
-        y_range : sequence of float
+        y_range : Tuple of float
             The (min, max) range in y-direction for the projection.
         nbins : int, default=100
             Number of bins in each dimension for the projection.
-        z_range : sequence of float, default=(-20, 20)
+        z_range : Tuple of float, default=(-20, 20)
             The (min, max) range in z-direction to include in the projection.
         rotation : ndarray, optional
             3x3 rotation matrix to apply to the model before projection.
@@ -175,13 +204,13 @@ class ModelProjectorBase(PluginBase):
     @abstractmethod
     def _image(
         self,
-        x_range: Sequence[float],
-        y_range: Sequence[float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: Sequence[float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
         rotation: NDArray[np.float64] | None = None,
         **kwargs: Any
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    ) -> ImageData:
         """Abstract method to generate a projected image.
 
         This method must be implemented by subclasses to perform
@@ -189,13 +218,13 @@ class ModelProjectorBase(PluginBase):
 
         Parameters
         ----------
-        x_range : sequence of float
+        x_range : Tuple of float
             The (min, max) range in x-direction for the projection.
-        y_range : sequence of float
+        y_range : Tuple of float
             The (min, max) range in y-direction for the projection.
         nbins : int, default=100
             Number of bins in each dimension for the projection.
-        z_range : sequence of float, default=(-20, 20)
+        z_range : Tuple of float, default=(-20, 20)
             The (min, max) range in z-direction to include in the projection.
         rotation : ndarray, default=identity matrix
             3x3 rotation matrix to apply to the model before projection.
@@ -217,7 +246,7 @@ class ModelProjectorBase(PluginBase):
         y_range: tuple[float,float],
         nbins: int = 100,
         z_range: tuple[float,float] = (-20, 20),
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> ImageData:
         """Generate a projection in the x-z plane.
 
         This is a convenience method that applies the appropriate
@@ -225,13 +254,13 @@ class ModelProjectorBase(PluginBase):
 
         Parameters
         ----------
-        x_range : sequence of float
+        x_range : Tuple of float
             The (min, max) range in x-direction for the projection.
-        y_range : sequence of float
+        y_range : Tuple of float
             The (min, max) range in z-direction for the projection (after rotation).
         nbins : int, default=100
             Number of bins in each dimension for the projection.
-        z_range : sequence of float, default=(-20, 20)
+        z_range : Tuple of float, default=(-20, 20)
             The (min, max) range in y-direction (after rotation) to include in the projection.
 
         Returns
@@ -253,7 +282,7 @@ class ModelProjectorBase(PluginBase):
         y_range: tuple[float,float],
         nbins: int = 100,
         z_range: tuple[float,float] = (-20, 20),
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> ImageData:
         """Generate a projection in the y-z plane.
 
         This is a convenience method that applies the appropriate
@@ -261,13 +290,13 @@ class ModelProjectorBase(PluginBase):
 
         Parameters
         ----------
-        x_range : sequence of float
+        x_range : Tuple of float
             The (min, max) range in y-direction for the projection (after rotation).
-        y_range : sequence of float
+        y_range : Tuple of float
             The (min, max) range in z-direction for the projection (after rotation).
         nbins : int, default=100
             Number of bins in each dimension for the projection.
-        z_range : sequence of float, default=(-20, 20)
+        z_range : Tuple of float, default=(-20, 20)
             The (min, max) range in x-direction (after rotation) to include in the projection.
 
         Returns

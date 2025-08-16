@@ -114,7 +114,7 @@ T CubicSplineSmoothingKernel<T>::lookup_density(T r) {
 
 template<typename T>
 inline T CubicSplineSmoothingKernel<T>::lookup_columnDensity(T R2) {
-    if (R2 <= 0.0 || R2 > 1.0) return 0.0;
+    if (R2 < 0.0 || R2 > 1.0) return 0.0;
     size_t idx = static_cast<size_t>(R2 / dr);
     if (idx >= column_table.size()) return 0.0;
     return column_table[idx];

@@ -361,6 +361,11 @@ cdef class LU_Mono:
 
         cdef double max_val, min_val
         cdef int i
+
+        # Reverse y if not decreasing
+        if not is_decreasing:
+            y = y[::-1]
+
         cdef double[:] y_view = y
 
         # lower

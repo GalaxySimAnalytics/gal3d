@@ -29,6 +29,11 @@ cdef int get_ray_method():
 cdef int get_line_method():
     return config.ellipsoid_s.LineIteration.value
 
+def check_contiguous(pos):
+    if not pos.flags['C_CONTIGUOUS']:
+        pos = np.ascontiguousarray(pos)
+    return pos
+
 
 cdef extern from "ellipsoid_s.h":
     void f_shaped_ellipsoid_cpp(
@@ -37,6 +42,7 @@ cdef extern from "ellipsoid_s.h":
 
 def f_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, double Sc,
                              np.ndarray[DTYPE_t, ndim=2] pos):
+    pos = check_contiguous(pos)
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
     cdef int num_threads = get_num_threads()
@@ -57,6 +63,7 @@ cdef extern from "ellipsoid_s.h":
 
 def f_shaped_ellipsoid_jacobian(double a, double b, double c, double Sa, double Sb, double Sc,
                                np.ndarray[DTYPE_t, ndim=2] pos):
+    pos = check_contiguous(pos)
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] da = np.zeros(n, dtype=np.float64)
     cdef np.ndarray[DTYPE_t, ndim=1] db = np.zeros(n, dtype=np.float64)
@@ -89,6 +96,7 @@ cdef extern from "ellipsoid_s.h":
 
 def IntersectRaysEllipsoid_S(double a, double b, double c, double Sa, double Sb, double Sc,
                              np.ndarray[DTYPE_t, ndim=2] pos, int maxIterations):
+    pos = check_contiguous(pos)
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=2] tarpos = np.zeros((n, 3), dtype=np.float64)
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
@@ -111,6 +119,7 @@ cdef extern from "ellipsoid_s.h":
 
 def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, double Sc,
                                   np.ndarray[DTYPE_t, ndim=2] pos, int maxIterations):
+    pos = check_contiguous(pos)
     cdef int n = pos.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
     cdef int num_threads = get_num_threads()
@@ -131,6 +140,8 @@ def IntersectLinesEllipsoid_S(double a, double b, double c, double Sa, double Sb
                              np.ndarray[DTYPE_t, ndim=2] pos1, 
                              np.ndarray[DTYPE_t, ndim=2] pos2,
                              int maxIteration):
+    pos1 = check_contiguous(pos1)
+    pos2 = check_contiguous(pos2)
     cdef int n = pos1.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=2] ts = np.zeros((n, 2), dtype=np.float64)
     cdef int num_threads = get_num_threads()

@@ -28,9 +28,9 @@ class Parameter(float):
 
     Attributes
     ----------
-    _lb : float
+    lb : float
         The lower bound of the parameter.
-    _ub : float
+    ub : float
         The upper bound of the parameter.
 
     Methods
@@ -39,17 +39,13 @@ class Parameter(float):
         Creates a new instance of the Parameter class.
     assign_value(value)
         Assigns a new value to the parameter while preserving the bounds.
-    lb
-        Property getter for the lower bound.
-    ub
-        Property getter for the upper bound.
-    lb.setter
-        Property setter for the lower bound.
-    ub.setter
-        Property setter for the upper bound.
+    assign_bounds(lb, ub)
+        Assigns new bounds to the parameter.
     """
+    lb: float
+    ub: float
 
-    __slots__ = ["_lb", "_ub"]
+    __slots__ = ["lb", "ub"]
 
     def __new__(cls, value: Union[float, "Parameter"], lb: float | None = None, ub: float | None = None) -> "Parameter":
         """
@@ -61,9 +57,9 @@ class Parameter(float):
             The initial value of the parameter. If `value` is an instance of `Parameter`,
             the new instance will inherit the bounds from `value` unless overridden by `lb` or `ub`.
         lb : float, optional
-            The lower bound of the parameter. Default is -np.inf.
+            The lower bound of the parameter. Default is -inf.
         ub : float, optional
-            The upper bound of the parameter. Default is np.inf.
+            The upper bound of the parameter. Default is inf.
 
         Returns
         -------
@@ -73,11 +69,11 @@ class Parameter(float):
         instance = float.__new__(cls, value)
 
         if isinstance(value, Parameter):
-            object.__setattr__(instance, "_lb", float(lb) if lb is not None else value.lb)
-            object.__setattr__(instance, "_ub", float(ub) if ub is not None else value.ub)
+            object.__setattr__(instance, "lb", float(lb) if lb is not None else value.lb)
+            object.__setattr__(instance, "ub", float(ub) if ub is not None else value.ub)
             return instance
-        object.__setattr__(instance, "_lb", float(lb) if lb is not None else -np.inf)
-        object.__setattr__(instance, "_ub", float(ub) if ub is not None else np.inf)
+        object.__setattr__(instance, "lb", float(lb) if lb is not None else -float("inf"))
+        object.__setattr__(instance, "ub", float(ub) if ub is not None else float("inf"))
         return instance
 
     def assign_value(self, value: float) -> "Parameter":
@@ -127,64 +123,23 @@ class Parameter(float):
         >>> param
         1.0
         """
-        self._lb = float(lb)
-        self._ub = float(ub)
+        self.lb = float(lb)
+        self.ub = float(ub)
         return self
 
-    @property
-    def lb(self) -> float:
-        """
-        Get the lower bound of the parameter.
-
-        Returns
-        -------
-        float
-            The lower bound of the parameter.
-        """
-        return self._lb
-
-    @lb.setter
-    def lb(self, value : float) -> None:
-        """
-        Set the lower bound of the parameter.
-
-        Parameters
-        ----------
-        value : float
-            The new lower bound of the parameter.
-        """
-        if value > self._ub:
-            raise ValueError(f"Lower bound ({value}) for '{self}' cannot be greater than upper bound ({self._ub})")
-        self._lb = float(value)
-
-    @property
-    def ub(self) -> float:
-        """
-        Get the upper bound of the parameter.
-
-        Returns
-        -------
-        float
-            The upper bound of the parameter.
-        """
-        return self._ub
-
-    @ub.setter
-    def ub(self, value : float) -> None:
-        """
-        Set the upper bound of the parameter.
-
-        Parameters
-        ----------
-        value : float
-            The new upper bound of the parameter.
-        """
-        if value < self._lb:
-            raise ValueError(f"Upper bound ({value}) for '{self}' cannot be less than lower bound ({self._lb})")
-        self._ub = float(value)
+    def __setattr__(self, name: str, value: float) -> None:
+        if name == "ub":
+            value = float(value)
+            if value < self.lb:
+                raise ValueError(f"Upper bound ({value}) for '{self}' cannot be less than lower bound ({self.lb})")
+        elif name == "lb":
+            value = float(value)
+            if value > self.ub:
+                raise ValueError(f"Lower bound ({value}) for '{self}' cannot be greater than upper bound ({self.ub})")
+        super().__setattr__(name, value)
 
     def __hash__(self):
-        return hash((float(self), self._lb, self._ub))
+        return hash((float(self), self.lb, self.ub))
 
 class ParameterDict(dict):
     """

@@ -143,6 +143,14 @@ class Bar(CharacterizerBase):
         R_start, R_end = self.filter_region(
             R_start, R_end, start_max=start_max, range_min=range_min
         )
+        if R_start.size == 0 or R_end.size == 0:
+            result = {
+                "flag": 0,
+                "eps_max": np.max(self.eps),
+                "R_max": self.a[np.argmax(self.eps)],
+                "R_bar": 0.0,
+            }
+
         R_start_val: float = float(R_start[0]) if R_end.size > 0 else 0.0
         R_end_val: float = float(R_end[0]) if R_end.size > 0 else 0.0
 

@@ -1,3 +1,12 @@
+"""
+This module provides the ``Gal3DAnalyzer`` class for analyzing and fitting 3D galaxy structures
+using particle data, spherical field generation, geometric modeling, and optimization workflows.
+
+Usage Example
+-------------
+>>> analyzer = Gal3DAnalyzer.analyze(pos, mass)
+>>> result = analyzer.fit(num_step=100)
+"""
 import logging
 from collections.abc import Iterable
 from typing import Any

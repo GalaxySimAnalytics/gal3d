@@ -1,3 +1,6 @@
+"""
+Module for defining and manipulating monotonically varying rays in spherical fields.
+"""
 import logging
 from collections.abc import Callable
 from typing import Any, overload

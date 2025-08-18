@@ -1,4 +1,6 @@
-
+"""
+Module for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
+"""
 from typing import Any
 
 import numpy as np

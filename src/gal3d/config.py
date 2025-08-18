@@ -1,3 +1,15 @@
+"""
+Module: gal3d.config
+
+This module defines configuration classes and utilities for the gal3d framework.
+
+Usage Example
+-------------
+>>> from gal3d.config import config
+>>> print(config.general.min_batchsize)
+>>> config.general.number_of_threads = 8
+
+"""
 
 import os
 import warnings
@@ -189,6 +201,10 @@ class Config:
         General settings section.
     logger : LoggerConfig
         Logger settings section.
+    densityknn : DensityKNNConfig
+        Density KNN settings section.
+    sph_render : SPHRenderConfig
+        SPH rendering settings section.
     ellipsoid_s : EllipsoidConfig
         Ellipsoid S settings section.
     # Add more sections as needed, e.g. database, simulation, etc.

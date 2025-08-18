@@ -5,6 +5,12 @@ Module for computing centers, inertia tensors, principal axes, and density estim
 This module provides several functions for working with particles' positions and masses,
 including calculating the geometric center, mass-weighted center of mass, the moment of inertia tensor,
 the principal axes of particle distributions, and density estimators.
+
+Usage examples
+--------------
+>>> particles = Particles(pos, mass)
+>>> particles.parameter
+
 """
 import numpy as np
 from numpy.typing import ArrayLike

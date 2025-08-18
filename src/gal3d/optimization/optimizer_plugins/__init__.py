@@ -1,4 +1,6 @@
-
+"""
+Module for optimizer plugins, defining and manipulating optimization algorithms.
+"""
 # default optimizer
 from .optimize_scipy import OptimizerScipy
 

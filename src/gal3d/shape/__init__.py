@@ -1,5 +1,6 @@
 """
 Module for defining and manipulating 3D shapes.
+
 """
 import logging
 from collections.abc import Callable, Sequence

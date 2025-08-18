@@ -1,5 +1,6 @@
 """
 Module for defining and manipulating density fields.
+
 """
 from .spherical_field import MonotonRay, SphField, SphVector
 

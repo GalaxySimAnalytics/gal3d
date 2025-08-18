@@ -53,10 +53,21 @@ extensions = [
     # Add other extensions here, e.g., 'myst_parser' for Markdown support
 ]
 
+# nbsphinx settings
+# nbsphinx_input_prompt = 'In [%s]:'
+# nbsphinx_output_prompt = 'Out[%s]:'
+# nbsphinx_execute = 'never' # the notebook is expensive to evaluate, so we need it pre-evaluated
 
-nbsphinx_input_prompt = 'In [%s]:'
-nbsphinx_output_prompt = 'Out[%s]:'
-nbsphinx_execute = 'never' # the notebook is expensive to evaluate, so we need it pre-evaluated
+nb_execution_mode = "off"
+nb_number_source_lines = False  # Number code cell source lines
+nb_merge_streams = True
+
+# Enable MyST extensions
+myst_enable_extensions = [
+    "amsmath",
+    "dollarmath"
+    # Add other extensions if needed
+]
 
 ipython_warning_is_error = False # IPython warnings are not errors
 ipython_savefig_dir = 'plots' # Directory to save IPython figures
@@ -153,10 +164,6 @@ if language == 'zh_CN':
         "use_repository_button": True,
         "path_to_docs": "docs/source",
         "show_toc_level": 2,
-        "logo": {
-            "text": "Gal3D 文档",
-            "subtitle": "星系三维形态建模"
-        },
         "announcement": "本文档正在建设中！",
     }
 else:
@@ -166,10 +173,6 @@ else:
         "use_repository_button": True,
         "path_to_docs": "docs/source",
         "show_toc_level": 2,
-        "logo": {
-            "text": "Gal3D Documentation",
-            "subtitle": "Galaxy 3D morphology model"
-        },
         "announcement": "This documentation is under active development!",
     }
 
@@ -180,10 +183,11 @@ html_static_path = ['_static']
 # These paths are either relative to html_static_path
 # or fully qualified paths (e.g. https://...)
 html_css_files = ['gal3d.css']
+html_logo = "_static/logo.png"
 
 # -- Options for autodoc extension -------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#configuration
-autosummary_generate = False
+autosummary_generate = True
 #autodoc_typehints = "description"  # Show typehints in the description, not the signature
 #autoclass_content = "both"         # Include both the class's and the __init__ docstring
 #autodoc_member_order = 'bysource'  # Order members by source order

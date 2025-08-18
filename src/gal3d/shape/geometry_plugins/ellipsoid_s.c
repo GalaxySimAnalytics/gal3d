@@ -19,10 +19,10 @@ void f_shaped_ellipsoid_cpp(
         double x = pos[i*3+0];
         double y = pos[i*3+1];
         double z = pos[i*3+2];
-        double h1 = x * x * inv_a2;
-        double h2 = y * y * inv_b2;
-        double h3 = z * z * inv_c2;
-        result[i] = pow(h1, Sa) + pow(h2, Sb) + pow(h3, Sc);
+        double h1 = (x == 0) ? 0.0 : exp(Sa * log(x * x * inv_a2));
+        double h2 = (y == 0) ? 0.0 : exp(Sb * log(y * y * inv_b2));
+        double h3 = (z == 0) ? 0.0 : exp(Sc * log(z * z * inv_c2));
+        result[i] = h1 + h2 + h3;
     }
 }
 
@@ -126,62 +126,36 @@ typedef double (*EllipsoidIterFunc)(
 
 // Helper function for ray-ellipsoid intersection iteration
 double solve_ray_shaped_ellipsoid(
-    double x, double y, double z,
-    double a, double b, double c,
-    double Sa, double Sb, double Sc,
-    int maxIterations, double epsilon, int method)
+    double xi, double yi, double zi,
+    double inv_a2, double inv_b2, double inv_c2,
+    double Sa, double Sb, double Sc, double initial_guess,
+    int maxIterations, double epsilon, EllipsoidIterFunc iter_func)
 {
-    double L = sqrt(x*x + y*y + z*z);
-    double xi = x / L, yi = y / L, zi = z / L;
     double xi2 = xi*xi, yi2 = yi*yi, zi2 = zi*zi;
 
-    double inv_a2 = 1.0 / (a * a);
-    double inv_b2 = 1.0 / (b * b);
-    double inv_c2 = 1.0 / (c * c);
 
-    double initial_guess = (a+c+b) / 3.0;
-
-    double ex_base = xi2 * inv_a2;
-    double ey_base = yi2 * inv_b2;
-    double ez_base = zi2 * inv_c2;
-    // double log_ex_base = log(ex_base);
-    // double log_ey_base = log(ey_base);
-    // double log_ez_base = log(ez_base);
-
-    double ex_base_Sa = pow(ex_base, Sa);
-    double ey_base_Sb = pow(ey_base, Sb);
-    double ez_base_Sc = pow(ez_base, Sc);
+    double log_ex_base = log(xi2 * inv_a2);
+    double log_ey_base = log(yi2 * inv_b2);
+    double log_ez_base = log(zi2 * inv_c2);
 
     double Sa2 = 2.0 * Sa;
     double Sb2 = 2.0 * Sb;
     double Sc2 = 2.0 * Sc;
 
-    EllipsoidIterFunc iter_func;
-    if (method == 1) {
-        iter_func = _ellipsoid_ray_newton;
-    } else if (method == 2) {
-        iter_func = _ellipsoid_ray_halley;
-    } else {
-        iter_func = _ellipsoid_ray_householder;
-    }
-
-
     double d0 = initial_guess, d1;
     double f, f1;
     double d2, ExddSa, EyddSb, EzddSc;
 
-    //  double log_dd = 2.0 * log(d0); // log(d0^2)
-    //  double ExddSa = exp(Sa * (log_ex_base + log_dd));
-    //  double EyddSb = exp(Sb * (log_ey_base + log_dd));
-    //  double EzddSc = exp(Sc * (log_ez_base + log_dd));
-    d2 = d0 * d0;
-    ExddSa = ex_base_Sa * pow(d2,Sa);
-    EyddSb = ey_base_Sb * pow(d2,Sb);
-    EzddSc = ez_base_Sc * pow(d2,Sc);
+
+    // avoid pow, for acceleration
+    double log_d2 = 2.0 * log(d0);
+    ExddSa = exp(Sa * (log_ex_base + log_d2)); 
+    EyddSb = exp(Sb * (log_ey_base + log_d2));
+    EzddSc = exp(Sc * (log_ez_base + log_d2));
 
     f = ExddSa + EyddSb + EzddSc - 1.0;
 
-    const int MAX_BACKTRACK = 10;
+    const int MAX_BACKTRACK = 6;
 
 
     for (int it = 0; it < maxIterations; ++it) {
@@ -190,28 +164,27 @@ double solve_ray_shaped_ellipsoid(
         d1 = iter_func(d0, Sa2, ExddSa, Sb2, EyddSb, Sc2, EzddSc, f);
 
         // Update function values at new estimate
-        d2 = d1 * d1;
-        ExddSa = ex_base_Sa * pow(d2, Sa);
-        EyddSb = ey_base_Sb * pow(d2, Sb);
-        EzddSc = ez_base_Sc * pow(d2, Sc);
+        log_d2 = 2.0 * log(d1);
+        ExddSa = exp(Sa * (log_ex_base + log_d2));
+        EyddSb = exp(Sb * (log_ey_base + log_d2));
+        EzddSc = exp(Sc * (log_ez_base + log_d2));
         f1 = ExddSa + EyddSb + EzddSc - 1.0;
 
-        // Adaptive step size: if the new function value is worse, reduce the step size
-        double step_size = 1.0;
+        // Adaptive step size: if the new function value is worse, change the step size
+        double step_size = 4.0;
         int backtrack_count = 0;
         double delta_d = d1 - d0;
 
         while (fabs(f1) > fabs(f) && backtrack_count < MAX_BACKTRACK) {
-            step_size *= 0.5;
             d1 = d0 + delta_d * step_size; // Reduce step size
             
             // Recalculate function value at the new estimate
-            d2 = d1 * d1;
-            ExddSa = ex_base_Sa * pow(d2, Sa);
-            EyddSb = ey_base_Sb * pow(d2, Sb);
-            EzddSc = ez_base_Sc * pow(d2, Sc);
+            log_d2 = 2.0 * log(d1);
+            ExddSa = exp(Sa * (log_ex_base + log_d2));
+            EyddSb = exp(Sb * (log_ey_base + log_d2));
+            EzddSc = exp(Sc * (log_ez_base + log_d2));
             f1 = ExddSa + EyddSb + EzddSc - 1.0;
-            
+            step_size *= 0.3;
             backtrack_count++;
         }
 
@@ -235,6 +208,20 @@ void IntersectRaysEllipsoid_S_cpp(
     double epsilon = 1e-7;
 
     omp_set_num_threads(num_threads);
+    EllipsoidIterFunc iter_func;
+    if (method == 1) {
+        iter_func = _ellipsoid_ray_newton;
+    } else if (method == 2) {
+        iter_func = _ellipsoid_ray_halley;
+    } else {
+        iter_func = _ellipsoid_ray_householder;
+    }
+
+    double inv_a2 = 1.0 / (a * a);
+    double inv_b2 = 1.0 / (b * b);
+    double inv_c2 = 1.0 / (c * c);
+
+    double initial_guess = (a+c) / 2.0;
 
     int i;
     #pragma omp parallel for
@@ -244,10 +231,10 @@ void IntersectRaysEllipsoid_S_cpp(
         double xi = x / L, yi = y / L, zi = z / L;
 
         double d0 = solve_ray_shaped_ellipsoid(
-            x, y, z,
-            a, b, c,
-            Sa, Sb, Sc,
-            maxIterations, epsilon, method);
+            xi, yi, zi,
+            inv_a2, inv_b2, inv_c2,
+            Sa, Sb, Sc, initial_guess,
+            maxIterations, epsilon, iter_func);
 
         tarpos[i*3+0] = d0 * xi;
         tarpos[i*3+1] = d0 * yi;
@@ -265,17 +252,34 @@ void f_ray_shaped_ellipsoid_cpp(
 
     omp_set_num_threads(num_threads);
 
+    EllipsoidIterFunc iter_func;
+    if (method == 1) {
+        iter_func = _ellipsoid_ray_newton;
+    } else if (method == 2) {
+        iter_func = _ellipsoid_ray_halley;
+    } else {
+        iter_func = _ellipsoid_ray_householder;
+    }
+
+    double inv_a2 = 1.0 / (a * a);
+    double inv_b2 = 1.0 / (b * b);
+    double inv_c2 = 1.0 / (c * c);
+
+    double initial_guess = (a+c) / 2.0;
+
     int i;
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
+        double xi = x / L, yi = y / L, zi = z / L;
+
 
         double d0 = solve_ray_shaped_ellipsoid(
-            x, y, z,
-            a, b, c,
-            Sa, Sb, Sc,
-            maxIterations, epsilon, method);
+            xi, yi, zi,
+            inv_a2, inv_b2, inv_c2,
+            Sa, Sb, Sc, initial_guess,
+            maxIterations, epsilon, iter_func);
 
         result[i] = L / d0;
     }
@@ -307,9 +311,9 @@ struct EllipsoidIntersectResult newton_intersect_ellipsoid(
         posiz = z1 + t * vz;
 
         // Calculate ellipsoid function terms
-        Ex = pow((posix * posix) * inv_a2, Sa);
-        Ey = pow((posiy * posiy) * inv_b2, Sb);
-        Ez = pow((posiz * posiz) * inv_c2, Sc);
+        Ex = (posix == 0) ? 0.0 : exp(Sa * log((posix * posix) * inv_a2));
+        Ey = (posiy == 0) ? 0.0 : exp(Sb * log((posiy * posiy) * inv_b2));
+        Ez = (posiz == 0) ? 0.0 : exp(Sc * log((posiz * posiz) * inv_c2));
 
         // Check if converged
         f = Ex + Ey + Ez - 1.0;

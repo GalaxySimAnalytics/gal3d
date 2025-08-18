@@ -381,6 +381,8 @@ class SphField:
         ----------
         r : Iterable | float
             The radius or radii for which to generate the equivalent surface.
+        for_fit : bool, optional
+            Whether the generated surface is for fitting purposes. Default is False.
 
         Returns
         -------

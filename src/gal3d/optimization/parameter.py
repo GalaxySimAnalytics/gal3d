@@ -128,15 +128,7 @@ class Parameter(float):
         return self
 
     def __setattr__(self, name: str, value: float) -> None:
-        if name == "ub":
-            value = float(value)
-            if value < self.lb:
-                raise ValueError(f"Upper bound ({value}) for '{self}' cannot be less than lower bound ({self.lb})")
-        elif name == "lb":
-            value = float(value)
-            if value > self.ub:
-                raise ValueError(f"Lower bound ({value}) for '{self}' cannot be greater than upper bound ({self.ub})")
-        super().__setattr__(name, value)
+        super().__setattr__(name, float(value))
 
     def __hash__(self):
         return hash((float(self), self.lb, self.ub))

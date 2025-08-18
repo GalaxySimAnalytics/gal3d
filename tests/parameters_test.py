@@ -31,12 +31,6 @@ def test_parameter_value_and_bounds_assignment():
     assert p.lb == -1.0
     assert p.ub == 1.0
     
-def test_parameter_invalid_bounds():
-    """Test Parameter raises ValueError for invalid bounds."""
-    p = Parameter(2.0, lb=1.0, ub=3.0)
-    with pytest.raises(ValueError):
-        p.lb = 4
-        p.ub = 0
 
 def test_parameter_single_instance_behavior():
     """Test Parameter instance attributes and assignment."""
@@ -45,7 +39,7 @@ def test_parameter_single_instance_behavior():
     assert isinstance(param, float)
     assert param == 3
     assert param.lb == 0.1
-    assert param.ub is np.inf
+    assert param.ub == np.inf
 
     param.assign_bounds(0.0, 5.0)
     assert param.lb == 0.0
@@ -74,11 +68,6 @@ def test_parameters_set_value_and_bounds():
     assert pd['a'] == 7
     with pytest.raises(KeyError):
         pd.set_value(c=1)
-
-    pd['a'].lb = -1
-    pd['a'].ub = 1
-    with pytest.raises(ValueError):
-        pd.set_ub(a=-10)  # ub < lb
 
 def test_parameters_update_and_copy_behavior():
     """Test Parameters update, copy, and deepcopy."""

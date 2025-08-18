@@ -98,7 +98,7 @@ class Ellipsoid(GeometryBase):
             The value of the ellipsoid function at the given positions.
         """
         pos = self.to_3d_array(pos)
-        return f_ellipsoid(self["a"], self["b"], self["c"], pos)
+        return f_ellipsoid(self["a"], self["b"], self["c"], pos)[0]
 
     def jacobian(self, pos: ArrayLike) -> tuple:
         """
@@ -117,7 +117,7 @@ class Ellipsoid(GeometryBase):
         pos = self.to_3d_array(pos)
         return f_ellipsoid_jacobian(self["a"], self["b"], self["c"], pos)
 
-    def ray_intersect(self, pos: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
+    def ray_intersect(self, pos: ArrayLike) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute the distance between points and the ray point on the ellipsoid.
 
@@ -143,10 +143,10 @@ class Ellipsoid(GeometryBase):
 
     def f_ray_d(self, pos):
         pos = self.to_3d_array(pos)
-        return f_ray_ellipsoid(self["a"], self["b"], self["c"], pos)
+        return f_ray_ellipsoid(self["a"], self["b"], self["c"], pos)[0]
 
     @staticmethod
-    def quick_call(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> np.ndarray:
+    def quick_call(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Quickly evaluate the ellipsoid function with given parameters and positions.
 
@@ -171,7 +171,7 @@ class Ellipsoid(GeometryBase):
         return f_ellipsoid(float(a), b, c, pos)
 
     @staticmethod
-    def quick_f_ray_d(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> np.ndarray:
+    def quick_f_ray_d(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Quickly evaluate the distance fraction of the ellipsoid function with given parameters and positions.
 
@@ -196,7 +196,7 @@ class Ellipsoid(GeometryBase):
         return f_ray_ellipsoid(float(a), b, c, pos)
 
     @staticmethod
-    def quick_ray_dist(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> np.ndarray:
+    def quick_ray_dist(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Quickly compute the distance between points and the ray point on the ellipsoid.
 
@@ -218,7 +218,7 @@ class Ellipsoid(GeometryBase):
         """
         b = a * (1.0 - eps_ab)
         c = b * (1.0 - eps_bc)
-        return IntersectRaysEllipsoid(float(a), b, c, pos)[1]
+        return IntersectRaysEllipsoid(float(a), b, c, pos)[1:]
 
     @staticmethod
     def quick_line_intersect(a: float, eps_ab: float, eps_bc: float, pos1: np.ndarray, pos2: np.ndarray) -> np.ndarray:

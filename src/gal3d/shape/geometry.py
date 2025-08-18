@@ -148,7 +148,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
     @staticmethod
     @abstractmethod
-    def quick_call(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
+    def quick_call(*args: Any, **kwargs: Any) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """
         Quickly evaluate the geometry function with given parameters.
 
@@ -160,7 +160,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
     @staticmethod
     @abstractmethod
-    def quick_f_ray_d(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
+    def quick_f_ray_d(*args: Any, **kwargs: Any) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """
         Quickly compute normalized ray distance with given parameters.
 
@@ -172,7 +172,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
     @staticmethod
     @abstractmethod
-    def quick_ray_dist(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
+    def quick_ray_dist(*args: Any, **kwargs: Any) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """
         Quickly compute distance between points and corresponding ray-surface points.
 

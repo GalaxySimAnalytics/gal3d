@@ -69,11 +69,13 @@ cpdef double sums_dev_byw(double[:] f_call, double[:] w):
     cdef int i
     cdef int n = f_call.shape[0]
     cdef double h = 0.0
+    cdef double sum_w = 0.0
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
         h += f_call[i] * f_call[i] * w[i]
-    
-    return h / n
+        sum_w += w[i]
+
+    return h / (n * sum_w)
 
 cpdef double sums_dev_rscale(double[:] f_call, double[:] r):
     """
@@ -94,13 +96,15 @@ cpdef double sums_dev_rscale(double[:] f_call, double[:] r):
     cdef int i
     cdef int n = f_call.shape[0]
     cdef double h = 0.0
-    cdef double scaled
+    cdef double r2
+    cdef double sum_r2 = 0.0
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
-        scaled = f_call[i] * r[i]
-        h += scaled * scaled
-    
-    return h / n
+        r2 = r[i] * r[i]
+        h += f_call[i] * f_call[i] * r2
+        sum_r2 += r2
+
+    return h / (n * sum_r2)
 
 cpdef double sums_dev_rscale_byw(double[:] f_call, double[:] r, double[:] w):
     """
@@ -123,10 +127,12 @@ cpdef double sums_dev_rscale_byw(double[:] f_call, double[:] r, double[:] w):
     cdef int i
     cdef int n = f_call.shape[0]
     cdef double h = 0.0
-    cdef double scaled
+    cdef double c
+    cdef double sum_c = 0.0
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads, schedule='static'):
-        scaled = f_call[i] * r[i]
-        h += scaled * scaled * w[i]
-    
-    return h / n
+        c = r[i] * r[i] * w[i]
+        h += f_call[i] * f_call[i] * c
+        sum_c += c
+
+    return h / (n*c)

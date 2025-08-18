@@ -11,6 +11,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from gal3d.field.spherical_field.spherical_vector import fibonacci_sampling
+from gal3d.optimization.optimizer import Optimizer, OptimizerBase
+from gal3d.optimization.result import ModelResult
 from gal3d.util.func_signature import func_required_key
 
 from .coordinate import Coordinate, CoordinateBase
@@ -225,7 +227,7 @@ class StructureCore:
 
         coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
-        pos_in,dist = self._geometry(**geoty_pa).ray_intersect(
+        pos_in,dist,r = self._geometry(**geoty_pa).ray_intersect(
             self._coordinate(**coord_pa)(pos)
         )
         pos_in = self._coordinate(**coord_pa).inverse(pos_in)
@@ -261,7 +263,7 @@ class StructureCore:
             pos2=self._coordinate(**coord_pa)(pos2),
         )
 
-    def quick_call(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> np.ndarray:
+    def quick_call(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
         """
         Quick evaluation of the structure at the given position.
 
@@ -292,7 +294,7 @@ class StructureCore:
             **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
         )
 
-    def quick_f_ray_d(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> np.ndarray:
+    def quick_f_ray_d(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
         """
         Quick the normalized ray distance evaluation.
 
@@ -316,7 +318,7 @@ class StructureCore:
         # Then compute ray distance with transformed positions
         return self._geometry.quick_f_ray_d(**geoty_pa, pos=transformed_pos)
 
-    def quick_ray_dist(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> np.ndarray:
+    def quick_ray_dist(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
         """
         Quick ray distance evaluation.
 
@@ -647,6 +649,33 @@ class Structure3D(StructureCore, StructureError):
         StructureCore.__init__(self, coordinate, geometry)
         StructureError.__init__(self, error_func, error_method)
 
+    def fit(self, pos: np.ndarray, optimizer: None | OptimizerBase = None) -> ModelResult:
+        """
+        Fit the structure to the given positions.
+
+        Parameters
+        ----------
+        pos : array-like
+            The positions to fit the structure to.
+        **kwargs : dict
+            Additional keyword arguments for fitting.
+        """
+        if optimizer is None:
+            optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell")
+
+        parameters_set = self.parameters.new()
+        fun = parameters_set.decorate_func_constraints(self._error_method)
+        x0_dict = parameters_set.get_rounded_values_dict(n=4)
+        x0_values = list(x0_dict.values())
+
+        op_res = optimizer.fitting(fun,
+                               x0_values,
+                               parameters_set.scipy_bounds,
+                               func_kwargs={"pos": pos})
+
+        parameters_set = parameters_set.set_value(op_res.x)
+        return ModelResult(self, op_res, parameters_set)
+
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:
         """
@@ -732,10 +761,10 @@ class Structure3D(StructureCore, StructureError):
 @Structure3D.compute_method_registry
 def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) -> float:
 
-    f_call = self.quick_call(*params, pos=kwargs["pos"]) - 1.0
+    f , kwargs["r"]  = self.quick_call(*params, pos=kwargs["pos"])
     error_pa = {i: kwargs[i] for i in self._error_params}
 
-    return self._error_func(f_call, **error_pa)
+    return self._error_func(f-1., **error_pa)
 
 
 @Structure3D.compute_method_registry
@@ -743,16 +772,16 @@ def isodensity_dcall(
     self: Structure3D, params: Sequence[float], *args: Any, **kwargs: Any
 ) -> float:
     pos = kwargs["pos"]
-    f_call = self.quick_f_ray_d(*params, pos=pos) - 1.0
+    f, kwargs["r"] = self.quick_f_ray_d(*params, pos=pos)
     error_pa = {i: kwargs[i] for i in self._error_params}
 
-    return self._error_func(f_call, **error_pa)
+    return self._error_func(f-1., **error_pa)
 
 
 @Structure3D.compute_method_registry
 def isodensity_dist(self: Structure3D, params: Sequence[float], **kwargs: Any) -> float:
 
-    f_call = self.quick_ray_dist(*params, pos=kwargs["pos"])
+    f, kwargs["r"] = self.quick_ray_dist(*params, pos=kwargs["pos"])
     error_pa = {i: kwargs[i] for i in self._error_params}
 
-    return self._error_func(f_call, **error_pa)
+    return self._error_func(f, **error_pa)

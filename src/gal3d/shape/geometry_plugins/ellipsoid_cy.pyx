@@ -63,20 +63,26 @@ cdef np.ndarray[np.float64_t, ndim=2] unit_vector3d(np.ndarray[np.float64_t, ndi
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef np.ndarray[np.float64_t, ndim=1] f_ellipsoid(double a, double b, double c, 
+cpdef tuple f_ellipsoid(double a, double b, double c, 
                                                 np.ndarray[np.float64_t, ndim=2] pos):
     """Evaluate the ellipsoid function at the given positions."""
     cdef int n = pos.shape[0]
     cdef np.ndarray[np.float64_t, ndim=1] result = np.zeros(n, dtype=np.float64)
+    cdef np.ndarray[np.float64_t, ndim=1] r = np.zeros(n, dtype=np.float64)
     cdef double x, y, z
+    cdef double x2, y2, z2
     cdef int i
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
         y = pos[i, 1]
         z = pos[i, 2]
-        result[i] = x*x/(a*a) + y*y/(b*b) + z*z/(c*c)
-    return result
+        x2 = x*x
+        y2 = y*y
+        z2 = z*z
+        result[i] = x2/(a*a) + y2/(b*b) + z2/(c*c)
+        r[i] = sqrt(x2 + y2 + z2)
+    return result, r
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -153,18 +159,20 @@ cpdef tuple IntersectRaysEllipsoid(double a, double b, double c,
         d[i] = di
         L[i] = Li
 
-    return tarpos, L - d
+    return tarpos, L - d, L
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef np.ndarray[np.float64_t, ndim=1] f_ray_ellipsoid(double a, double b, double c, 
+cpdef tuple f_ray_ellipsoid(double a, double b, double c, 
                                                     np.ndarray[np.float64_t, ndim=2] pos):
     """
     Computes the ray distance function for the ellipsoid.
     """
     cdef int n = pos.shape[0]
+    cdef np.ndarray[np.float64_t, ndim=1] res = np.zeros(n, dtype=np.float64)
     cdef np.ndarray[np.float64_t, ndim=1] r = np.zeros(n, dtype=np.float64)
+    cdef double x2, y2, z2
     cdef double x, y, z, xi, yi, zi, Li, di, denom
     cdef int i
     cdef int num_threads = get_num_threads()
@@ -174,18 +182,24 @@ cpdef np.ndarray[np.float64_t, ndim=1] f_ray_ellipsoid(double a, double b, doubl
             x = pos[i, 0]
             y = pos[i, 1]
             z = pos[i, 2]
-            
-            r[i] = sqrt(x*x/(a*a) + y*y/(b*b) + z*z/(c*c))
+            x2 = x*x
+            y2 = y*y
+            z2 = z*z
+            res[i] = sqrt(x2/(a*a) + y2/(b*b) + z2/(c*c))
+            r[i] = sqrt(x2 + y2 + z2)
     else:
         
         for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
             x = pos[i, 0]
             y = pos[i, 1]
             z = pos[i, 2]
+            x2 = x*x
+            y2 = y*y
+            z2 = z*z
+            res[i] = sqrt(x2/(a*a) + y2/(b*b) + z2/(c*c))
+            r[i] = sqrt(x2 + y2 + z2)
 
-            r[i] = sqrt(x*x/(a*a) + y*y/(b*b) + z*z/(c*c))
-
-    return r
+    return res, r
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

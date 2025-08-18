@@ -417,9 +417,9 @@ class SphField:
         if for_fit:
             Eq_surface["pos"] = Eq_surface["pos"][~np.isnan(Eq_surface["r"])]
             Eq_surface["r"] = Eq_surface["r"][~np.isnan(Eq_surface["r"])]
-            Eq_surface["r"] = Eq_surface["r"] / np.sqrt(
-                np.sum(Eq_surface["r"] ** 2) / len(Eq_surface["r"])
-            )  #  normalization as this used for calculate error
+            #Eq_surface["r"] = Eq_surface["r"] / np.sqrt(
+            #    np.sum(Eq_surface["r"] ** 2) / len(Eq_surface["r"])
+            #)  #  normalization as this used for calculate error
             Eq_surface["info"] = {"parameter": Eq_surface["parameter"]}
 
         return Eq_surface

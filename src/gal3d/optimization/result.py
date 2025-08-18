@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
 
-from gal3d.shape import Structure3D
-
 from .optimizer import OptimizeResult
 from .util import save_model_hdf5
 
 if TYPE_CHECKING:
+    from gal3d.shape import Structure3D
+
     from .parameter import Parameters
 
 logger = logging.getLogger("gal3d.optimization.result")
@@ -41,7 +41,7 @@ class ModelResult:
 
     def __init__(
         self,
-        structure: Structure3D,
+        structure: "Structure3D",
         optimize_result: OptimizeResult,
         parameters: "Parameters",
     ):
@@ -260,7 +260,7 @@ class ModelResult:
 
     # Type hint overloads for __getitem__
     @overload
-    def __getitem__(self, k: int) -> Structure3D: ...
+    def __getitem__(self, k: int) -> "Structure3D": ...
 
     @overload
     def __getitem__(self, k: str) -> np.ndarray: ...
@@ -268,7 +268,7 @@ class ModelResult:
     @overload
     def __getitem__(self, k: slice) -> "ModelResult": ...
 
-    def __getitem__(self, k: int | str | slice) -> Union[Structure3D, np.ndarray, "ModelResult"]:
+    def __getitem__(self, k: int | str | slice) -> Union["Structure3D", np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 

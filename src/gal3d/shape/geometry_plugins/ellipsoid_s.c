@@ -5,7 +5,7 @@
 
 void f_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
-    const double* pos, int n, double* result, int num_threads)
+    const double* pos, int n, double* result, double* r, int num_threads)
 {
     double inv_a2 = 1.0 / (a * a);
     double inv_b2 = 1.0 / (b * b);
@@ -19,10 +19,14 @@ void f_shaped_ellipsoid_cpp(
         double x = pos[i*3+0];
         double y = pos[i*3+1];
         double z = pos[i*3+2];
-        double h1 = (x == 0) ? 0.0 : exp(Sa * log(x * x * inv_a2));
-        double h2 = (y == 0) ? 0.0 : exp(Sb * log(y * y * inv_b2));
-        double h3 = (z == 0) ? 0.0 : exp(Sc * log(z * z * inv_c2));
+        double x2 = x * x;
+        double y2 = y * y;
+        double z2 = z * z;
+        double h1 = (x == 0) ? 0.0 : exp(Sa * log(x2 * inv_a2));
+        double h2 = (y == 0) ? 0.0 : exp(Sb * log(y2 * inv_b2));
+        double h3 = (z == 0) ? 0.0 : exp(Sc * log(z2 * inv_c2));
         result[i] = h1 + h2 + h3;
+        r[i] = sqrt(x2 + y2 + z2);
     }
 }
 
@@ -203,7 +207,7 @@ double solve_ray_shaped_ellipsoid(
 void IntersectRaysEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* tarpos, double* result, int method, int num_threads)
+    double* tarpos, double* result, double* r, int method, int num_threads)
 {
     double epsilon = 1e-7;
 
@@ -240,13 +244,14 @@ void IntersectRaysEllipsoid_S_cpp(
         tarpos[i*3+1] = d0 * yi;
         tarpos[i*3+2] = d0 * zi;
         result[i] = L - d0;
+        r[i] = L;
     }
 }
 
 void f_ray_shaped_ellipsoid_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos, int n, int maxIterations,
-    double* result, int method, int num_threads)
+    double* result, double* r, int method, int num_threads)
 {
     double epsilon = 1e-7;
 
@@ -282,6 +287,7 @@ void f_ray_shaped_ellipsoid_cpp(
             maxIterations, epsilon, iter_func);
 
         result[i] = L / d0;
+        r[i] = L;
     }
 }
 

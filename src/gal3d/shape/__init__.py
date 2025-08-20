@@ -8,7 +8,7 @@ from types import MethodType
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 
 from gal3d.field.spherical_field.spherical_vector import fibonacci_sampling
 from gal3d.optimization.optimizer import Optimizer, OptimizerBase
@@ -88,6 +88,26 @@ class StructureCore:
             "geometry": Geometry.available_plugins(),
         }
 
+    def estimate_parameters(self, pos: NDArray[np.float64]) -> "Parameters":
+        """
+        Estimate parameters for the structure based on the given positions.
+
+        Parameters
+        ----------
+        pos : array_like
+            An array of positions to estimate parameters from.
+
+        Returns
+        -------
+        dict
+            A dictionary of estimated parameters.
+        """
+        param_coor = self._coordinate.estimate_parameters(pos)
+        new_pos = self._coordinate(**param_coor)(pos)
+        param_geom = self._geometry.estimate_parameters(new_pos)
+
+        return self._coordinate(**param_coor).parameters + self._geometry(**param_geom).parameters
+
     def create_parameters(self, *args: Any, **kwargs: Any) -> "Parameters":
         """
         Initialize parameters for coordinate and geometry.
@@ -128,6 +148,23 @@ class StructureCore:
             Keyword arguments for parameters.
         """
         self.parameters = self.parameters + self.create_parameters(*args, **kwargs)
+
+    def transform_pos(self, pos: NDArray[np.float64]) -> np.ndarray:
+        """
+        Transform positions using the structure's coordinate system.
+
+        Parameters
+        ----------
+        pos : array_like
+            Positions to transform.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed positions.
+        """
+        coord_pa, geoty_pa = self._split_parameters()
+        return self._coordinate(**coord_pa)(pos)
 
     def _split_parameters(self, **kwargs: Any) -> tuple[dict, dict]:
         coord_pa = (
@@ -649,7 +686,7 @@ class Structure3D(StructureCore, StructureError):
         StructureCore.__init__(self, coordinate, geometry)
         StructureError.__init__(self, error_func, error_method)
 
-    def fit(self, pos: np.ndarray, optimizer: None | OptimizerBase = None) -> ModelResult:
+    def fit(self, pos: np.ndarray, optimizer: None | OptimizerBase = None, estimate: bool = True) -> ModelResult:
         """
         Fit the structure to the given positions.
 
@@ -663,7 +700,14 @@ class Structure3D(StructureCore, StructureError):
         if optimizer is None:
             optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell")
 
+
         parameters_set = self.parameters.new()
+
+        if estimate:
+            estimate_params = self.estimate_parameters(pos)
+            parameters_set.update(estimate_params)
+            parameters_set.clip_to_bounds()
+
         fun = parameters_set.decorate_func_constraints(self._error_method)
         x0_dict = parameters_set.get_rounded_values_dict(n=4)
         x0_values = list(x0_dict.values())
@@ -675,6 +719,7 @@ class Structure3D(StructureCore, StructureError):
 
         parameters_set = parameters_set.set_value(op_res.x)
         return ModelResult(self, op_res, parameters_set)
+
 
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:

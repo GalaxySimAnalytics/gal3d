@@ -208,6 +208,24 @@ class ParameterDict(dict):
     def parameter_keys(self):
         return self.keys()
 
+    def clip_to_bounds(self: _ParamDict) -> _ParamDict:
+        """
+        Check each parameter value and clip it to its bounds if out of range.
+
+        Returns
+        -------
+        ParameterDict
+            The updated ParameterDict instance with values clipped to [lb, ub].
+        """
+        for key, param in self.items():
+            lb = param.lb
+            ub = param.ub
+            if param < lb:
+                self[key] = param.assign_value(lb)
+            elif param > ub:
+                self[key] = param.assign_value(ub)
+        return self
+
     def get_rounded(self, n: int = 3, round_value: bool = True, round_bound: bool = False, only_value: bool = False) -> Union[dict[str, float], "ParameterDict"]:
         """
         Returns a new ParameterDict with rounded values and/or bounds.

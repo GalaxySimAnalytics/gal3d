@@ -145,6 +145,28 @@ class WithParameter(ABC):
         return {}
 
 
+    @classmethod
+    @abstractmethod
+    def estimate_parameters(cls, *args: Any, **kwargs: Any) -> Any:
+        """
+        Estimate the parameters based on the provided arguments.
+
+        This method should be implemented by subclasses to provide specific
+        parameter estimation logic.
+
+        Parameters
+        ----------
+        *args
+            Positional arguments.
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        Any
+            The estimated parameters.
+        """
+
     @abstractmethod
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """

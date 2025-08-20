@@ -145,6 +145,23 @@ class Ellipsoid(GeometryBase):
         pos = self.to_3d_array(pos)
         return f_ray_ellipsoid(self["a"], self["b"], self["c"], pos)[0]
 
+    @classmethod
+    def estimate_parameters(cls, pos: ArrayLike) -> dict:
+        """
+        Estimate the parameters of the ellipsoid from the given positions.
+        """
+        pos = cls.to_3d_array(pos)
+
+        a = np.percentile(np.abs(pos[:, 0]), 95)
+        b = np.percentile(np.abs(pos[:, 1]), 95)
+        c = np.percentile(np.abs(pos[:, 2]), 95)
+
+        return {
+            "a": a,
+            "eps_ab": 1 - b / a,
+            "eps_bc": 1 - c / b,
+        }
+
     @staticmethod
     def quick_call(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """

@@ -174,6 +174,24 @@ class Ellipsoid_S(GeometryBase):
             config.ellipsoid_s.MaxIterationDist,
         )[0]
 
+    @classmethod
+    def estimate_parameters(cls, pos: ArrayLike) -> dict:
+
+        pos = cls.to_3d_array(pos)
+
+        a = np.percentile(np.abs(pos[:, 0]), 95)
+        b = np.percentile(np.abs(pos[:, 1]), 95)
+        c = np.percentile(np.abs(pos[:, 2]), 95)
+
+        return {
+            "a": a,
+            "eps_ab": 1 - b / a,
+            "eps_bc": 1 - c / b,
+            "sa": 1.,
+            "sb": 1.,
+            "sc": 1.
+        }
+
     @staticmethod
     def quick_call(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """

@@ -130,6 +130,42 @@ class EulerShift(CoordinateBase):
         pos = self.to_3d_array(pos)
         return Rotate(Shift(pos.copy(), -self["pos"]), self._rotation.as_matrix().T)
 
+    @classmethod
+    def estimate_parameters(cls, pos: np.ndarray) -> dict:
+        """
+        Estimate the parameters for the EulerShift transformation based on the provided positions.
+
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            An Nx3 array representing the positions [x, y, z] to be transformed.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the estimated parameters.
+        """
+        pos = cls.to_3d_array(pos)
+        # Compute the centroid of the positions
+        centroid = np.median(pos, axis=0)
+
+        new_pos = pos - centroid
+        U, S, Vt = np.linalg.svd(new_pos, full_matrices=False)
+        axes = Vt  # shape (3,3)
+
+        # to eular angle
+        rot = EulerAngles.from_matrix(axes)
+        angles = rot.as_euler(cls.EulerSeq, degrees=False)
+
+        return {
+            "x": centroid[0],
+            "y": centroid[1],
+            "z": centroid[2],
+            "ang1": angles[0],
+            "ang2": angles[1],
+            "ang3": angles[2],
+        }
+
     @staticmethod
     def quick_call(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> np.ndarray:
         """

@@ -611,6 +611,7 @@ class StructureError:
         """
         self._set_error_func(error_func)
         self._set_error_method(error_method)
+        self.use_ln_error: bool = False
 
     def _set_error_func(self, error_func: Callable | str) -> None:
         assert callable(error_func) or isinstance(error_func, str)
@@ -825,8 +826,12 @@ def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) 
 
     f , kwargs["r"]  = self.quick_call(*params, pos=kwargs["pos"])
     error_pa = {i: kwargs[i] for i in self._error_params}
+    if self.use_ln_error:
+        f = np.log(f)
+    else:
+        f = f - 1
 
-    return self._error_func(f-1., **error_pa)
+    return self._error_func(f, **error_pa)
 
 
 @Structure3D.compute_method_registry
@@ -836,8 +841,11 @@ def isodensity_dcall(
     pos = kwargs["pos"]
     f, kwargs["r"] = self.quick_f_ray_d(*params, pos=pos)
     error_pa = {i: kwargs[i] for i in self._error_params}
-
-    return self._error_func(f-1., **error_pa)
+    if self.use_ln_error:
+        f = np.log(f)
+    else:
+        f = f - 1
+    return self._error_func(f, **error_pa)
 
 
 @Structure3D.compute_method_registry

@@ -7,7 +7,7 @@ from gal3d.util.array_operate import Rotate, RotateAndShift, Shift
 
 from ._rotation_eular_util import EulerAngles
 
-__all__ = ["EulerShift"]
+__all__ = ["EulerShift","ShiftEuler"]
 
 
 class EulerShift(CoordinateBase):
@@ -243,3 +243,45 @@ class EulerShift(CoordinateBase):
         d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
 
         return (d_Px.T, d_Py.T, d_Pz.T, d_ang1, d_ang2, d_ang3)
+
+
+
+class ShiftEuler(EulerShift):
+    """
+    Similar to EulerShift, but applies a shift to the positions before rotation.
+    may be useful for iterative optimization.
+    """
+
+    def __call__(self, pos: np.ndarray) -> np.ndarray:
+        """
+        Transform the given positions using the current translation and rotation parameters.
+
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            An Nx3 array representing the positions [x, y, z] to be transformed.
+
+        Returns
+        -------
+        numpy.ndarray
+            The transformed positions.
+        """
+        pos = self.to_3d_array(pos)
+        return Rotate(Shift(pos, self["pos"]), self._rotation.as_matrix())
+
+    def inverse(self, pos: np.ndarray) -> np.ndarray:
+        """
+        Inverse transform the given positions using the current translation and rotation parameters.
+
+        Parameters
+        ----------
+        pos : numpy.ndarray
+            An Nx3 array representing the positions [x, y, z] to be inverse transformed.
+
+        Returns
+        -------
+        numpy.ndarray
+            The inverse transformed positions.
+        """
+        pos = self.to_3d_array(pos)
+        return Shift(Rotate(pos,self._rotation.as_matrix().T), -self["pos"])

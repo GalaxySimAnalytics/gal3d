@@ -166,6 +166,23 @@ class StructureCore:
         coord_pa, geoty_pa = self._split_parameters()
         return self._coordinate(**coord_pa)(pos)
 
+    def inverse_transform(self, pos: NDArray[np.float64]) -> np.ndarray:
+        """
+        Inverse transform positions from the structure's coordinate system.
+
+        Parameters
+        ----------
+        pos : array_like
+            Positions to inverse transform.
+
+        Returns
+        -------
+        np.ndarray
+            Inverse transformed positions.
+        """
+        coord_pa, geoty_pa = self._split_parameters()
+        return self._coordinate(**coord_pa).inverse(pos)
+
     def _split_parameters(self, **kwargs: Any) -> tuple[dict, dict]:
         coord_pa = (
             self._coordinate.create_parameters(**kwargs) if kwargs else self.parameters.structure_parameters

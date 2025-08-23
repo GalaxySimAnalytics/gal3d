@@ -1,6 +1,7 @@
 """
 This is a spherical harmonics decomposition iterator for fitting generalized ellipsoids to point clouds.
 But it is still in experimental stage.
+If it does not work well, it may be used to estimate the error of model.
 """
 from collections import defaultdict
 
@@ -13,9 +14,9 @@ from .spherical_vector import SphVector
 
 class SphericalDecIterator:
 
-    def __init__(self, n_sample):
+    def __init__(self, n_sample, coordinate = "ShiftEuler"):
         self.sample_area = SphVector(n_sample=n_sample)
-        self.structure = StructureCore("ShiftEuler","Ellipsoid_S")
+        self.structure = StructureCore(coordinate,"Ellipsoid_S")
         self.parameters = self.structure.parameters
         self.parameters["eps_ab"] = 0.01
         self.parameters["eps_bc"] = 0.01

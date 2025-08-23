@@ -111,7 +111,7 @@ class Gal3DAnalyzer:
         outer = res_m / (4 * np.pi / 3 * (3 * res_r) ** 3)
         logger.info("Set inner radius to %f", inner)
         logger.info("Set outer value to %f", outer)
-        field = SphField(particle, num_ray=num_ray
+        field = SphField(particle, num_ray=num_ray  # a better solution, use center_parameter*0.9 as inner, but how to determine outer boundary?
                 ).build_field_boundary(inner=inner, outer=outer, inner_mode="dist", outer_mode="value"
                 ).build_profile_sample(
                 ).build_profile_interpolator(

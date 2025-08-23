@@ -665,6 +665,7 @@ def bound_pct(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     return np.array([np.percentile(self.r_ray_n(i), value) for i in range(self.rays.num)])
 
 
+#TODO, revised for inner and outer boundary find
 @SphField.boundary_registry("value")
 def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     """
@@ -687,11 +688,11 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     """
     rays_vect = self.rays_vect
 
-    radius_guess = self.inner_r.copy()
-    eps_radius = np.mean(radius_guess)
     iter_max = 100
     step_fraction = 0.2
 
+    radius_guess = self.inner_r.copy()
+    eps_radius = np.mean(radius_guess)
     active_mask = np.ones_like(radius_guess, dtype=bool)  # Only iterate over unconverged rays
 
     # Coarse search to bracket the boundary

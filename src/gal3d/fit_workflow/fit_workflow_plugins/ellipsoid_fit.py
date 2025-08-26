@@ -85,7 +85,8 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         data = analyzer.field.generate(a, for_fit=True)
 
         # Extract info once if present
-        info = data.pop("info", None)
+        info = data.pop("info", {})
+        info["data"] = data["pos"]
 
         # Validate data points efficiently
         N_p = len(data["pos"])

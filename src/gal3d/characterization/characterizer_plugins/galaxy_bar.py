@@ -6,27 +6,29 @@ from typing import Any
 import numpy as np
 
 from gal3d.characterization.characterizer import CharacterizerBase
-from gal3d.field.spherical_field.ray.lu_mono_cy import MyPchipInterpolator
+from gal3d.field.spherical_field.ray.lu_mono_cy import MyPchipInterpolator as PchipInterpolator
 from gal3d.optimization.result import ModelResult
 from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
 
 __all__ = ["Bar"]
 class Bar(CharacterizerBase):
-    def __init__(self, data: dict[str, np.ndarray] | ModelResult):
+    def __init__(self, data: dict[str, np.ndarray] | ModelResult, angle_clip: float | None = 3.0):
         """
         Class for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
 
         Parameters
         ----------
-        data: dict,
-            with keys of a , eps ,pa , or eps_ab, eps_bc,
-                a : array_like
+        data: dict-like,
+            Object supporting dict-like access (e.g., dict, pandas.DataFrame, custom mapping).
+            Must provide keys:
+                - 'a' : array_like
                     Semi-major axis values (1D array)
-                eps, eps_ab, eps_bc: array_like
+                - 'eps' or 'eps_ab' : array_like
                     Ellipticity values (0-1, 1D array)
-                    If 'eps' is not provided, 'eps_ab' will be used as a fallback.
-                pa,: array_like
+                - 'pa' or 'angle' : array_like
                     Position angle values in radians (0-pi or 2pi, 1D array)
+        angle_clip : float, optional
+            Clip value for filtering outliers in the angle (default: 3.0)
 
         Attributes
         ----------
@@ -63,8 +65,15 @@ class Bar(CharacterizerBase):
 
         assert len(self.a) == len(self.eps) == len(self.pa), "Inconsistent array lengths."
         assert len(self.a) > 0, "Empty array detected."
+        assert len(self.a) > 5, "Insufficient data points."
+        assert np.all(np.isfinite(self.a)), "Non-finite values detected in 'a'."
+        assert np.all(np.isfinite(self.eps)), "Non-finite values detected in 'eps'."
+        assert np.all(np.isfinite(self.pa)), "Non-finite values detected in 'pa'."
 
-        self._f_eps_R = MyPchipInterpolator(self.a, self.eps,extrapolate=True)
+        if angle_clip is not None:
+            self.filter_outlier_data_points(clip=angle_clip)
+
+        self._f_eps_R = PchipInterpolator(self.a, self.eps, extrapolate=True)
 
     def measure(
         self,
@@ -142,7 +151,7 @@ class Bar(CharacterizerBase):
         """
 
         R_start, R_end = self.select_region(eps_cond=eps_cond)
-        R_start, R_end = self.filter_region(
+        R_start, R_end = self.filter_region_length(
             R_start, R_end, start_max=start_max, range_min=range_min
         )
         if R_start.size == 0 or R_end.size == 0:
@@ -172,7 +181,7 @@ class Bar(CharacterizerBase):
             if isinstance(other_keys,str):
                 other_keys = [other_keys]
             for i in other_keys:
-                f_r = MyPchipInterpolator(self.a, self.data[i],extrapolate=False)
+                f_r = PchipInterpolator(self.a, self.data[i],extrapolate=False)
                 result[f"R_max_{i}"] = f_r(result["R_max"])
                 result[f"R_bar_{i}"] = f_r(result["R_bar"])
 
@@ -229,7 +238,7 @@ class Bar(CharacterizerBase):
         R_end_arr = np.array(R_end, dtype=np.float64)
         return R_start_arr, R_end_arr
 
-    def filter_region(
+    def filter_region_length(
         self, R_start: np.ndarray, R_end: np.ndarray, start_max: float = 3, range_min: float = 0.3
     ) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -262,6 +271,57 @@ class Bar(CharacterizerBase):
 
         return R_start, R_end
 
+    def filter_outlier_data_points(self, n: int | None = None, clip: float = 3.0) -> None:
+        """
+        Remove data points with large position angle jumps.
+
+        This method calculates the mean and standard deviation of the position angle differences
+        between each data point and its neighbors. Data points with mean deviation greater than
+        `clip` times the standard deviation are filtered out.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of neighbors to consider on each side (default: len(self.a)//40, minimum 1).
+        clip : float, optional
+            Threshold multiplier for filtering outliers (default: 3.0).
+
+        """
+        n = max(int(len(self.a)/40),1) if n is None else n
+        mean_dev = np.zeros(len(self.a))
+        mean_std = np.zeros(len(self.a))
+        for i in range(len(self.pa)):
+            neighbors = []
+            # left
+            for k in range(1, n+1):
+                if i - k >= 0:
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i-k]))
+            # right
+            for k in range(1, n+1):
+                if i + k < len(self.pa):
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i+k]))
+            # If one side is insufficient, supplement the other side
+            while len(neighbors) < 2*n:
+                # Preferentially supplement the left side
+                if i - (n + len(neighbors) - n) >= 0:
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i - (n + len(neighbors) - n)]))
+                # Then supplement the right side
+                elif i + (n + len(neighbors) - n) < len(self.pa):
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i + (n + len(neighbors) - n)]))
+                else:
+                    break
+            mean_dev[i] = np.mean(neighbors)
+            mean_std[i] = np.std(neighbors)
+
+        select = mean_dev <  clip * mean_std
+        self.a = self.a[select]
+        self.eps = self.eps[select]
+        self.pa = self.pa[select]
+        data_sel = {i:self.data[i][select] for i in self.data.keys()}
+        self.data = data_sel
+        self.pa_dev_mean = mean_dev
+        self.pa_dev_std = mean_std
+
     def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float =3) -> tuple[float, float, float]:
         """
         Find maximum ellipticity and corresponding parameters in a region.
@@ -286,16 +346,24 @@ class Bar(CharacterizerBase):
         """
         if R_start != R_end:
             range_cut = (self.a >= R_start) & (self.a <= R_end)
-            eps_max = float(np.max(self.eps[range_cut]))
-            R_max = float(self.a[range_cut][np.argmax(self.eps[range_cut])])
-            pa_max = float(self.pa[range_cut][np.argmax(self.eps[range_cut])])
+            if np.any(range_cut):
+                eps_max = float(np.max(self.eps[range_cut]))
+                R_max = float(self.a[range_cut][np.argmax(self.eps[range_cut])])
+                pa_max = float(self.pa[range_cut][np.argmax(self.eps[range_cut])])
+            else:
+                eps_max, R_max, pa_max = 0.0, 0.0, 0.0
         else:
-            eps_max = float(np.max(self.eps[self.a < R_cond]))
-            R_max = float(self.a[np.argmax(self.eps[self.a < R_cond])])
-            pa_max = float(self.pa[np.argmax(self.eps[self.a < R_cond])])
+            mask = self.a < R_cond
+            if np.any(mask):
+                eps_max = float(np.max(self.eps[mask]))
+                idx = np.argmax(self.eps[mask])
+                R_max = float(self.a[mask][idx])
+                pa_max = float(self.pa[mask][idx])
+            else:
+                eps_max, R_max, pa_max = 0.0, 0.0, 0.0
         return eps_max, R_max, pa_max
 
-    def get_dec_epsRpa(self, R_max: float, eps_max: float, dec: float = 0.85) -> tuple[float, float, MyPchipInterpolator]:
+    def get_dec_epsRpa(self, R_max: float, eps_max: float, dec: float = 0.85) -> tuple[float, float, PchipInterpolator]:
         """
         Determine bar length using ellipticity decrease criterion.
 
@@ -314,7 +382,7 @@ class Bar(CharacterizerBase):
             Ellipticity at bar length
         R_dc : float
             Bar length radius
-        f_eps_R : MyPchipInterpolator
+        f_eps_R : PchipInterpolator
             Ellipticity interpolator
         """
 

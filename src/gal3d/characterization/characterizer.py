@@ -22,7 +22,7 @@ class CharacterizerBase(PluginBase):
         Characterizer.register(cls)
 
     @abstractmethod
-    def measure(self,):
+    def measure(self,*args, **kwargs):
         pass
 
 class Characterizer(PluginManager[CharacterizerBase]):

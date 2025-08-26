@@ -723,7 +723,8 @@ class Structure3D(StructureCore, StructureError):
 
         if estimate:
             estimate_params = self.estimate_parameters(pos)
-            parameters_set.update(estimate_params)
+            filtered_estimate_params = {k: v for k, v in estimate_params.items() if k in parameters_set}
+            parameters_set.set_value(**filtered_estimate_params)
             parameters_set.clip_to_bounds()
 
         fun = parameters_set.decorate_func_constraints(self._error_method)

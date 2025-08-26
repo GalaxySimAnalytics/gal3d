@@ -148,14 +148,16 @@ class EulerShift(CoordinateBase):
         pos = cls.to_3d_array(pos)
         # Compute the centroid of the positions
         centroid = np.median(pos, axis=0)
+        try:
+            new_pos = pos - centroid
+            U, S, Vt = np.linalg.svd(new_pos, full_matrices=False)
+            axes = Vt  # shape (3,3)
 
-        new_pos = pos - centroid
-        U, S, Vt = np.linalg.svd(new_pos, full_matrices=False)
-        axes = Vt  # shape (3,3)
-
-        # to eular angle
-        rot = EulerAngles.from_matrix(axes)
-        angles = rot.as_euler(cls.EulerSeq, degrees=False)
+            # to eular angle
+            rot = EulerAngles.from_matrix(axes)
+            angles = rot.as_euler(cls.EulerSeq, degrees=False)
+        except ValueError:
+            angles = [0.0, 0.0, 0.0]
 
         return {
             "x": centroid[0],

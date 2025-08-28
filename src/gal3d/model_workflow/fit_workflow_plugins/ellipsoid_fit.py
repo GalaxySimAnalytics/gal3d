@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from gal3d.field import SphVector
-from gal3d.fit_workflow.fit_workflow import FitWorkflowBase
+from gal3d.model_workflow.fit_workflow import FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.shape import Structure3D
 

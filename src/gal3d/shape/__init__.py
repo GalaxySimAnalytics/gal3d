@@ -747,6 +747,7 @@ class Structure3D(StructureCore, StructureError):
                                func_kwargs={"pos": pos})
 
         parameters_set = parameters_set.set_value(op_res.x)
+        parameters_set.add_info(data = pos)
         return ModelResult(self, op_res, parameters_set)
 
 

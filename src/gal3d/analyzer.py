@@ -15,7 +15,7 @@ import numpy as np
 from tqdm import tqdm
 
 from .field import SphField
-from .fit_workflow.fit_workflow import FitWorkflow
+from .model_workflow.fit_workflow import FitWorkflow
 from .optimization.optimizer import Optimizer, OptimizerBase
 from .optimization.result import EmptyModelResult, ModelResult
 from .point import Particles

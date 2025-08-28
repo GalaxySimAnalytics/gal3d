@@ -1,3 +1,6 @@
+"""
+Workflow for model fitting.
+"""
 from typing import TYPE_CHECKING, Any
 
 from gal3d.optimization.result import ModelResult
@@ -84,7 +87,7 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
         The base class for all workflow plugins.
     """
     _plugins = {}
-    _plugin_module = "gal3d.fit_workflow.fit_workflow_plugins"
+    _plugin_module = "gal3d.model_workflow.fit_workflow_plugins"
     _base_class = FitWorkflowBase
 
     @classmethod

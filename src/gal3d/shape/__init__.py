@@ -73,6 +73,16 @@ class StructureCore:
         self._coordinate_name = self._coordinate.__name__
         self.__coor_pa_num = len(self._coordinate.PN)
 
+    @property
+    def geometry_name(self) -> str:
+        """Get the name of the geometry."""
+        return self._geometry_name
+
+    @property
+    def coordinate_name(self) -> str:
+        """Get the name of the coordinate system."""
+        return self._coordinate_name
+
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:
         """

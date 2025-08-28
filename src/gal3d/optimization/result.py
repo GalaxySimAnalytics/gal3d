@@ -207,9 +207,13 @@ class ModelResult:
     def keys(self):
         """
         Get parameter keys from the first parameter set.
-
         """
         return self._param_sets[0].keys()
+
+    @property
+    def structure(self) -> "Structure3D":
+        """Get the 3D structure model"""
+        return self._structure
 
     def __call__(
         self,
@@ -268,16 +272,21 @@ class ModelResult:
     @overload
     def __getitem__(self, k: slice) -> "ModelResult": ...
 
-    def __getitem__(self, k: int | str | slice) -> Union["Structure3D", np.ndarray, "ModelResult"]:
+    @overload
+    def __getitem__(self, k: np.ndarray) -> "ModelResult": ...
+
+    def __getitem__(self, k: int | str | slice | np.ndarray) -> Union["Structure3D", np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
         Parameters
         ----------
-        k : str, int, or slice
+        k : str, int, slice, or numpy.ndarray
             - If `k` is a string: returns the corresponding parameter value from all parameter sets.
             - If `k` is an integer: returns the `Structure3D` instance initialized with the k-th parameter set.
             - If `k` is a slice: returns a new `ModelResult` with the specified slice of parameter sets.
+            - If `k` is a numpy.ndarray of integers: returns a new `ModelResult` with parameter sets at those indices.
+            - If `k` is a numpy.ndarray of booleans: returns a new `ModelResult` with parameter sets where mask is True.
 
         Returns
         -------
@@ -287,7 +296,11 @@ class ModelResult:
         Raises
         ------
         KeyError
-            If `k` is not a valid string key, integer index, or slice.
+            If `k` is not a valid string key, integer index, slice, or numpy array.
+        IndexError
+            If any index in the numpy array is out of bounds.
+        ValueError
+            If boolean array length doesn't match number of parameter sets.
         """
         if isinstance(k, str):
             # Return parameter values for all sets
@@ -308,8 +321,45 @@ class ModelResult:
             sliced_result._param_sets = self._param_sets[k]
             sliced_result._opt_results = self._opt_results[k]
             return sliced_result
+
+        elif isinstance(k, np.ndarray):
+            # Handle numpy array indexing
+            if k.dtype == bool:
+                # Boolean mask array
+                if len(k) != len(self._param_sets):
+                    raise ValueError(
+                        f"Boolean index array length ({len(k)}) doesn't match "
+                        f"number of parameter sets ({len(self._param_sets)})"
+                    )
+
+                # Create a new ModelResult with masked parameters and results
+                masked_result = copy.copy(self)
+                masked_result._param_sets = [p for p, mask in zip(self._param_sets, k, strict=False) if mask]
+                masked_result._opt_results = [r for r, mask in zip(self._opt_results, k, strict=False) if mask]
+                return masked_result
+
+            elif np.issubdtype(k.dtype, np.integer):
+                # Integer index array
+
+                # Check if all indices are in bounds
+                if np.any((k < 0) | (k >= len(self._param_sets))):
+                    out_of_bounds = k[(k < 0) | (k >= len(self._param_sets))]
+                    raise IndexError(
+                        f"Indices {out_of_bounds} out of bounds (0-{len(self._param_sets)-1})"
+                    )
+
+                # Create a new ModelResult with indexed parameters and results
+                indexed_result = copy.copy(self)
+                indexed_result._param_sets = [self._param_sets[i] for i in k]
+                indexed_result._opt_results = [self._opt_results[i] for i in k]
+                return indexed_result
+
+            else:
+                raise TypeError(
+                    f"Numpy array index must be integers or booleans, got {k.dtype}"
+                )
         else:
-            raise KeyError(f"Key must be a string, integer, or slice, got {type(k).__name__}")
+            raise KeyError(f"Key must be a string, integer, slice, or numpy array, got {type(k).__name__}")
 
     def __getattr__(self, name: str) -> list[Any] | np.ndarray:
         """
@@ -461,7 +511,6 @@ class EmptyModelResult(ModelResult):
 
     def __getitem__(self, k):
         raise ValueError("EmptyModelResult: No results available.")
-
 
     def __repr__(self):
         return "<EmptyModelResult| No parameter sets |>"

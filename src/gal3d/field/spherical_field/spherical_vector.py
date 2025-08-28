@@ -106,7 +106,7 @@ class SphVector:
     "polar": SphSampler.polar_method
     }
 
-    def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None):
+    def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True):
         """
         Initialize the SphVector class with N points uniformly distributed on the unit sphere.
 
@@ -158,10 +158,11 @@ class SphVector:
         target_area = 4*np.pi/n_sample
         self.uniformity = 1 - np.mean(np.abs(self.area - target_area))/target_area
 
-        logger.info(
-            "%d points on the sphere by %s method have the uniformity of %.3f",
-            self.num, method, self.uniformity * 100
-        )
+        if verbose:
+            logger.info(
+                "%d points on the sphere by %s method have the uniformity of %.3f",
+                self.num, method, self.uniformity * 100
+            )
         self._tree: KDTree | None =  None
 
 

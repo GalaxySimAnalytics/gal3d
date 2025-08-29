@@ -32,13 +32,15 @@ def xcode_fix_needed():
 if is_windows():
     # MSVC compiler flags
     openmp_args = ["/openmp"]
-    extra_compile_args = ["/O2", "/std:c++14"]
+    optimization_flags = ["/O2", "/fp:fast"]
+    extra_compile_args = ["/std:c++14"] + openmp_args + optimization_flags
     extra_link_args = ["/openmp"]
 else:
     # GCC/Clang compiler flags
     openmp_args = ["-fopenmp"]
-
-    extra_link_args = openmp_args + ["-std=c++14"]
+    optimization_flags = ['-O3']
+    extra_compile_args = openmp_args + optimization_flags
+    extra_link_args = openmp_args + optimization_flags + ["-std=c++14"]
 
 # https://mac.r-project.org/openmp/
 if xcode_fix_needed():
@@ -57,7 +59,7 @@ ellipsoid_s = Extension(
     name="gal3d.shape.geometry_plugins.ellipsoid_s_cy",
     sources=["src/gal3d/shape/geometry_plugins/ellipsoid_s_cy.pyx", "src/gal3d/shape/geometry_plugins/ellipsoid_s.c"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -66,7 +68,7 @@ ellipsoid = Extension(
     name="gal3d.shape.geometry_plugins.ellipsoid_cy",
     sources=["src/gal3d/shape/geometry_plugins/ellipsoid_cy.pyx"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -75,7 +77,7 @@ fns_error = Extension(
     name="gal3d.shape.fns_cy",
     sources=["src/gal3d/shape/fns_cy.pyx"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -83,7 +85,7 @@ array_operate = Extension(
     name="gal3d.util.array_operate_cy",
     sources=["src/gal3d/util/array_operate_cy.pyx"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -92,7 +94,7 @@ spherical_field_util = Extension(
     "gal3d.field.spherical_field.util_cy",
     ["src/gal3d/field/spherical_field/util_cy.pyx"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -101,7 +103,7 @@ point_util = Extension(
     "gal3d.point.util_cy",
     ["src/gal3d/point/util_cy.pyx"],
     include_dirs=incdir,
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -109,7 +111,7 @@ density_estimate = Extension(
     name="gal3d.point.density_estimator_plugins.compute_pa_cy",
     sources=["src/gal3d/point/density_estimator_plugins/compute_pa_cy.pyx"],
     include_dirs=incdir + ["src/gal3d/point/density_estimator_plugins"],
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -121,7 +123,7 @@ monotonic_interpolate = Extension(
         "src/gal3d/field/spherical_field/ray/pchip.cpp"
     ],
     include_dirs=incdir + ["src/gal3d/field/spherical_field/ray"],
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
     language="c++",
 )
@@ -134,7 +136,7 @@ sph_render = Extension(
         "src/gal3d/visualization/render.cpp"
     ],
     include_dirs=incdir + ["src/gal3d/visualization"],
-    extra_compile_args=openmp_args,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
    # language="c++",
 )

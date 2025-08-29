@@ -62,6 +62,7 @@ class Gal3DAnalyzer:
         pos: np.ndarray,
         mass: np.ndarray,
         recenter: bool = True,
+        inner_frac: float = 0.9,
         **kwargs: Any
     ) -> "Gal3DAnalyzer":
         """
@@ -75,12 +76,24 @@ class Gal3DAnalyzer:
             The masses of the particles. Shape: (N,)
         recenter : bool, optional
             Whether to recenter the particle positions (default is True).
+        inner_frac : float, optional
+            inner_frac * center_value for inner boundary definition (default is 0.9).
         **kwargs
             Additional keyword arguments for analysis.
-            res_r : float, optional
-                Spatial resolution to use.
-            res_r_max : float, optional
-                Maximum allowed spatial resolution.
+            inner : float, optional
+                used to define the inner boundary.
+            inner_mode : str, optional
+                method used to define the inner boundary.
+            outer : float, optional
+                used to define the outer boundary.
+            outer_mode : str, optional
+                method used to define the outer boundary.
+
+        Notes
+        -----
+        Boundary definitions:
+        - Inner boundary: Defined by the `inner` parameter or a fraction of the center value.
+        - Outer boundary: Defined by the `outer` parameter or the mean mass of the particles.
 
         Returns
         -------
@@ -90,29 +103,41 @@ class Gal3DAnalyzer:
 
         particle = Particles(pos=pos, mass=mass, recenter=recenter)
 
-        res_r = kwargs.get("res_r", particle.estimate_spatial_resolution())
-        res_r_max = kwargs.get("res_r_max")
-        if res_r_max is not None:
-            res_r = min(res_r, res_r_max)
-        res_m = particle.estimate_mass_resolution()
-        logger.info("Estimated mass resolution: %f, spatial resolution: %f", res_m, res_r)
+        inner = kwargs.get("inner", None)
+        outer = kwargs.get("outer", None)
+        if inner is None:
+            assert 0 < inner_frac < 1, "Inner fraction must be between 0 and 1."
+            inner = particle.get_parameter([0,0,0])*inner_frac
+            inner_mode = "value"
+        else:
+            try:
+                inner_mode = kwargs["inner_mode"]
+            except KeyError as e:
+                raise KeyError("Inner mode not specified in kwargs") from e
 
-        field = cls._build_field(particle=particle, res_r=res_r, res_m=res_m)
-        structure = cls._build_structure(res_r)
+        if outer is None:
+            outer = np.mean(mass)
+            outer_mode = "value"
+        else:
+            try:
+                outer_mode = kwargs["outer_mode"]
+            except KeyError as e:
+                raise KeyError("Outer mode not specified in kwargs") from e
+
+        field = cls._build_field(particle=particle, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
+        structure = cls._build_structure(np.mean(field.inner_r))
         optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell") # OptimizerScipy Powell
 
         return Gal3DAnalyzer(particle=particle,field=field,structure=structure,optimizer=optimizer)
 
     @staticmethod
-    def _build_field(particle: Particles, res_r: float, res_m: float) -> SphField:
+    def _build_field(particle: Particles, inner: float, outer: float, inner_mode: str = "value", outer_mode: str = "value") -> SphField:
         num_ray = min(1024, int(len(particle.r) / 150))
         num_ray = max(num_ray, 64)
-        inner = res_r / 2
-        outer = res_m / (4 * np.pi / 3 * (3 * res_r) ** 3)
-        logger.info("Set inner radius to %f", inner)
-        logger.info("Set outer value to %f", outer)
+        logger.info("Set inner %s to %.2e", inner_mode, inner)
+        logger.info("Set outer %s to %.2e", outer_mode, outer)
         field = SphField(particle, num_ray=num_ray  # a better solution, use center_parameter*0.9 as inner, but how to determine outer boundary?
-                ).build_field_boundary(inner=inner, outer=outer, inner_mode="dist", outer_mode="value"
+                ).build_field_boundary(inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode
                 ).build_profile_sample(
                 ).build_profile_interpolator(
                 ).build_isodensity_profile(
@@ -120,8 +145,8 @@ class Gal3DAnalyzer:
         return field
 
     @staticmethod
-    def _build_structure(res_r: float) -> Structure3D:
-        inner = res_r / 2
+    def _build_structure(inner_r: float) -> Structure3D:
+        inner = inner_r / 2
         structure = Structure3D(coordinate="EulerShift", geometry="Ellipsoid_S",
                                 error_func="sums_dev_rscale", error_method="isodensity_dcall")
         structure.parameters.set_ub(x=inner, y=inner, z=inner)
@@ -141,7 +166,7 @@ class Gal3DAnalyzer:
             The mode of the steps (e.g., 'log' for logarithmic spacing).
 
         """
-        r_min = max(np.median(self.field.inner_r)*6,self.field.iso_pro_r[0]*3)
+        r_min = max(np.median(self.field.inner_r)*3,self.field.iso_pro_r[0]*3)
         r_max = min(self.field.iso_pro_r[-1],np.median(self.field.outer_r))
 
         if step_mode == "log":

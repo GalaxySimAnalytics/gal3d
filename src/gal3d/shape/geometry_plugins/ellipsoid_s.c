@@ -142,6 +142,10 @@ double solve_ray_shaped_ellipsoid(
     double log_ey_base = log(yi2 * inv_b2);
     double log_ez_base = log(zi2 * inv_c2);
 
+    double Sa_log_ex_base = Sa * log_ex_base;
+    double Sb_log_ey_base = Sb * log_ey_base;
+    double Sc_log_ez_base = Sc * log_ez_base;
+
     double Sa2 = 2.0 * Sa;
     double Sb2 = 2.0 * Sb;
     double Sc2 = 2.0 * Sc;
@@ -152,10 +156,10 @@ double solve_ray_shaped_ellipsoid(
 
 
     // avoid pow, for acceleration
-    double log_d2 = 2.0 * log(d0);
-    ExddSa = exp(Sa * (log_ex_base + log_d2)); 
-    EyddSb = exp(Sb * (log_ey_base + log_d2));
-    EzddSc = exp(Sc * (log_ez_base + log_d2));
+    double log_d = log(d0);
+    ExddSa = exp(Sa_log_ex_base + Sa2*log_d);
+    EyddSb = exp(Sb_log_ey_base + Sb2*log_d);
+    EzddSc = exp(Sc_log_ez_base + Sc2*log_d);
 
     f = ExddSa + EyddSb + EzddSc - 1.0;
 
@@ -168,14 +172,14 @@ double solve_ray_shaped_ellipsoid(
         d1 = iter_func(d0, Sa2, ExddSa, Sb2, EyddSb, Sc2, EzddSc, f);
 
         // Update function values at new estimate
-        log_d2 = 2.0 * log(d1);
-        ExddSa = exp(Sa * (log_ex_base + log_d2));
-        EyddSb = exp(Sb * (log_ey_base + log_d2));
-        EzddSc = exp(Sc * (log_ez_base + log_d2));
+        log_d = log(d1);
+        ExddSa = exp(Sa_log_ex_base + Sa2*log_d);
+        EyddSb = exp(Sb_log_ey_base + Sb2*log_d);
+        EzddSc = exp(Sc_log_ez_base + Sc2*log_d);
         f1 = ExddSa + EyddSb + EzddSc - 1.0;
 
         // Adaptive step size: if the new function value is worse, change the step size
-        double step_size = 4.0;
+        double step_size = 0.5;
         int backtrack_count = 0;
         double delta_d = d1 - d0;
 
@@ -183,12 +187,12 @@ double solve_ray_shaped_ellipsoid(
             d1 = d0 + delta_d * step_size; // Reduce step size
             
             // Recalculate function value at the new estimate
-            log_d2 = 2.0 * log(d1);
-            ExddSa = exp(Sa * (log_ex_base + log_d2));
-            EyddSb = exp(Sb * (log_ey_base + log_d2));
-            EzddSc = exp(Sc * (log_ez_base + log_d2));
+            log_d = log(d1);
+            ExddSa = exp(Sa_log_ex_base + Sa2*log_d);
+            EyddSb = exp(Sb_log_ey_base + Sb2*log_d);
+            EzddSc = exp(Sc_log_ez_base + Sc2*log_d);
             f1 = ExddSa + EyddSb + EzddSc - 1.0;
-            step_size *= 0.3;
+            step_size *= 0.5;
             backtrack_count++;
         }
 
@@ -213,7 +217,13 @@ void IntersectRaysEllipsoid_S_cpp(
 
     omp_set_num_threads(num_threads);
     EllipsoidIterFunc iter_func;
-    if (method == 1) {
+    if (method == 0){
+        if (fabs(Sa - 1.0) < 0.1 && fabs(Sb - 1.0) < 0.1 && fabs(Sc - 1.0) < 0.1) {
+            iter_func = _ellipsoid_ray_newton; // Newton for near-spherical ellipsoids
+        } else {
+            iter_func = _ellipsoid_ray_halley; // otherwise use Halley
+        }
+    } else if (method == 1) {
         iter_func = _ellipsoid_ray_newton;
     } else if (method == 2) {
         iter_func = _ellipsoid_ray_halley;

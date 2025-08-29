@@ -138,6 +138,15 @@ class EllipsoidParameterUpdater:
             return c1*c2*delta_0
 
     @staticmethod
+    def update_ang1(coef: dict[int, np.ndarray], parameters: "Parameters", f_d: np.ndarray, mode: _modeType = "fitted") -> float:
+        eps_ab = parameters["eps_ab"]
+        a = parameters["a"]
+        dx = f_d[0]
+        if eps_ab==0:
+            return 0.
+        return coef[2][2]/dx/a/((1-eps_ab)**2-1)/(1+eps_ab)*(1+parameters["eps_bc"])
+
+    @staticmethod
     def update_angle(coef: dict[int, np.ndarray], parameters: "Parameters", f_d: np.ndarray, mode: _modeType = "fitted") -> float:
         eps_ab = parameters["eps_ab"]
         a = parameters["a"]
@@ -228,7 +237,22 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
             return False
 
     @classmethod
-    def estimate_structure_error(cls, result: Union[StructureCore, "WithParameter"], pos: np.ndarray, **kwargs: Any) -> dict[str, float | np.ndarray]:
+    def estimate_error(cls, result: Union[StructureCore, "WithParameter", "ModelResult"], **kwargs: Any) -> dict[str, np.ndarray]:
+        if not isinstance(result, ModelResult):
+            res = cls.estimate_structure_update(result, **kwargs)
+            ret: dict[str, np.ndarray] = {}
+            for i in res.keys():
+                ret[i] = np.abs(res[i])
+            return ret
+        else:
+            res = cls.estimate_model_update(result, **kwargs)
+            ret = {}
+            for i in res.keys():
+                ret[i] = np.abs(res[i])
+            return ret
+
+    @classmethod
+    def estimate_structure_update(cls, result: Union[StructureCore, "WithParameter"], pos: np.ndarray, **kwargs: Any) -> dict[str, np.ndarray]:
         if not cls.condition(result):
             raise ValueError("Incompatible result type.")
 
@@ -236,21 +260,21 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
         estimator_key: list[str]
         if isinstance(result, StructureCore):
             structure = result
-            estimator_key = ["eps_ab","eps_bc","a","x","y","z","angle"]
+            estimator_key = ["eps_ab","eps_bc","a","x","y","z","ang1"]
         else:
             structure = StructureCore("ShiftEuler", result.__class__.__name__)
             structure.parameters.set_value(**result.parameters)
             estimator_key = ["eps_ab","eps_bc","a"]
 
         iterator = SphericalDecIterator(pos, structure, **kwargs)
-        res = {i: iterator.get_parameter_update(i, kwargs.get("mode","fitted")) for i in estimator_key}
+        res = {i: np.array(iterator.get_parameter_update(i, kwargs.get("mode","fitted"))) for i in estimator_key}
         return res
 
     @classmethod
-    def estimate_model_error(cls, result: ModelResult, **kwargs: Any) -> dict[str, np.ndarray]:
+    def estimate_model_update(cls, result: ModelResult, **kwargs: Any) -> dict[str, np.ndarray]:
 
         res: defaultdict[str, list[float | np.ndarray]] = defaultdict(list)
-        estimator_key: list[str] = ["eps_ab","eps_bc","a","x","y","z","angle"]
+        estimator_key: list[str] = ["eps_ab","eps_bc","a","x","y","z","ang1"]
 
         for i in range(len(result)):
             pos = result._param_sets[i].get_info("data")

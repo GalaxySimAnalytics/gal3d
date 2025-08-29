@@ -52,14 +52,23 @@ class ErrorWorkflowBase(PluginBase):
         return False
 
     @classmethod
-    def estimate_structure_error(
+    def estimate_error(
+        cls,
+        result: Union["StructureCore", "WithParameter","ModelResult"],
+        **kwargs: Any
+    ) -> dict[str, Any]:
+        """ Estimate errors"""
+        raise NotImplementedError("Subclasses must implement estimate_error")
+
+    @classmethod
+    def estimate_structure_update(
         cls,
         result: Union["StructureCore", "WithParameter"],
         pos: np.ndarray,
         **kwargs: Any
     ) -> dict[str, Any]:
         """
-        Estimate errors for a structure model.
+        Estimate updates for a structure model.
 
         Parameters
         ----------
@@ -73,23 +82,23 @@ class ErrorWorkflowBase(PluginBase):
         Returns
         -------
         dict
-            Dictionary of parameter errors
+            Dictionary of parameter updates
 
         Raises
         ------
         NotImplementedError
             If not implemented in subclass
         """
-        raise NotImplementedError("Subclasses must implement estimate_structure_error")
+        raise NotImplementedError("Subclasses must implement estimate_structure_update")
 
     @classmethod
-    def estimate_model_error(
+    def estimate_model_update(
         cls,
         result: "ModelResult",
         **kwargs: Any
     ) -> dict[str, Any]:
         """
-        Estimate errors for a model result.
+        Estimate updates for a model result.
 
         Parameters
         ----------
@@ -103,14 +112,14 @@ class ErrorWorkflowBase(PluginBase):
         Returns
         -------
         dict
-            Dictionary of parameter errors
+            Dictionary of parameter updates
 
         Raises
         ------
         NotImplementedError
             If not implemented in subclass
         """
-        raise NotImplementedError("Subclasses must implement estimate_model_error")
+        raise NotImplementedError("Subclasses must implement estimate_model_update")
 
 
 class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
@@ -160,3 +169,23 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
                     return wf_cls()
 
         raise LookupError("No suitable error estimator workflow found")
+
+    @classmethod
+    def estimate_error(cls, result: Union["StructureCore", "WithParameter", "ModelResult"], **kwargs: Any) -> dict[str, np.ndarray]:
+        """
+        Estimate errors for the given result.
+
+        Parameters
+        ----------
+        result : Union["StructureCore", "WithParameter", "ModelResult"]
+            The result object to estimate errors for.
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the estimated errors.
+        """
+        err = cls.get_error_estimator(result)
+        return err.estimate_error(result, **kwargs)

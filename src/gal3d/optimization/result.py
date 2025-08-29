@@ -2,9 +2,12 @@ import copy
 import logging
 import time
 from dataclasses import fields
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
+
+from gal3d.model_workflow.error_workflow import ErrorWorkflow
 
 from .optimizer import OptimizeResult
 from .util import save_model_hdf5
@@ -214,6 +217,13 @@ class ModelResult:
     def structure(self) -> "Structure3D":
         """Get the 3D structure model"""
         return self._structure
+
+    @cached_property
+    def error(self) -> dict[str, Any]:
+        """
+        Get the estimated errors for the model.
+        """
+        return ErrorWorkflow.estimate_error(self)
 
     def __call__(
         self,

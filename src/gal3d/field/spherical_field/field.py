@@ -665,12 +665,14 @@ def bound_pct(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     return np.array([np.percentile(self.r_ray_n(i), value) for i in range(self.rays.num)])
 
 
-#TODO, revised for inner and outer boundary find
+
 @SphField.boundary_registry("value")
 def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     """
-    Finds the outer boundary radius for each ray such that the parameter value along the ray equals or exceeds a specified target value.
-    This function is registered as a boundary condition handler for the 'value' type. It iteratively searches along each ray direction to find the radius where the parameter (obtained from `self.particles.get_parameter`) crosses the given `target_value`. The search is performed in two stages: a coarse search to bracket the boundary, followed by a bisection method for refinement.
+    Finds the boundary radius for each ray where the parameter value crosses the specified value.
+    For density-like parameters that decrease with radius, this function will:
+    - For inner boundary (mode="min"): Search inward until parameter value exceeds target
+    - For outer boundary (mode="max"): Search outward until parameter value falls below target
 
     Parameters
     ----------
@@ -679,7 +681,11 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     value : float
         The target parameter value to find along each ray.
     **kwargs : dict
-        Additional keyword arguments (unused).
+        Additional keyword arguments:
+        - mode : str, optional
+            "min" for inner boundary (search inward),
+            "max" for outer boundary (search outward).
+            Default is "max".
 
     Returns
     -------
@@ -687,12 +693,18 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
         Array of radii for each ray where the parameter value crosses the specified boundary.
     """
     rays_vect = self.rays_vect
+    mode = kwargs.get("mode", "max")
 
     iter_max = 100
     step_fraction = 0.2
 
-    radius_guess = self.inner_r.copy()
-    eps_radius = np.mean(radius_guess)
+    # determine search direction
+    is_inner = mode == "min"
+
+    r10,r90 = np.percentile(self.particles.r, [10,90])
+    radius_guess = r90*np.ones(len(self.rays_vect)) if is_inner else r10*np.ones(len(self.rays_vect))
+    eps_radius = r10/100 if is_inner else r90/100
+
     active_mask = np.ones_like(radius_guess, dtype=bool)  # Only iterate over unconverged rays
 
     # Coarse search to bracket the boundary
@@ -700,19 +712,30 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
         param_val = np.zeros_like(radius_guess)
         param_val[active_mask] = self.particles.get_parameter(radius_guess[active_mask, None] * rays_vect[active_mask])
         iter_step = step_fraction * radius_guess
-        iter_step[param_val < value] = 0  # Stop iterating if max found
-        radius_guess[param_val > value] += iter_step[param_val > value]
-        active_mask = iter_step != 0
+
+        if is_inner:
+            condition = param_val > value # inner boundary: param_val > value
+            active_mask[condition] = False  # stop iterating over converged rays
+            # otherwise, search inward
+            radius_guess[active_mask] -= iter_step[active_mask]
+        else:
+            condition = param_val < value # outer boundary: param_val < value
+            active_mask[condition] = False  # stop iterating over converged rays
+            # otherwise, search outward
+            radius_guess[active_mask] += iter_step[active_mask]
+
         if not np.any(active_mask):
             break
 
+    search_type = "Inner" if is_inner else "Outer"
     if _i >= iter_max - 1:
-        logger.error("[Coarse Search] Outer boundary search did not converge after %d iterations", iter_max)
+        logger.error("[Coarse Search] %s boundary search did not converge after %d iterations", search_type, iter_max)
     else:
-        logger.debug("[Coarse Search] Outer boundary converged in %d iterations", _i+1)
+        logger.debug("[Coarse Search] %s boundary converged in %d iterations", search_type, _i+1)
 
-    radius_upper = radius_guess.copy()
-    radius_lower = radius_guess / (1 + step_fraction)
+    # Set the upper and lower bounds for bisection search
+    radius_upper = radius_guess * (1 + step_fraction) if is_inner else radius_guess.copy()
+    radius_lower = radius_guess.copy() if is_inner else radius_guess / (1 + step_fraction)
 
     active_mask = np.ones_like(radius_guess, dtype=bool)
 
@@ -722,23 +745,29 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
         pos_mid = radius_mid[:, None] * rays_vect[active_mask]
         param_val_mid = self.particles.get_parameter(pos_mid)
 
-        mask = param_val_mid > value
+        if is_inner:
+            # inner boundary: param_val > value, update lower boundary
+            mask = param_val_mid > value
+            radius_lower[active_mask] = np.where(mask, radius_mid, radius_lower[active_mask])
+            radius_upper[active_mask] = np.where(~mask, radius_mid, radius_upper[active_mask])
+        else:
+            # outer boundary: param_val < value, update upper boundary
+            mask = param_val_mid < value
+            radius_upper[active_mask] = np.where(mask, radius_mid, radius_upper[active_mask])
+            radius_lower[active_mask] = np.where(~mask, radius_mid, radius_lower[active_mask])
 
-        radius_lower[active_mask] = np.where(mask, radius_mid, radius_lower[active_mask])
-        radius_upper[active_mask] = np.where(~mask, radius_mid, radius_upper[active_mask])
-
-        converged = np.abs(radius_lower - radius_upper) < 0.1 * eps_radius
+        converged = np.abs(radius_lower - radius_upper) < eps_radius
         if np.all(converged):
             break
 
         active_mask = ~converged
-    if _i >= iter_max - 1:
-        logger.error("[Bisection Search] Boundary iteration exceeded maximum limit: %d", iter_max)
-    else:
-        logger.debug("[Bisection Search] Found target radius in %d iterations", _i+1)
 
-    r_boundary = (radius_lower + radius_upper) / 2
-    return r_boundary
+    if _i >= iter_max - 1:
+        logger.error("[Bisection Search] %s boundary iteration exceeded maximum limit: %d", search_type, iter_max)
+    else:
+        logger.debug("[Bisection Search] Found target %s radius in %d iterations", search_type, _i+1)
+
+    return (radius_lower + radius_upper) / 2
 
 
 

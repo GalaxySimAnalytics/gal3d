@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
 from matplotlib.colorbar import Colorbar
+from matplotlib.colorizer import ColorizingArtist
 from matplotlib.contour import QuadContourSet
 from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -422,7 +423,7 @@ def show_contour(
 
 
 def add_colorbar(
-    mappable: plt.ColorizingArtist,
+    mappable: ColorizingArtist,
     ax: plt.Axes | None = None,
     loc: str = "right",
     size: str ="5%",

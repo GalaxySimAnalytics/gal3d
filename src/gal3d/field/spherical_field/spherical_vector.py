@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Callable
 from functools import lru_cache
+from typing import Any
 
 import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi
@@ -111,20 +112,22 @@ class SphVector:
     @classmethod
     @lru_cache(maxsize = 20)
     def create(cls, n_sample: int = 512, method: str = "fibonacci", *, verbose: bool = True) -> "SphVector":
+        """Create a cached SphVector instance."""
+        # Create an instance properly using the constructor with _skip_cache flag
+        return cls(n_sample=n_sample, method=method, verbose=verbose, pos=None, _skip_cache=True)
 
-        return cls(n_sample=n_sample, method=method, verbose=verbose, pos=None)
-
-    def __new__(cls, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True) -> "SphVector":
+    def __new__(cls, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None,
+                *, verbose: bool = True, _skip_cache: bool = False) -> "SphVector":
         """
         Create or retrieve a cached SphVector instance, if not user-defined.
         """
-        # only use cache when not user-defined
-        if pos is None:
+        # Only use cache when not user-defined and not explicitly skipping cache
+        if pos is None and not _skip_cache:
             return cls.create(n_sample, method, verbose=verbose)
         else:
             return super().__new__(cls)
 
-    def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True):
+    def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any):
         """
         Initialize the SphVector class with N points uniformly distributed on the unit sphere.
 

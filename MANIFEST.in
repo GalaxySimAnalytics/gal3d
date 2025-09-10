@@ -1,0 +1,7 @@
+recursive-include src *.py *.pyx *.pyi *.c *.h *.cpp *.hpp
+recursive-include tests *.py
+recursive-include docs *.rst *.py
+include docs/Makefile
+include pyproject.toml
+include README.md
+include README_cn.md

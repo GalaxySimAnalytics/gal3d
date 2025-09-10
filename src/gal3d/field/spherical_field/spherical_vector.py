@@ -1,9 +1,11 @@
 import logging
-import os
 from collections.abc import Callable
+from functools import lru_cache
 
 import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi
+
+from gal3d.config import config
 
 from .util import fibonacci_sampling, trans_to_Spherical_coordinates, unit_vector3d
 
@@ -106,6 +108,22 @@ class SphVector:
     "polar": SphSampler.polar_method
     }
 
+    @classmethod
+    @lru_cache(maxsize = 20)
+    def create(cls, n_sample: int = 512, method: str = "fibonacci", *, verbose: bool = True) -> "SphVector":
+
+        return cls(n_sample=n_sample, method=method, verbose=verbose, pos=None)
+
+    def __new__(cls, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True) -> "SphVector":
+        """
+        Create or retrieve a cached SphVector instance, if not user-defined.
+        """
+        # only use cache when not user-defined
+        if pos is None:
+            return cls.create(n_sample, method, verbose=verbose)
+        else:
+            return super().__new__(cls)
+
     def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True):
         """
         Initialize the SphVector class with N points uniformly distributed on the unit sphere.
@@ -163,7 +181,7 @@ class SphVector:
                 "%d points on the sphere by %s method have the uniformity of %.3f",
                 self.num, method, self.uniformity * 100
             )
-        self._tree: KDTree | None =  None
+        self._tree: KDTree =  KDTree(self.pos)
 
 
     def assign_points(self, pos: np.ndarray) -> np.ndarray:
@@ -180,10 +198,18 @@ class SphVector:
         indices : ndarray, shape (m,)
             The indices of the nearest rays for each point in `pos`.
         """
-        if self._tree is None:
-            self._tree = KDTree(self.pos)
 
-        return  self._tree.query(pos,k=1,workers = os.cpu_count())[1]
+        # For small self.pos sets (n<100), use vectorized calculation
+        if len(self.pos) < 100 and len(pos) < 10000:
+            # Convert to unit vectors
+            pos_norm = np.sqrt(np.sum(pos**2, axis=1, keepdims=True))
+            pos_unit = pos / np.where(pos_norm > 0, pos_norm, 1.0)
+
+            # Dot product approach (find max cosine similarity)
+            return np.argmax(np.dot(pos_unit, self.pos.T), axis=1)
+        else:
+            # Fall back to KDTree for larger point sets
+            return self._tree.query(pos, k=1, workers=config.general.number_of_threads)[1]
 
     @staticmethod
     def cal_uniformity(pos: np.ndarray, cached_voronoi: SphericalVoronoi | None =None) -> float:

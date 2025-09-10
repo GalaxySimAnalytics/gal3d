@@ -251,7 +251,7 @@ class ModelResult:
         """
         return self[item](pos, **kwargs)
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, index: int | None = None, default: Any = None) -> list[Any] | Any:
         """
         Mimic dict.get: Return the values for the given key from all parameter sets.
 
@@ -259,6 +259,8 @@ class ModelResult:
         ----------
         key : str
             The key to look up in the parameter sets.
+        index : int, optional
+            The index of the parameter set to return (default: None, return all).
         default : Any, optional
             Default value to return if key is not found.
 
@@ -268,7 +270,9 @@ class ModelResult:
             The values for the given key from all parameter sets, or default if not found.
         """
         try:
-            return cast("np.ndarray", np.array([params[key] for params in self._param_sets]))
+            if index is not None:
+                return self._param_sets[index][key]
+            return [params[key] for params in self._param_sets]
         except KeyError:
             return default
 

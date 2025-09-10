@@ -453,7 +453,7 @@ class ParameterDict(dict):
         """
         return list(self.values())
 
-    def copy(self) -> "ParameterDict":
+    def copy(self: _ParamDict) -> _ParamDict:
         """Create a shallow copy of the parameter dictionary."""
         from copy import copy
         return copy(self)

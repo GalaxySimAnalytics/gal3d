@@ -73,6 +73,23 @@ class StructureCore:
         self._coordinate_name = self._coordinate.__name__
         self.__coor_pa_num = len(self._coordinate.PN)
 
+    def copy(self) -> "StructureCore":
+        """
+        Create a deep copy of the StructureCore instance.
+
+        Returns
+        -------
+        StructureCore
+            A new StructureCore instance with the same coordinate, geometry, and parameters.
+        """
+        new_instance = StructureCore(
+            coordinate=self._coordinate,
+            geometry=self._geometry
+        )
+        new_instance.parameters = self.parameters.copy()
+        return new_instance
+
+
     @property
     def geometry_name(self) -> str:
         """Get the name of the geometry."""
@@ -664,6 +681,22 @@ class StructureError:
             "error_method": list(cls._compute_error_method.keys()),
         }
 
+    def copy(self) -> "StructureError":
+        """
+        Create a deep copy of the StructureError instance.
+
+        Returns
+        -------
+        StructureError
+            A new StructureError instance with the same error function and method.
+        """
+        new_instance = StructureError(
+            error_func=self._error_func,
+            error_method=self._error_method
+        )
+        new_instance.use_ln_error = self.use_ln_error
+        return new_instance
+
     @classmethod
     def compute_method_registry(cls, fn: str | Callable) -> Callable:
         if callable(fn):
@@ -787,6 +820,26 @@ class Structure3D(StructureCore, StructureError):
         )
         ret.set_parameters(*args, **kwargs)
         return ret
+
+    def copy(self) -> "Structure3D":
+        """
+        Create a deep copy of the Structure3D instance.
+
+        Returns
+        -------
+        Structure3D
+            A new Structure3D instance with the same coordinate, geometry,
+            error function, error method, and parameters.
+        """
+        new_instance = Structure3D(
+            coordinate=self._coordinate,
+            geometry=self._geometry,
+            error_func=self._error_func,
+            error_method=self._error_method
+        )
+        new_instance.parameters = self.parameters.deepcopy()
+        new_instance.use_ln_error = self.use_ln_error
+        return new_instance
 
     def __repr__(self):
         """

@@ -19,9 +19,3 @@ try:
     __all__ += ["OptimizerOptimagic"]
 except ImportError:
     pass
-
-try:
-    from .optimize_emcee import OptimizerEmcee
-    __all__ += ["OptimizerEmcee"]
-except ImportError:
-    pass

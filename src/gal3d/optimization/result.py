@@ -1,7 +1,6 @@
 import copy
 import logging
 import time
-from dataclasses import fields
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Union, cast, overload
 
@@ -65,12 +64,10 @@ class ModelResult:
         self._param_sets = [parameters]
 
         # Cache OptimizeResult fields for __getattr__ and __dir__
-        self._optimize_result_attrs = {
-            field.name for field in fields(OptimizeResult)
-        }
+        self._optimize_result_attrs = set(optimize_result.keys())
 
         # Include properties from OptimizeResult
-        self._optimize_result_attrs.update({"x", "x0", "nfev", "nit", "njev", "nhev"})
+       # self._optimize_result_attrs.update({"x", "x0", "nfev", "nit", "njev", "nhev"})
 
     # OptimizeResult property accessors with proper type hints
     @property
@@ -82,6 +79,11 @@ class ModelResult:
     def fun(self) -> np.ndarray:
         """Get objective function values from all optimization results."""
         return np.array([r.fun for r in self._opt_results])
+
+    @property
+    def cost(self) -> np.ndarray:
+        """Get cost values from all optimization results."""
+        return np.array([r.cost for r in self._opt_results])
 
     @property
     def start_params(self) -> np.ndarray:

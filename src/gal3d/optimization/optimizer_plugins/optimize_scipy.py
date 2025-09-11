@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, SupportsInt
+from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -10,34 +10,43 @@ from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
 
 __all__ = ["OptimizerScipy"]
 
-# from optimagic
-def _int_if_not_none(value: SupportsInt | None) -> int | None:
-    if value is None:
-        return None
-    return int(value)
-
-
-# from optimagic
 def process_scipy_result(algorithm: str, x0: NDArray, start_fun: float, scipy_res: ScipyOptimizeResult) -> OptimizeResult:
+    """Convert SciPy optimization results to standard OptimizeResult format."""
+    # create basic result object
     res = OptimizeResult(
         params=scipy_res.x,
         fun=scipy_res.fun,
         start_params=x0,
         start_fun=start_fun,
-        algorithm = algorithm,
+        algorithm=algorithm,
         success=bool(scipy_res.success),
         message=str(scipy_res.message),
-        n_fun_evals=_int_if_not_none(scipy_res.get("nfev")),
-        n_jac_evals=_int_if_not_none(scipy_res.get("njev")),
-        n_hess_evals=_int_if_not_none(scipy_res.get("nhev")),
-        n_iterations=_int_if_not_none(scipy_res.get("nit")),
-        status=scipy_res.get("status"),
-        jac=scipy_res.get("jac"),
-        hess=scipy_res.get("hess"),
-        hess_inv=None,
-        max_constraint_violation=scipy_res.get("maxcv"),
-        algorithm_output=None,
     )
+
+    attribute_map = {
+        "nfev": "n_fun_evals",
+        "njev": "n_jac_evals",
+        "nhev": "n_hess_evals",
+        "nit": "n_iterations",
+        "status": "status",
+        "jac": "jac",
+        "hess": "hess",
+        "hess_inv": "hess_inv",
+        "grad": "grad",
+        "optimality": "optimality",
+        "maxcv": "max_constraint_violation",
+        "active_mask": "active_mask"
+    }
+
+    for scipy_key, res_key in attribute_map.items():
+        value = scipy_res.get(scipy_key)
+        if value is not None:
+            if scipy_key in ["nfev", "njev", "nhev", "nit"]:
+                value = int(value)
+            res[res_key] = value
+
+    res["cost"] = scipy_res.get("cost", scipy_res.fun)
+
     return res
 
 
@@ -65,12 +74,18 @@ class OptimizerScipy(OptimizerBase):
         func_kwargs = func_kwargs or {}
         def fn(x):
             return fun(x, *func_args, **func_kwargs)
-        res = optimize.minimize(
+        if self.algo_name in ["trf","dogbox","lm"]:
+            solver = optimize.least_squares
+            kwargs["tr_options"] = self.algo_options
+        else:
+            solver = optimize.minimize
+            kwargs["options"] = self.algo_options
+        res = solver(
             fun=fn,
             x0=x0,
             method=self.algo_name,
             bounds=bounds,
-            options=self.algo_options,
+            **self.kwargs,
             **kwargs,
         )
         start_fun = fn(x0)
@@ -95,4 +110,7 @@ class OptimizerScipy(OptimizerBase):
             "trust-ncg",
             "trust-exact",
             "trust-krylov",
+            "trf",
+            "dogbox",
+            "lm"
         ]

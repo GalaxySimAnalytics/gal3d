@@ -132,6 +132,22 @@ def f_ray_shaped_ellipsoid(double a, double b, double c, double Sa, double Sb, d
                                &result[0], &r[0], method, num_threads)
     return result, r
 
+
+cdef extern from "ellipsoid_s.h":
+    void area_factor_cpp(
+        double a, double b, double c, double Sa, double Sb, double Sc,
+        const double* pos, int n, double* result, int num_threads) nogil
+
+def area_factor(double a, double b, double c, double Sa, double Sb, double Sc,
+                    np.ndarray[DTYPE_t, ndim=2] pos):
+    pos = check_contiguous(pos)
+    cdef int n = pos.shape[0]
+    cdef np.ndarray[DTYPE_t, ndim=1] result = np.zeros(n, dtype=np.float64)
+    cdef int num_threads = get_num_threads()
+    with nogil:
+        area_factor_cpp(a,b,c,Sa,Sb,Sc, &pos[0,0], n, &result[0], num_threads)
+    return result
+
 cdef extern from "ellipsoid_s.h":
     void IntersectLinesEllipsoid_S_cpp(
         double a, double b, double c, double Sa, double Sb, double Sc,

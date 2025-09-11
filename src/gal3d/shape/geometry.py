@@ -146,6 +146,22 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         """
         return self.ray_intersect(pos)[1]
 
+    @abstractmethod
+    def area_factor(self, pos: NDArray[np.float64]) -> NDArray[np.float64]:
+        """
+        Get the area factor at the given positions.
+
+        Parameters
+        ----------
+        pos : ndarray of float64
+            Input position(s).
+
+        Returns
+        -------
+        ndarray of float64
+            Area factors at the given positions.
+        """
+
     @staticmethod
     @abstractmethod
     def quick_call(*args: Any, **kwargs: Any) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
@@ -180,6 +196,18 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         -------
         ndarray of float64
             Distances to the surface.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def quick_area_factor(*args: Any, **kwargs: Any) -> NDArray[np.float64]:
+        """
+        Quickly compute the area factor at the given positions.
+
+        Returns
+        -------
+        ndarray of float64
+            Area factors at the given positions.
         """
 
     @staticmethod

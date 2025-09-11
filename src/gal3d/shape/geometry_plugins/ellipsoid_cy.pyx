@@ -87,6 +87,63 @@ cpdef tuple f_ellipsoid(double a, double b, double c,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
+cpdef np.ndarray[np.float64_t, ndim=1] area_factor(double a, double b, double c, 
+                                                np.ndarray[np.float64_t, ndim=2] pos):
+    cdef int n = pos.shape[0]
+    cdef np.ndarray[np.float64_t, ndim=1] result = np.zeros(n, dtype=np.float64)
+    cdef double x, y, z, xi, yi , zi
+    cdef double L, L2, xi2, yi2, zi2
+    cdef double cos_theta, sin_theta, cos_phi, sin_phi
+
+    cdef double area_factor
+    cdef double F_r, F_theta, F_phi, r_theta, r_phi
+    cdef double coef_x, coef_y, coef_z
+
+
+    cdef double a2_inv = 1. / (a * a)
+    cdef double b2_inv = 1. / (b * b)
+    cdef double c2_inv = 1. / (c * c)
+
+    cdef int i
+    cdef int num_threads = get_num_threads()
+    for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
+        x = pos[i, 0]
+        y = pos[i, 1]
+        z = pos[i, 2]
+        L2 = x*x + y*y + z*z
+        L = sqrt(L2)
+        xi = x / L
+        yi = y / L
+        zi = z / L
+        xi2 = xi * xi
+        yi2 = yi * yi
+        zi2 = zi * zi
+        cos_theta = zi
+        sin_theta = sqrt(1 - zi2)
+        cos_phi = xi / sqrt(xi2 + yi2)
+        sin_phi = yi / sqrt(xi2 + yi2)
+
+        F_r = xi2 * a2_inv + yi2 * b2_inv + zi2 * c2_inv
+        
+        coef_x = a2_inv * xi
+        coef_y = b2_inv * yi
+        coef_z = c2_inv * zi
+
+        F_theta = coef_x*cos_theta*cos_phi+coef_y*cos_theta*sin_phi+coef_z*(-sin_theta)
+        F_phi = coef_x*(-sin_theta*sin_phi)+ coef_y*(sin_theta*cos_phi)
+
+        r_theta = - F_theta/(F_r)
+        r_phi = - F_phi/(F_r)
+        area_factor = sqrt(1 + (r_theta*r_theta + r_phi*r_phi/(sin_theta*sin_theta)))
+        result[i] = area_factor
+
+    return result
+    
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
 cpdef tuple f_ellipsoid_jacobian(double a, double b, double c, 
                               np.ndarray[np.float64_t, ndim=2] pos):
     """

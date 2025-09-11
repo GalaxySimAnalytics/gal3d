@@ -26,6 +26,10 @@ void f_ray_shaped_ellipsoid_cpp(
     const double* pos, int n, int maxIterations,
     double* result, double* r, int method, int num_threads);
 
+void area_factor_cpp(
+    double a, double b, double c, double Sa, double Sb, double Sc,
+    const double* pos, int n, double* result, int num_threads);
+
 void IntersectLinesEllipsoid_S_cpp(
     double a, double b, double c, double Sa, double Sb, double Sc,
     const double* pos1, const double* pos2, int n, int maxIterations,

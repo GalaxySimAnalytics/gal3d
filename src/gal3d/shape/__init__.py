@@ -399,6 +399,30 @@ class StructureCore:
         # Then compute ray distance with transformed positions
         return self._geometry.quick_f_ray_d(**geoty_pa, pos=transformed_pos)
 
+    def quick_area_factor(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> NDArray[np.float64]:
+        """
+        Quick area factor evaluation.
+
+        Same as `area_factor` but accepts direct parameter values.
+
+        Returns
+        -------
+        np.ndarray
+            Result of quick area factor evaluation.
+        """
+        # Convert to numpy array efficiently
+        if not isinstance(pos, np.ndarray):
+            pos = np.asarray(pos)
+
+        # Get parameters
+        coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
+
+        # First apply coordinate transformation
+        transformed_pos = self._coordinate.quick_call(**coord_pa, pos=pos)
+
+        # Then compute area factor with transformed positions
+        return self._geometry.quick_area_factor(**geoty_pa, pos=transformed_pos)
+
     def quick_ray_dist(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
         """
         Quick ray distance evaluation.
@@ -920,3 +944,31 @@ def isodensity_dist(self: Structure3D, params: Sequence[float], **kwargs: Any) -
     error_pa = {i: kwargs[i] for i in self._error_params}
 
     return self._error_func(f, **error_pa)
+
+@Structure3D.compute_method_registry
+def isodensity_curve_fcall(
+    self: Structure3D, params: Sequence[float], **kwargs: Any
+) -> np.ndarray:
+    pos = kwargs["pos"]
+    f, r = self.quick_call(*params, pos=pos)
+    if self.use_ln_error:
+        f = np.log(f)
+    else:
+        f = f - 1
+    r2 = r*r
+    f = f*r/np.sqrt(np.sum(r2))
+    return f
+
+@Structure3D.compute_method_registry
+def isodensity_curve_dcall(
+    self: Structure3D, params: Sequence[float], **kwargs: Any
+) -> np.ndarray:
+    pos = kwargs["pos"]
+    f, r = self.quick_f_ray_d(*params, pos=pos)
+    if self.use_ln_error:
+        f = np.log(f)
+    else:
+        f = f - 1
+    r2 = r*r
+    f = f*r/np.sqrt(np.sum(r2))
+    return f

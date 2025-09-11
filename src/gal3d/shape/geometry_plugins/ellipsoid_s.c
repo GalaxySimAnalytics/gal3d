@@ -301,6 +301,66 @@ void f_ray_shaped_ellipsoid_cpp(
     }
 }
 
+void area_factor_cpp(
+    double a, double b, double c, double Sa, double Sb, double Sc,
+    const double* pos, int n, double* result, int num_threads)
+{
+    double Sa2 = 2*Sa;
+    double Sb2 = 2*Sb;
+    double Sc2 = 2*Sc;
+    double Ex = 1./ pow(a,Sa2);
+    double Ey = 1./ pow(b,Sb2);
+    double Ez = 1./ pow(c,Sc2);
+
+    double epsilon = 1e-10;
+
+    omp_set_num_threads(num_threads);
+
+
+    int i;
+    #pragma omp parallel for schedule(static)
+    for (i = 0; i < n; ++i) {
+        double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
+        double x2 = x*x, y2 = y*y, z2 = z*z;
+        double L2 = x2+y2+z2;
+        double L = sqrt(L2);
+        double logL = log(L); // for pow
+        double xi = x / L, yi = y / L, zi = z / L;
+        double xi2 = xi * xi, yi2 = yi*yi, zi2 = zi*zi;
+
+
+        double cos_theta = zi;
+        double sin_theta = sqrt(1 - zi2);
+        double cos_phi = xi / sqrt(xi2 + yi2);
+        double sin_phi = yi / sqrt(xi2 + yi2);
+
+
+        double alpha_x = Ex * exp(Sa * log(xi2));  // pow(a,b) = exp(log(a)*b), if a > 0
+        double alpha_y = Ey * exp(Sb * log(yi2));
+        double alpha_z = Ez * exp(Sc * log(zi2));
+
+        double F_r = Sa2*exp(logL* (Sa2 -1))*alpha_x +Sb2*exp(logL * (Sb2 -1))*alpha_y + Sc2*exp(logL* (Sc2 -1))*alpha_z;
+
+        double coef_x = exp(logL * Sa2)*Sa2*Ex*exp(log(xi2)* (Sa - 1))*xi;
+        double coef_y = exp(logL * Sb2)*Sb2*Ey*exp(log(yi2)* (Sb - 1))*yi;
+        double coef_z = exp(logL * Sc2)*Sc2*Ez*exp(log(zi2)* (Sc - 1))*zi;
+
+        double F_theta = coef_x*cos_theta*cos_phi+
+                        coef_y*cos_theta*sin_phi+
+                        coef_z*(-sin_theta);
+        double F_phi = coef_x*(-sin_theta*sin_phi)+
+                       coef_y*(sin_theta*cos_phi)+
+                       coef_z*(0.);
+
+        double r_theta = - F_theta/(F_r+epsilon);   // avoid 
+        double r_phi = - F_phi/(F_r+epsilon);
+
+        double area_factor = sqrt(1 + (r_theta*r_theta + r_phi*r_phi/(sin_theta*sin_theta + epsilon))/(L2));
+
+        result[i] = area_factor;
+
+    }
+}
 
 struct EllipsoidIntersectResult {
     double t;

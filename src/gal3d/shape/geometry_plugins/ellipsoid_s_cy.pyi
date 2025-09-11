@@ -24,3 +24,8 @@ def IntersectLinesEllipsoid_S(
     a: float, b: float, c: float, Sa: float, Sb: float, Sc: float,
     pos1: np.ndarray, pos2: np.ndarray, maxIteration: int
 ) -> np.ndarray: ...
+
+def area_factor(
+    a: float, b: float, c: float, Sa: float, Sb: float, Sc: float,
+    pos: np.ndarray
+) -> np.ndarray: ...

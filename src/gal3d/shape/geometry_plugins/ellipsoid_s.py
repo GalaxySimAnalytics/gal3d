@@ -8,6 +8,7 @@ from gal3d.shape.geometry import GeometryBase
 from .ellipsoid_s_cy import (
     IntersectLinesEllipsoid_S,
     IntersectRaysEllipsoid_S,
+    area_factor,
     f_ray_shaped_ellipsoid,
     f_shaped_ellipsoid,
     f_shaped_ellipsoid_jacobian,
@@ -174,6 +175,31 @@ class Ellipsoid_S(GeometryBase):
             config.ellipsoid_s.MaxIterationDist,
         )[0]
 
+    def area_factor(self, pos: ArrayLike) -> np.ndarray:
+        """
+        Computes the area factor at the given positions.
+
+        Parameters
+        ----------
+        pos : array_like
+            An array of positions where the area factor is computed.
+
+        Returns
+        -------
+        array_like
+            The computed area factors at the given positions.
+        """
+        pos = self.to_3d_array(pos)
+        return area_factor(
+            self["a"],
+            self["b"],
+            self["c"],
+            self["sa"],
+            self["sb"],
+            self["sc"],
+            pos
+        )
+
     @classmethod
     def estimate_parameters(cls, pos: ArrayLike) -> dict:
 
@@ -207,15 +233,15 @@ class Ellipsoid_S(GeometryBase):
         a : float
             The semi-major axis of the ellipsoid.
         eps_ab : float
-            The eccentricity between the 'a' and 'b' axes.
+            The ellipticity between the 'a' and 'b' axes.
         eps_bc : float
-            The eccentricity between the 'b' and 'c' axes.
+            The ellipticity between the 'b' and 'c' axes.
         sa : float
-            Scaling factor along the 'a' axis.
+            Shape index along the 'a' axis.
         sb : float
-            Scaling factor along the 'b' axis.
+            Shape index along the 'b' axis.
         sc : float
-            Scaling factor along the 'c' axis.
+            Shape index along the 'c' axis.
         pos : array_like
             An array of positions where the ellipsoid function is evaluated.
 
@@ -227,6 +253,42 @@ class Ellipsoid_S(GeometryBase):
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
         return f_shaped_ellipsoid(a, b, c, sa, sb, sc, pos)
+
+    @staticmethod
+    def quick_area_factor(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> np.ndarray:
+        """
+        Quickly evaluates the area factor with the given parameters and positions.
+
+        This method is a simplified and faster version of the `area_factor` method, designed for use in scenarios
+        where performance is critical, such as optimization or error function evaluations. It computes the
+        area factor values directly using the provided parameters without relying on the instance's
+        internal state.
+
+        Parameters
+        ----------
+        a : float
+            The semi-major axis of the ellipsoid.
+        eps_ab : float
+            The ellipticity between the 'a' and 'b' axes.
+        eps_bc : float
+            The ellipticity between the 'b' and 'c' axes.
+        sa : float
+            Shape index along the 'a' axis.
+        sb : float
+            Shape index along the 'b' axis.
+        sc : float
+            Shape index along the 'c' axis.
+        pos : array_like
+            An array of positions where the area factor is evaluated.
+
+        Returns
+        -------
+        np.ndarray
+            The evaluated values of the area factor at the given positions.
+        """
+        b = a * (1 - eps_ab)
+        c = b * (1 - eps_bc)
+        return area_factor(a, b, c, sa, sb, sc, pos)
 
     @staticmethod
     def quick_f_ray_d(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray,) -> tuple[np.ndarray, np.ndarray]:
@@ -251,15 +313,15 @@ class Ellipsoid_S(GeometryBase):
         a : float
             The semi-major axis of the ellipsoid.
         eps_ab : float
-            The eccentricity between the 'a' and 'b' axes.
+            The ellipticity between the 'a' and 'b' axes.
         eps_bc : float
-            The eccentricity between the 'b' and 'c' axes.
+            The ellipticity between the 'b' and 'c' axes.
         sa : float
-            Scaling factor along the 'a' axis.
+            Shape index along the 'a' axis.
         sb : float
-            Scaling factor along the 'b' axis.
+            Shape index along the 'b' axis.
         sc : float
-            Scaling factor along the 'c' axis.
+            Shape index along the 'c' axis.
         pos : array_like
             An array of positions where the distance is computed.
 
@@ -308,11 +370,11 @@ class Ellipsoid_S(GeometryBase):
         c : float
             The semi-minor axis of the ellipsoid along the 'c' axis.
         sa : float
-            Scaling factor along the 'a' axis.
+            Shape index along the 'a' axis.
         sb : float
-            Scaling factor along the 'b' axis.
+            Shape index along the 'b' axis.
         sc : float
-            Scaling factor along the 'c' axis.
+            Shape index along the 'c' axis.
         pos : array_like
             An array of positions where the Jacobian is computed.
 

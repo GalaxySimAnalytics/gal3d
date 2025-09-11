@@ -11,6 +11,7 @@ from gal3d.shape.geometry import GeometryBase
 from .ellipsoid_cy import (
     IntersectLinesEllipsoid,
     IntersectRaysEllipsoid,
+    area_factor,
     f_ellipsoid,
     f_ellipsoid_jacobian,
     f_ray_ellipsoid,
@@ -145,6 +146,10 @@ class Ellipsoid(GeometryBase):
         pos = self.to_3d_array(pos)
         return f_ray_ellipsoid(self["a"], self["b"], self["c"], pos)[0]
 
+    def area_factor(self, pos):
+        pos = self.to_3d_array(pos)
+        return area_factor(self["a"], self["b"], self["c"], pos)
+
     @classmethod
     def estimate_parameters(cls, pos: ArrayLike) -> dict:
         """
@@ -236,6 +241,12 @@ class Ellipsoid(GeometryBase):
         b = a * (1.0 - eps_ab)
         c = b * (1.0 - eps_bc)
         return IntersectRaysEllipsoid(float(a), b, c, pos)[1:]
+
+    @staticmethod
+    def quick_area_factor(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> np.ndarray:
+        b = a * (1.0 - eps_ab)
+        c = b * (1.0 - eps_bc)
+        return area_factor(float(a), b, c, pos)
 
     @staticmethod
     def quick_line_intersect(a: float, eps_ab: float, eps_bc: float, pos1: np.ndarray, pos2: np.ndarray) -> np.ndarray:

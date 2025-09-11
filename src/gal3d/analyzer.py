@@ -126,7 +126,7 @@ class Gal3DAnalyzer:
 
         field = cls._build_field(particle=particle, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
         structure = cls._build_structure(np.mean(field.inner_r))
-        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell") # OptimizerScipy Powell
+        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="trf") # trf for curve fit, OptimizerScipy Powell for sum
 
         return Gal3DAnalyzer(particle=particle,field=field,structure=structure,optimizer=optimizer)
 
@@ -147,8 +147,8 @@ class Gal3DAnalyzer:
     @staticmethod
     def _build_structure(inner_r: float) -> Structure3D:
         inner = inner_r / 2
-        structure = Structure3D(coordinate="EulerShift", geometry="Ellipsoid_S",
-                                error_func="sums_dev_rscale", error_method="isodensity_dcall")
+        structure = Structure3D(coordinate="ShiftEuler", geometry="Ellipsoid_S",
+                                error_func="sums_dev_rscale", error_method="isodensity_curve_dcall")
         structure.parameters.set_ub(x=inner, y=inner, z=inner)
         structure.parameters.set_lb(x=-inner, y=-inner, z=-inner)
         return structure

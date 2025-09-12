@@ -244,4 +244,4 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         changed_keys = ["leafsize"] + list(kwargs.keys())
         changed_options = {k: self._tree_build_options[k] for k in changed_keys if k in self._tree_build_options}
         changed_options["workers"] = self._tree_query_options["workers"]
-        logger.info("Build KDTree with options: %s", changed_options)
+        logger.debug("Build KDTree with options: %s", changed_options)

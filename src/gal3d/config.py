@@ -8,14 +8,19 @@ Usage Example
 >>> from gal3d.config import config
 >>> print(config.general.min_batchsize)
 >>> config.general.number_of_threads = 8
+>>> config.update({"general": {"number_of_threads": 16}})
+>>> config.save("my_config.json")  # Save configuration to file
+>>> config.load("my_config.json")  # Load configuration from file
 
 """
 
+import json
 import os
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import IntEnum
-from typing import Literal
+from pprint import pformat
+from typing import Any, ClassVar, Literal
 
 default_thread_count: int
 try:
@@ -29,8 +34,16 @@ except ImportError:
     else:
         default_thread_count = 1
 
-
-
+DEFAULT_PLUGIN_MODULES = {
+    "gal3d.point.density_estimator",
+    "gal3d.shape.geometry",
+    "gal3d.shape.coordinate",
+    "gal3d.visualization.model_projector",
+    "gal3d.optimization.optimizer",
+    "gal3d.characterization.characterizer",
+    "gal3d.model_workflow.fit_workflow",
+    "gal3d.model_workflow.error_workflow"
+}
 class IterationMethod(IntEnum):
     """
     Iteration methods for ray-ellipsoid intersection.
@@ -59,8 +72,27 @@ class IterationMethod(IntEnum):
     def value(self) -> Literal[1, 2, 3]:
         return super().value
 
+    def __repr__(self) -> str:
+        return f"{self.name}({self.value})"
+
 @dataclass
-class GeneralConfig:
+class BaseConfig:
+    """Base configuration class with common functionality."""
+
+    def __repr__(self) -> str:
+        """Prettier representation of the config object."""
+        cls_name = self.__class__.__name__
+        attrs = pformat(asdict(self), indent=2)
+        return f"{cls_name}:\n{attrs}"
+
+    def __post_init__(self):
+        self.validate()
+
+    def validate(self) -> None:
+        """Validate configuration values. To be implemented by subclasses."""
+
+@dataclass
+class GeneralConfig(BaseConfig):
     """
     General configuration parameters.
 
@@ -72,18 +104,28 @@ class GeneralConfig:
         Number of threads for parallel processing; -1 means auto-select.
     use_cython : bool
         Use Cython for acceleration; if False and numba is available, use numba.
+    max_instances : int
+        Maximum number of cached instances.
     """
     min_batchsize: int = 200000         # Minimum batch size for processing
     number_of_threads: int = -1         # Number of threads for parallel processing
     use_cython: bool = True             # Use Cython for acceleration
+    max_instances: int = 20              # Maximum number of cached instances
 
-    def __post_init__(self):
+    def validate(self) -> None:
+        """Validate and correct configuration values."""
         if self.min_batchsize <= 0:
             self.min_batchsize = 200000
+            warnings.warn(f"Invalid min_batchsize corrected to {self.min_batchsize}",stacklevel=2)
+
         if self.number_of_threads <= 0:
             self.number_of_threads = default_thread_count
 
-        if  not self.use_cython:
+        if self.max_instances <= 0:
+            self.max_instances = 20
+            warnings.warn(f"Invalid max_instances corrected to {self.max_instances}",stacklevel=2)
+
+        if not self.use_cython:
             self.use_cython = True
             warnings.warn(
                 "Numba support has been disabled. Using Cython as a fallback.",
@@ -114,6 +156,21 @@ class LoggerConfig:
     file_level: int = 20                # Log file level
     stream_level: int = 20              # Console log level
 
+    def validate(self) -> None:
+        """Validate and correct configuration values."""
+        valid_levels = [10, 20, 30, 40, 50]
+        if self.level not in valid_levels:
+            self.level = 20
+            warnings.warn(f"Invalid log level corrected to {self.level}",stacklevel=2)
+
+        if self.file_level not in valid_levels:
+            self.file_level = 20
+            warnings.warn(f"Invalid file_level corrected to {self.file_level}",stacklevel=2)
+
+        if self.stream_level not in valid_levels:
+            self.stream_level = 20
+            warnings.warn(f"Invalid stream_level corrected to {self.stream_level}",stacklevel=2)
+
 
 @dataclass
 class DensityKNNConfig:
@@ -130,10 +187,17 @@ class DensityKNNConfig:
     k_neighbors: int = 32
     leafsize: int | None = None
 
-    def __post_init__(self):
+    def validate(self) -> None:
+        """Validate and correct configuration values."""
+        if self.k_neighbors <= 0:
+            self.k_neighbors = 32
+            warnings.warn(f"Invalid k_neighbors corrected to {self.k_neighbors}",stacklevel=2)
+
         if self.leafsize is None:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
-
+        elif self.leafsize <= 0:
+            self.leafsize = max(int(self.k_neighbors / 2), 10)
+            warnings.warn(f"Invalid leafsize corrected to {self.leafsize}",stacklevel=2)
 
 @dataclass
 class SPHRenderConfig:
@@ -152,6 +216,16 @@ class SPHRenderConfig:
     resolution: int = 500
     render_double: bool = False         # Use double precision for rendering
     subsample: int = 1                   # Subsampling factor
+
+    def validate(self) -> None:
+        """Validate and correct configuration values."""
+        if self.resolution <= 0:
+            self.resolution = 500
+            warnings.warn(f"Invalid resolution corrected to {self.resolution}", stacklevel=2)
+
+        if self.subsample <= 0:
+            self.subsample = 1
+            warnings.warn(f"Invalid subsample corrected to {self.subsample}", stacklevel=2)
 
 @dataclass
 class EllipsoidConfig:
@@ -180,17 +254,63 @@ class EllipsoidConfig:
             value = IterationMethod(value)
         super().__setattr__(name, value)
 
-PLUGIN_MANAGER_MODULES = {
-    "gal3d.point.density_estimator",
-    "gal3d.shape.geometry",
-    "gal3d.shape.coordinate",
-    "gal3d.visualization.model_projector",
-    "gal3d.optimization.optimizer",
-    "gal3d.characterization.characterizer",
-    "gal3d.fit_workflow.fit_workflow"
-}
+    def validate(self) -> None:
+        """Validate and correct configuration values."""
 
-@dataclass(frozen=True)
+        if self.MaxIterationDist <= 0:
+            self.MaxIterationDist = 100
+            warnings.warn(f"Invalid MaxIterationDist corrected to {self.MaxIterationDist}",stacklevel=2)
+
+        if self.MaxIterationLine <= 0:
+            self.MaxIterationLine = 100
+            warnings.warn(f"Invalid MaxIterationLine corrected to {self.MaxIterationLine}",stacklevel=2)
+
+
+@dataclass
+class PluginManagerConfig(BaseConfig):
+    """
+    Plugin Manager configuration.
+
+    Parameters
+    ----------
+    modules : Set[str]
+        Set of module paths to be loaded by the plugin manager.
+    """
+    section_name: ClassVar[str] = "plugin_manager"
+    modules: set[str] = field(default_factory=lambda: DEFAULT_PLUGIN_MODULES.copy())
+
+    def __setattr__(self, name, value):
+        if name == "modules":
+            value = set(value)
+        super().__setattr__(name, value)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert plugin manager config to dictionary."""
+        return {"modules": list(self.modules)}
+
+    def add_module(self, module_path: str) -> None:
+        """
+        Add a module to the plugin manager.
+
+        Parameters
+        ----------
+        module_path : str
+            Path to the module to add.
+        """
+        self.modules.add(module_path)
+
+    def remove_module(self, module_path: str) -> None:
+        """
+        Remove a module from the plugin manager.
+
+        Parameters
+        ----------
+        module_path : str
+            Path to the module to remove.
+        """
+        if module_path in self.modules:
+            self.modules.remove(module_path)
+@dataclass
 class Config:
     """
     Top-level configuration dataclass.
@@ -206,7 +326,7 @@ class Config:
     sph_render : SPHRenderConfig
         SPH rendering settings section.
     ellipsoid_s : EllipsoidConfig
-        Ellipsoid S settings section.
+        Ellipsoid_S settings section.
     # Add more sections as needed, e.g. database, simulation, etc.
     """
     general: GeneralConfig = field(default_factory=GeneralConfig)
@@ -214,8 +334,136 @@ class Config:
     densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
     sph_render: SPHRenderConfig = field(default_factory=SPHRenderConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
-    plugin_manager_modules: tuple = field(default_factory=lambda: tuple(PLUGIN_MANAGER_MODULES))
+    plugin_modules: PluginManagerConfig = field(default_factory=PluginManagerConfig)
 
+    def __post_init__(self):
+        """Validate all configuration sections."""
+        self.validate()
+
+    def validate(self):
+        """Validate all configuration sections."""
+        self.general.validate()
+        self.logger.validate()
+        self.densityknn.validate()
+        self.sph_render.validate()
+        self.ellipsoid_s.validate()
+
+    def __repr__(self) -> str:
+        """Pretty representation of the entire configuration."""
+        sections = [
+            f"[General]\n{self.general}",
+            f"[Logger]\n{self.logger}",
+            f"[DensityKNN]\n{self.densityknn}",
+            f"[SPHRender]\n{self.sph_render}",
+            f"[Ellipsoid_S]\n{self.ellipsoid_s}",
+            f"[Plugin Modules]\n{pformat(self.plugin_modules)}"
+        ]
+        return "\n\n".join(sections)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert configuration to dictionary."""
+        config_dict = {
+            "general": asdict(self.general),
+            "logger": asdict(self.logger),
+            "densityknn": asdict(self.densityknn),
+            "sph_render": asdict(self.sph_render),
+            "ellipsoid_s": {k: (v.value if isinstance(v, IterationMethod) else v)
+                           for k, v in asdict(self.ellipsoid_s).items()},
+            "plugin_modules": list(self.plugin_modules.modules)
+        }
+        return config_dict
+
+    def update(self, config_dict: dict[str, Any]) -> None:
+        """
+        Update configuration with values from dictionary.
+
+        Parameters
+        ----------
+        config_dict : Dict[str, Any]
+            Dictionary with configuration values to update.
+            The keys should match section names, and values should be
+            dictionaries with parameter names and values.
+        """
+        for section_name, section_value in config_dict.items():
+            if not hasattr(self, section_name):
+                warnings.warn(f"Unknown configuration section: {section_name}", stacklevel=2)
+                continue
+
+            # Special handling for plugin_modules which is a tuple, not a config class
+            if section_name == "plugin_modules":
+                if isinstance(section_value, list):
+                    setattr(self, section_name, tuple(section_value))
+                continue
+
+            # For normal config sections (which are objects)
+            section = getattr(self, section_name)
+            if not isinstance(section_value, dict):
+                warnings.warn(f"Section {section_name} value must be a dictionary", stacklevel=2)
+                continue
+
+            for param_name, param_value in section_value.items():
+                if not hasattr(section, param_name):
+                    warnings.warn(f"Unknown parameter {param_name} in section {section_name}", stacklevel=2)
+                    continue
+
+                setattr(section, param_name, param_value)
+
+        # Validate after updating
+        self.validate()
+
+    def save(self, filepath: str) -> None:
+        """
+        Save configuration to file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save configuration to. Extension determines format (.json or .yaml).
+        """
+        config_dict = self.to_dict()
+
+        if filepath.lower().endswith(".json"):
+            with open(filepath, "w") as f:
+                json.dump(config_dict, f, indent=2)
+        elif filepath.lower().endswith((".yaml", ".yml")):
+            import yaml  # type: ignore
+            with open(filepath, "w") as f:
+                yaml.dump(config_dict, f, default_flow_style=False)
+        else:
+            raise ValueError("Unsupported file format. Use .json or .yaml/.yml")
+
+    def load(self, filepath: str) -> None:
+        """
+        Load configuration from file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to load configuration from. Extension determines format (.json or .yaml).
+        """
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Configuration file not found: {filepath}")
+
+        if filepath.lower().endswith(".json"):
+            with open(filepath) as f:
+                config_dict = json.load(f)
+        elif filepath.lower().endswith((".yaml", ".yml")):
+            import yaml
+            with open(filepath) as f:
+                config_dict = yaml.safe_load(f)
+        else:
+            raise ValueError("Unsupported file format. Use .json or .yaml/.yml")
+
+        self.update(config_dict)
+
+    def reset(self) -> "Config":
+        """Reset all configuration to default values."""
+        # Create a new instance with defaults and copy its attributes
+        default_config = Config()
+        for attr in self.__dataclass_fields__:
+            setattr(self, attr, getattr(default_config, attr))
+        self.validate()
+        return self
 
 # Instantiate configuration
 config: Config = Config()

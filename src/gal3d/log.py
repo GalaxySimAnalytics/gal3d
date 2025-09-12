@@ -1,9 +1,67 @@
 import logging
+import sys
 
 from .config import LoggerConfig, config
 from .util.string_format import string_formatter
 
 
+class DirectOutputHandler(logging.Handler):
+    """
+    A logging handler that directly outputs the message without any formatting.
+
+    This handler is useful when you want to output pre-formatted messages,
+    such as colorized text or custom formatted outputs, directly to stdout
+    without the logger's standard formatting being applied.
+
+    The handler will just output the raw message content and a newline.
+    Any record formatting needs to be done before passing the message to the logger.
+    """
+
+    def __init__(self, stream=None):
+        """
+        Initialize the handler with an optional output stream.
+
+        Parameters
+        ----------
+        stream : file-like object, optional
+            The stream to which messages are written. If not specified,
+            sys.stdout is used.
+        """
+        super().__init__()
+        self.stream = stream if stream is not None else sys.stdout
+
+    def emit(self, record):
+        """
+        Output the raw message content directly to the stream.
+
+        Parameters
+        ----------
+        record : logging.LogRecord
+            The record to be output.
+        """
+        try:
+            msg = self.format(record)
+            self.stream.write(msg + "\n")
+            self.stream.flush()
+        except Exception:
+            self.handleError(record)
+
+    def format(self, record):
+        """
+        Format the record. For this handler, we just return the raw message.
+
+        Parameters
+        ----------
+        record : logging.LogRecord
+            The record to format.
+
+        Returns
+        -------
+        str
+            The raw message string.
+        """
+        # Just return the message part without any formatting
+        return record.msg
 class ColorFormatter(logging.Formatter):
     """
     Logging Formatter to add colors and count warning / errors.

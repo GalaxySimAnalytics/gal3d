@@ -33,9 +33,72 @@ class PluginManagerRegistry:
     @classmethod
     def all_managers(cls) -> dict[str, type["PluginManager"]]:
         import importlib
-        for module_path in config.plugin_manager_modules:
+        for module_path in config.plugin_modules.modules:
             importlib.import_module(module_path)
         return dict(cls._managers)
+
+    @classmethod
+    def print_plugins(cls) -> None:
+        """
+        Print a formatted summary of all plugin managers and their plugins.
+
+        This function displays each plugin manager along with all plugins it manages
+        in a readable hierarchical format, making it easy to see the plugin structure.
+        Outputs are color-coded for better readability while also logging activity.
+        """
+        from .log import DirectOutputHandler
+        from .util.string_format import string_formatter
+
+        # Create a dedicated logger
+        plugin_display = logging.getLogger("gal3d.plugin.display")
+        plugin_display.setLevel(logging.INFO)
+        plugin_display.propagate = False  # Prevent messages from propagating to parent logger
+
+        # Add direct output handler
+        handler = DirectOutputHandler()
+        plugin_display.addHandler(handler)
+
+        # Log to main logger
+        main_logger = logging.getLogger("gal3d.plugin")
+
+        try:
+            managers = cls.all_managers()
+            if not managers:
+                main_logger.warning("No plugin managers registered")
+                plugin_display.info(string_formatter("No plugin managers registered.", fg_color="yellow", bold=True))
+                return
+
+            # First pass to load all plugins
+            main_logger.debug("Preloading plugins for display...")
+            for _, manager_class in sorted(managers.items()):
+                try:
+                    manager_class.available_plugins()
+                except Exception:
+                    pass  # Ignore errors during preload
+
+            plugin_display.info(string_formatter("\nPlugin Managers and their Plugins:\n",
+                                            fg_color="bright_blue", bold=True, underline=True))
+            for manager_name, manager_class in sorted(managers.items()):
+                plugin_display.info(string_formatter(f"{manager_name}:",
+                                                fg_color="bright_green", bold=True))
+
+                try:
+                    plugins = manager_class.available_plugins()
+                    if not plugins:
+                        plugin_display.info(string_formatter("  - No plugins registered",
+                                                        fg_color="yellow", italics=True))
+                    else:
+                        for plugin in sorted(plugins):
+                            plugin_display.info(string_formatter(f"  - {plugin}", fg_color="cyan"))
+                except Exception as e:
+                    plugin_display.info(string_formatter(f"  - Error retrieving plugins: {str(e)}",
+                                                    fg_color="red", italics=True))
+                    main_logger.error("Error retrieving plugins from %s: %s", manager_name, str(e))
+
+                plugin_display.info("")
+        finally:
+            # Clean up handler
+            plugin_display.removeHandler(handler)
 
 class PluginBase:
     """

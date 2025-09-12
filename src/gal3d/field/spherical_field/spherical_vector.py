@@ -1,6 +1,7 @@
 import logging
+import os
+from collections import OrderedDict
 from collections.abc import Callable
-from functools import lru_cache
 from typing import Any
 
 import numpy as np
@@ -98,9 +99,41 @@ class SphSampler:
 
         return pos, sph
 
+class SphVectorMeta(type):
+    """Metaclass for SphVector to implement singleton pattern and limit max instances"""
 
+    _instances: OrderedDict[tuple[int,str], "SphVector"] = OrderedDict()
 
-class SphVector:
+    def __call__(cls, n_sample: int = 512, method: str = "fibonacci",
+                pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any) -> "SphVector":
+        """
+        Control the creation process of SphVector instances to implement the singleton pattern.
+        """
+        # User-defined positions do not use cache
+        if pos is not None:
+            return super().__call__(n_sample, method, pos, verbose=verbose, **kwargs)
+
+        # Create cache key
+        key = (n_sample, method)
+
+        # Check if there is a cached instance
+        if key in cls._instances:
+            # Move the most recently used instance to the end of the OrderedDict
+            instance = cls._instances.pop(key)
+            cls._instances[key] = instance
+            return instance
+
+        # If the cache capacity is exceeded, remove the oldest instance
+        if len(cls._instances) >= config.general.max_instances:
+            cls._instances.popitem(last=False)  # Remove the oldest instance
+
+        # Create a new instance and add it to the cache
+        instance = super().__call__(n_sample, method, pos, verbose=verbose, **kwargs)
+        cls._instances[key] = instance
+
+        return instance
+
+class SphVector(metaclass=SphVectorMeta):
     """The coordinates of N points uniformly distributed on the unit sphere"""
 
     METHOD: dict[str, Callable[[int], tuple[np.ndarray, np.ndarray]]] = {
@@ -108,24 +141,6 @@ class SphVector:
     "muller": SphSampler.muller_sampling,
     "polar": SphSampler.polar_method
     }
-
-    @classmethod
-    @lru_cache(maxsize = 20)
-    def create(cls, n_sample: int = 512, method: str = "fibonacci", *, verbose: bool = True) -> "SphVector":
-        """Create a cached SphVector instance."""
-        # Create an instance properly using the constructor with _skip_cache flag
-        return cls(n_sample=n_sample, method=method, verbose=verbose, pos=None, _skip_cache=True)
-
-    def __new__(cls, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None,
-                *, verbose: bool = True, _skip_cache: bool = False) -> "SphVector":
-        """
-        Create or retrieve a cached SphVector instance, if not user-defined.
-        """
-        # Only use cache when not user-defined and not explicitly skipping cache
-        if pos is None and not _skip_cache:
-            return cls.create(n_sample, method, verbose=verbose)
-        else:
-            return super().__new__(cls)
 
     def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any):
         """
@@ -212,7 +227,7 @@ class SphVector:
             return np.argmax(np.dot(pos_unit, self.pos.T), axis=1)
         else:
             # Fall back to KDTree for larger point sets
-            return self._tree.query(pos, k=1, workers=config.general.number_of_threads)[1]
+            return self._tree.query(pos, k=1, workers=os.cpu_count())[1]
 
     @staticmethod
     def cal_uniformity(pos: np.ndarray, cached_voronoi: SphericalVoronoi | None =None) -> float:

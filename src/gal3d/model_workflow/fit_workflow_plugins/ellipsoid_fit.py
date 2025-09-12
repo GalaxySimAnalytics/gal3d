@@ -8,17 +8,11 @@ from gal3d.field import SphVector
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.shape import Structure3D
+from gal3d.util.errors import FitDataError
 
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
     from gal3d.optimization.parameter import Parameters
-
-
-class InsufficientPointsError(ValueError):
-    """Raised when there are not enough points for fitting."""
-
-class PoorUniformityError(ValueError):
-    """Raised when the point distribution uniformity is too low."""
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
@@ -96,11 +90,11 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         # Validate data points efficiently
         N_p = len(data["pos"])
         if N_p < 12:
-            raise InsufficientPointsError("Insufficient points for fitting: < 12")
+            raise FitDataError("Insufficient points for fitting: < 12")
         if N_p < analyzer.field.rays.num:
             uni = SphVector.cal_uniformity(data["pos"])
             if uni < min_uniform:
-                raise PoorUniformityError(f"Poor point distribution uniformity detected: < {min_uniform}")
+                raise FitDataError(f"Poor point distribution uniformity detected: < {min_uniform}")
 
         if ("x" in init_parameters and "y" in init_parameters and "z" in init_parameters):
             curr_cen = np.mean(data["pos"],axis=0)

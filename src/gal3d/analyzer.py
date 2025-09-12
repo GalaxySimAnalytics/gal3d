@@ -20,6 +20,7 @@ from .optimization.optimizer import Optimizer, OptimizerBase
 from .optimization.result import EmptyModelResult, ModelResult
 from .point import Particles
 from .shape import Structure3D
+from .util.errors import FitDataError
 
 logger = logging.getLogger("gal3d.analyzer")
 
@@ -126,9 +127,12 @@ class Gal3DAnalyzer:
 
         field = cls._build_field(particle=particle, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
         structure = cls._build_structure(np.mean(field.inner_r))
-        optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="trf") # trf for curve fit, OptimizerScipy Powell for sum
+        if "OptimizerLMFit" in Optimizer.available_plugins(): # LMFit is better, if available
+            optimizer = Optimizer.get_plugin(name="OptimizerLMFit")("leastsq")
+        else:
+            optimizer = Optimizer.get_plugin(name="OptimizerScipy")(algorithm="trf")  # trf for curve fit, OptimizerScipy Powell for sum
 
-        return Gal3DAnalyzer(particle=particle,field=field,structure=structure,optimizer=optimizer)
+        return Gal3DAnalyzer(particle=particle, field=field, structure=structure, optimizer=optimizer)
 
     @staticmethod
     def _build_field(particle: Particles, inner: float, outer: float, inner_mode: str = "value", outer_mode: str = "value") -> SphField:
@@ -199,7 +203,7 @@ class Gal3DAnalyzer:
         if not isinstance(r, Iterable):
             try:
                 res = workflow(self, r, **kwargs)
-            except Exception as e:
+            except FitDataError as e:
                 logger.error("Error fitting radius %f: %s", r, e)
                 res = EmptyModelResult()
             return res
@@ -213,7 +217,7 @@ class Gal3DAnalyzer:
                         kwargs["init_parameters"] = res_value
                     res = workflow(self, i, **kwargs)
                     resall.append(res)
-                except Exception as e:
+                except FitDataError as e:
                     etype = type(e).__name__
                     if etype not in errors:
                         errors[etype] = []

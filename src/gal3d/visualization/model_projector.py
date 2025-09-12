@@ -79,7 +79,7 @@ class ModelProjectorBase(PluginBase):
         cache_len : int, default=100
             Maximum number of images to store in the cache.
         """
-        self._image_cache = CacheDict(cache_len=cache_len)
+        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes], NDArray[np.float64]] = CacheDict(cache_len=cache_len)
 
     @staticmethod
     def ImageCache(func: Callable) -> Callable:

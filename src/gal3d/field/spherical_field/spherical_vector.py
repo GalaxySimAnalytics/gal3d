@@ -1,6 +1,5 @@
 import logging
 import os
-from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any
 
@@ -8,6 +7,7 @@ import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi
 
 from gal3d.config import config
+from gal3d.util.func_cache import CacheDict
 
 from .util import fibonacci_sampling, trans_to_Spherical_coordinates, unit_vector3d
 
@@ -102,13 +102,15 @@ class SphSampler:
 class SphVectorMeta(type):
     """Metaclass for SphVector to implement singleton pattern and limit max instances"""
 
-    _instances: OrderedDict[tuple[int,str], "SphVector"] = OrderedDict()
+    _instances: CacheDict[tuple[int,str], "SphVector"] = CacheDict(cache_len = config.general.max_instances)
 
     def __call__(cls, n_sample: int = 512, method: str = "fibonacci",
                 pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any) -> "SphVector":
         """
         Control the creation process of SphVector instances to implement the singleton pattern.
         """
+        if cls._instances.cache_len != config.general.max_instances:
+            cls._instances.set_cache_len(config.general.max_instances)
         # User-defined positions do not use cache
         if pos is not None:
             return super().__call__(n_sample, method, pos, verbose=verbose, **kwargs)
@@ -116,16 +118,9 @@ class SphVectorMeta(type):
         # Create cache key
         key = (n_sample, method)
 
-        # Check if there is a cached instance
+        ## Check if there is a cached instance
         if key in cls._instances:
-            # Move the most recently used instance to the end of the OrderedDict
-            instance = cls._instances.pop(key)
-            cls._instances[key] = instance
-            return instance
-
-        # If the cache capacity is exceeded, remove the oldest instance
-        if len(cls._instances) >= config.general.max_instances:
-            cls._instances.popitem(last=False)  # Remove the oldest instance
+            return cls._instances[key]  # CacheDict handles LRU automatically
 
         # Create a new instance and add it to the cache
         instance = super().__call__(n_sample, method, pos, verbose=verbose, **kwargs)

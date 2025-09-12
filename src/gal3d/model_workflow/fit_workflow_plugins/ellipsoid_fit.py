@@ -6,11 +6,12 @@ import numpy as np
 
 from gal3d.field import SphVector
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
-from gal3d.optimization.result import ModelResult, Parameters
+from gal3d.optimization.result import ModelResult
 from gal3d.shape import Structure3D
 
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
+    from gal3d.optimization.parameter import Parameters
 
 
 class InsufficientPointsError(ValueError):
@@ -196,23 +197,18 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
                 ell_params = ell_params.set_value(**update_values)
         ell_params.set_value(a=a)
 
-        # Prepare first optimization
-        fun = ell_params.decorate_func_constraints(ellipsoid._error_method)
-        bounds = ell_params.scipy_bounds
-        x0_dict = ell_params.get_rounded_values_dict(n=4)
-        param_keys = list(x0_dict.keys())
-
         # Run first optimization
-        ell_res = analyzer.optimizer.fitting(
-            fun, list(x0_dict.values()), bounds, func_kwargs=data
-        )
+        ell_res = analyzer.optimizer.fit(
+            ellipsoid._error_method, ell_params, func_kwargs=data)
 
         # Step 2: Use ellipsoid results to initialize the generalized ellipsoid fit
-        res_value = dict(zip(param_keys, ell_res.params, strict=False))
+        res_value = ell_res.params
 
         # Set up parameters for the generalized ellipsoid
         parameters_set = analyzer.structure.parameters.new()
-        parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
+        self._setup_ellipsoid_parameters(parameters_set, analyzer.structure.parameters, a, var_a, var_cen)
+        self._apply_parameter_bounds(parameters_set, upper_bounds, lower_bounds)
+        #parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
 
         # Apply initial values and lock shape parameters
         if init_parameters:
@@ -221,36 +217,39 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
                 for i in init_parameters.keys() & parameters_set.keys()
             }
             parameters_set = parameters_set.set_value(**updatevalue)
-        parameters_set.set_value(**res_value)
+        for i,j in res_value.items():
+            parameters_set[i] = j
+        #parameters_set.set_value(**res_value)
 
         shape_params, constraint_functions = self._prepare_shape_parameters(parameters_set,res_value,fix_eps)
 
         # Record parent function result
-        parameters_set.add_info(parent_fun=ell_res.fun)
+        # parameters_set.add_info(parent_fun=ell_res.fun)
 
         # Add original info if available
         if info:
             parameters_set.add_info(**info)
 
         # Prepare final optimization
-        fun = parameters_set.decorate_func_constraints(analyzer.structure._error_method)
-        bounds = parameters_set.scipy_bounds
-        x0_dict = parameters_set.get_rounded_values_dict(n=4)
         if "a" not in shape_params:
-            x0_dict["a"] = res_value["a"]
+            parameters_set["a"] = res_value["a"]
         if not fix_eps:
-            x0_dict["eps_ab"] = res_value["eps_ab"]
-            x0_dict["eps_bc"] = res_value["eps_bc"]
+            parameters_set["eps_ab"] = res_value["eps_ab"]
+            parameters_set["eps_bc"] = res_value["eps_bc"]
 
         # Run final optimization
-        op_res = analyzer.optimizer.fitting(
-            fun, list(x0_dict.values()), bounds, func_kwargs=data
+        op_res = analyzer.optimizer.fit(
+            analyzer.structure._error_method, parameters_set, func_kwargs=data
         )
-
-        # Update parameters and return result
-        parameters_set = parameters_set.set_value(op_res.params)
         for i in constraint_functions:
             parameters_set.del_equal_constraints(i)
+        for i,j in ell_res.params.items():
+            parameters_set[i] = j
+        # Update parameters and return result
+        for i,j in op_res.params.items():
+            parameters_set[i] = j
+        # parameters_set = parameters_set.set_value(op_res.params)
+
         return ModelResult(analyzer.structure, op_res, parameters_set)
 
     def _setup_ellipsoid_parameters(self, ell_params: "Parameters", source_params: "Parameters", a: float, var_a: float, var_cen: float) -> None:
@@ -297,8 +296,8 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Set up shape parameter bounds and constraints
         if shape_params:
-            parameters_set.set_lb(only_infs=False, **shape_params)
-            parameters_set.set_ub(only_infs=False, **shape_params)
+        #    parameters_set.set_lb(only_infs=False, **shape_params)
+        #    parameters_set.set_ub(only_infs=False, **shape_params)
 
             for param_name, value in shape_params.items():
                 def make_constraint_func(val):

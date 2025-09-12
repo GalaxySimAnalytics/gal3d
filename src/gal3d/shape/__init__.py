@@ -783,7 +783,10 @@ class Structure3D(StructureCore, StructureError):
             Additional keyword arguments for fitting.
         """
         if optimizer is None:
-            optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell")
+            if "curve" in self._error_method_name:
+                optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="trf")
+            else:
+                optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell")
 
 
         parameters_set = self.parameters.new()
@@ -794,16 +797,12 @@ class Structure3D(StructureCore, StructureError):
             parameters_set.set_value(**filtered_estimate_params)
             parameters_set.clip_to_bounds()
 
-        fun = parameters_set.decorate_func_constraints(self._error_method)
-        x0_dict = parameters_set.get_rounded_values_dict(n=4)
-        x0_values = list(x0_dict.values())
-
-        op_res = optimizer.fitting(fun,
-                               x0_values,
-                               parameters_set.scipy_bounds,
+        op_res = optimizer.fit(self._error_method,
+                               parameters_set,
                                func_kwargs={"pos": pos})
+        for i,j in op_res.params.items():
+            parameters_set[i] = j
 
-        parameters_set = parameters_set.set_value(op_res.x)
         parameters_set.add_info(data = pos)
         return ModelResult(self, op_res, parameters_set)
 

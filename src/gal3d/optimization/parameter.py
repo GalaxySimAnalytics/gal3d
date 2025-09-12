@@ -32,6 +32,8 @@ class Parameter(float):
         The lower bound of the parameter.
     ub : float
         The upper bound of the parameter.
+    err : float
+        The uncertainty of the parameter.
 
     Methods
     -------
@@ -44,10 +46,11 @@ class Parameter(float):
     """
     lb: float
     ub: float
+    err: float
 
-    __slots__ = ["lb", "ub"]
+    __slots__ = ["lb", "ub", "err"]
 
-    def __new__(cls, value: Union[float, "Parameter"], lb: float | None = None, ub: float | None = None) -> "Parameter":
+    def __new__(cls, value: Union[float, "Parameter"], lb: float | None = None, ub: float | None = None, err: float | None = None) -> "Parameter":
         """
         Creates a new instance of the Parameter class.
 
@@ -60,6 +63,8 @@ class Parameter(float):
             The lower bound of the parameter. Default is -inf.
         ub : float, optional
             The upper bound of the parameter. Default is inf.
+        err : float, optional
+            The uncertainty of the parameter. Default is 0.
 
         Returns
         -------
@@ -71,9 +76,11 @@ class Parameter(float):
         if isinstance(value, Parameter):
             object.__setattr__(instance, "lb", float(lb) if lb is not None else value.lb)
             object.__setattr__(instance, "ub", float(ub) if ub is not None else value.ub)
+            object.__setattr__(instance, "err", float(err) if err is not None else value.err)
             return instance
         object.__setattr__(instance, "lb", float(lb) if lb is not None else -float("inf"))
         object.__setattr__(instance, "ub", float(ub) if ub is not None else float("inf"))
+        object.__setattr__(instance, "err", float(err) if err is not None else 0.0)
         return instance
 
     def assign_value(self, value: float) -> "Parameter":
@@ -97,7 +104,7 @@ class Parameter(float):
         >>> param
         2.0
         """
-        inst = self.__class__.__new__(self.__class__, value, lb=self.lb, ub=self.ub)
+        inst = self.__class__.__new__(self.__class__, value, lb=self.lb, ub=self.ub, err=self.err)
         return inst
 
     def assign_bounds(self, lb: float, ub: float) -> "Parameter":
@@ -131,7 +138,7 @@ class Parameter(float):
         super().__setattr__(name, float(value))
 
     def __hash__(self):
-        return hash((float(self), self.lb, self.ub))
+        return hash((float(self), self.lb, self.ub, self.err))
 
 class ParameterDict(dict):
     """
@@ -174,7 +181,7 @@ class ParameterDict(dict):
             super().__setitem__(key, Parameter(value))
         elif key in self:
             param = super().__getitem__(key)
-            value = Parameter(value, lb=param.lb, ub=param.ub)
+            value = Parameter(value, lb=param.lb, ub=param.ub, err=param.err)
             super().__setitem__(key, value)
         else:
             super().__setitem__(key, Parameter(value))
@@ -258,7 +265,8 @@ class ParameterDict(dict):
                 k: Parameter(
                     truncate(v, n) if round_value else v,
                     lb=truncate(v.lb, n) if round_bound else v.lb,
-                    ub=truncate(v.ub, n) if round_bound else v.ub
+                    ub=truncate(v.ub, n) if round_bound else v.ub,
+                    err = v.err
                 )
                 for k, v in self.items()
             })
@@ -315,6 +323,24 @@ class ParameterDict(dict):
         {'a': inf, 'b': inf}
         """
         return {key: value.ub for key, value in self.items()}
+
+    @property
+    def err(self) -> dict[str, float]:
+        """
+        Get the uncertainties of all parameters.
+
+        Returns
+        -------
+        dict
+            A dictionary of parameter names and their uncertainties.
+
+        Examples
+        --------
+        >>> params = ParameterDict(a=1.0, b=2.0)
+        >>> params.err
+        {'a': 0.0, 'b': 0.0}
+        """
+        return {key: value.err for key, value in self.items()}
 
     def set_value(self: _ParamDict, *args: Iterable[float] | float, **kwargs: float) -> _ParamDict:
         """

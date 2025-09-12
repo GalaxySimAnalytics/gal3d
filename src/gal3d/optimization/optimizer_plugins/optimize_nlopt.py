@@ -7,12 +7,13 @@ from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import Bounds
 
 from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
+from gal3d.optimization.parameter import ParameterDict
 
 __all__ = ["OptimizerNLopt"]
 
 
 # from optimagic
-def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj: Any, solution_x: NDArray, is_global: bool) -> OptimizeResult:
+def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj: Any, params: ParameterDict, is_global: bool) -> OptimizeResult:
     messages = {
         1: "Convergence achieved ",
         2: (
@@ -38,7 +39,7 @@ def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_
     if is_global and not success:
         success = None
     processed = OptimizeResult(
-        params=solution_x,
+        params=params,
         fun=nlopt_obj.last_optimum_value(),
         start_params=x0,
         start_fun=start_fun,
@@ -67,6 +68,7 @@ class OptimizerNLopt(OptimizerBase):
         bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
+        param_names: list[str] | None = None,
         **kwargs: Any,
     ) -> OptimizeResult:
         func_args = func_args or ()
@@ -89,7 +91,8 @@ class OptimizerNLopt(OptimizerBase):
 
         xopt = opt.optimize(start_params)
         start_fun = fun(start_params, *func_args, **func_kwargs)
-        return _process_nlopt_results(self.algo_name, start_params, start_fun, opt, xopt, is_global)
+        params = self._create_params(xopt, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
+        return _process_nlopt_results(self.algo_name, start_params, start_fun, opt, params, is_global)
 
     @classmethod
     def available_algorithm(cls):

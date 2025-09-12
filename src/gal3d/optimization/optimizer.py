@@ -1,12 +1,13 @@
 import logging
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from numpy.typing import ArrayLike
 from scipy._lib._util import _RichResult
 from scipy.optimize import Bounds
 
+from gal3d.optimization.parameter import Parameter, ParameterDict, Parameters
 from gal3d.plugin import PluginBase, PluginManager
 
 __all__ = ["Optimizer", "OptimizerBase", "OptimizeResult"]
@@ -23,7 +24,7 @@ class OptimizeResult(_RichResult):
 
     Attributes
     ----------
-    params (x): ndarray
+    params (x): ParameterDict
         The optimal results
     fun: float | ndarray
         The value of the objective function at the optimal parameters.
@@ -115,6 +116,50 @@ class OptimizerBase(PluginBase):
         super().__init_subclass__(**kwargs)
         Optimizer.register(cls)
 
+    def fit(self,
+        fun: Callable,
+        params: Parameters,
+        func_args: tuple | None = None,
+        func_kwargs: dict | None = None,
+        **kwargs: Any,
+        ) -> OptimizeResult:
+        """
+        Fit the model to the data.
+
+        Parameters
+        ----------
+        fun : callable
+            The objective function to minimize.
+        params : Parameters
+            The initial parameters for the optimization.
+        func_args : tuple, optional
+            Additional arguments to pass to the objective function (default is None).
+        func_kwargs : dict, optional
+            Additional keyword arguments to pass to the objective function (default is None).
+        **kwargs : additional keyword arguments
+            Additional options for the fitting algorithm.
+
+        Returns
+        -------
+        result : OptimizeResult
+            The result of the fitting.
+        """
+        func = params.decorate_func_constraints(fun)
+        bounds = params.scipy_bounds
+        x0 = params.values_list()
+        func_args = func_args or ()
+        func_kwargs = func_kwargs or {}
+
+        return self.fitting(
+            fun=func,
+            x0=x0,
+            bounds=bounds,
+            func_args=func_args,
+            func_kwargs=func_kwargs,
+            param_names=list(params.parameter_keys()),
+            **kwargs,
+        )
+
     @abstractmethod
     def fitting(
         self,
@@ -123,10 +168,11 @@ class OptimizerBase(PluginBase):
         bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
+        param_names: list[str] | None = None,
         **kwargs: Any,
     ) -> OptimizeResult:
         """
-        Perform the fitting process for scalar-returning functions (minimization).
+        Perform the fitting process for input functions (minimization).
 
         This method must be implemented by subclasses.
 
@@ -150,6 +196,28 @@ class OptimizerBase(PluginBase):
         result : OptimizeResult
             The result of the fitting.
         """
+
+    def _create_params(
+        self,
+        param_values: Sequence[float],
+        param_names: list[str] | None = None,
+        param_lbs: Sequence[float | None] | None = None,
+        param_ubs: Sequence[float | None] | None = None,
+        param_errors: Sequence[float | None] | None = None
+        ) -> ParameterDict:
+        """
+        Create a ParameterDict from the given parameter information.
+        """
+        n = len(param_values)
+        param_names = [f"param_{i}" for i in range(n)] if param_names is None else param_names
+        param_lbs = [None] * n if param_lbs is None else param_lbs
+        param_ubs = [None] * n if param_ubs is None else param_ubs
+        param_errors = [None] * n if param_errors is None else param_errors
+
+        params = ParameterDict()
+        for name, value, lb, ub, err in zip(param_names, param_values, param_lbs, param_ubs, param_errors, strict=False):
+            params[name] = Parameter(value, lb=lb, ub=ub, err=err)
+        return params
 
     def set_options(self, **kwargs):
         """

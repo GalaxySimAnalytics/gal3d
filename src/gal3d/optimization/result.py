@@ -1,7 +1,6 @@
 import copy
 import logging
 import time
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
@@ -66,148 +65,10 @@ class ModelResult:
         # Cache OptimizeResult fields for __getattr__ and __dir__
         self._optimize_result_attrs = set(optimize_result.keys())
 
-        # Include properties from OptimizeResult
-       # self._optimize_result_attrs.update({"x", "x0", "nfev", "nit", "njev", "nhev"})
-
-    # OptimizeResult property accessors with proper type hints
-    @property
-    def params(self) -> np.ndarray:
-        """Get parameter arrays from all optimization results."""
-        return np.array([r.params for r in self._opt_results])
-
-    @property
-    def fun(self) -> np.ndarray:
-        """Get objective function values from all optimization results."""
-        return np.array([r.fun for r in self._opt_results])
-
     @property
     def cost(self) -> np.ndarray:
         """Get cost values from all optimization results."""
         return np.array([r.cost for r in self._opt_results])
-
-    @property
-    def start_params(self) -> np.ndarray:
-        """Get starting parameter arrays from all optimization results."""
-        return np.array([r.start_params for r in self._opt_results])
-
-    @property
-    def start_fun(self) -> np.ndarray:
-        """Get starting objective function values from all optimization results."""
-        return np.array([r.start_fun for r in self._opt_results])
-
-    @property
-    def algorithm(self) -> list[str | None]:
-        """Get algorithm names from all optimization results."""
-        return [r.algorithm for r in self._opt_results]
-
-    @property
-    def success(self) -> np.ndarray:
-        """Get success flags from all optimization results."""
-        values = [r.success if r.success is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def message(self) -> list[str]:
-        """Get messages from all optimization results."""
-        return [r.message if r.message is not None else "" for r in self._opt_results]
-
-    @property
-    def status(self) -> np.ndarray:
-        """Get status codes from all optimization results."""
-        values = [r.status if r.status is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def n_fun_evals(self) -> np.ndarray:
-        """Get number of function evaluations from all optimization results."""
-        values = [r.n_fun_evals if r.n_fun_evals is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def n_jac_evals(self) -> np.ndarray:
-        """Get number of Jacobian evaluations from all optimization results."""
-        values = [r.n_jac_evals if r.n_jac_evals is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def n_hess_evals(self) -> np.ndarray:
-        """Get number of Hessian evaluations from all optimization results."""
-        values = [r.n_hess_evals if r.n_hess_evals is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def n_iterations(self) -> np.ndarray:
-        """Get number of iterations from all optimization results."""
-        values = [r.n_iterations if r.n_iterations is not None else np.nan for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def jac(self) -> list[np.ndarray | None]:
-        """Get Jacobian arrays from all optimization results."""
-        return [r.jac for r in self._opt_results]
-
-    @property
-    def hess(self) -> list[np.ndarray | None]:
-        """Get Hessian arrays from all optimization results."""
-        return [r.hess for r in self._opt_results]
-
-    @property
-    def hess_inv(self) -> list[np.ndarray | None]:
-        """Get inverse Hessian arrays from all optimization results."""
-        return [r.hess_inv for r in self._opt_results]
-
-    @property
-    def max_constraint_violation(self) -> np.ndarray:
-        """Get maximum constraint violations from all optimization results."""
-        values = [r.max_constraint_violation if r.max_constraint_violation is not None else np.nan
-                 for r in self._opt_results]
-        return np.array(values, dtype=float)
-
-    @property
-    def history(self) -> list[Any]:
-        """Get optimization histories from all optimization results."""
-        return [r.history for r in self._opt_results]
-
-    @property
-    def algorithm_output(self) -> list[dict[str, Any] | None]:
-        """Get algorithm outputs from all optimization results."""
-        return [r.algorithm_output for r in self._opt_results]
-
-    @property
-    def multistart_info(self) -> list[dict[str, Any] | None]:
-        """Get multistart information from all optimization results."""
-        return [r.multistart_info for r in self._opt_results]
-
-    # Property aliases for scipy.optimize compatibility
-    @property
-    def x(self) -> np.ndarray:
-        """Alias for params (scipy.optimize compatibility)."""
-        return self.params
-
-    @property
-    def x0(self) -> np.ndarray:
-        """Alias for start_params (scipy.optimize compatibility)."""
-        return self.start_params
-
-    @property
-    def nfev(self) -> np.ndarray:
-        """Alias for n_fun_evals (scipy.optimize compatibility)."""
-        return self.n_fun_evals
-
-    @property
-    def nit(self) -> np.ndarray:
-        """Alias for n_iterations (scipy.optimize compatibility)."""
-        return self.n_iterations
-
-    @property
-    def njev(self) -> np.ndarray:
-        """Alias for n_jac_evals (scipy.optimize compatibility)."""
-        return self.n_jac_evals
-
-    @property
-    def nhev(self) -> np.ndarray:
-        """Alias for n_hess_evals (scipy.optimize compatibility)."""
-        return self.n_hess_evals
 
     def keys(self):
         """
@@ -220,12 +81,13 @@ class ModelResult:
         """Get the 3D structure model"""
         return self._structure
 
-    @cached_property
-    def error(self) -> dict[str, Any]:
+    def estimate_errors(self, param_name: list[str] | str | None=None) -> dict[str, Any]:
         """
         Get the estimated errors for the model.
         """
-        return ErrorWorkflow.estimate_error(self)
+        if isinstance(param_name, str):
+            param_name = [param_name]
+        return ErrorWorkflow.estimate_error(self, param_name=param_name)
 
     def __call__(
         self,
@@ -319,8 +181,19 @@ class ModelResult:
             If boolean array length doesn't match number of parameter sets.
         """
         if isinstance(k, str):
-            # Return parameter values for all sets
-            return cast("np.ndarray", np.array([params[k] for params in self._param_sets]))
+            try:
+                return cast("np.ndarray", np.array([params[k] for params in self._param_sets]))
+            except KeyError:
+                pass
+
+            try :
+                if k.endswith(("_lb", "_ub", "_err")):
+                    name, atr =k.rsplit("_",1)
+                    return cast("np.ndarray", np.array([getattr(params[name], atr) for params in self._param_sets]))
+            except KeyError:
+                pass
+
+            raise KeyError(f"Key '{k}' not found in parameter sets")
 
         elif isinstance(k, int):
             # Return the Structure3D initialized with parameters at index k

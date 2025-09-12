@@ -8,10 +8,11 @@ from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import Bounds
 
 from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
+from gal3d.optimization.parameter import ParameterDict
 
 __all__ = ["OptimizerOptimagic"]
 
-def process_om_result(algorithm: str, x0: NDArray, om_result: om.OptimizeResult) -> OptimizeResult:
+def process_om_result(algorithm: str, x0: NDArray, om_result: om.OptimizeResult, params: ParameterDict) -> OptimizeResult:
     """Convert optimagic optimization results to standard OptimizeResult format."""
     # Process multistart info if available
     if om_result.multistart_info:
@@ -27,7 +28,7 @@ def process_om_result(algorithm: str, x0: NDArray, om_result: om.OptimizeResult)
 
     # Create basic result with required attributes
     result = OptimizeResult(
-        params=om_result.x,
+        params = params,
         fun=om_result.fun,
         cost=om_result.fun,
         start_params=x0,
@@ -80,6 +81,7 @@ class OptimizerOptimagic(OptimizerBase):
         bounds: Bounds,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
+        param_names: list[str] | None = None,
         **kwargs: Any,
     ) -> OptimizeResult:
         func_args = func_args or ()
@@ -95,8 +97,9 @@ class OptimizerOptimagic(OptimizerBase):
             algo_options=self.algo_options,
             **kwargs,
         )
+        params = self._create_params(om_result.x, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
 
-        return process_om_result(self.algo_name, start_params, om_result)
+        return process_om_result(self.algo_name, start_params, om_result, params)
 
     @classmethod
     def available_algorithm(cls):

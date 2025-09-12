@@ -19,3 +19,9 @@ try:
     __all__ += ["OptimizerOptimagic"]
 except ImportError:
     pass
+
+try:
+    from .optimize_lmfit import OptimizerLMFit
+    __all__ += ["OptimizerLMFit"]
+except ImportError:
+    pass

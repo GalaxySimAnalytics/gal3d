@@ -238,7 +238,7 @@ void IntersectRaysEllipsoid_S_cpp(
     double initial_guess = (a+c) / 2.0;
 
     int i;
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
@@ -283,7 +283,7 @@ void f_ray_shaped_ellipsoid_cpp(
     double initial_guess = (a+c) / 2.0;
 
     int i;
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
@@ -443,7 +443,7 @@ void IntersectLinesEllipsoid_S_cpp(
     omp_set_num_threads(num_threads);
 
     int i;
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic)
     for (i = 0; i < n; ++i) {
         // pos1, pos2: [n, 3] row-major
         double x1 = pos1[i*3+0], y1 = pos1[i*3+1], z1 = pos1[i*3+2];

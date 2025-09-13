@@ -17,22 +17,25 @@ Usage Example
 import json
 import os
 import warnings
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import IntEnum
 from pprint import pformat
-from typing import Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional
 
-default_thread_count: int
+if TYPE_CHECKING:
+    from logging import Logger
+
+cpu_count: int
 try:
     import psutil
-    default_thread_count = psutil.cpu_count(logical=False)
+    cpu_count = psutil.cpu_count(logical=False)
 except ImportError:
     os_cpu = os.cpu_count()
     if os_cpu is not None:
-        default_thread_count = os_cpu
-        default_thread_count = max(default_thread_count // 2, 1)
+        cpu_count = os_cpu
     else:
-        default_thread_count = 1
+        cpu_count = 1
 
 DEFAULT_PLUGIN_MODULES = {
     "gal3d.point.density_estimator",
@@ -119,7 +122,7 @@ class GeneralConfig(BaseConfig):
             warnings.warn(f"Invalid min_batchsize corrected to {self.min_batchsize}",stacklevel=2)
 
         if self.number_of_threads <= 0:
-            self.number_of_threads = default_thread_count
+            self.number_of_threads = cpu_count
 
         if self.max_instances <= 0:
             self.max_instances = 20
@@ -131,6 +134,86 @@ class GeneralConfig(BaseConfig):
                 "Numba support has been disabled. Using Cython as a fallback.",
                 UserWarning, stacklevel=2
             )
+    def optimize_thread_count(self,
+                     benchmark_size: int = 1024,
+                     min_threads: int = 1,
+                     max_threads: int | None = None,
+                     test_function: Callable | None = None,
+                     iterations: int = 100,
+                     progress_bar: bool = False,
+                     print_result: bool = False,
+                     early_stop: bool = True,
+                     real_world_factor: float = 0.75,
+                     return_mode: Literal["recommended", "fastest", "adjusted", "balanced"] = "recommended"
+                     ) -> int:
+        """
+        Find the optimal thread count for OpenMP/nogil parallel functions through benchmarking.
+
+        This is now a wrapper around gal3d.util.thread_optimizer.optimize_thread_count
+
+        Parameters
+        ----------
+        benchmark_size : int, optional
+            Size of the arrays used for benchmarking, by default 1,000,000
+        min_threads : int, optional
+            Minimum number of threads to test, by default 1
+        max_threads : int, optional
+            Maximum number of threads to test, defaults to 2x physical cores if None
+        test_function : Callable, optional
+            Custom function to benchmark. If None, uses RotateAndShift as default test
+        iterations : int, optional
+            Number of iterations for each benchmark, by default 10
+        verbose : bool, optional
+            Whether to print detailed benchmark information, by default True
+        early_stop : bool, optional
+            Whether to stop testing when performance degrades, by default True
+        real_world_factor : float, optional
+            Factor to apply to raw thread count for real-world workloads, by default 0.75
+
+        Returns
+        -------
+        int
+            Optimal thread count for the current system
+
+        Examples
+        --------
+        >>> from gal3d.config import config
+        >>> # Basic usage
+        >>> optimal_threads = config.general.optimize_thread_count()
+        >>> config.general.number_of_threads = optimal_threads
+        """
+        from gal3d.util.thread_optimizer import optimize_thread_count as _optimize
+
+        # Create a function to set thread count
+        def set_threads(n):
+            self.number_of_threads = n
+
+        # Use the utility function
+        return _optimize(
+            set_threads,
+            benchmark_size=benchmark_size,
+            min_threads=min_threads,
+            max_threads=max_threads,
+            test_function=test_function,
+            iterations=iterations,
+            progress_bar=progress_bar,
+            print_result = print_result,
+            early_stop=early_stop,
+            real_world_factor=real_world_factor,
+            return_mode = return_mode,
+        )
+
+    def set_optimal_thread_count(self, logger: Optional["Logger"] = None) -> None:
+        """
+        Benchmark and set the optimal thread count automatically.
+
+        This is a convenience method that runs optimize_thread_count()
+        and automatically updates the configuration with the result.
+        """
+        optimal_threads = self.optimize_thread_count()
+        self.number_of_threads = optimal_threads
+        if logger:
+            logger.info("Thread count has been set to optimal value: %d", optimal_threads)
 
 @dataclass
 class LoggerConfig:

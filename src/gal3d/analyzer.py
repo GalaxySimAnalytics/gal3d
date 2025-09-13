@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 from tqdm import tqdm
 
+from .config import config
 from .field import SphField
 from .model_workflow.fit_workflow import FitWorkflow
 from .optimization.optimizer import Optimizer, OptimizerBase
@@ -24,6 +25,7 @@ from .util.errors import FitDataError
 
 logger = logging.getLogger("gal3d.analyzer")
 
+config.general.set_optimal_thread_count(logger)
 class Gal3DAnalyzer:
     """
     An analyzer for fitting galaxy 3D structures using particle, field, and shape information.

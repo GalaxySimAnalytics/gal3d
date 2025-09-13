@@ -163,12 +163,16 @@ class GeneralConfig(BaseConfig):
             Custom function to benchmark. If None, uses RotateAndShift as default test
         iterations : int, optional
             Number of iterations for each benchmark, by default 10
-        verbose : bool, optional
-            Whether to print detailed benchmark information, by default True
+        progress_bar : bool, optional
+            Whether to show a progress bar during benchmarking, by default False
+        print_result : bool, optional
+            Whether to print the result of the benchmarking, by default False
         early_stop : bool, optional
             Whether to stop testing when performance degrades, by default True
         real_world_factor : float, optional
             Factor to apply to raw thread count for real-world workloads, by default 0.75
+        return_mode: Literal["recommended", "fastest", "adjusted", "balanced"], optional
+            The mode for returning the thread count, by default "recommended".
 
         Returns
         -------
@@ -212,11 +216,11 @@ class GeneralConfig(BaseConfig):
         """
         optimal_threads = self.optimize_thread_count()
         self.number_of_threads = optimal_threads
-        if logger:
+        if logger is not None:
             logger.info("Thread count has been set to optimal value: %d", optimal_threads)
 
 @dataclass
-class LoggerConfig:
+class LoggerConfig(BaseConfig):
     """
     Logger configuration parameters.
 
@@ -239,24 +243,9 @@ class LoggerConfig:
     file_level: int = 20                # Log file level
     stream_level: int = 20              # Console log level
 
-    def validate(self) -> None:
-        """Validate and correct configuration values."""
-        valid_levels = [10, 20, 30, 40, 50]
-        if self.level not in valid_levels:
-            self.level = 20
-            warnings.warn(f"Invalid log level corrected to {self.level}",stacklevel=2)
-
-        if self.file_level not in valid_levels:
-            self.file_level = 20
-            warnings.warn(f"Invalid file_level corrected to {self.file_level}",stacklevel=2)
-
-        if self.stream_level not in valid_levels:
-            self.stream_level = 20
-            warnings.warn(f"Invalid stream_level corrected to {self.stream_level}",stacklevel=2)
-
 
 @dataclass
-class DensityKNNConfig:
+class DensityKNNConfig(BaseConfig):
     """
     DensityKNN configuration parameters.
 
@@ -283,7 +272,7 @@ class DensityKNNConfig:
             warnings.warn(f"Invalid leafsize corrected to {self.leafsize}",stacklevel=2)
 
 @dataclass
-class SPHRenderConfig:
+class SPHRenderConfig(BaseConfig):
     """
     SPH rendering configuration parameters.
 
@@ -311,7 +300,7 @@ class SPHRenderConfig:
             warnings.warn(f"Invalid subsample corrected to {self.subsample}", stacklevel=2)
 
 @dataclass
-class EllipsoidConfig:
+class EllipsoidConfig(BaseConfig):
     """
     Ellipsoid_S configuration parameters.
 

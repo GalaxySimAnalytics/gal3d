@@ -1,25 +1,22 @@
 import logging
 
-from .util.string_format import string_formatter
+from gal3d.util.string_format import string_formatter
 
 __version__ = "1.0.0"
 
-
-
 _logo = [
     r"     ╭──────────────────────────────────────────────────────╮",
-    r"    .│          .            .        .               .     │",
-    r"     │   _______  _______  _      . ______+  ______ .       │",
-    r"     │  (  ____ \(. ___  )( \      / ___ .\ (  __ .\        │",
-    r"     │  |.(    \/| (   ) || (     .\/   \  \| (+ \  )       │",
-    r"     │  | |      |.(___) || | .       ___) /| |   ) |  .    │",
-    r"     │  |.| ____ |  ___  || |  .     (___ ( | |   |.|       │",
-    r"     │  | | \_  )| ( + ) || |  .      .  ) \| |   ) | .     │",
-    r"     │  | (___) || )  .( || (____/\/\___/  /| (__/  )       │",
-    r"     │  (_______)|/     \|(_______/\______/ (______/  .     │",
+    r"     │·         .            .     .               .      Ç │",
+    r"     │    _______  _______  _      . ______+  ______ .  ø˜  │",
+    r"     │   (  ____ \(. ___  )( \      / ___ .\ (  __ .\       │",
+    r"     │   |.(    \/| (   ) || (     .\/   \  \| (+ \  )      │",
+    r"     │   | |      |.(___) || | .       ___) /| |   ) |  .   │",
+    r"     │   |.| ____ |  ___  || |  .    ³(___ ( | |   |.|      │",
+    r"     │   | | \_  )| ( + ) || |  .      .  ) \| |   ) | .    │",
+    r"     │   | (___) || )  .( || (____/\/\___/  /| (__/  )      │",
+    r"     │   (_______)|/     \|(_______/\______/ (______/  .    │",
     r"     │      .     .      .        .      .    .    .        │",
-    r"     │.     Galaxy 3D Modeling.& Analysis.Framework     .   │",
-    r"     │               .      .             .        .        │",
+    r"     │ --✦--               .      .             .           │",
     r"     ╰──────────────────────────────────────────────────────╯",
 ]
 logo = "\n".join(_logo)
@@ -38,7 +35,7 @@ def print_gal3d_info(show_plugins=True):
     show_plugins : bool, optional
         Whether to display plugin information. Default is True.
     """
-    from .log import DirectOutputHandler
+    from gal3d.log import DirectOutputHandler
 
     info_logger = logging.getLogger("gal3d.info")
     info_logger.setLevel(logging.INFO)
@@ -49,12 +46,21 @@ def print_gal3d_info(show_plugins=True):
     info_logger.addHandler(handler)
 
     try:
+        # Define consistent width for all components
+        width = 70
+        # Display welcome message and version information
+        welcome_msg = string_formatter(
+            "\n" + "Welcome to Gal3D !!! \n        3D Morphological Models of Galaxies in Simulations",
+            fg_color="bright_cyan",
+            bold=True
+        )
         # Display colored logo
+        info_logger.info(welcome_msg)
         info_logger.info(logo_color)
 
         # Display version information
         version_info = string_formatter(
-            f"\n{f'gal3d version: {__version__}'.rjust(64, ' ')}\n",
+            f"\n{f'gal3d version: {__version__}'.rjust(width, ' ')}\n",
             fg_color="bright_cyan",
             bold=True
         )
@@ -64,13 +70,13 @@ def print_gal3d_info(show_plugins=True):
         if show_plugins:
             # Add a separator line
             separator = string_formatter(
-                "=" * 80,
+                "=" * width,
                 fg_color="bright_blue"
             )
             info_logger.info(separator)
 
             # Import and use PluginManagerRegistry
-            from .plugin import PluginManagerRegistry
+            from gal3d.plugin import PluginManagerRegistry
             PluginManagerRegistry.print_plugins()
 
             # Add another separator line at the end

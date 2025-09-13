@@ -251,4 +251,3 @@ def set_logging_level(level: int = logging.INFO) -> None:
 
 
 logger = _setup_logging(config.logger)
-config.general.set_optimal_thread_count(logger)

@@ -68,14 +68,6 @@ class PluginManagerRegistry:
                 plugin_display.info(string_formatter("No plugin managers registered.", fg_color="yellow", bold=True))
                 return
 
-            # First pass to load all plugins
-            main_logger.debug("Preloading plugins for display...")
-            for _, manager_class in sorted(managers.items()):
-                try:
-                    manager_class.available_plugins()
-                except Exception:
-                    pass  # Ignore errors during preload
-
             plugin_display.info(string_formatter("\nPlugin Managers and their Plugins:\n",
                                             fg_color="bright_blue", bold=True, underline=True))
             for manager_name, manager_class in sorted(managers.items()):
@@ -89,7 +81,7 @@ class PluginManagerRegistry:
                                                         fg_color="yellow", italics=True))
                     else:
                         for plugin in sorted(plugins):
-                            plugin_display.info(string_formatter(f"  - {plugin}", fg_color="cyan"))
+                            plugin_display.info(string_formatter(f"  - {plugin}", fg_color="bright_blue"))
                 except Exception as e:
                     plugin_display.info(string_formatter(f"  - Error retrieving plugins: {str(e)}",
                                                     fg_color="red", italics=True))
@@ -239,4 +231,4 @@ class PluginManager(Generic[_PluginType]):
         cls._check_subclass_config()
         import importlib
         importlib.import_module(cls._plugin_module)
-        logger.info("%s loaded plugins: %s", cls.__name__, ", ".join(cls._plugins.keys()))
+        logger.debug("%s loaded plugins: %s", cls.__name__, ", ".join(cls._plugins.keys()))

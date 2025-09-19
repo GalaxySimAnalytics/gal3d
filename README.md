@@ -21,7 +21,18 @@ gal3d depends on the following libraries:
 
 optional:
 
-- **numba** (JIT acceleration)
+- **lmfit** (numerical optimization algorithms, recommended)
 - **nlopt** (numerical optimization algorithms)
 - **optimagic** (numerical optimization algorithms)
-- **emcee** (MCMC optimization)
+
+## Usage
+
+```python
+from gal3d.analyzer import Gal3DAnalyzer
+
+analyzer = Gal3DAnalyzer.analyze(pos,mass)
+
+model = analyzer.fit()
+```
+
+See [gal3d_example](https://github.com/GalaxySimAnalytics/gal3d_example) for usage examples，or refer to the documentation for more details.

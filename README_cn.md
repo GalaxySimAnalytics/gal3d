@@ -19,14 +19,24 @@ Gal3D 依赖以下库：
 
 - **numpy**（数值计算）
 - **scipy**（科学计算）
-- **cython**（默认用于计算运行加速）
+- **cython**（代码加速）
 - **matplotlib**（绘图）
 - **tqdm**（进度条显示）
 
 可选依赖：
 
-- **numba**（JIT 加速）
+- **lmfit** (数值优化算法， 推荐)
 - **nlopt**（数值优化算法）
 - **optimagic**（数值优化算法）
-- **emcee** (蒙特卡洛优化算法)
 
+## 使用
+
+```python
+from gal3d.analyzer import Gal3DAnalyzer
+
+analyzer = Gal3DAnalyzer.analyze(pos,mass)
+
+model = analyzer.fit()
+```
+
+见 [gal3d_example](https://github.com/GalaxySimAnalytics/gal3d_example)使用示例，或者参考文档中的详细说明。

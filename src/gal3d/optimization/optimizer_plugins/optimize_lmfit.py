@@ -7,7 +7,6 @@ from lmfit.minimizer import MinimizerResult
 from numpy.typing import ArrayLike
 from scipy.optimize import Bounds
 
-# TODO
 from gal3d.optimization.optimizer import OptimizerBase, OptimizeResult
 from gal3d.optimization.parameter import ParameterDict
 
@@ -25,6 +24,9 @@ def process_lmfit_result(start_fun: float, res: MinimizerResult, params: Paramet
         "nfev": "n_fun_evals",
         "method": "algorithm",
     }
+    # numdifftools ? ,
+    # calc_covar (bool, optional) – Whether to calculate the covariance matrix (default is True) for solvers other than ‘leastsq’ and ‘least_squares’.
+    # Requires the numdifftools package to be installed.
     if getattr(res,"errorbars",False):
         for i,j in res.uvars.items():
             params[i].err = j.std_dev

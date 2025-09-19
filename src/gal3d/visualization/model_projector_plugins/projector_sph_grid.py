@@ -75,7 +75,7 @@ class ProjectorSphGrid(ModelProjectorBase):
         else:
             new_pos = self.pos
         sel = (new_pos[:, 2] > z_range[0]) & (new_pos[:, 2] < z_range[1])
-        model_image, xs, ys = hist_2d(
+        model_image = hist_2d(
             new_pos[:, 0][sel],
             new_pos[:, 1][sel],
             weights=self.weight[sel],
@@ -85,10 +85,4 @@ class ProjectorSphGrid(ModelProjectorBase):
             nbins=nbins,
         )
 
-        return ImageData(
-            value=model_image,
-            xs=xs,
-            ys=ys,
-            xrange=x_range,
-            yrange=y_range
-        )
+        return model_image

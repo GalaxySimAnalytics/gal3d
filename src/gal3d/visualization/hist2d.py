@@ -2,7 +2,7 @@
 # https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py
 
 from collections.abc import Sequence
-from typing import Literal, overload
+from typing import Any, Literal, overload
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,19 +33,19 @@ def which_pos_to_rotation(which_pos):
     return h1.T
 
 def hist_2d(
-    x,
-    y,
-    weights=None,
-    parameters=None,
-    density=True,
-    gridsize=(100, 100),
-    nbins=None,
-    x_logscale=False,
-    y_logscale=False,
-    x_range=None,
-    y_range=None,
-    **kwargs,
-):
+    x: np.ndarray,
+    y: np.ndarray,
+    weights: np.ndarray | None = None,
+    parameters: np.ndarray | None = None,
+    density: bool = True,
+    gridsize: tuple[int,int]= (100, 100),
+    nbins: int | None = None,
+    x_logscale: bool =False,
+    y_logscale: bool =False,
+    x_range: tuple[float,float] | None =None,
+    y_range: tuple[float,float] | None =None,
+    **kwargs: Any,
+) -> ImageData:
     """
     Generate a 2D histogram from input data.
 
@@ -78,12 +78,8 @@ def hist_2d(
 
     Returns
     -------
-    hist : 2D ndarray
-        The 2D histogram array.
-    xs : ndarray
-        Bin centers for the x-axis.
-    ys : ndarray
-        Bin centers for the y-axis.
+    im : ImageData
+        The 2D histogram image data.
     """
     if nbins is not None:
         gridsize = (nbins, nbins)
@@ -93,9 +89,9 @@ def hist_2d(
             raise RuntimeError("Range must be a length 2 list or array")
     else:
         y_range = (
-            [np.log10(np.min(y)), np.log10(np.max(y))]
+            (np.log10(np.min(y)), np.log10(np.max(y)))
             if y_logscale
-            else [np.min(y), np.max(y)]
+            else (np.min(y), np.max(y))
         )
 
     if x_range is not None:
@@ -103,9 +99,9 @@ def hist_2d(
             raise RuntimeError("Range must be a length 2 list or array")
     else:
         x_range = (
-            [np.log10(np.min(x)), np.log10(np.max(x))]
+            (np.log10(np.min(x)), np.log10(np.max(x)))
             if x_logscale
-            else [np.min(x), np.max(x)]
+            else (np.min(x), np.max(x))
         )
 
     x = np.log10(x) if x_logscale else x
@@ -128,7 +124,7 @@ def hist_2d(
 
     def _histogram_generator(weights):
         return np.histogram2d(
-            y, x, weights=weights, bins=gridsize, range=[y_range, x_range]
+            y, x, weights=weights, bins=(gridsize[1],gridsize[0]), range=(y_range, x_range)
         )
 
     if parameters is not None:

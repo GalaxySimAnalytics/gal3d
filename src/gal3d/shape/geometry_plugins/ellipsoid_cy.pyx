@@ -72,6 +72,9 @@ cpdef tuple f_ellipsoid(double a, double b, double c,
     cdef double x, y, z
     cdef double x2, y2, z2
     cdef int i
+    cdef double inv_a2 = 1.0 / (a * a)
+    cdef double inv_b2 = 1.0 / (b * b)
+    cdef double inv_c2 = 1.0 / (c * c)
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
         x = pos[i, 0]
@@ -80,7 +83,7 @@ cpdef tuple f_ellipsoid(double a, double b, double c,
         x2 = x*x
         y2 = y*y
         z2 = z*z
-        result[i] = x2/(a*a) + y2/(b*b) + z2/(c*c)
+        result[i] = x2*inv_a2 + y2*inv_b2 + z2*inv_c2
         r[i] = sqrt(x2 + y2 + z2)
     return result, r
 
@@ -233,27 +236,17 @@ cpdef tuple f_ray_ellipsoid(double a, double b, double c,
     cdef double x, y, z, xi, yi, zi, Li, di, denom
     cdef int i
     cdef int num_threads = get_num_threads()
-    # Use sequential processing for small arrays
-    if n < 1000:  # Higher threshold for small arrays
-        for i in range(n):
+    cdef double inv_a2 = 1.0 / (a * a)
+    cdef double inv_b2 = 1.0 / (b * b)
+    cdef double inv_c2 = 1.0 / (c * c)
+    for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
             x = pos[i, 0]
             y = pos[i, 1]
             z = pos[i, 2]
             x2 = x*x
             y2 = y*y
             z2 = z*z
-            res[i] = sqrt(x2/(a*a) + y2/(b*b) + z2/(c*c))
-            r[i] = sqrt(x2 + y2 + z2)
-    else:
-        
-        for i in prange(n, nogil=True, schedule='static', num_threads=num_threads):
-            x = pos[i, 0]
-            y = pos[i, 1]
-            z = pos[i, 2]
-            x2 = x*x
-            y2 = y*y
-            z2 = z*z
-            res[i] = sqrt(x2/(a*a) + y2/(b*b) + z2/(c*c))
+            res[i] = sqrt(x2*inv_a2 + y2*inv_b2 + z2*inv_c2)
             r[i] = sqrt(x2 + y2 + z2)
 
     return res, r

@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union, cast
 
 import numpy as np
 
@@ -13,6 +13,7 @@ from gal3d.util.errors import InsufficientPointsError, PoorUniformityError
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
     from gal3d.optimization.parameter import Parameters
+    from gal3d.point import Particles
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
@@ -22,7 +23,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
     """
 
     @staticmethod
-    def condition(analyzer: "Gal3DAnalyzer") -> bool:
+    def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
         """
         Condition for selecting the ellipsoidal fitting workflow.
 
@@ -31,8 +32,8 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         Parameters
         ----------
-        analyzer : Gal3DAnalyzer
-            The analyzer instance to check.
+        obj : Gal3DAnalyzer or Particles
+            The target instance to check.
 
         Returns
         -------
@@ -40,14 +41,17 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             True if the structure's geometry is either 'Ellipsoid' or 'Ellipsoid_S',
             False otherwise.
         """
-        geometry_name = analyzer.structure._geometry_name
-        is_supported = geometry_name in ["Ellipsoid", "Ellipsoid_S"]
-        if is_supported:
-            logger.debug("Selected ellipsoidal fitting workflow for geometry: %s", geometry_name)
+        if hasattr(obj, "structure"):
+            geometry_name = obj.structure._geometry_name
+            is_supported = geometry_name in ["Ellipsoid", "Ellipsoid_S"]
+            if is_supported:
+                logger.debug("Selected ellipsoidal fitting workflow for geometry: %s", geometry_name)
+        else:
+            is_supported = False
 
         return is_supported
 
-    def __call__(self, analyzer: "Gal3DAnalyzer", a: float, **kwargs: Any) -> ModelResult:
+    def __call__(self, obj: Union["Gal3DAnalyzer", "Particles"], a: float, **kwargs: Any) -> ModelResult:
         """
         Fit an ellipsoidal or generalized ellipsoidal structure at a given semi-major axis `a`.
 
@@ -66,7 +70,12 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             The result of the fitting process.
         """
         # Fast path: check for supported geometry before generating data
-        geometry_name = analyzer.structure._geometry_name
+        if not self.condition(obj):
+            raise ValueError("Unsupported object type for ellipsoid fitting.")
+        else:
+            obj = cast("Gal3DAnalyzer", obj)
+
+        geometry_name = obj.structure._geometry_name
         if geometry_name not in ["Ellipsoid", "Ellipsoid_S"]:
             raise ValueError(f"Unsupported geometry type: {geometry_name}")
 
@@ -81,7 +90,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         min_uniform = kwargs.get("min_uniform", 0.75)
 
         # Generate data only once
-        data = analyzer.field.generate(a, for_fit=True)
+        data = obj.field.generate(a, for_fit=True)
 
         # Extract info once if present
         info = data.pop("info", {})
@@ -91,7 +100,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         N_p = len(data["pos"])
         if N_p < 12:
             raise InsufficientPointsError("Insufficient points for fitting: < 12")
-        if N_p < analyzer.field.rays.num:
+        if N_p < obj.field.rays.num:
             uni = SphVector.cal_uniformity(data["pos"])
             if uni < min_uniform:
                 raise PoorUniformityError(f"Poor point distribution uniformity detected: < {min_uniform}")
@@ -110,18 +119,18 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         if is_standard_ellipsoid:
             # Simple case: standard ellipsoid fitting
-            return self._fit_standard_ellipsoid(analyzer, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info)
+            return self._fit_standard_ellipsoid(obj, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info)
         else:
             # Complex case: two-step generalized ellipsoid fitting
-            return self._fit_generalized_ellipsoid(analyzer, data, a, var_a, var_cen, fix_eps, init_parameters, upper_bounds, lower_bounds, info)
+            return self._fit_generalized_ellipsoid(obj, data, a, var_a, var_cen, fix_eps, init_parameters, upper_bounds, lower_bounds, info)
 
-    def _fit_standard_ellipsoid(self, analyzer: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
+    def _fit_standard_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
         """
         Fit a standard ellipsoidal structure, or fit a generalized ellipsoid only once.
         """
 
         # Set up parameters
-        parameters_set = analyzer.structure.parameters.new()
+        parameters_set = obj.structure.parameters.new()
         if "info" in data:
             parameters_set.add_info(**data["info"])
             del data["info"]
@@ -149,7 +158,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set.add_info(**info)
 
         # Prepare optimization function and bounds
-        fun = parameters_set.decorate_func_constraints(analyzer.structure._error_method)
+        fun = parameters_set.decorate_func_constraints(obj.structure._error_method)
         bounds = parameters_set.scipy_bounds
         parameters_set["eps_ab"] = max(parameters_set["eps_ab"],0.1)
         parameters_set["eps_bc"] = max(parameters_set["eps_bc"],0.1)
@@ -157,28 +166,28 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         x0_values = list(x0_dict.values())
 
         # Run optimization
-        op_res = analyzer.optimizer.fitting(fun, x0_values, bounds, func_kwargs=data)
+        op_res = obj.optimizer.fitting(fun, x0_values, bounds, func_kwargs=data)
 
         # Set optimized values and return result
         parameters_set = parameters_set.set_value(op_res.params)
-        return ModelResult(analyzer.structure, op_res, parameters_set)
+        return ModelResult(obj.structure, op_res, parameters_set)
 
-    def _fit_generalized_ellipsoid(self, analyzer: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float,fix_eps: bool, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
+    def _fit_generalized_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float,fix_eps: bool, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
         """
         Fit a generalized ellipsoidal structure (Ellipsoid_S) using a two-step approach.
         """
 
         # Step 1: Create standard ellipsoid for initial fitting
         ellipsoid = Structure3D(
-            analyzer.structure._coordinate,
+            obj.structure._coordinate,
             "Ellipsoid",
-            analyzer.structure._error_func_name,
-            analyzer.structure._error_method_name,
+            obj.structure._error_func_name,
+            obj.structure._error_method_name,
         )
 
         # Reuse parameter setup logic
         ell_params = ellipsoid.parameters.new()
-        self._setup_ellipsoid_parameters(ell_params, analyzer.structure.parameters, a, var_a, var_cen)
+        self._setup_ellipsoid_parameters(ell_params, obj.structure.parameters, a, var_a, var_cen)
 
         # Apply parameter bounds
         self._apply_parameter_bounds(ell_params, upper_bounds, lower_bounds)
@@ -192,15 +201,15 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         ell_params.set_value(a=a)
 
         # Run first optimization
-        ell_res = analyzer.optimizer.fit(
+        ell_res = obj.optimizer.fit(
             ellipsoid._error_method, ell_params, func_kwargs=data)
 
         # Step 2: Use ellipsoid results to initialize the generalized ellipsoid fit
         res_value = ell_res.params
 
         # Set up parameters for the generalized ellipsoid
-        parameters_set = analyzer.structure.parameters.new()
-        self._setup_ellipsoid_parameters(parameters_set, analyzer.structure.parameters, a, var_a, var_cen)
+        parameters_set = obj.structure.parameters.new()
+        self._setup_ellipsoid_parameters(parameters_set, obj.structure.parameters, a, var_a, var_cen)
         self._apply_parameter_bounds(parameters_set, upper_bounds, lower_bounds)
         #parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
 
@@ -239,8 +248,8 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set["eps_bc"] = res_value["eps_bc"]
 
         # Run final optimization
-        op_res = analyzer.optimizer.fit(
-            analyzer.structure._error_method, parameters_set, func_kwargs=data
+        op_res = obj.optimizer.fit(
+            obj.structure._error_method, parameters_set, func_kwargs=data
         )
         for i in constraint_functions:
             parameters_set.del_equal_constraints(i)
@@ -251,7 +260,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set[i] = j
         # parameters_set = parameters_set.set_value(op_res.params)
 
-        return ModelResult(analyzer.structure, op_res, parameters_set)
+        return ModelResult(obj.structure, op_res, parameters_set)
 
     def _setup_ellipsoid_parameters(self, ell_params: "Parameters", source_params: "Parameters", a: float, var_a: float, var_cen: float) -> None:
         """Set up parameter bounds for the ellipsoid"""

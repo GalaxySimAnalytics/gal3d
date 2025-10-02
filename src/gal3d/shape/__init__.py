@@ -5,14 +5,13 @@ Module for defining and manipulating 3D shapes.
 import logging
 from collections.abc import Callable, Sequence
 from types import MethodType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from gal3d.field.spherical_field.spherical_vector import fibonacci_sampling
 from gal3d.optimization.optimizer import Optimizer, OptimizerBase
-from gal3d.optimization.result import ModelResult
 from gal3d.util.func_signature import func_required_key
 
 from .coordinate import Coordinate, CoordinateBase
@@ -22,6 +21,7 @@ from .minimize_func import MinimizeFunc
 
 if TYPE_CHECKING:
     from gal3d.optimization.parameter import Parameters
+    from gal3d.optimization.result import ModelResult
 
 logger = logging.getLogger("gal3d.shape")
 
@@ -89,6 +89,21 @@ class StructureCore:
         new_instance.parameters = self.parameters.copy()
         return new_instance
 
+    def __repr__(self):
+        """
+        Return string representation of StructureCore.
+
+        Returns
+        -------
+        str
+            Human-readable string of the coordinate and geometry.
+        """
+        coor_repr = repr(self._coordinate(**self.parameters))
+        geometry_repr = repr(self._geometry(**self.parameters))
+        lin1 = [f"<{self.__class__.__name__}|: ", "\n"]
+        lin2 = ["   ", coor_repr, "\n"]
+        lin3 = ["   ", geometry_repr]
+        return "".join(lin1 + lin2 + lin3)
 
     @property
     def geometry_name(self) -> str:
@@ -175,6 +190,50 @@ class StructureCore:
             Keyword arguments for parameters.
         """
         self.parameters = self.parameters + self.create_parameters(*args, **kwargs)
+
+    def clone_with_parameters(self: "StructureCore", *args: Any, **kwargs: Any) -> "StructureCore":
+        """
+        Create a new StructureCore with given parameters.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments for initialization.
+        **kwargs : dict
+            Keyword arguments for initialization.
+
+        Returns
+        -------
+        StructureCore
+            A new instance with specified parameters.
+        """
+        new_instance = self.copy()
+        new_instance.set_parameters(*args, **kwargs)
+        return new_instance
+
+    def is_equal(self, other: "StructureCore") -> bool:
+        """
+        Check equality with another StructureCore.
+
+        Parameters
+        ----------
+        other : StructureCore
+            Object to compare against.
+
+        Returns
+        -------
+        bool
+            Whether the two objects are considered equal.
+        """
+        if (
+            isinstance(other, StructureCore)
+            and (self._coordinate_name == other._coordinate_name)
+            and (self._geometry_name == other._geometry_name)
+        ):
+            return True
+
+        return False
+
 
     def transform_pos(self, pos: NDArray[np.float64]) -> np.ndarray:
         """
@@ -690,6 +749,29 @@ class StructureError:
         )
         self._error_method_name = self._error_method.__name__
 
+    def is_equal(self, other: "StructureError") -> bool:
+        """
+        Check equality with another StructureError.
+
+        Parameters
+        ----------
+        other : StructureError
+            Object to compare against.
+
+        Returns
+        -------
+        bool
+            Whether the two objects are considered equal.
+        """
+        if (
+            isinstance(other, StructureError)
+            and (self._error_func_name == other._error_func_name)
+            and (self._error_method_name == other._error_method_name)
+        ):
+            return True
+
+        return False
+
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:
         """
@@ -771,7 +853,7 @@ class Structure3D(StructureCore, StructureError):
         StructureCore.__init__(self, coordinate, geometry)
         StructureError.__init__(self, error_func, error_method)
 
-    def fit(self, pos: np.ndarray, optimizer: None | OptimizerBase = None, estimate: bool = True) -> ModelResult:
+    def fit(self, pos: np.ndarray, optimizer: None | OptimizerBase = None, estimate: bool = True) -> "ModelResult":
         """
         Fit the structure to the given positions.
 
@@ -782,6 +864,8 @@ class Structure3D(StructureCore, StructureError):
         **kwargs : dict
             Additional keyword arguments for fitting.
         """
+        from gal3d.optimization.result import ModelResult
+
         if optimizer is None:
             if "curve" in self._error_method_name:
                 optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="trf")
@@ -819,31 +903,6 @@ class Structure3D(StructureCore, StructureError):
         """
         return StructureCore.available_options() | StructureError.available_options()
 
-    def clone_with_parameters(self, *args: Any, **kwargs: Any) -> "Structure3D":
-        """
-        Create a new Structure3D with given parameters.
-
-        Parameters
-        ----------
-        *args : tuple
-            Positional arguments for initialization.
-        **kwargs : dict
-            Keyword arguments for initialization.
-
-        Returns
-        -------
-        Structure3D
-            A new instance with specified parameters.
-        """
-        ret = Structure3D(
-            coordinate=self._coordinate,
-            geometry=self._geometry,
-            error_func=self._error_func,
-            error_method=self._error_method,
-        )
-        ret.set_parameters(*args, **kwargs)
-        return ret
-
     def copy(self) -> "Structure3D":
         """
         Create a deep copy of the Structure3D instance.
@@ -860,7 +919,7 @@ class Structure3D(StructureCore, StructureError):
             error_func=self._error_func,
             error_method=self._error_method
         )
-        new_instance.parameters = self.parameters.deepcopy()
+        new_instance.parameters = self.parameters.copy()
         new_instance.use_ln_error = self.use_ln_error
         return new_instance
 
@@ -883,7 +942,7 @@ class Structure3D(StructureCore, StructureError):
 
 
 
-    def is_equal(self, other: "Structure3D") -> bool:
+    def is_equal(self, other: Union["Structure3D", "StructureCore","StructureError"]) -> bool:
         """
         Check equality with another Structure3D.
 
@@ -899,10 +958,8 @@ class Structure3D(StructureCore, StructureError):
         """
         if (
             isinstance(other, Structure3D)
-            and (self._coordinate_name == other._coordinate_name)
-            and (self._geometry_name == other._geometry_name)
-            and (self._error_func_name == other._error_func_name)
-            and (self._error_method_name == other._error_method_name)
+            and StructureCore.is_equal(self, other)
+            and StructureError.is_equal(self, other)
         ):
             return True
 

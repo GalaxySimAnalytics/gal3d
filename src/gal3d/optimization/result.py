@@ -6,13 +6,12 @@ from typing import TYPE_CHECKING, Any, Union, cast, overload
 import numpy as np
 
 from gal3d.model_workflow.error_workflow import ErrorWorkflow
+from gal3d.shape import Structure3D, StructureCore
 
 from .optimizer import OptimizeResult
 from .util import save_model_hdf5
 
 if TYPE_CHECKING:
-    from gal3d.shape import Structure3D
-
     from .parameter import Parameters
 
 logger = logging.getLogger("gal3d.optimization.result")
@@ -42,7 +41,7 @@ class ModelResult:
 
     def __init__(
         self,
-        structure: "Structure3D",
+        structure: Structure3D | StructureCore,
         optimize_result: OptimizeResult,
         parameters: "Parameters",
     ):
@@ -51,8 +50,8 @@ class ModelResult:
 
         Parameters
         ----------
-        structure : Structure3D
-            The 3D structure model used for fitting.
+        structure : Structure3D or StructureCore
+            The structure model used for fitting.
         optimize_result : OptimizeResult
             The result of the optimization process.
         parameters : Parameters
@@ -77,7 +76,7 @@ class ModelResult:
         return self._param_sets[0].keys()
 
     @property
-    def structure(self) -> "Structure3D":
+    def structure(self) -> Union["Structure3D", "StructureCore"]:
         """Get the 3D structure model"""
         return self._structure
 
@@ -142,7 +141,7 @@ class ModelResult:
 
     # Type hint overloads for __getitem__
     @overload
-    def __getitem__(self, k: int) -> "Structure3D": ...
+    def __getitem__(self, k: int) -> Structure3D | StructureCore: ...
 
     @overload
     def __getitem__(self, k: str) -> np.ndarray: ...
@@ -153,7 +152,7 @@ class ModelResult:
     @overload
     def __getitem__(self, k: np.ndarray) -> "ModelResult": ...
 
-    def __getitem__(self, k: int | str | slice | np.ndarray) -> Union["Structure3D", np.ndarray, "ModelResult"]:
+    def __getitem__(self, k: int | str | slice | np.ndarray) -> Union["StructureCore", "Structure3D", np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
@@ -161,14 +160,14 @@ class ModelResult:
         ----------
         k : str, int, slice, or numpy.ndarray
             - If `k` is a string: returns the corresponding parameter value from all parameter sets.
-            - If `k` is an integer: returns the `Structure3D` instance initialized with the k-th parameter set.
+            - If `k` is an integer: returns the `StructureCore` or `Structure3D` instance initialized with the k-th parameter set.
             - If `k` is a slice: returns a new `ModelResult` with the specified slice of parameter sets.
             - If `k` is a numpy.ndarray of integers: returns a new `ModelResult` with parameter sets at those indices.
             - If `k` is a numpy.ndarray of booleans: returns a new `ModelResult` with parameter sets where mask is True.
 
         Returns
         -------
-        numpy.ndarray, Structure3D, or ModelResult
+        numpy.ndarray, StructureCore, Structure3D, or ModelResult
             The requested parameter values, initialized structure model, or sliced ModelResult.
 
         Raises
@@ -319,7 +318,7 @@ class ModelResult:
         """
         coor = self._structure._coordinate_name
         shape = self._structure._geometry_name
-        error = self._structure._error_method_name
+        error = getattr(self._structure, "_error_method_name", "N/A")
         lin1 = (
             "<ModelResult| num="
             + str(len(self._param_sets))
@@ -389,6 +388,80 @@ class ModelResult:
         """
         return len(self._param_sets)
 
+    def save_to_hdf5(
+        self,
+        filename: str,
+        group_path: str = "/",
+        metadata: dict[str, Any] | None = None,
+        compression: str | None = "gzip",
+        overwrite: bool = False,
+        result_keys: tuple[str, ...] = ("cost","success","n_fun_evals","n_iterations"),
+        info_keys: tuple[str, ...] = ("parameter",)
+    ) -> None:
+        """
+        Save the model result to an HDF5 file.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the HDF5 file
+        group_path : str, optional
+            Path within the HDF5 file where data should be stored, default is "/"
+        metadata : dict, optional
+            Additional metadata to store with the model
+        compression : str, optional
+            Compression type for datasets, default is "gzip"
+        overwrite : bool, optional
+            Whether to overwrite existing data at the specified group path, default is False
+
+        Raises
+        ------
+        IOError
+            If file writing fails
+        ValueError
+            If the group path already exists and overwrite=False
+        """
+        from .model_io import ModelIO
+        ModelIO.save_to_hdf5(self, filename, group_path, metadata, compression, overwrite, result_keys, info_keys)
+
+    @classmethod
+    def load_from_hdf5(
+        cls,
+        filename: str,
+        group_path: str = "/",
+        structure: Structure3D | StructureCore | None = None,
+    ) -> "ModelResult":
+        """
+        Load a ModelResult from an HDF5 file.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the HDF5 file
+        structure : Structure3D or StructureCore
+            Structure object to associate with the loaded model
+        group_path : str, optional
+            Path within the HDF5 file where data is stored, default is "/"
+
+        Returns
+        -------
+        ModelResult
+            The loaded model result
+
+        Raises
+        ------
+        IOError
+            If file reading fails
+        KeyError
+            If the group path or required data is not found
+        ValueError
+            If the model structure doesn't match the saved metadata
+        """
+        from .model_io import ModelIO
+        return ModelIO.load_from_hdf5(filename, group_path, structure)
+
+load_model = ModelResult.load_from_hdf5
+
 class EmptyModelResult(ModelResult):
     def __init__(self):
         self._opt_results = []
@@ -454,8 +527,8 @@ def model_to_hdf5(
         # Record metadata
         info_dict.update({
             "save_timestamp": time.time(),
-            "geometry_name": getattr(model._structure, "_geometry_name", "unknown"),
-            "coordinate_name": getattr(model._structure, "_coordinate_name", "unknown"),
+            "geometry_name": model._structure._geometry_name,
+            "coordinate_name": model._structure._coordinate_name,
         })
 
         logger.info("Saving model to %s (shape=%s, error=%s)", hdf5_file_name, shape_name, error_name)

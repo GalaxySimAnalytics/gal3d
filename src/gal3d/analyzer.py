@@ -34,7 +34,7 @@ class Gal3DAnalyzer:
     ----------
     fit_workflow : dict of str to tuple of (Callable, Callable)
         A registry for fitting workflow conditions and their corresponding functions.
-    particle : Particles
+    particles : Particles
         The input particle data.
     field : SphField
         The spherical field generator.
@@ -48,13 +48,13 @@ class Gal3DAnalyzer:
 
     def __init__(
         self,
-        particle: Particles,
+        particles: Particles,
         field: SphField,
         structure: Structure3D,
         optimizer: OptimizerBase,
     ):
 
-        self.particle = particle
+        self.particles = particles
         self.field = field
         self.structure = structure
         self.optimizer = optimizer
@@ -78,7 +78,7 @@ class Gal3DAnalyzer:
         mass : np.ndarray
             The masses of the particles. Shape: (N,)
         recenter : bool, optional
-            Whether to recenter the particle positions (default is True).
+            Whether to recenter the particles' positions (default is True).
         inner_frac : float, optional
             inner_frac * center_value for inner boundary definition (default is 0.9).
         **kwargs
@@ -104,13 +104,13 @@ class Gal3DAnalyzer:
             An instance of Gal3DAnalyzer initialized with the analyzed data.
         """
 
-        particle = Particles(pos=pos, mass=mass, recenter=recenter)
+        particles = Particles(pos=pos, mass=mass, recenter=recenter)
 
         inner = kwargs.get("inner", None)
         outer = kwargs.get("outer", None)
         if inner is None:
             assert 0 < inner_frac < 1, "Inner fraction must be between 0 and 1."
-            inner = particle.get_parameter([0,0,0])*inner_frac
+            inner = particles.get_parameter([0,0,0])*inner_frac
             inner_mode = "value"
         else:
             try:
@@ -127,22 +127,22 @@ class Gal3DAnalyzer:
             except KeyError as e:
                 raise KeyError("Outer mode not specified in kwargs") from e
 
-        field = cls._build_field(particle=particle, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
+        field = cls._build_field(particles=particles, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
         structure = cls._build_structure(np.mean(field.inner_r))
         if "OptimizerLMFit" in Optimizer.available_plugins(): # LMFit is better, if available
             optimizer = Optimizer.get_plugin(name="OptimizerLMFit")("least_squares")#  leastsq or least_squares?, least_squares is more robust but slightly slower
         else:
             optimizer = Optimizer.get_plugin(name="OptimizerScipy")(algorithm="trf")  # trf for curve fit, OptimizerScipy Powell for sum
 
-        return Gal3DAnalyzer(particle=particle, field=field, structure=structure, optimizer=optimizer)
+        return Gal3DAnalyzer(particles=particles, field=field, structure=structure, optimizer=optimizer)
 
     @staticmethod
-    def _build_field(particle: Particles, inner: float, outer: float, inner_mode: str = "value", outer_mode: str = "value") -> SphField:
-        num_ray = min(1024, int(len(particle.r) / 150))
+    def _build_field(particles: Particles, inner: float, outer: float, inner_mode: str = "value", outer_mode: str = "value") -> SphField:
+        num_ray = min(1024, int(len(particles.r) / 150))
         num_ray = max(num_ray, 64)
         logger.info("Set inner %s to %.2e", inner_mode, inner)
         logger.info("Set outer %s to %.2e", outer_mode, outer)
-        field = SphField(particle, num_ray=num_ray  # a better solution, use center_parameter*0.9 as inner, but how to determine outer boundary?
+        field = SphField(particles, num_ray=num_ray  # a better solution, use center_parameter*0.9 as inner, but how to determine outer boundary?
                 ).build_field_boundary(inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode
                 ).build_profile_sample(
                 ).build_profile_interpolator(

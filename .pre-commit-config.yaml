@@ -2,18 +2,18 @@ repos:
   - repo: local
     hooks:
       - id: ruff-check
-        name: ruff check (run "ruff check src/gal3d")
+        name: ruff check (run "ruff check")
         entry: ruff
         language: system
         types: [python]
-        files: '^src/'               # only trigger in src
-        args: ["check", "src/gal3d"]
-        pass_filenames: false
+        files: '^src/gal3d/'               # only trigger in src
+        args: ["check"]
+        pass_filenames: true
       - id: mypy
-        name: mypy (run "mypy src/gal3d")
+        name: mypy (run "mypy")
         entry: mypy
         language: system
         types: [python]
-        files: '^src/'               # only trigger in src
-        args: ["src/gal3d", "--config-file=pyproject.toml"]
-        pass_filenames: false
+        files: '^src/gal3d/'               # only trigger in src
+        args: ["--config-file=pyproject.toml"]
+        pass_filenames: true

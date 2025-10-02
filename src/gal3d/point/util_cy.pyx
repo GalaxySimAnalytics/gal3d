@@ -137,19 +137,33 @@ cpdef np.ndarray center_of_mass(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYP
 
 # Moment of inertia tensor
 cpdef np.ndarray moment_of_inertia(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYPE_t, ndim=1] m):
-    cdef np.ndarray[DTYPE_t, ndim=2] I = np.zeros((3, 3), dtype=pos.dtype)
-    cdef int i, j, k, n = pos.shape[0]
+    cdef int n = pos.shape[0]
     cdef double total_mass = 0.0
-    cdef double s
+    cdef double I00 = 0.0
+    cdef double I01 = 0.0
+    cdef double I02 = 0.0
+    cdef double I11 = 0.0
+    cdef double I12 = 0.0
+    cdef double I22 = 0.0
     cdef int num_threads = get_num_threads()
-    for k in range(n):
+    for k in prange(n, nogil=True, num_threads=num_threads, schedule="static"):
         total_mass += m[k]
-    for i in range(3):
-        for j in range(3):
-            s = 0.0
-            for k in prange(n, nogil=True, num_threads=num_threads):
-                s += m[k] * pos[k, i] * pos[k, j]
-            I[i, j] = s / total_mass
+        I00 += m[k] * pos[k,0] * pos[k,0]
+        I01 += m[k] * pos[k,0] * pos[k,1]
+        I02 += m[k] * pos[k,0] * pos[k,2]
+        I11 += m[k] * pos[k,1] * pos[k,1]
+        I12 += m[k] * pos[k,1] * pos[k,2]
+        I22 += m[k] * pos[k,2] * pos[k,2]
+    I = np.zeros((3,3), dtype=pos.dtype)
+    I[0,0] = I00 / total_mass
+    I[0,1] = I01 / total_mass
+    I[0,2] = I02 / total_mass
+    I[1,0] = I01 / total_mass
+    I[1,1] = I11 / total_mass
+    I[1,2] = I12 / total_mass
+    I[2,0] = I02 / total_mass
+    I[2,1] = I12 / total_mass
+    I[2,2] = I22 / total_mass
     return I
 
 # Principal axes and eigenvalues

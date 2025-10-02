@@ -839,16 +839,20 @@ class RichParameterDict(ParameterDict):
         """Add additional info."""
         self._info.update(kwargs)
 
-    def get_derived(self, name: str) -> Any:
+    def get_derived(self, name: str, **kwargs: Any) -> Any:
         """Get the value of a derived parameter."""
         if name in self._derived:
             return self._derived[name](self)
+        if kwargs.get("default") is not None:
+            return kwargs["default"]
         raise KeyError(f"Derived parameter '{name}' not found.")
 
-    def get_info(self, name: str) -> Any:
+    def get_info(self, name: str, **kwargs: Any) -> Any:
         """Get info by key."""
         if name in self._info:
             return self._info[name]
+        if kwargs.get("default") is not None:
+            return kwargs["default"]
         raise KeyError(f"Info '{name}' not found.")
 
     def derived_keys(self) -> KeysView:

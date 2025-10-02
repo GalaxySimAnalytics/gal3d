@@ -1,13 +1,14 @@
 """
 Workflow for model fitting.
 """
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 from gal3d.optimization.result import ModelResult
 from gal3d.plugin import PluginBase, PluginManager
 
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
+    from gal3d.point import Particles
 
 class FitWorkflowBase(PluginBase):
     """
@@ -30,14 +31,14 @@ class FitWorkflowBase(PluginBase):
         FitWorkflow.register(cls)
 
     @staticmethod
-    def condition(analyzer: "Gal3DAnalyzer") -> bool:
+    def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
         """
         Condition for selecting the fitting workflow.
 
         Parameters
         ----------
-        analyzer : Gal3DAnalyzer
-            The analyzer instance.
+        obj : Gal3DAnalyzer | Particles
+            The analyzer or particle instance.
 
         Returns
         -------
@@ -46,14 +47,14 @@ class FitWorkflowBase(PluginBase):
         """
         return False
 
-    def __call__(self, analyzer: "Gal3DAnalyzer", *args: Any, **kwargs: Any) -> ModelResult:
+    def __call__(self, obj: Union["Gal3DAnalyzer", "Particles"], *args: Any, **kwargs: Any) -> ModelResult:
         """
         Fit the model using the provided arguments.
 
         Parameters
         ----------
-        analyzer : Gal3DAnalyzer
-            The analyzer instance.
+        obj : Gal3DAnalyzer | Particles
+            The analyzer or particle instance.
         *args, **kwargs
             Arguments for the fitting workflow.
 
@@ -91,14 +92,14 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     _base_class = FitWorkflowBase
 
     @classmethod
-    def get_workflow(cls, analyzer: "Gal3DAnalyzer") -> FitWorkflowBase:
+    def get_workflow(cls, obj: Union["Gal3DAnalyzer", "Particles"]) -> FitWorkflowBase:
         """
-        Select and instantiate the appropriate fitting workflow for the analyzer.
+        Select and instantiate the appropriate fitting workflow for the input object.
 
         Parameters
         ----------
-        analyzer : Gal3DAnalyzer
-            The analyzer instance.
+        obj : Gal3DAnalyzer | Particles
+            The analyzer or particle instance.
 
         Returns
         -------
@@ -108,10 +109,10 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
         Raises
         ------
         TypeError
-            If no valid workflow is found for the analyzer.
+            If no valid workflow is found for the object.
         """
         cls.available_plugins()
         for wf_cls in cls._plugins.values():
-            if wf_cls.condition(analyzer):
+            if wf_cls.condition(obj):
                 return wf_cls()
-        raise TypeError("No valid workflow found for analyzer.")
+        raise TypeError("No valid workflow found for input object.")

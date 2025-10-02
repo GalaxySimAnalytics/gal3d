@@ -61,6 +61,7 @@ class Ellipsoid(GeometryBase):
             "eps_ab": lambda d: 1.0 - d["b"] / d["a"],
             "eps_bc": lambda d: 1.0 - d["c"] / d["b"],
             "eps_ac": lambda d: 1.0 - d["c"] / d["a"],
+            "T": lambda d: (d["a"]**2 - d["b"]**2)/(d["a"]**2 - d["c"]**2),
             "b": lambda d: (
                 d["a"] * (1 - d["eps_ab"]) if "eps_ab" in d else d["c"] / (1 - d["eps_bc"])
             ),

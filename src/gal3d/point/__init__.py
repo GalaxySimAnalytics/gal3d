@@ -35,7 +35,7 @@ class Particles(GlobalCalculator):
         estimator_kwargs: dict | None = None,
     ):
         """
-        Initialize the Particles class with particle positions, weights, and other parameters.
+        Initialize the Particles class with particles' positions, weights, and other parameters.
 
         Parameters
         ----------
@@ -162,7 +162,7 @@ class Particles(GlobalCalculator):
 
     def estimate_mass_resolution(self):
         """
-        Estimate the mass resolution as the mean particle mass.
+        Estimate the mass resolution as the mean particles' mass.
         Returns
         -------
         float

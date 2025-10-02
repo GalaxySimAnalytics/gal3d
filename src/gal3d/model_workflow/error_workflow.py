@@ -11,7 +11,6 @@ from gal3d.plugin import PluginBase, PluginManager
 if TYPE_CHECKING:
     from gal3d.optimization.result import ModelResult
     from gal3d.shape import StructureCore
-    from gal3d.shape.with_parameter import WithParameter
 
 logger = logging.getLogger("gal3d.model_workflow.error")
 
@@ -35,13 +34,13 @@ class ErrorWorkflowBase(PluginBase):
         ErrorWorkflow.register(cls)
 
     @classmethod
-    def condition(cls, result: Union["StructureCore", "WithParameter", "ModelResult"]) -> bool:
+    def condition(cls, result: Union["StructureCore", "ModelResult"]) -> bool:
         """
         Check if this workflow can handle the given result.
 
         Parameters
         ----------
-        result : Union[StructureCore, WithParameter, ModelResult]
+        result : Union[StructureCore, ModelResult]
             The result to check.
 
         Returns
@@ -54,7 +53,8 @@ class ErrorWorkflowBase(PluginBase):
     @classmethod
     def estimate_error(
         cls,
-        result: Union["StructureCore", "WithParameter","ModelResult"],
+        result: Union["StructureCore", "ModelResult"],
+        param_name: list[str] | None = None,
         **kwargs: Any
     ) -> dict[str, Any]:
         """ Estimate errors"""
@@ -63,7 +63,7 @@ class ErrorWorkflowBase(PluginBase):
     @classmethod
     def estimate_structure_update(
         cls,
-        result: Union["StructureCore", "WithParameter"],
+        result: Union["StructureCore"],
         pos: np.ndarray,
         **kwargs: Any
     ) -> dict[str, Any]:
@@ -143,7 +143,7 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
     _base_class = ErrorWorkflowBase
 
     @classmethod
-    def get_error_estimator(cls, result: Union["StructureCore", "WithParameter", "ModelResult"] | None = None, name: str | None = None) -> ErrorWorkflowBase:
+    def get_error_estimator(cls, result: Union["StructureCore", "ModelResult"] | None = None, name: str | None = None) -> ErrorWorkflowBase:
         """
         Get the default error estimator workflow.
 
@@ -171,13 +171,13 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
         raise LookupError("No suitable error estimator workflow found")
 
     @classmethod
-    def estimate_error(cls, result: Union["StructureCore", "WithParameter", "ModelResult"], **kwargs: Any) -> dict[str, np.ndarray]:
+    def estimate_error(cls, result: Union["StructureCore", "ModelResult"], param_name: list[str] | None = None,**kwargs: Any) -> dict[str, np.ndarray]:
         """
         Estimate errors for the given result.
 
         Parameters
         ----------
-        result : Union["StructureCore", "WithParameter", "ModelResult"]
+        result : Union["StructureCore", "ModelResult"]
             The result object to estimate errors for.
         **kwargs : dict
             Additional keyword arguments.
@@ -187,5 +187,10 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
         dict
             A dictionary containing the estimated errors.
         """
-        err = cls.get_error_estimator(result)
-        return err.estimate_error(result, **kwargs)
+        try:
+            err = cls.get_error_estimator(result)
+        except LookupError:
+            logger.error("No suitable error estimator found")
+            return {}
+
+        return err.estimate_error(result, param_name=param_name, **kwargs)

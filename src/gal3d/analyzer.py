@@ -110,7 +110,7 @@ class Gal3DAnalyzer:
         outer = kwargs.get("outer", None)
         if inner is None:
             assert 0 < inner_frac < 1, "Inner fraction must be between 0 and 1."
-            inner = particles.get_parameter([0,0,0])*inner_frac
+            inner = particles.get_parameter([0,0,0])[0]*inner_frac
             inner_mode = "value"
         else:
             try:

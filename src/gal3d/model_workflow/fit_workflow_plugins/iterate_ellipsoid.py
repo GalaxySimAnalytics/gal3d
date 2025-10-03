@@ -133,6 +133,35 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         *args: Any,
         **kwargs: Any
     ) -> ModelResult:
+        """
+        Fit ellipsoidal shape using iterative mass moment method.
+
+        Parameters
+        ----------
+        obj : Gal3DAnalyzer or Particles
+            Input object containing particle data.
+        nbins : int, optional
+            Number of radial bins to use (default is 100).
+        rmin : float, optional
+            Minimum radius for binning. If None, set to rmax / 1E3.
+        rmax : float, optional
+            Maximum radius for binning. If None, set to maximum particle radius.
+        bins : {'equal', 'log', 'lin'}, optional
+            Binning method for radial shells (default is 'equal').
+        max_iterations : int, optional
+            Maximum number of iterations per shell (default is 10).
+        tol : float, optional
+            Tolerance for convergence in iterative shape estimation (default is 1e-3).
+        *args : Any
+            Additional positional arguments.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        ModelResult
+            Summed model result over all radial bins, or EmptyModelResult if no valid results.
+        """
         if hasattr(obj, "particles"):
             particles = obj.particles
         else:
@@ -149,6 +178,7 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         assert nbins > 0
         assert np.sum((particles.r >= rmin) & (particles.r < rmax)) > nbins * 2
         if bins not in ["equal", "log", "lin"]:
+            logger.warning("Unknown binning method '%s', defaulting to 'equal'", bins)
             bins = "equal"
 
         r = particles.r

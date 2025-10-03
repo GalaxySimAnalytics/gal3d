@@ -3,8 +3,9 @@ from abc import abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import numpy as np
 from numpy.typing import ArrayLike
-from scipy._lib._util import _RichResult
+from scipy._lib._util import _dict_formatter, _RichResult
 from scipy.optimize import Bounds
 
 from gal3d.optimization.parameter import Parameter, ParameterDict, Parameters
@@ -66,10 +67,41 @@ class OptimizeResult(_RichResult):
     algorithm_output: dict
         Additional algorithm specific information.
     """
-    _order_keys: list[str] = ["message", "success", "status", "fun", "params",
+    _order_keys: list[str] = ["message", "success", "status", "cost", "fun", "params",
                     "col_ind", "n_iterations", "lower", "upper", "eqlin", "ineqlin",
                     "converged", "flag", "function_calls", "iterations",
                     "root"]
+
+    # omit_keys
+    def __repr__(self):
+        order_keys = ["message", "success", "status", "fun", "funl", "x", "xl",
+                      "col_ind", "nit", "lower", "upper", "eqlin", "ineqlin",
+                      "converged", "flag", "function_calls", "iterations",
+                      "root"]
+        order_keys = getattr(self, "_order_keys", order_keys)
+        # 'slack', 'con' are redundant with residuals
+        # 'crossover_nit' is probably not interesting to most users
+        omit_keys = {"slack", "con", "crossover_nit", "_order_keys","call_kws"}
+
+        def key(item):
+            try:
+                return order_keys.index(item[0].lower())
+            except ValueError:  # item not in list
+                return np.inf
+
+        def omit_redundant(items):
+            for item in items:
+                if item[0] in omit_keys:
+                    continue
+                yield item
+
+        def item_sorter(d):
+            return sorted(omit_redundant(d.items()), key=key)
+
+        if self.keys():
+            return _dict_formatter(self, sorter=item_sorter)
+        else:
+            return self.__class__.__name__ + "()"
 class OptimizerBase(PluginBase):
     """
     Abstract base class for implementing optimization algorithms.
@@ -111,7 +143,7 @@ class OptimizerBase(PluginBase):
 
     def __init_subclass__(cls, **kwargs):
         """
-        Register the subclass as an optimizer plugin and update the plugin stub if update_stub.
+        Register the subclass as an optimizer plugin.
         """
         super().__init_subclass__(**kwargs)
         Optimizer.register(cls)

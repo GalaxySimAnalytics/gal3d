@@ -35,6 +35,8 @@ def print_gal3d_info(show_plugins=True):
     show_plugins : bool, optional
         Whether to display plugin information. Default is True.
     """
+    import shutil
+
     from gal3d.log import DirectOutputHandler
 
     info_logger = logging.getLogger("gal3d.info")
@@ -47,7 +49,7 @@ def print_gal3d_info(show_plugins=True):
 
     try:
         # Define consistent width for all components
-        width = 70
+        width = shutil.get_terminal_size().columns
         # Display welcome message and version information
         welcome_msg = string_formatter(
             "\n" + "Welcome to Gal3D !!! \n        3D Morphological Models of Galaxies in Simulations",
@@ -60,7 +62,7 @@ def print_gal3d_info(show_plugins=True):
 
         # Display version information
         version_info = string_formatter(
-            f"\n{f'gal3d version: {__version__}'.rjust(width, ' ')}\n",
+            f"\n{f'gal3d version: {__version__}'.rjust(70, ' ')}\n",
             fg_color="bright_cyan",
             bold=True
         )

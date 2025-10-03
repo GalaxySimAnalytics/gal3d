@@ -115,12 +115,12 @@ class ModelProjectorBase(PluginBase):
             if recod in self._image_cache:
                 logger.debug("Get image from cache for input: x:%s, y:%s, "
                              "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, rotation)
+                             x_range, y_range, z_range, nbins, np.array2string(rotation))
                 return self._image_cache[recod]
             else:
                 logger.debug("Cache image, register input: x:%s, y:%s, "
                              "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, rotation)
+                             x_range, y_range, z_range, nbins, np.array2string(rotation))
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )

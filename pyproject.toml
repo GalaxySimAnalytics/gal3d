@@ -139,6 +139,8 @@ ignore = [
     "E741",
     # allow module import not at top of file, important for notebooks, cyclic imports
     "E402",
+    # allow use (X,Y) in isinstance call
+    "UP038",
 ]
 
 [tool.ruff.lint.isort]

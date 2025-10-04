@@ -43,6 +43,7 @@ DEFAULT_PLUGIN_MODULES = {
     "gal3d.shape.coordinate",
     "gal3d.visualization.model_projector",
     "gal3d.optimization.optimizer",
+    "gal3d.optimization.model_io",
     "gal3d.characterization.characterizer",
     "gal3d.model_workflow.fit_workflow",
     "gal3d.model_workflow.error_workflow"

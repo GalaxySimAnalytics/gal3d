@@ -1,362 +1,392 @@
 import logging
 import os
 import time
-from typing import Any
+from abc import abstractmethod
+from typing import Any, Literal
 
-import h5py
-import numpy as np
-
+from gal3d.plugin import PluginBase, PluginManager
 from gal3d.shape import Structure3D, StructureCore
 
+from .optimizer import OptimizeResult
+from .parameter import Parameters
 from .result import ModelResult
 
 logger = logging.getLogger("gal3d.optimization.model_io")
 
-class ModelIO:
+class MetaDataDict(dict[str, Any]):
     """
-    Handle I/O operations for ModelResult objects.
+    Dictionary subclass for storing model metadata.
 
-    This class provides methods for saving and loading model results to/from
-    HDF5 files, separating these concerns from the main ModelResult class.
+    Attributes
+    ----------
+    coordinate_name : str
+        Name of the coordinate system.
+    geometry_name : str
+        Name of the geometry.
+    error_method_name : str | None
+        Name of the error method, if any.
+    error_func_name : str | None
+        Name of the error function, if any.
+    model_count : int
+        Number of models stored.
+    """
+    coordinate_name: str
+    geometry_name: str
+    error_method_name: str | None
+    error_func_name: str | None
+    model_count: int
+
+class ModelIOBase(PluginBase):
+    """
+    Abstract base class for model I/O operations.
+
+    Subclasses must implement methods for saving and loading model data.
     """
 
-    @staticmethod
-    def _prepare_metadata(model: ModelResult, metadata: dict[str, Any] | None) -> dict[str, Any]:
-        # Initialize metadata
-        meta = {
-            "save_timestamp": time.time(),
-            "coordinate_name": model._structure._coordinate_name,
-            "geometry_name": model._structure._geometry_name,
-        }
-        if hasattr(model._structure, "_error_method_name"):
-            meta["error_method_name"] = model._structure._error_method_name
-        if hasattr(model._structure, "_error_func_name"):
-            meta["error_func_name"] = model._structure._error_func_name
-        meta["parameter_count"] = len(model._param_sets)
+    def __init_subclass__(cls, **kwargs):
+        """
+        Registers the subclass as a model I/O plugin.
+        """
+        super().__init_subclass__(**kwargs)
+        ModelIO.register(cls)
 
-        # Add user metadata
-        if metadata:
-            meta.update(metadata)
-        return meta
-
-    @staticmethod
-    def _save_metadata(group, meta, compression):
-        for key, value in meta.items():
-            if isinstance(value, int | float | str | bool):
-                group.attrs[key] = value
-            else:
-                try:
-                    if isinstance(value, (np.ndarray | list | tuple)) and len(value) > 0:
-                        group.create_dataset(f"meta_{key}", data=value, compression=compression)
-                    else:
-                        group.attrs[f"meta_{key}"] = str(value)
-                except (TypeError, ValueError):
-                    group.attrs[f"meta_{key}"] = str(value)
-
-    @staticmethod
-    def _save_parameters(params_group, model, compression, info_keys):
-        for i in model.keys():
-            params_group.create_dataset(i, data=model[i], compression=compression)
-            params_group.create_dataset(f"{i}_lb", data=model[f"{i}_lb"], compression=compression)
-            params_group.create_dataset(f"{i}_ub", data=model[f"{i}_ub"], compression=compression)
-            params_group.create_dataset(f"{i}_err", data=model[f"{i}_err"], compression=compression)
-
-         # Save info keys for each parameter
-        for info_key in info_keys:
-            try:
-                info_values = [param_set.get_info(info_key) for param_set in model._param_sets]
-                if any(v is not None for v in info_values):
-                    try:
-                        info_array = np.array(info_values)
-                        params_group.create_dataset(f"{info_key}", data=info_array, compression=compression)
-                    except (ValueError, TypeError):
-                        str_info = [str(v) if v is not None else "None" for v in info_values]
-                        params_group.create_dataset(f"{info_key}", data=np.array(str_info), compression=compression)
-            except Exception as e:
-                logger.warning("Failed to save info key '%s' for parameter set: %s", info_key, e)
-
-    @staticmethod
-    def _save_opt_results(opt_group, model, compression, result_keys):
-        for i, opt_result in enumerate(model._opt_results):
-            opt_set = opt_group.create_group(f"result_{i}")
-            for key in result_keys:
-                if key not in opt_result:
-                    continue
-                value = opt_result[key]
-                try:
-                    if value is None:
-                        opt_set.attrs[f"{key}_is_none"] = True
-                    elif isinstance(value, (bool | int | float | str)):
-                        opt_set.attrs[key] = value
-                    else:
-                        try:
-                            array_value = np.asarray(value)
-                            if array_value.shape:
-                                opt_set.create_dataset(key, data=array_value, compression=compression)
-                            else:
-                                opt_set.create_dataset(key, data=array_value)
-                        except Exception:
-                            opt_set.attrs[f"{key}_repr"] = repr(value)
-                except (TypeError, ValueError):
-                    opt_set.attrs[f"{key}_repr"] = repr(value)
-
-    @staticmethod
-    def save_to_hdf5(
+    @classmethod
+    def save(cls,
         model: ModelResult,
         filename: str,
-        group_path: str = "/",
-        metadata: dict[str, Any] | None = None,
-        compression: str | None = "gzip",
-        overwrite: bool = False,
+        info_keys: tuple[str, ...] = ("parameter",),
         result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
-        info_keys: tuple[str, ...] = ("parameter",)
+        metadata: dict[str, Any] | None = None,
+        overwrite: bool = False,
+        **kwargs: Any
     ) -> None:
         """
-        Save a model result to an HDF5 file.
+        Save the model to a file.
 
         Parameters
         ----------
         model : ModelResult
-            The model result to save
+            The model to save.
         filename : str
-            Path to the HDF5 file
-        group_path : str, optional
-            Path within the HDF5 file where data should be stored, default is "/"
-        metadata : dict, optional
-            Additional metadata to store with the model
-        compression : str, optional
-            Compression type for datasets, default is "gzip"
-        overwrite : bool, optional
-            Whether to overwrite existing data at the specified group path, default is False
-        result_keys : tuple[str, ...], optional
-            Keys from OptimizeResult to save, default is ("cost","success","n_fun_evals","n_iterations")
+            The name of the file to save the model to.
         info_keys : tuple[str, ...], optional
-            Parameter info keys to save, default is ("parameter",)
-
-        Raises
-        ------
-        IOError
-            If file writing fails
-        ValueError
-            If the group path already exists and overwrite=False
+            Keys of additional info to save from the model.
+        result_keys : tuple[str, ...], optional
+            Keys of optimization results to save.
+        metadata : dict[str, Any] | None, optional
+            Additional metadata to include in the saved file.
+        overwrite : bool, optional
+            Whether to overwrite the file if it exists.
+        **kwargs : Any
+            Additional keyword arguments for the save function.
         """
-        try:
-            start_time = time.time()
+        start_time = time.time()
+        cls.check_file_path(filename=filename)
+        data = cls.extract_data_from_model(model, info_keys, result_keys)
+        if metadata is not None:
+            data["meta"].update(metadata)
+        cls._save(data, filename, overwrite=overwrite, **kwargs)
+        elapsed = time.time() - start_time
+        logger.info(
+            "Model saved to %s in %.2f seconds (n: %d)",
+            filename, elapsed, data["meta"]["model_count"]
+        )
 
-            # Create directory if it doesn't exist
-            directory = os.path.dirname(os.path.abspath(filename))
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            # Standardize group path
-            if not group_path.startswith("/"):
-                group_path = "/" + group_path
-            if not group_path.endswith("/"):
-                group_path += "/"
-
-            meta = ModelIO._prepare_metadata(model, metadata)
-
-            # Create or open the file
-            file_mode = "a" if os.path.exists(filename) else "w"
-            with h5py.File(filename, file_mode) as f:
-                # Check if group exists and handle accordingly
-                if group_path in f:
-                    if overwrite:
-                        del f[group_path]
-                    else:
-                        raise ValueError(f"Group {group_path} already exists in {filename}. Set overwrite=True to replace.")
-
-                # Create group for this model
-                group = f.create_group(group_path)
-
-                # Save metadata directly as attributes
-                ModelIO._save_metadata(group, meta, compression)
-
-
-                # Save parameters
-                params_group = group.create_group("parameters")
-                ModelIO._save_parameters(params_group, model, compression, info_keys)
-
-                # Save optimization results
-                opt_group = group.create_group("optimization_results")
-                ModelIO._save_opt_results(opt_group, model, compression, result_keys)
-
-            elapsed = time.time() - start_time
-            logger.info("Model saved to %s in %.2f seconds (parameters: %d)", filename, elapsed, len(model._param_sets))
-
-        except OSError as e:
-            logger.error("Failed to save model to %s: %s", filename, e)
-            raise OSError(f"Failed to save model to {filename}: ") from e
-        except Exception as e:
-            logger.error("Unexpected error saving model: %s", e)
-            raise Exception("Failed to save model") from e
-
-
-    @staticmethod
-    def _load_structure(group, structure):
-        if structure is not None:
-            return structure
-        if ("error_func_name" in group.attrs) and ("error_method_name" in group.attrs):
-            return Structure3D(
-                group.attrs["coordinate_name"],
-                group.attrs["geometry_name"],
-                group.attrs["error_func_name"],
-                group.attrs["error_method_name"],
-            )
-        else:
-            return StructureCore(
-                group.attrs["coordinate_name"],
-                group.attrs["geometry_name"],
-            )
-
-    @staticmethod
-    def _load_parameters(params_group):
-        from gal3d.optimization.parameter import Parameter, Parameters
-
-        all_keys = list(params_group.keys())
-
-        # Identify all parameter names with complete data
-        param_names = set()
-        info_key_mapping = {}
-
-        # Find candidate parameter names (those without suffixes)
-        candidates = {key for key in all_keys if not any(key.endswith(suffix) for suffix in ["_lb", "_ub", "_err"])}
-
-        # Check each candidate to see if it's a complete parameter
-        for name in candidates:
-            if (f"{name}_lb" in all_keys and
-                f"{name}_ub" in all_keys and
-                f"{name}_err" in all_keys):
-                param_names.add(name)
-            else:
-                info_key_mapping[name] = params_group[name][()]
-
-        # Extract parameter data as arrays
-        param_values = {name: params_group[name][()] for name in param_names}
-        param_lbs = {name: params_group[f"{name}_lb"][()] for name in param_names}
-        param_ubs = {name: params_group[f"{name}_ub"][()] for name in param_names}
-        param_errs = {name: params_group[f"{name}_err"][()] for name in param_names}
-
-        # Create parameter sets
-        param_sets = []
-        n_sets = len(next(iter(param_values.values())))
-        for i in range(n_sets):
-            param_set = Parameters()
-            # First create parameters with their bounds and errors
-            for name in param_names:
-                value = float(param_values[name][i])
-                lb = float(param_lbs[name][i])
-                ub = float(param_ubs[name][i])
-                err = float(param_errs[name][i])
-                param_set[name] = Parameter(value, lb=lb, ub=ub, err=err)
-            # Then add info data
-            for key, values in info_key_mapping.items():
-                try:
-                    if i < len(values):
-                        value = values[i]
-                        if isinstance(value, str) and value.lower() == "none":
-                            continue
-                        param_set.add_info(**{key: value})
-                except Exception as e:
-                    logger.warning("Failed to add info key '%s': %s", key, e)
-            param_sets.append(param_set)
-        return param_sets
-
-    @staticmethod
-    def _load_opt_results(opt_group):
-        from gal3d.optimization.optimizer import OptimizeResult
-
-        opt_results = []
-        for opt_result_name in sorted(opt_group.keys()):
-            opt_data = opt_group[opt_result_name]
-            result_dict: dict[str, Any] = {}
-            # Load attributes
-            for key, value in opt_data.attrs.items():
-                if key.endswith("_is_none"):
-                    base_key = key.rsplit("_is_none", 1)[0]
-                    result_dict[base_key] = None
-                elif key.endswith("_repr"):
-                    continue
-                else:
-                    result_dict[key] = value
-            # Load datasets
-            for key in opt_data.keys():
-                result_dict[key] = opt_data[key][()]
-            opt_results.append(OptimizeResult(**result_dict))
-        return opt_results
-
-    @staticmethod
-    def load_from_hdf5(
+    @classmethod
+    @abstractmethod
+    def _save(cls,
+        data: dict[Literal["meta", "parameters", "opt_info"], dict[str, Any]],
         filename: str,
-        group_path: str = "/",
-        structure: Structure3D | StructureCore | None = None
+        overwrite: bool = False,
+        **kwargs: Any
+    ) -> None:
+        """
+        Abstract method to save data to a file.
+
+        Parameters
+        ----------
+        data : dict
+            The data to save.
+        filename : str
+            The name of the file to save the data to.
+        overwrite : bool, optional
+            Whether to overwrite the file if it exists.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+
+
+    @classmethod
+    def load(cls,
+        filename: str,
+        structure: Structure3D | StructureCore | None = None,
+        **kwargs: Any
     ) -> ModelResult:
         """
-        Load a ModelResult from an HDF5 file.
+        Load the model from a file.
 
         Parameters
         ----------
         filename : str
-            Path to the HDF5 file
-        group_path : str, optional
-            Path within the HDF5 file where data is stored, default is "/"
-        structure : Structure3D, optional
+            The name of the file to load the model from.
+        structure : Structure3D | StructureCore | None, optional
             Structure object to associate with the loaded model. If None, a structure
             will be created from metadata in the file.
+        **kwargs : Any
+            Additional keyword arguments for the load function.
 
         Returns
         -------
         ModelResult
-            The loaded model result
-
-        Raises
-        ------
-        IOError
-            If file reading fails
-        KeyError
-            If the group path or required data is not found
-        ValueError
-            If the model structure doesn't match the saved metadata
+            The loaded model result.
         """
-        try:
-            start_time = time.time()
+        start_time = time.time()
 
-            # Standardize group path
-            if not group_path.startswith("/"):
-                group_path = "/" + group_path
-            if not group_path.endswith("/"):
-                group_path += "/"
+        if structure is None:
+            metadata = cls._load_metadata_from_file(filename,**kwargs)
+            if metadata["error_method_name"] is None or metadata["error_func_name"] is None:
+                structure = StructureCore(
+                    coordinate=metadata["coordinate_name"],
+                    geometry=metadata["geometry_name"]
+                )
+            else:
+                structure = Structure3D(
+                    coordinate=metadata["coordinate_name"],
+                    geometry=metadata["geometry_name"],
+                    error_method=metadata["error_method_name"],
+                    error_func=metadata["error_func_name"]
+                )
 
-            # Verify structure compatibility
-            with h5py.File(filename, "r") as f:
-                if group_path not in f:
-                    raise KeyError(f"Group {group_path} not found in {filename}")
-                group = f[group_path]
+        param_sets = cls._load_parameters_from_file(filename,**kwargs)
+        opt_results = cls._load_opt_from_file(filename,**kwargs)
+        result = ModelResult(
+            structure = structure,
+            optimize_result=opt_results[0],
+            parameters=param_sets[0]
+        )
+        # Replace the lists with all loaded data
+        result._param_sets = param_sets
+        result._opt_results = opt_results
+        elapsed = time.time() - start_time
+        logger.info(
+            "Model loaded from %s in %.2f seconds (n: %d)",
+            filename, elapsed, len(param_sets)
+        )
+        return result
 
-                structure = ModelIO._load_structure(group, structure)
-                param_sets = ModelIO._load_parameters(group["parameters"])
-                opt_results = ModelIO._load_opt_results(group["optimization_results"])
+    @classmethod
+    @abstractmethod
+    def _load_metadata_from_file(
+        cls, filename: str, **kwargs: Any
+    ) -> MetaDataDict:
+        """
+        Abstract method to load metadata from a file.
 
-                # Create and initialize the model result
-                if param_sets and opt_results:
-                    result = ModelResult(
-                        structure=structure,
-                        optimize_result=opt_results[0],
-                        parameters=param_sets[0]
-                    )
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load metadata from.
+        **kwargs : Any
+            Additional keyword arguments.
 
-                    # Replace the lists with all loaded data
-                    result._param_sets = param_sets
-                    result._opt_results = opt_results
+        Returns
+        -------
+        MetaDataDict
+            The loaded metadata.
+        """
 
-                    elapsed = time.time() - start_time
-                    logger.info("Model loaded from %s in %.2f seconds (parameters: %d)", filename, elapsed, len(param_sets))
-                    return result
-                else:
-                    raise ValueError("No parameters or optimization results found in the file")
+    @classmethod
+    @abstractmethod
+    def _load_parameters_from_file(cls, filename: str, **kwargs: Any) -> list[Parameters]:
+        """
+        Abstract method to load parameters from a file.
 
-        except OSError as e:
-            logger.error("Failed to load model from %s: %s",filename, e)
-            raise OSError(f"Failed to load model from {filename}: ") from e
-        except Exception as e:
-            logger.error("Unexpected error loading model: %s", e)
-            raise RuntimeError("Failed to load model: ") from e
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load parameters from.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        list[Parameters]
+            The loaded parameter sets.
+        """
+
+    @classmethod
+    @abstractmethod
+    def _load_opt_from_file(cls, filename: str, **kwargs: Any) -> list[OptimizeResult]:
+        """
+        Abstract method to load optimization results from a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load optimization results from.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        list[OptimizeResult]
+            The loaded optimization results.
+        """
+
+    @classmethod
+    def check_file_path(cls, filename: str) -> str:
+        """
+        Check and create the directory path for the file if it does not exist.
+
+        Parameters
+        ----------
+        filename : str
+            The file path to check.
+
+        Returns
+        -------
+        str
+            The directory path.
+        """
+        # Create directory if it doesn't exist
+        directory = os.path.dirname(os.path.abspath(filename))
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            logger.info("Created directory: %s", directory)
+        return directory
+
+    @classmethod
+    def _extract_metadata_from_model(cls, model: ModelResult) -> MetaDataDict:
+        """
+        Extract metadata from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract metadata from.
+
+        Returns
+        -------
+        MetaDataDict
+            The extracted metadata.
+        """
+        meta_data: MetaDataDict = MetaDataDict(
+            coordinate_name=model._structure._coordinate_name,
+            geometry_name=model._structure._geometry_name,
+            error_method_name=getattr(model._structure, "_error_method_name", None),
+            error_func_name=getattr(model._structure, "_error_func_name", None)
+        )
+        meta_data["model_count"] = len(model._param_sets)
+        return meta_data
+
+    @classmethod
+    def _extract_parameters_from_model(
+        cls,
+        model: ModelResult,
+        info_keys: tuple[str, ...] = ("parameter",)
+    ) -> dict[str, Any]:
+        """
+        Extract parameters from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract parameters from.
+        info_keys : tuple[str, ...], optional
+            Keys of additional info to extract.
+
+        Returns
+        -------
+        dict[str, Any]
+            The extracted parameters and info.
+        """
+        param_data = {}
+        param_names = list(model.keys())
+        info_names = []
+        for i in param_names:
+            param_data[i] = model[i]
+            param_data[f"{i}_lb"] = model[f"{i}_lb"]
+            param_data[f"{i}_ub"] = model[f"{i}_ub"]
+            param_data[f"{i}_err"] = model[f"{i}_err"]
+
+        for i in info_keys:
+            try:
+                info = [param_set.get_info(i) for param_set in model._param_sets]
+                param_data[i] = info
+                info_names.append(i)
+            except KeyError:
+                logger.warning("Info key '%s' not found in full parameter sets.", i)
+
+        param_data["param_names"] = param_names
+        param_data["info_names"] = info_names
+        return param_data
+
+    @classmethod
+    def _extract_opt_from_model(
+        cls,
+        model: ModelResult,
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")
+    ) -> dict[str, Any]:
+        """
+        Extract optimization results from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract optimization results from.
+        result_keys : tuple[str, ...], optional
+            Keys of optimization results to extract.
+
+        Returns
+        -------
+        dict[str, Any]
+            The extracted optimization results.
+        """
+        result_data = {}
+        for i, opt_result in enumerate(model._opt_results):
+            this_res = {}
+            for key in result_keys:
+                if key not in opt_result:
+                    logger.debug("Result key '%s' not found in optimization result %d.", key, i)
+                    continue
+                this_res[key] = opt_result[key]
+            result_data[f"result_{i}"] = this_res
+        return result_data
+
+    @classmethod
+    def extract_data_from_model(
+        cls,
+        model: ModelResult,
+        info_keys: tuple[str, ...] = ("parameter",),
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")
+    ) -> dict[Literal["meta", "parameters", "opt_info"], dict[str, Any] | MetaDataDict]:
+        """
+        Extract all relevant data from a ModelResult for saving or management.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model from which to extract data.
+        info_keys : tuple[str, ...], optional
+            Keys of additional info to extract.
+        result_keys : tuple[str, ...], optional
+            Keys of optimization results to extract.
+
+        Returns
+        -------
+        dict
+            Dictionary containing metadata, parameters, and optimization info.
+        """
+        # Combine all extracted data
+        combined_data: dict[Literal["meta", "parameters", "opt_info"], dict[str, Any]] = {
+            "meta": cls._extract_metadata_from_model(model),
+            "parameters": cls._extract_parameters_from_model(model, info_keys),
+            "opt_info": cls._extract_opt_from_model(model, result_keys)
+        }
+        return combined_data
+
+class ModelIO(PluginManager[ModelIOBase]):
+    """Factory class for accessing registered model I/O plugins."""
+    _plugins = {}
+    _plugin_module = "gal3d.optimization.model_io_plugins"
+    _base_class = ModelIOBase

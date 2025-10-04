@@ -12,12 +12,16 @@ Usage examples
 >>> particles.parameter
 
 """
+from typing import TYPE_CHECKING, Literal
+
 import numpy as np
 from numpy.typing import ArrayLike
 
 from .density_estimator import DensityEstimator, DensityEstimatorBase
 from .global_calculator import GlobalCalculator
 
+if TYPE_CHECKING:
+    from gal3d.optimization.result import ModelResult
 
 class Particles(GlobalCalculator):
     """
@@ -169,6 +173,42 @@ class Particles(GlobalCalculator):
             Estimated mass resolution.
         """
         return np.mean(self.mass)
+
+    def abc_shape_profile(
+        self,
+        nbins: int = 100,
+        rmin: float | None = None,
+        rmax: float | None = None,
+        bins: Literal["equal", "log", "lin"] = "equal",
+        max_iterations: int = 10,
+        tol: float = 1e-3,
+    ) -> "ModelResult":
+        """
+        Fit ellipsoidal shape using iterative mass moment method.
+
+        Parameters
+        ----------
+        nbins : int, optional
+            Number of radial bins to use (default is 100).
+        rmin : float, optional
+            Minimum radius for binning. If None, set to rmax / 1E3.
+        rmax : float, optional
+            Maximum radius for binning. If None, set to maximum particle radius.
+        bins : {'equal', 'log', 'lin'}, optional
+            Binning method for radial shells (default is 'equal').
+        max_iterations : int, optional
+            Maximum number of iterations per shell (default is 10).
+        tol : float, optional
+            Tolerance for convergence in iterative shape estimation (default is 1e-3).
+
+        Returns
+        -------
+        ModelResult
+            Summed model result over all radial bins, or EmptyModelResult if no valid results.
+        """
+        from gal3d.model_workflow.fit_workflow_plugins import IterateEllipsoidWorkflow
+        fit = IterateEllipsoidWorkflow()
+        return fit(self,nbins=nbins,rmin=rmin,rmax=rmax,bins=bins,max_iterations=max_iterations,tol=tol)
 
 
     @classmethod

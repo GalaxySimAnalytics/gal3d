@@ -278,7 +278,7 @@ class ModelResult:
             values = [getattr(res, name) for res in self._opt_results]
 
             # Convert to numpy array if all values are numeric
-            if all(isinstance(v, int | float | bool | np.number) or v is None for v in values):
+            if all(isinstance(v, (int, float, bool, np.number)) or v is None for v in values):
                 # Replace None with np.nan for numeric arrays
                 clean_values = [np.nan if v is None else v for v in values]
                 return np.array(clean_values)

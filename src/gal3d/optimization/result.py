@@ -1,6 +1,5 @@
 import copy
 import logging
-import time
 from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
@@ -9,7 +8,6 @@ from gal3d.model_workflow.error_workflow import ErrorWorkflow
 from gal3d.shape import Structure3D, StructureCore
 
 from .optimizer import OptimizeResult
-from .util import save_model_hdf5
 
 if TYPE_CHECKING:
     from .parameter import Parameters
@@ -388,15 +386,15 @@ class ModelResult:
         """
         return len(self._param_sets)
 
-    def save_to_hdf5(
+    def save_to_file(
         self,
         filename: str,
-        group_path: str = "/",
-        metadata: dict[str, Any] | None = None,
-        compression: str | None = "gzip",
-        overwrite: bool = False,
+        handler: str = "HDF5ModelIO",
+        info_keys: tuple[str, ...] = ("parameter",),
         result_keys: tuple[str, ...] = ("cost","success","n_fun_evals","n_iterations"),
-        info_keys: tuple[str, ...] = ("parameter",)
+        metadata: dict[str, Any] | None = None,
+        overwrite: bool = False,
+        **kwargs: Any,
     ) -> None:
         """
         Save the model result to an HDF5 file.
@@ -405,8 +403,6 @@ class ModelResult:
         ----------
         filename : str
             Path to the HDF5 file
-        group_path : str, optional
-            Path within the HDF5 file where data should be stored, default is "/"
         metadata : dict, optional
             Additional metadata to store with the model
         compression : str, optional
@@ -422,14 +418,16 @@ class ModelResult:
             If the group path already exists and overwrite=False
         """
         from .model_io import ModelIO
-        ModelIO.save_to_hdf5(self, filename, group_path, metadata, compression, overwrite, result_keys, info_keys)
+        load = ModelIO.get_plugin(handler)
+        load.save(self, filename,info_keys=info_keys,result_keys=result_keys, metadata=metadata,overwrite=overwrite, **kwargs)
 
     @classmethod
-    def load_from_hdf5(
+    def load_from_file(
         cls,
         filename: str,
-        group_path: str = "/",
+        handler: str = "HDF5ModelIO",
         structure: Structure3D | StructureCore | None = None,
+        **kwargs: Any,
     ) -> "ModelResult":
         """
         Load a ModelResult from an HDF5 file.
@@ -440,27 +438,17 @@ class ModelResult:
             Path to the HDF5 file
         structure : Structure3D or StructureCore
             Structure object to associate with the loaded model
-        group_path : str, optional
-            Path within the HDF5 file where data is stored, default is "/"
 
         Returns
         -------
         ModelResult
             The loaded model result
-
-        Raises
-        ------
-        IOError
-            If file reading fails
-        KeyError
-            If the group path or required data is not found
-        ValueError
-            If the model structure doesn't match the saved metadata
         """
         from .model_io import ModelIO
-        return ModelIO.load_from_hdf5(filename, group_path, structure)
+        load = ModelIO.get_plugin(handler)
+        return load.load(filename, structure,**kwargs)
 
-load_model = ModelResult.load_from_hdf5
+load_model = ModelResult.load_from_file
 
 class EmptyModelResult(ModelResult):
     def __init__(self):
@@ -479,89 +467,3 @@ class EmptyModelResult(ModelResult):
 
     def __bool__(self):
         return False
-
-def model_to_hdf5(
-    model: ModelResult,
-    hdf5_file_name: str,
-    shape_name: str,
-    error_name: str,
-    all_header: str = "/",
-    large_model_threshold: int = 1000,
-    other_info: dict[str, Any] | None = None,
-) -> None:
-    """
-    Save model results to an HDF5 file.
-
-    Parameters
-    ----------
-    model : ModelResult
-        The fitted model result to save.
-    hdf5_file_name : str
-        Path to the output HDF5 file.
-    shape_name : str
-        Name identifier for the shape being saved.
-    error_name : str
-        Name identifier for the error method used.
-    all_header : str, optional
-        Group path within the HDF5 file, by default '/'.
-    large_model_threshold : int, optional
-        Threshold for parameter sets to trigger a warning (default: 1000).
-    other_info : dict, optional
-        Additional metadata to store with the model.
-
-    Raises
-    ------
-    IOError
-        If file cannot be written.
-    ValueError
-        If model or parameters are invalid.
-    TimeoutError
-        If operation takes too long.
-    """
-    try:
-        start_time = time.time()
-        max_time = 300  # 5 minutes timeout
-
-        info_dict = {} if other_info is None else other_info.copy()
-
-        # Record metadata
-        info_dict.update({
-            "save_timestamp": time.time(),
-            "geometry_name": model._structure._geometry_name,
-            "coordinate_name": model._structure._coordinate_name,
-        })
-
-        logger.info("Saving model to %s (shape=%s, error=%s)", hdf5_file_name, shape_name, error_name)
-
-        # Warn for large models
-        if len(model) > large_model_threshold:
-            logger.warning(
-                "Large model with %d parameter sets exceeds threshold "
-                "(%d) and may take time to save",
-                len(model), large_model_threshold
-            )
-
-        save_model_hdf5(
-            model, hdf5_file_name, shape_name, error_name, all_header, info_dict
-        )
-
-        elapsed = time.time() - start_time
-        if elapsed > 5.0:  # Log timing if significant
-            logger.info("Model saving completed in %.1f seconds", elapsed)
-
-        logger.info("Successfully saved model with %d parameter sets", len(model))
-
-    except ImportError as e:
-        logger.error(
-            "Failed to save model to HDF5: %s. "
-            "Possible causes: insufficient disk space, file permission issues, "
-            "or invalid model structure.",
-            e
-        )
-        raise
-    except TimeoutError:
-        logger.error("Save operation timed out after %d seconds", max_time)
-        raise
-    except Exception as e:
-        logger.error("Failed to save model to HDF5: %s", e)
-        raise

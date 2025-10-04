@@ -144,7 +144,7 @@ class ModelIOBase(PluginBase):
 
         if structure is None:
             metadata = cls._load_metadata_from_file(filename,**kwargs)
-            if metadata["error_method_name"] is None or metadata["error_func_name"] is None:
+            if metadata.get("error_method_name") is None or metadata.get("error_func_name") is None:
                 structure = StructureCore(
                     coordinate=metadata["coordinate_name"],
                     geometry=metadata["geometry_name"]

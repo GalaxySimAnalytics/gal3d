@@ -84,6 +84,8 @@ class ModelIOBase(PluginBase):
         cls.check_file_path(filename=filename)
         data = cls.extract_data_from_model(model, info_keys, result_keys)
         if metadata is not None:
+            if data["meta"].keys() & metadata.keys():
+                logger.warning("Overwriting existing metadata keys: %s", data["meta"].keys() & metadata.keys())
             data["meta"].update(metadata)
         cls._save(data, filename, overwrite=overwrite, **kwargs)
         elapsed = time.time() - start_time

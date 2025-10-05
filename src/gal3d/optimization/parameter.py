@@ -578,6 +578,22 @@ class ConstrainedParameterDict(ParameterDict):
                 logger.error(error_msg)
                 raise ValueError(error_msg)
 
+    def fix_parameters(self, **kwargs: float) -> None:
+        """
+        Fix one or more parameters to constant values (equality constraints).
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Parameter names and their fixed values.
+
+        Examples
+        --------
+        >>> params.fix_parameter(x=2, y=3)
+        """
+        for name, value in kwargs.items():
+            self.add_equal_constraints(**{name: lambda params, v=value: v})
+
     def del_equal_constraints(self, name: str) -> None:
         """
         Remove an equality constraint from a parameter.

@@ -624,11 +624,18 @@ class ConstrainedParameterDict(ParameterDict):
         param = self._constraints_parameters.pop(name)
         self._equal_constraints.pop(name)
 
-        idx = self._parameter_names.index(name)
-        items = list(self.items())
-        items.insert(idx, (name, param))
+        # Rebuild base dict strictly following original order (_parameter_names)
+        ordered_items: list[tuple[str, Parameter]] = []
+        for k in self._parameter_names:
+            if k == name:
+                ordered_items.append((k, param))
+            elif k in self:
+                # keep the current (unconstrained) parameter object
+                ordered_items.append((k, self.get_parameter(k)))
+
         self.clear()
-        self.update(items)
+        # reuse normal set to keep bounds/value semantics
+        self.update(ordered_items)
 
 
     def __getitem__(self, key: str) -> Parameter | float:

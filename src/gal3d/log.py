@@ -195,34 +195,42 @@ class NoColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def _setup_logging(cfg: LoggerConfig) -> logging.Logger:
+def _setup_logging(cfg: LoggerConfig, logger_name: str = "gal3d") -> logging.Logger:
     """
-    Set up the gal3d logger according to the provided configuration.
+    Set up the logger according to the provided configuration.
 
     Parameters
     ----------
     cfg : LoggerConfig
         Logger configuration dataclass.
+    logger_name : str
+        Name of the logger to configure (default: "gal3d").
 
     Returns
     -------
     logging.Logger
         Configured logger instance.
     """
-    logger = logging.getLogger("gal3d")
+    logger = logging.getLogger(logger_name)
     if cfg.level not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
         raise ValueError(f"Invalid logging level: {cfg.level}")
     logger.setLevel(cfg.level)
 
+    # Remove all handlers before adding new ones
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+        try:
+            h.close()
+        except Exception:
+            pass
+
     ch = logging.StreamHandler()
     ch.setLevel(cfg.stream_level)
-
     ch.setFormatter(ColorFormatter())
     logger.addHandler(ch)
 
-    file_handle = cfg.save_file
-    if file_handle:
-        fh = logging.FileHandler(cfg.file_name, mode="w", encoding="utf-8")
+    if cfg.save_file:
+        fh = logging.FileHandler(cfg.file_name, encoding="utf-8")
         fh.setLevel(cfg.file_level)
         fh.setFormatter(NoColorFormatter())
         logger.addHandler(fh)

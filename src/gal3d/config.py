@@ -538,5 +538,19 @@ class Config:
         self.validate()
         return self
 
+    def reset_logger(self, logger_name: str = "gal3d") -> None:
+        """
+        Reconfigure the logger using current config.logger settings.
+
+        Parameters
+        ----------
+        logger_name : str
+            The name of the logger to configure (default: "gal3d").
+        override : bool
+            Ignored (always resets handlers).
+        """
+        from gal3d.log import _setup_logging
+        _setup_logging(self.logger, logger_name=logger_name)
+
 # Instantiate configuration
 config: Config = Config()

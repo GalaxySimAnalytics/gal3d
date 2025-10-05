@@ -160,18 +160,16 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set.add_info(**info)
 
         # Prepare optimization function and bounds
-        fun = parameters_set.decorate_func_constraints(obj.structure._error_method)
-        bounds = parameters_set.scipy_bounds
         parameters_set["eps_ab"] = max(parameters_set["eps_ab"],0.1)
         parameters_set["eps_bc"] = max(parameters_set["eps_bc"],0.1)
-        x0_dict = parameters_set.get_rounded_values_dict(n=4)
-        x0_values = list(x0_dict.values())
 
         # Run optimization
-        op_res = obj.optimizer.fitting(fun, x0_values, bounds, func_kwargs=data)
+        op_res = obj.optimizer.fit(
+            obj.structure._error_method, parameters_set, func_kwargs=data)
 
         # Set optimized values and return result
-        parameters_set = parameters_set.set_value(op_res.params)
+        for i,j in op_res.params.items():
+            parameters_set[i] = j
         return ModelResult(obj.structure, op_res, parameters_set)
 
     def _fit_generalized_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float | None, fix_eps: bool, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
@@ -230,8 +228,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
                 parameters_set["sc"] = min(max(updatevalue["sc"], 0.5), 1.9)
 
         for i,j in res_value.items():
-            parameters_set[i] = j
-        #parameters_set.set_value(**res_value)
+            parameters_set.get_parameter(i).assign_value(j)
 
         shape_params, fixed_name = self._prepare_shape_parameters(parameters_set,res_value,fix_eps)
 
@@ -244,10 +241,10 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Prepare final optimization
         if "a" not in shape_params:
-            parameters_set["a"] = res_value["a"]
+            parameters_set.get_parameter("a").assign_value(res_value["a"])
         if not fix_eps:
-            parameters_set["eps_ab"] = res_value["eps_ab"]
-            parameters_set["eps_bc"] = res_value["eps_bc"]
+            parameters_set.get_parameter("eps_ab").assign_value(res_value["eps_ab"])
+            parameters_set.get_parameter("eps_bc").assign_value(res_value["eps_bc"])
 
         # Run final optimization
         op_res = obj.optimizer.fit(
@@ -260,7 +257,6 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         # Update parameters and return result
         for i,j in op_res.params.items():
             parameters_set[i] = j
-        # parameters_set = parameters_set.set_value(op_res.params)
 
         return ModelResult(obj.structure, op_res, parameters_set)
 

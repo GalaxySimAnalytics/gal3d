@@ -160,6 +160,8 @@ class ModelIOBase(PluginBase):
                 )
 
         param_sets = cls._load_parameters_from_file(filename,**kwargs)
+        for param_set in param_sets:
+            param_set.add_derived(structure.derived_param_funcs())
         opt_results = cls._load_opt_from_file(filename,**kwargs)
         result = ModelResult(
             structure = structure,
@@ -170,7 +172,7 @@ class ModelIOBase(PluginBase):
         result._param_sets = param_sets
         result._opt_results = opt_results
         elapsed = time.time() - start_time
-        logger.info(
+        logger.debug(
             "Model loaded from %s in %.2f seconds (n: %d)",
             filename, elapsed, len(param_sets)
         )

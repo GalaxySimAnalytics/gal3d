@@ -73,6 +73,13 @@ class StructureCore:
         self._coordinate_name = self._coordinate.__name__
         self.__coor_pa_num = len(self._coordinate.PN)
 
+    def derived_param_funcs(self) -> dict[str, Callable]:
+        """Get derived parameter functions."""
+        derived_funcs = {}
+        derived_funcs.update(self._coordinate.derived_param_funcs())
+        derived_funcs.update(self._geometry.derived_param_funcs())
+        return derived_funcs
+
     def copy(self) -> "StructureCore":
         """
         Create a deep copy of the StructureCore instance.

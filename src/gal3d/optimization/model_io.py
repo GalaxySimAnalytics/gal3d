@@ -40,7 +40,31 @@ class ModelIOBase(PluginBase):
     """
     Abstract base class for model I/O operations.
 
-    Subclasses must implement methods for saving and loading model data.
+    This class defines the interface for saving and loading model data.
+    Subclasses must implement the following abstract methods to provide
+    concrete I/O functionality (e.g., for different file formats):
+
+    Methods to implement
+    --------------------
+    - _save(data, filename, overwrite=False, **kwargs):
+        Save the extracted model data to a file.
+
+    - _load_metadata_from_file(filename, **kwargs):
+        Load only the metadata from a file.
+
+    - _load_parameters_from_file(filename, **kwargs):
+        Load all parameter sets from a file.
+
+    - _load_opt_from_file(filename, **kwargs):
+        Load all optimization results from a file.
+
+    Notes
+    -----
+    Subclasses should ensure compatibility with the ModelResult structure
+    and handle all required keys for saving and loading.
+
+    The base class also provides utility methods for extracting data from
+    ModelResult objects and for checking file paths.
     """
 
     def __init_subclass__(cls, **kwargs):
@@ -306,13 +330,13 @@ class ModelIOBase(PluginBase):
         """
         param_data = {}
         param_names = list(model.keys())
-        info_names = []
         for i in param_names:
             param_data[i] = model[i]
             param_data[f"{i}_lb"] = model[f"{i}_lb"]
             param_data[f"{i}_ub"] = model[f"{i}_ub"]
             param_data[f"{i}_err"] = model[f"{i}_err"]
 
+        info_names = []
         for i in info_keys:
             try:
                 info = [param_set.get_info(i) for param_set in model._param_sets]

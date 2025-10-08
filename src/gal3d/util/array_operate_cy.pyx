@@ -166,13 +166,14 @@ def unit_vector3d(np.ndarray[DTYPE_t, ndim=2] pos):
     """Normalize multiple 3D vectors"""
     cdef:
         int i, j, n = pos.shape[0]
+        double r
         np.ndarray[DTYPE_t, ndim=2] result = np.zeros((n, 3), dtype=pos.dtype)
-        np.ndarray[DTYPE_t, ndim=1] r = vector_length3d(pos)
     cdef int num_threads = get_num_threads()
     for i in prange(n, nogil=True, num_threads=num_threads):
-        for j in range(3):
-            if r[i] > 0:
-                result[i, j] = pos[i, j] / r[i]
+        r = sqrt(pos[i, 0] * pos[i, 0] + pos[i, 1] * pos[i, 1] + pos[i, 2] * pos[i, 2])
+        if r > 0:
+            for j in range(3):
+                result[i, j] = pos[i, j] / r
     
     return result
 

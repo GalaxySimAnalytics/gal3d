@@ -657,10 +657,8 @@ class ConstrainedParameterDict(ParameterDict):
         KeyError
             If the key is not found in parameters or constraints
         """
-        try:
+        if key in self._equal_constraints:
             return self.get_constraint(key)
-        except KeyError:
-            pass
         return super().__getitem__(key)
 
     def decorate_func_constraints(self, function):
@@ -893,18 +891,12 @@ class RichParameterDict(ParameterDict):
         return super().available_keys() | self.derived_keys() | self.info_keys()
 
     def __getitem__(self, key: str) -> Parameter | float | Any:
-        try:
+        if key in self:
             return super().__getitem__(key)
-        except KeyError:
-            pass
-        try:
+        if key in self._derived:
             return self.get_derived(key)
-        except KeyError:
-            pass
-        try:
+        if key in self._info:
             return self.get_info(key)
-        except KeyError:
-            pass
         raise KeyError(key)
 
     def update(self: "RichParameterDict", *args: Union["RichParameterDict", Mapping[str, float], Sequence[tuple[str, float]]], **kwargs: float) -> None: # type: ignore[override]
@@ -985,6 +977,17 @@ class Parameters(RichParameterDict,ConstrainedParameterDict):
             Rounded parameter values.
         """
         return self.get_rounded(n, only_value=True)
+
+    def __getitem__(self, key: str) -> Parameter | float | Any:
+        try:
+            return ConstrainedParameterDict.__getitem__(self,key)
+        except KeyError:
+            pass
+        if key in self._derived:
+            return self.get_derived(key)
+        if key in self._info:
+            return self.get_info(key)
+        raise KeyError(key)
 
 
     def __add__(self, other: Union[dict, "Parameters"]) -> "Parameters":

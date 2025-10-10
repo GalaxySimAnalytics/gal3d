@@ -180,7 +180,10 @@ cdef class PyRenderImage:
 
     def get_image(self):
         """
-        返回 image_grid.qty 作为 numpy 数组
+        Return
+        ------
+        np.ndarray:
+            image_grid.qty
         """
         arr = matrix_to_numpy(self.cpp_image.get_values())
         x_range = (self.cpp_image.image_grid.xmin, self.cpp_image.image_grid.xmax)

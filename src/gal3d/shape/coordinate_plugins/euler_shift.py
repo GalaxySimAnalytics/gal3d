@@ -29,12 +29,6 @@ class ShiftOnly(CoordinateBase):
             x=0.0, y=0.0, z=0.0,
         )
 
-    @classmethod
-    def derived_param_funcs(cls):
-        return {
-            "pos": lambda d: np.array([d["x"], d["y"], d["z"]]),
-        }
-
     def inverse(self, pos: np.ndarray) -> np.ndarray:
         return Shift(pos, -self["pos"])
 
@@ -114,12 +108,6 @@ class RotateOnly(CoordinateBase):
         return cls.create_parameters(
             ang1=0.0, ang2=0.0, ang3=0.0
         )
-
-    @classmethod
-    def derived_param_funcs(cls):
-        return {
-            "angle": lambda d: np.array([d["ang1"], d["ang2"], d["ang3"]]),
-        }
 
     def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         pos1 = pos
@@ -241,13 +229,6 @@ class EulerShift(CoordinateBase):
         return cls.create_parameters(
             x=0.0, y=0.0, z=0.0, ang1=0.0, ang2=0.0, ang3=0.0
         )
-
-    @classmethod
-    def derived_param_funcs(cls):
-        return {
-            "pos": lambda d: np.array([d["x"], d["y"], d["z"]]),
-            "angle": lambda d: np.array([d["ang1"], d["ang2"], d["ang3"]]),
-        }
 
     @classmethod
     def mat_to_angle(cls, mat: np.ndarray) -> np.ndarray:
@@ -493,3 +474,16 @@ class ShiftEuler(EulerShift):
         """
         pos = self.to_3d_array(pos)
         return Shift(Rotate(pos,self._rotation.as_matrix().T), -self["pos"])
+
+
+@ShiftOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def pos(params):
+    return np.array([params["x"], params["y"], params["z"]])
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def angle(params):
+    return np.array([params["ang1"], params["ang2"], params["ang3"]])

@@ -56,24 +56,6 @@ class Ellipsoid(GeometryBase):
         super().__init__(**kwargs)
 
     @classmethod
-    def derived_param_funcs(cls):
-        return {
-            "eps_ab": lambda d: 1.0 - d["b"] / d["a"],
-            "eps_bc": lambda d: 1.0 - d["c"] / d["b"],
-            "eps_ac": lambda d: 1.0 - d["c"] / d["a"],
-            "T": lambda d: (d["a"]**2 - d["b"]**2)/(d["a"]**2 - d["c"]**2),
-            "b": lambda d: (
-                d["a"] * (1 - d["eps_ab"]) if "eps_ab" in d else d["c"] / (1 - d["eps_bc"])
-            ),
-            "c": lambda d: (
-                d["b"] * (1 - d["eps_bc"]) if "eps_bc" in d else d["a"] * (1 - d["eps_ac"])
-            ),
-            "a": lambda d: (
-                d["b"] / (1 - d["eps_ab"]) if "eps_ab" in d else d["c"] / (1 - d["eps_ac"])
-            ),
-        }
-
-    @classmethod
     def default_parameters(cls) -> Parameters:
         """
         Return a default set of parameters for the ellipsoid.
@@ -277,3 +259,70 @@ class Ellipsoid(GeometryBase):
             The Jacobian matrix of the ellipsoid function at the given positions.
         """
         return f_ellipsoid_jacobian(float(a), float(b), float(c), pos)
+
+
+
+
+@Ellipsoid.derived
+def eps_ab(params):
+    return 1.0 - params["b"] / params["a"]
+
+@Ellipsoid.derived
+def eps_bc(params):
+    return 1.0 - params["c"] / params["b"]
+
+@Ellipsoid.derived
+def eps_ac(params):
+    return 1.0 - params["c"] / params["a"]
+
+
+@Ellipsoid.derived
+def T(params):
+    return (params["a"]**2 - params["b"]**2)/(params["a"]**2 - params["c"]**2)
+
+@Ellipsoid.derived
+def b(params):
+    if "eps_ab" in params:
+        return params["a"] * (1 - params["eps_ab"])
+    else:
+        return params["c"] / (1 - params["eps_bc"])
+
+
+@Ellipsoid.derived
+def c(params):
+    if "eps_bc" in params:
+        return params["b"] * (1 - params["eps_bc"])
+    else:
+        return params["a"] * (1 - params["eps_ac"])
+
+
+@Ellipsoid.derived
+def a(params):
+    if "eps_ab" in params:
+        return params["b"] / (1 - params["eps_ab"])
+    else:
+        return params["c"] / (1 - params["eps_ac"])
+
+@Ellipsoid.derived
+def eps_ac_err(params):
+    eps_ab = params["eps_ab"]
+    eps_bc = params["eps_bc"]
+    return np.sqrt(
+        (1.0 - eps_bc)**2 * eps_ab.err**2 +
+        (1.0 - eps_ab)**2 * eps_bc.err**2
+    )
+
+@Ellipsoid.derived
+def T_err(params):
+    eps_ab = params["eps_ab"]
+    eps_bc = params["eps_bc"]
+    p = 1 - eps_ab
+    r = 1 - eps_bc
+    q = p * r
+    N = 1- p*p
+    D = 1 - q * q
+
+    dT_deab = 2.0*p/D - (2.0*N*p*r**2)/(D**2)
+    dT_debc = - (2.0*N*p**2*r)/(D**2)
+
+    return np.sqrt((dT_deab**2)*(eps_ab.err**2) + (dT_debc**2)*(eps_bc.err**2))

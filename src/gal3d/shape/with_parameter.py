@@ -40,6 +40,8 @@ class WithParameter(ABC):
     LB: ClassVar[dict[str, float]]
     _parameter_valid: bool = False
 
+    _derived_registry: ClassVar[dict[type["WithParameter"], dict[str, Callable[["Parameters"], float]]]] = {}
+
 
     def __init__(self, **kwargs):
         self.parameters = self.create_parameters(**kwargs)
@@ -142,7 +144,23 @@ class WithParameter(ABC):
     @classmethod
     def derived_param_funcs(cls) -> dict[str, Callable]:
         """Get derived parameter functions."""
-        return {}
+        return cls._derived_registry.get(cls, {})
+
+
+    @classmethod
+    def derived(cls, fn):
+        """
+        Register a derived parameter function.
+
+        This method allows the registration of functions that compute derived
+        parameters based on the current set of parameters. Derived functions
+        are stored in a registry and can be accessed later for evaluation.
+
+        """
+        if cls not in WithParameter._derived_registry:
+            WithParameter._derived_registry[cls] = {}
+        WithParameter._derived_registry[cls][fn.__name__] = fn
+        return fn
 
 
     @classmethod

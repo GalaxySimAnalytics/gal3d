@@ -4,9 +4,9 @@ Module for measuring galaxy bar parameters using ellipse/ellipsoid fitting resul
 from typing import Any
 
 import numpy as np
+from scipy.interpolate import PchipInterpolator
 
 from gal3d.characterization.characterizer import CharacterizerBase
-from gal3d.field.spherical_field.ray.lu_mono_cy import MyPchipInterpolator as PchipInterpolator
 from gal3d.optimization.result import ModelResult
 from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
 
@@ -177,17 +177,6 @@ class Bar(CharacterizerBase):
 
         if other_keys and not isinstance(other_keys, str | list | type(None)):
             raise TypeError("Parameter 'other_keys' must be a string, list, or None.")
-        if other_keys:
-            if isinstance(other_keys,str):
-                other_keys = [other_keys]
-            for i in other_keys:
-                f_r = PchipInterpolator(self.a, self.data[i],extrapolate=False)
-                result[f"R_max_{i}"] = f_r(result["R_max"])
-                result[f"R_bar_{i}"] = f_r(result["R_bar"])
-
-        if not detail:
-            return result
-
         update: dict[str, float] = {
             "R_in": R_start_val,
             "R_ou": R_end_val,
@@ -196,6 +185,23 @@ class Bar(CharacterizerBase):
             "eps_pa": eps_pa,
             "R_pa": R_pa,
         }
+
+        if other_keys:
+            if isinstance(other_keys,str):
+                other_keys = [other_keys]
+            for i in other_keys:
+                f_r = PchipInterpolator(self.a, self.data[i],extrapolate=False)
+                result[f"R_max_{i}"] = f_r(result["R_max"])
+                result[f"R_bar_{i}"] = f_r(result["R_bar"])
+                if detail:
+                    update[f"R_in_{i}"] = f_r(update["R_in"])
+                    update[f"R_ou_{i}"] = f_r(update["R_ou"])
+                    update[f"R_dc_{i}"] = f_r(update["R_dc"])
+                    update[f"R_pa_{i}"] = f_r(update["R_pa"])
+
+        if not detail:
+            return result
+
         result.update(update)
         return result
 

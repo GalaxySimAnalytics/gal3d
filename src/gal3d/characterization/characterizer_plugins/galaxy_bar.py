@@ -4,9 +4,9 @@ Module for measuring galaxy bar parameters using ellipse/ellipsoid fitting resul
 from typing import Any
 
 import numpy as np
-from scipy.interpolate import PchipInterpolator
 
 from gal3d.characterization.characterizer import CharacterizerBase
+from gal3d.field.spherical_field.ray.lu_mono_cy import MyPchipInterpolator as PchipInterpolator
 from gal3d.optimization.result import ModelResult
 from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
 
@@ -41,23 +41,25 @@ class Bar(CharacterizerBase):
         """
         super().__init__(data)
         dex = np.argsort(data["a"])
-        self.data={i: data[i][dex] for i in data.keys()}
+        self.data: dict[str, np.ndarray] = {k: np.asarray(data[k])[dex] for k in data.keys()}
 
         self.a = self.data["a"]
 
+        self.pa: np.ndarray
+        self.eps: np.ndarray
         if data.get("eps") is not None:
-            self.data["eps"] = data["eps"][dex]
+            self.data["eps"] = np.asarray(data["eps"])[dex]
             self.eps = self.data["eps"]
         elif data.get("eps_ab") is not None:
-            self.data["eps_ab"] = data["eps_ab"][dex]
+            self.data["eps_ab"] = np.asarray(data["eps_ab"])[dex]
             self.eps = self.data["eps_ab"]
         else:
             raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
         if data.get("pa") is not None:
-            self.data["pa"] = data["pa"][dex]
+            self.data["pa"] = np.asarray(data["pa"])[dex]
             self.pa = self.data["pa"]*180/np.pi         # radians to degrees
         elif data.get("angle") is not None:
-            self.data["angle"] = data["angle"][dex]
+            self.data["angle"] = np.asarray(data["angle"])[dex]
             rota = EulerAngles.from_euler(seq="zyx",angles=self.data["angle"])
             self.pa = rota.magnitude()*180/np.pi
         else:
@@ -155,15 +157,15 @@ class Bar(CharacterizerBase):
             R_start, R_end, start_max=start_max, range_min=range_min
         )
         if R_start.size == 0 or R_end.size == 0:
-            result = {
+            return {
                 "flag": 0,
                 "eps_max": np.max(self.eps),
                 "R_max": self.a[np.argmax(self.eps)],
                 "R_bar": 0.0,
             }
 
-        R_start_val: float = float(R_start[0]) if R_end.size > 0 else 0.0
-        R_end_val: float = float(R_end[0]) if R_end.size > 0 else 0.0
+        R_start_val: float = float(R_start[0])
+        R_end_val: float = float(R_end[0])
 
         eps_max, R_max, pa_max = self.get_max_epsRpa(R_start_val, R_end_val, R_cond=start_max)
 
@@ -175,7 +177,7 @@ class Bar(CharacterizerBase):
             bar_flag = 1
         result = {"flag": bar_flag, "eps_max":eps_max, "R_max": R_max, "R_bar": min(R_dc,R_pa)}
 
-        if other_keys and not isinstance(other_keys, str | list | type(None)):
+        if other_keys is not None and not isinstance(other_keys, (str, list)):
             raise TypeError("Parameter 'other_keys' must be a string, list, or None.")
         update: dict[str, float] = {
             "R_in": R_start_val,
@@ -224,24 +226,24 @@ class Bar(CharacterizerBase):
         R_end : ndarray
             Ending radii of high-ellipticity regions
         """
-        begin_flag = True
-        R_start: list[float] = []
-        R_end: list[float] = []
-        for i in range(len(self.eps)):
-            if self.eps[i] >= eps_cond:
-                if begin_flag:
-                    R_st = self.a[i]
-                    begin_flag = False
-            elif not begin_flag:
-                R_ed = self.a[i - 1]
-                begin_flag = True
-                R_start.append(R_st)
-                R_end.append(R_ed)
-            if (i == len(self.eps) - 1) and (not begin_flag):
-                R_start.append(R_st)
-                R_end.append(self.a[i])
-        R_start_arr = np.array(R_start, dtype=np.float64)
-        R_end_arr = np.array(R_end, dtype=np.float64)
+        m = self.eps >= eps_cond
+        if not np.any(m):
+            return np.array([], dtype=np.float64), np.array([], dtype=np.float64)
+
+        # Find the start points (False->True) and end points (True->False)
+        dm = np.diff(m.astype(np.int8))
+        starts_idx = np.where(dm == 1)[0] + 1
+        ends_idx = np.where(dm == -1)[0]
+
+        # if the first element is True, we have a start at index 0
+        if m[0]:
+            starts_idx = np.r_[0, starts_idx]
+        # if the last element is True, we have an end at the last index
+        if m[-1]:
+            ends_idx = np.r_[ends_idx, len(m) - 1]
+
+        R_start_arr = self.a[starts_idx].astype(np.float64)
+        R_end_arr = self.a[ends_idx].astype(np.float64)
         return R_start_arr, R_end_arr
 
     def filter_region_length(
@@ -319,11 +321,13 @@ class Bar(CharacterizerBase):
             mean_dev[i] = np.mean(neighbors)
             mean_std[i] = np.std(neighbors)
 
-        select = mean_dev <  clip * mean_std
+        # protect against zero std and allow equality
+        eps_std = np.where(mean_std > 0, mean_std, 1e-6)
+        select = mean_dev <= clip * eps_std
         self.a = self.a[select]
         self.eps = self.eps[select]
         self.pa = self.pa[select]
-        data_sel = {i:self.data[i][select] for i in self.data.keys()}
+        data_sel = {k: v[select] for k, v in self.data.items()}
         self.data = data_sel
         self.pa_dev_mean = mean_dev
         self.pa_dev_std = mean_std
@@ -394,14 +398,16 @@ class Bar(CharacterizerBase):
 
         f_eps_R = self._f_eps_R
         eps_dc = eps_max * dec
-        range_cut = self.a >= eps_max
-        R_dc = np.array(f_eps_R.solve(eps_dc, discontinuity=False, extrapolate=False))
+        range_cut = self.a >= R_max
+        R_dc_candidates = np.array(f_eps_R.solve(eps_dc, discontinuity=False, extrapolate=False))
+        roots_after = R_dc_candidates[R_dc_candidates > R_max]
         R_dc_val: float
-        if R_dc[R_dc > R_max].size == 0:
+        if roots_after.size == 0:
+            # fallback to last available radius beyond R_max
             eps_dc = float(self.eps[range_cut][-1])
             R_dc_val = float(self.a[range_cut][-1])
         else:
-            R_dc_val = float(R_dc[R_dc > R_max][0])
+            R_dc_val = float(np.min(roots_after))
         return eps_dc, R_dc_val, f_eps_R
 
     def get_dev_epsRpa(self, R_max: float, angle_cond: float = 10) -> tuple[float, float]:

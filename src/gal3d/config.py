@@ -320,8 +320,9 @@ class EllipsoidConfig(BaseConfig):
     DistIteration: IterationMethod = IterationMethod.HALLEY   # Distance iteration method
     LineIteration: IterationMethod = IterationMethod.HALLEY    # Line iteration method  #TODO, currently only Newton
     MaxIterationDist: int = 100                          # Maximum iterations for ray distance
-    MaxIterationLine: int = 100
-    # Maximum iterations for line intersection
+    MaxIterationLine: int = 100                         # Maximum iterations for line intersection
+    # Only this parameter is exposed for eps_ac_s
+    EpsTableN: int = 81
     def __setattr__(self, name, value):
         if name in ("DistIteration", "LineIteration"):
             value = IterationMethod(value)
@@ -337,6 +338,10 @@ class EllipsoidConfig(BaseConfig):
         if self.MaxIterationLine <= 0:
             self.MaxIterationLine = 100
             warnings.warn(f"Invalid MaxIterationLine corrected to {self.MaxIterationLine}",stacklevel=2)
+
+        if self.EpsTableN <= 1:
+            self.EpsTableN = 81
+            warnings.warn(f"Invalid EpsTableN corrected to {self.EpsTableN}",stacklevel=2)
 
 
 @dataclass

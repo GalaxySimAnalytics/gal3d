@@ -1,6 +1,10 @@
+import logging
+from functools import cache
 
 import numpy as np
 from numpy.typing import ArrayLike
+from scipy.integrate import quad
+from scipy.interpolate import RegularGridInterpolator
 
 from gal3d.config import config
 from gal3d.shape.geometry import GeometryBase
@@ -15,6 +19,8 @@ from .ellipsoid_s_cy import (
 )
 
 __all__ = ["Ellipsoid_S"]
+
+logger = logging.getLogger("gal3d.shape.Ellipsoid_S")
 
 class Ellipsoid_S(GeometryBase):
     """
@@ -434,3 +440,108 @@ def T_err(params):
     dT_debc = - (2.0*N*p**2*r)/(D**2)
 
     return np.sqrt((dT_deab**2)*(eps_ab.err**2) + (dT_debc**2)*(eps_bc.err**2))
+
+# Constants for normalization:
+# For a sphere (sa = sc = 1), I_sphere = ∫0^1 2x sqrt(1 - x^2) dx = 2/3
+_SPHERE_I = 2.0 / 3.0
+_SPHERE_CENTER = 1.0 - _SPHERE_I        # = 1/3, value when eps_ac = 0 at sphere
+_SPHERE_SLOPE = 1.0 - _SPHERE_CENTER    # = 2/3, delta from eps_ac=0 to eps_ac=1
+_SPHERE_SCALE = 1.0 / _SPHERE_SLOPE     # = 3/2, used to recover eps_ac at sphere
+
+def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray,np.ndarray,np.ndarray,RegularGridInterpolator]:
+    """
+    Build a lookup table for I(sa, sc) over a regular grid and return
+    (sa_grid, sc_grid, I_table, interpolator).
+
+    Parameters
+    ----------
+    n_samples : int | None
+        Number of samples along each axis. If None, read from environment variable
+
+    Notes
+    -----
+    - Grid resolution n is read from config.ellipsoid_s.EpsTableN (default 81).
+    - Integration uses scipy.integrate.quad with epsabs=1e-5.
+    """
+    logger.info(
+        "Building eps_ac_s table"
+    )
+
+    n = int(config.ellipsoid_s.EpsTableN) if n_samples is None else int(n_samples)
+    sa_min = Ellipsoid_S.LB["sa"]
+    sa_max =  Ellipsoid_S.UB["sa"]
+    sc_min = Ellipsoid_S.LB["sc"]
+    sc_max = Ellipsoid_S.UB["sc"]
+
+    sa_grid = np.linspace(sa_min, sa_max, n)
+    sc_grid = np.linspace(sc_min, sc_max, n)
+
+    integr_epsabs = 1e-5
+
+    logger.debug(
+        "Building eps_ac_s lookup table: n=%d, sa=[%.1f, %.1f], sc=[%.1f, %.1f], epsabs=%.1e",
+        n, sa_min, sa_max, sc_min, sc_max, integr_epsabs
+    )
+
+    def integrand(x, sa, sc):
+        return 2.0 * x * np.sqrt((1.0 - (x * x) ** sa) ** (1.0 / sc))
+
+    I = np.empty((sa_grid.size, sc_grid.size), dtype=float)
+    for i, sa in enumerate(sa_grid):
+        for j, sc in enumerate(sc_grid):
+            I[i, j], _ = quad(integrand, 0.0, 1.0, args=(sa, sc), epsabs=integr_epsabs)
+
+    interp = RegularGridInterpolator(
+        (sa_grid, sc_grid), I, bounds_error=False, fill_value=None
+    )
+    return sa_grid, sc_grid, I, interp
+
+@cache
+def _I_interp_for_n(n: int) -> RegularGridInterpolator:
+    return _build_I_table(n)[3]
+
+def _get_I_interp() -> RegularGridInterpolator:
+    """
+    Lazily get the I(sa, sc) interpolator cached per table size (EpsTableN).
+    """
+    return _I_interp_for_n(int(config.ellipsoid_s.EpsTableN))
+
+def reset_I_interp_cache() -> None:
+    """
+    Clear cached interpolators. Call after changing config.ellipsoid_s.EpsTableN.
+    """
+    _I_interp_for_n.cache_clear()
+    logger.info("Cleared eps_ac_s interpolator cache")
+
+@Ellipsoid_S.derived
+def eps_ac_s(params):
+    """
+    Shape-adjusted ellipticity between 'a' and 'c'.
+
+    Formula:
+      I(sa, sc) = ∫_0^1 2x * sqrt((1 - (x^2)^sa)^(1/sc)) dx
+      val_raw   = 1 - (1 - eps_ac) * I(sa, sc)
+
+    Normalize so that for a sphere (sa=sc=1, I=2/3) we have eps_ac_s == eps_ac:
+      center = 1 - I_sphere = 1/3
+      slope  = 2/3
+      eps_ac_s = clip((val_raw - center) / slope, 0, 1)
+
+    Notes
+    -----
+    - The I(sa, sc) table/interpolator is cached and built with resolution
+      n = config.ellipsoid_s.EpsTableN.
+    """
+    sa = float(params["sa"])
+    sc = float(params["sc"])
+    eps_ac = float(params["eps_ac"])
+
+    interp = _get_I_interp()
+    I = float(interp([[sa, sc]])[0])
+
+    # Basic sanity clamp for numerical stability if extrapolation occurs.
+    I = float(np.clip(I, 0.0, 1.0))
+
+    val_raw = 1.0 - (1.0 - eps_ac) * I
+    val = _SPHERE_SCALE * (val_raw - _SPHERE_CENTER)
+    return float(np.clip(val, 0.0, 1.0))

@@ -326,3 +326,8 @@ def T_err(params):
     dT_debc = - (2.0*N*p**2*r)/(D**2)
 
     return np.sqrt((dT_deab**2)*(eps_ab.err**2) + (dT_debc**2)*(eps_bc.err**2))
+
+@Ellipsoid.derived
+def eps_ac_s(params):
+    return params["eps_ac"]
+

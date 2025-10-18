@@ -487,3 +487,97 @@ def pos(params):
 @ShiftEuler.derived
 def angle(params):
     return np.array([params["ang1"], params["ang2"], params["ang3"]])
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def x_axis_angle(params):
+    """
+    Angle between rotated x-axis and original x-axis (radians).
+    """
+    Rt = EulerAngles.from_euler(
+        seq=EulerShift.EulerSeq,
+        angles=[params["ang1"], params["ang2"], params["ang3"]],
+    )
+    R = Rt.as_matrix()
+    c = float(np.clip(R[0, 0], -1.0, 1.0))
+    return np.arccos(c)
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def z_axis_angle(params):
+    """
+    Angle between rotated z-axis and original z-axis (radians).
+    """
+    Rt = EulerAngles.from_euler(
+        seq=EulerShift.EulerSeq,
+        angles=[params["ang1"], params["ang2"], params["ang3"]],
+    )
+    R = Rt.as_matrix()
+    c = float(np.clip(R[2, 2], -1.0, 1.0))
+    return np.arccos(c)
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def x_axis_angle_err(params):
+    """
+    Uncertainty of x_axis_angle propagated from ang1, ang2, ang3.
+    Needs ang1_err/ang2_err/ang3_err.
+    """
+    angs = np.array([params["ang1"], params["ang2"], params["ang3"]], dtype=float)
+
+    def f(a):
+        R = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=a).as_matrix()
+        c = float(np.clip(R[0, 0], -1.0, 1.0))
+        return np.arccos(c)
+
+    eps = 1e-7
+    g = np.zeros(3)
+    for i in range(3):
+        da = np.zeros(3)
+        da[i] = eps
+        g[i] = (f(angs + da) - f(angs - da)) / (2 * eps)
+
+    sig = np.array([
+        params["ang1"].err,
+        params["ang2"].err,
+        params["ang3"].err,
+    ], dtype=float)
+    cov = np.diag(sig**2)
+
+    var = float(g @ cov @ g)
+    return np.sqrt(max(var, 0.0))
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
+def z_axis_angle_err(params):
+    """
+    Uncertainty of z_axis_angle propagated from ang1, ang2, ang3.
+    Needs ang1_err/ang2_err/ang3_err.
+    """
+    angs = np.array([params["ang1"], params["ang2"], params["ang3"]], dtype=float)
+
+    def f(a):
+        R = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=a).as_matrix()
+        c = float(np.clip(R[2, 2], -1.0, 1.0))
+        return np.arccos(c)
+
+    eps = 1e-7
+    g = np.zeros(3)
+    for i in range(3):
+        da = np.zeros(3)
+        da[i] = eps
+        g[i] = (f(angs + da) - f(angs - da)) / (2 * eps)
+
+    sig = np.array([
+        params["ang1"].err,
+        params["ang2"].err,
+        params["ang3"].err,
+    ], dtype=float)
+    cov = np.diag(sig**2)
+
+    var = float(g @ cov @ g)
+    return np.sqrt(max(var, 0.0))

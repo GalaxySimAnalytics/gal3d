@@ -1,3 +1,12 @@
+"""
+Logging configuration and utilities for the gal3d package.
+
+This module sets up the logging framework for the gal3d package, including
+custom formatters and handlers to provide colorized console output and
+optional file logging without color codes.
+
+"""
+
 import logging
 import sys
 

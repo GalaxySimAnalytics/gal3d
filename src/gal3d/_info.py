@@ -1,3 +1,10 @@
+"""
+gal3d package information.
+
+version, logo, and information display function.
+
+"""
+
 import logging
 
 from gal3d.util.string_format import string_formatter

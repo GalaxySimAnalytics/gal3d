@@ -1,3 +1,34 @@
+"""
+Plugin management system for gal3d.
+
+This module defines a generic plugin management system for the gal3d package.
+It includes base classes for plugins and plugin managers, as well as a central
+registry to track all plugin managers and their associated plugins.
+
+Examples
+--------
+To create a new plugin type, define a subclass of `PluginBase` and a corresponding
+`PluginManager` subclass. Register plugins by subclassing the plugin base class.
+
+>>> from gal3d.plugin import PluginBase, PluginManager
+>>> class MyPlugin(PluginBase):
+...     def __init_subclass__(cls, **kwargs):
+...         super().__init_subclass__(**kwargs)
+...         MyPluginManager.register(cls)
+...     pass
+
+>>> class MyPluginManager(PluginManager[MyPlugin]):
+...     _plugins = {}
+...     _plugin_module = "gal3d.my_plugins"
+...     _base_class = MyPlugin
+
+
+To list all available plugins for all managers:
+
+>>> from gal3d.plugin import PluginManagerRegistry
+>>> PluginManagerRegistry.print_plugins()
+"""
+
 import logging
 import threading
 from typing import ClassVar, Generic, TypeVar

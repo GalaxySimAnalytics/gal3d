@@ -1,11 +1,11 @@
 """
-Module: gal3d.config
+Module: gal3d.configuration
 
 This module defines configuration classes and utilities for the gal3d framework.
 
 Usage Example
 -------------
->>> from gal3d.config import config
+>>> from gal3d.configuration import config
 >>> print(config.general.min_batchsize)
 >>> config.general.number_of_threads = 8
 >>> config.update({"general": {"number_of_threads": 16}})

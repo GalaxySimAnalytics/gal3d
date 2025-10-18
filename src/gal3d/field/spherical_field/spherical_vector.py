@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from scipy.spatial import KDTree, SphericalVoronoi
 
-from gal3d.config import config
+from gal3d.configuration import config
 from gal3d.util.func_cache import CacheDict
 
 from .util import fibonacci_sampling, trans_to_Spherical_coordinates, unit_vector3d

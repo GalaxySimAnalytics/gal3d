@@ -3,7 +3,7 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gal3d.config import config
+from gal3d import config
 
 
 cdef int get_num_threads():

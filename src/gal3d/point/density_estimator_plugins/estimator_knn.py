@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial import KDTree
 
-from gal3d.config import config
+from gal3d.configuration import config
 from gal3d.point.density_estimator import DensityEstimatorBase
 from gal3d.util.func_signature import func_optional_key, update_dict_value
 

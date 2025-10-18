@@ -33,7 +33,7 @@ import logging
 import threading
 from typing import ClassVar, Generic, TypeVar
 
-from gal3d.config import config
+from gal3d.configuration import config
 
 logger = logging.getLogger("gal3d.plugin")
 

@@ -10,7 +10,7 @@ from libc.math cimport sqrt
 import cython
 from cython.parallel import prange
 
-from gal3d.config import config
+from gal3d import config
 
 from ...util.array_operate import unit_vector3d, vector_length3d
 

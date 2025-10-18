@@ -8,7 +8,7 @@ cimport cython
 
 
 
-from gal3d.config import config
+from gal3d import config
 
 # Initialize numpy
 np.import_array()

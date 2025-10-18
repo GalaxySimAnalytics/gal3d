@@ -11,7 +11,7 @@ from libc.math cimport cos, pi, sin, sqrt
 import cython
 from cython.parallel import prange
 
-from gal3d.config import config
+from gal3d import config
 
 # Import dependencies
 from ...point.util import abc_vect

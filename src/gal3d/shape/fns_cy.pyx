@@ -6,7 +6,7 @@ from libc.math cimport fabs, sqrt
 
 from cython.parallel import prange
 
-from gal3d.config import config
+from gal3d import config
 
 # Import registry mechanism
 from .minimize_func import MinimizeFunc

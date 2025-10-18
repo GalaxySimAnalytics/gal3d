@@ -6,7 +6,7 @@ from numpy.typing import ArrayLike
 from scipy.integrate import quad
 from scipy.interpolate import RegularGridInterpolator
 
-from gal3d.config import config
+from gal3d.configuration import config
 from gal3d.shape.geometry import GeometryBase
 
 from .ellipsoid_s_cy import (

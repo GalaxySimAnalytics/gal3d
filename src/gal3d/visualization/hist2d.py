@@ -14,7 +14,7 @@ from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 
-from gal3d.config import config
+from gal3d.configuration import config
 from gal3d.util.array_operate import Rotate
 
 from .model_projector import ImageData

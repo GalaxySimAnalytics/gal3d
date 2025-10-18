@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 from tqdm import tqdm
 
-from .config import config
+from .configuration import config
 from .field import SphField
 from .model_workflow.fit_workflow import FitWorkflow
 from .optimization.optimizer import Optimizer, OptimizerBase

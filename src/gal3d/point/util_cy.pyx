@@ -15,7 +15,7 @@ cimport numpy as np
 from libc.math cimport sqrt
 from cython.parallel import prange
 
-from gal3d.config import config
+from gal3d import config
 
 ctypedef fused DTYPE_t:
     np.float32_t

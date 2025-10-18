@@ -10,7 +10,7 @@ optional file logging without color codes.
 import logging
 import sys
 
-from .config import LoggerConfig, config
+from .configuration import LoggerConfig, config
 from .util.string_format import string_formatter
 
 

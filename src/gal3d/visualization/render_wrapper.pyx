@@ -5,7 +5,7 @@ from libcpp.vector cimport vector
 
 import numpy as np
 
-from gal3d.config import config
+from gal3d import config
 from .model_projector import ImageData
 
 

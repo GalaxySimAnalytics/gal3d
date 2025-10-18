@@ -9,7 +9,7 @@ from cython.parallel import prange
 
 cimport cython
 
-from gal3d.config import config
+from gal3d.configuration import config
 
 #openmp.omp_set_num_threads(num_threads)
 

@@ -501,7 +501,8 @@ def x_axis_angle(params):
     )
     R = Rt.as_matrix()
     c = float(np.clip(R[0, 0], -1.0, 1.0))
-    return np.arccos(c)
+    angle = np.arccos(c)
+    return min(angle, np.pi - angle)
 
 @RotateOnly.derived
 @EulerShift.derived
@@ -516,7 +517,8 @@ def z_axis_angle(params):
     )
     R = Rt.as_matrix()
     c = float(np.clip(R[2, 2], -1.0, 1.0))
-    return np.arccos(c)
+    angle = np.arccos(c)
+    return min(angle, np.pi - angle)
 
 @RotateOnly.derived
 @EulerShift.derived
@@ -524,60 +526,75 @@ def z_axis_angle(params):
 def x_axis_angle_err(params):
     """
     Uncertainty of x_axis_angle propagated from ang1, ang2, ang3.
-    Needs ang1_err/ang2_err/ang3_err.
+    Angle is folded to [0, pi/2] as angle between two lines.
+    This handles the branch switch near pi/2 to avoid overestimation.
     """
     angs = np.array([params["ang1"], params["ang2"], params["ang3"]], dtype=float)
+
+    def fold_angle(theta: float) -> float:
+        # map angle in [0, pi] to [0, pi/2]
+        return theta if theta <= np.pi / 2 else (np.pi - theta)
 
     def f(a):
         R = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=a).as_matrix()
         c = float(np.clip(R[0, 0], -1.0, 1.0))
-        return np.arccos(c)
+        theta = np.arccos(c)  # in [0, pi]
+        return fold_angle(theta)  # in [0, pi/2]
 
     eps = 1e-7
-    g = np.zeros(3)
+    g2 = np.zeros(3)
     for i in range(3):
         da = np.zeros(3)
         da[i] = eps
-        g[i] = (f(angs + da) - f(angs - da)) / (2 * eps)
+        fp = f(angs + da)
+        fm = f(angs - da)
+        diff = (fp - fm) / (2 * eps)
+        g2[i] = diff * diff
 
     sig = np.array([
         params["ang1"].err,
         params["ang2"].err,
         params["ang3"].err,
     ], dtype=float)
-    cov = np.diag(sig**2)
-
-    var = float(g @ cov @ g)
+    var = float(np.sum(g2 * (sig ** 2)))
     return np.sqrt(max(var, 0.0))
 
+# ...existing code...
 @RotateOnly.derived
 @EulerShift.derived
 @ShiftEuler.derived
 def z_axis_angle_err(params):
     """
     Uncertainty of z_axis_angle propagated from ang1, ang2, ang3.
-    Needs ang1_err/ang2_err/ang3_err.
+    Angle is folded to [0, pi/2] as angle between two lines.
+    This handles the branch switch near pi/2 to avoid overestimation.
     """
     angs = np.array([params["ang1"], params["ang2"], params["ang3"]], dtype=float)
+
+    def fold_angle(theta: float) -> float:
+        # map angle in [0, pi] to [0, pi/2]
+        return theta if theta <= np.pi / 2 else (np.pi - theta)
 
     def f(a):
         R = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=a).as_matrix()
         c = float(np.clip(R[2, 2], -1.0, 1.0))
-        return np.arccos(c)
+        theta = np.arccos(c)  # in [0, pi]
+        return fold_angle(theta)  # in [0, pi/2]
 
     eps = 1e-7
-    g = np.zeros(3)
+    g2 = np.zeros(3)
     for i in range(3):
         da = np.zeros(3)
         da[i] = eps
-        g[i] = (f(angs + da) - f(angs - da)) / (2 * eps)
+        fp = f(angs + da)
+        fm = f(angs - da)
+        diff = (fp - fm) / (2 * eps)
+        g2[i] = diff * diff
 
     sig = np.array([
         params["ang1"].err,
         params["ang2"].err,
         params["ang3"].err,
     ], dtype=float)
-    cov = np.diag(sig**2)
-
-    var = float(g @ cov @ g)
+    var = float(np.sum(g2 * (sig ** 2)))
     return np.sqrt(max(var, 0.0))

@@ -1,6 +1,6 @@
 
 """
-Module for computing centers, inertia tensors, principal axes, and density estimations using Numba-accelerated routines.
+Module for computing centers, inertia tensors, principal axes, and density estimations using density estimators.
 
 This module provides several functions for working with particles' positions and masses,
 including calculating the geometric center, mass-weighted center of mass, the moment of inertia tensor,

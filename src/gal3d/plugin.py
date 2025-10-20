@@ -98,8 +98,8 @@ class PluginManagerRegistry:
                 main_logger.warning("No plugin managers registered")
                 plugin_display.info(string_formatter("No plugin managers registered.", fg_color="yellow", bold=True))
                 return
-
-            plugin_display.info(string_formatter("\nPlugin Managers and their Plugins:\n",
+            n_managers = len(managers.keys())
+            plugin_display.info(string_formatter( f"\n{n_managers} Plugin Managers and their Plugins:\n",
                                             fg_color="bright_blue", bold=True, underline=True))
             for manager_name, manager_class in sorted(managers.items()):
                 plugin_display.info(string_formatter(f"{manager_name}:",

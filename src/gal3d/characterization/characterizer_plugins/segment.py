@@ -91,7 +91,7 @@ class Segment(CharacterizerBase):
         data: dict[str, np.ndarray] | ModelResult,
         radial_key: str = "a",
         channel_keys: tuple[str, ...] =("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle"),
-        error_keys: tuple[str, ...] = ("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle"),
+        error_keys: tuple[str, ...] | None = None,
         ):
         """
         Parameters
@@ -102,8 +102,8 @@ class Segment(CharacterizerBase):
             The key for the radius array in `data`. Default "a".
         channel_keys : tuple of str
             The keys for the channels to segment. Default ("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle").
-        error_keys : tuple of str
-            The keys for the error channels. Default ("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle").
+        error_keys : tuple of str | None, default None
+            The keys for the error channels. if None, use same as channel_keys.
         """
         # Store and validate
         super().__init__(data)
@@ -116,6 +116,8 @@ class Segment(CharacterizerBase):
         self.r = r[dex]
 
         self.err_data: dict[str, np.ndarray] = {}
+        if error_keys is None:
+            error_keys = channel_keys
         for k in error_keys:
             err_key = f"{k}_err"
             self.err_data[k] = np.asarray(data[err_key])[dex]
@@ -127,7 +129,7 @@ class Segment(CharacterizerBase):
         max_segments: int = 10,
         min_size: int = 15,
         fixed_segments: int | None = None,
-        lam_scale: float = 0.02,
+        lam_scale: float = 1.0,
         *,
         scale_mode: Literal["std","range","none"] | list[str] = "std",
         with_stats: bool = True,
@@ -158,7 +160,7 @@ class Segment(CharacterizerBase):
         fixed_segments : int | None, optional
             Number of segments to use when `selector="fixed"`. If None,
             uses min(3, max_segments). Ignored for "bic".
-        lam_scale : float, default 0.02
+        lam_scale : float, default 1.0
             The regularization strength. Only used if `selector="bic"`.
         with_stats : bool, default True
             Whether to compute statistics for each segment.

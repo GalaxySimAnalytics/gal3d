@@ -4,12 +4,18 @@ from pathlib import Path
 from typing import Type
 import typing as t
 import types as _types
+import ast
+import sys
 
 from gal3d.plugin import PluginManager, PluginManagerRegistry
 
 HEADER = "# Auto-generated. Do not edit by hand.\n"
 
-def _format_type(ann: t.Any) -> str:
+def _format_type(
+    ann: t.Any,
+    ref_resolver: dict[str, str] | None = None,
+    needed_imports: set[str] | None = None,
+) -> str:
     """Return a stub-friendly string for a type annotation, using fully-qualified names when needed."""
     if ann is inspect._empty:
         return ""
@@ -23,7 +29,7 @@ def _format_type(ann: t.Any) -> str:
 
     # Union types (A | B)
     if origin in (t.Union, _types.UnionType):
-        return " | ".join(_format_type(a) for a in args)
+        return " | ".join(_format_type(a, ref_resolver, needed_imports) for a in args)
 
     # Literal values
     if origin is t.Literal:
@@ -34,7 +40,7 @@ def _format_type(ann: t.Any) -> str:
     if origin in name_map:
         if not args:
             return name_map[origin]
-        return f"{name_map[origin]}[{', '.join(_format_type(a) for a in args)}]"
+        return f"{name_map[origin]}[{', '.join(_format_type(a, ref_resolver, needed_imports) for a in args)}]"
 
     # typing constructs (e.g., Sequence[T], Mapping[K, V])
     if origin is not None:
@@ -42,12 +48,17 @@ def _format_type(ann: t.Any) -> str:
         qual = getattr(origin, "__qualname__", str(origin))
         prefix = "" if mod == "builtins" else f"{mod}."
         if args:
-            return f"{prefix}{qual}[{', '.join(_format_type(a) for a in args)}]"
+            return f"{prefix}{qual}[{', '.join(_format_type(a, ref_resolver, needed_imports) for a in args)}]"
         return f"{prefix}{qual}"
 
     # ForwardRef or classes
     if isinstance(ann, t.ForwardRef):
-        return ann.__forward_arg__
+        name = ann.__forward_arg__
+        if ref_resolver and name in ref_resolver:
+            if needed_imports is not None:
+                needed_imports.add(f"from {ref_resolver[name]} import {name}")
+            return name
+        return name
 
     mod = getattr(ann, "__module__", "")
     qual = getattr(ann, "__qualname__", None)
@@ -75,7 +86,13 @@ def _format_docstring(doc: str, indent: str) -> list[str]:
     out.append(f'{indent}"""')
     return out
 
-def _build_func_stub(name: str, obj: t.Any, indent: str = "    ") -> list[str]:
+def _build_func_stub(
+    name: str,
+    obj: t.Any,
+    indent: str = "    ",
+    ref_resolver: dict[str, str] | None = None,
+    needed_imports: set[str] | None = None,
+) -> list[str]:
     """Build a function/method stub with decorators and docstring."""
     dec_lines: list[str] = []
     func = obj
@@ -108,7 +125,7 @@ def _build_func_stub(name: str, obj: t.Any, indent: str = "    ") -> list[str]:
             need_kwonly_marker = False
 
         if p.annotation is not inspect._empty:
-            p_txt += f": {_format_type(p.annotation)}"
+            p_txt += f": {_format_type(p.annotation, ref_resolver, needed_imports)}"
         if p.default is not inspect._empty:
             p_txt += f" = {_format_default(p.default)}"
         parts.append(p_txt)
@@ -116,7 +133,7 @@ def _build_func_stub(name: str, obj: t.Any, indent: str = "    ") -> list[str]:
     params_str = ", ".join(parts)
     ret_str = ""
     if sig.return_annotation is not inspect._empty:
-        ret_str = f" -> {_format_type(sig.return_annotation)}"
+        ret_str = f" -> {_format_type(sig.return_annotation, ref_resolver, needed_imports)}"
 
     header = indent + f"def {func.__name__}({params_str}){ret_str}:"
 
@@ -128,7 +145,11 @@ def _build_func_stub(name: str, obj: t.Any, indent: str = "    ") -> list[str]:
 
     return dec_lines + [header] + body
 
-def _gen_base_stub(base: type) -> tuple[list[str], bool]:
+def _gen_base_stub(
+    base: type,
+    ref_resolver: dict[str, str] | None,
+    needed_imports: set[str],
+) -> tuple[list[str], bool]:
     """Generate class stub lines for the base class with docstrings, return (lines, needs_abstractmethod_import)."""
     base_name = base.__name__
     lines: list[str] = []
@@ -149,7 +170,7 @@ def _gen_base_stub(base: type) -> tuple[list[str], bool]:
             needs_abstract = True
         if body_lines and body_lines[-1] != "":
             body_lines.append("")  # blank line between methods
-        body_lines.extend(_build_func_stub(name, obj, indent="    "))
+        body_lines.extend(_build_func_stub(name, obj, indent="    ", ref_resolver=ref_resolver, needed_imports=needed_imports))
 
     if not body_lines:
         body_lines.append("    ...")
@@ -157,6 +178,39 @@ def _gen_base_stub(base: type) -> tuple[list[str], bool]:
     lines.extend(body_lines)
     lines.append("")  # trailing blank line after class
     return lines, needs_abstract
+
+def _collect_type_checking_imports(module_name: str) -> dict[str, str]:
+    """Collect names imported inside 'if TYPE_CHECKING:' blocks in the given module."""
+    try:
+        mod = sys.modules.get(module_name)
+        if mod is None:
+            __import__(module_name)
+            mod = sys.modules[module_name]
+        src = inspect.getsource(mod)
+    except Exception:
+        return {}
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return {}
+    mapping: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If):
+            test = node.test
+            is_tc = isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
+            if not is_tc and isinstance(test, ast.Attribute):
+                is_tc = test.attr == "TYPE_CHECKING"
+            if not is_tc:
+                continue
+            for stmt in node.body:
+                if isinstance(stmt, ast.ImportFrom) and stmt.module:
+                    modname = stmt.module
+                    for alias in stmt.names:
+                        # Support: from mod import Name [as alias]
+                        name = alias.asname or alias.name
+                        mapping[name] = modname
+                # 'import X as Y' not handled here for types; uncommon in TYPE_CHECKING for names used bare.
+    return mapping
 
 def gen_manager_pyi(manager: Type[PluginManager], out_dir: Path) -> None:
     mgr_name = manager.__name__
@@ -179,6 +233,9 @@ def gen_manager_pyi(manager: Type[PluginManager], out_dir: Path) -> None:
 
     imports: list[str] = []
     overloads_get: list[str] = []
+    extra_type_imports: set[str] = set()
+    # Build a resolver for ForwardRef names from TYPE_CHECKING imports in the base module
+    ref_resolver = _collect_type_checking_imports(base.__module__)
 
     for pname in plugins:
         cls = manager.get_plugin(pname)
@@ -191,11 +248,15 @@ def gen_manager_pyi(manager: Type[PluginManager], out_dir: Path) -> None:
         )
 
     lines.extend(i + "\n" for i in sorted(set(imports)))
-
-    # Base class stub with docs and typed method stubs
-    base_stub_lines, needs_abstract = _gen_base_stub(base)
+    # Base class stub with docs and typed method stubs (collects extra imports for ForwardRefs)
+    base_stub_lines, needs_abstract = _gen_base_stub(base, ref_resolver, extra_type_imports)
+    # Insert any extra imports required by ForwardRefs used in annotations
+    if extra_type_imports:
+        for imp in sorted(extra_type_imports):
+            lines.append(imp + "\n")
     if needs_abstract:
-        lines.insert(2, "from abc import abstractmethod\n")  # after HEADER
+        # Place after typing import line
+        lines.insert(2, "from abc import abstractmethod\n")
     lines.append("\n".join(base_stub_lines))
 
     # Manager class with overloads

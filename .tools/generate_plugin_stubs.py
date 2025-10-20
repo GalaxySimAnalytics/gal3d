@@ -1,280 +1,251 @@
 import inspect
-import textwrap
+import subprocess
+import sys
 from pathlib import Path
 from typing import Type
-import typing as t
-import types as _types
-import ast
-import sys
 
 from gal3d.plugin import PluginManager, PluginManagerRegistry
 
-HEADER = "# Auto-generated. Do not edit by hand.\n"
 
-def _format_type(
-    ann: t.Any,
-    ref_resolver: dict[str, str] | None = None,
-    needed_imports: set[str] | None = None,
-) -> str:
-    """Return a stub-friendly string for a type annotation, using fully-qualified names when needed."""
-    if ann is inspect._empty:
-        return ""
-    if ann is t.Any:
-        return "Any"
-    if ann is None or ann is type(None):
-        return "None"
+def _find_package_root(file_path: Path, top_pkg: str) -> Path:
+    """
+    Find the directory to pass to stubgen -o so that it recreates 'top_pkg/.../module.pyi'
+    next to the original sources (e.g. src).
+    """
+    p = file_path.parent
+    while p != p.parent:
+        if (p / top_pkg).exists():
+            return p
+        p = p.parent
+    # Fallback: place into the directory of the module file (no package tree rebuild)
+    return file_path.parent
 
-    origin = t.get_origin(ann)
-    args = t.get_args(ann)
 
-    # Union types (A | B)
-    if origin in (t.Union, _types.UnionType):
-        return " | ".join(_format_type(a, ref_resolver, needed_imports) for a in args)
+def _ensure_typing_imports(lines: list[str]) -> None:
+    """Ensure 'from typing import Literal, overload' exists."""
+    needed = "from typing import Literal, overload\n"
+    if any(l.startswith("from typing import") and "Literal" in l and "overload" in l for l in lines):
+        return
+    # insert after the last import block
+    insert_at = 0
+    for i, l in enumerate(lines):
+        if l.startswith(("from ", "import ")):
+            insert_at = i + 1
+    lines.insert(insert_at, needed)
 
-    # Literal values
-    if origin is t.Literal:
-        return f"Literal[{', '.join(repr(a) for a in args)}]"
 
-    # Builtin generics
-    name_map = {list: "list", dict: "dict", tuple: "tuple", set: "set", frozenset: "frozenset", type: "type"}
-    if origin in name_map:
-        if not args:
-            return name_map[origin]
-        return f"{name_map[origin]}[{', '.join(_format_type(a, ref_resolver, needed_imports) for a in args)}]"
+def _ensure_plugin_imports(lines: list[str], imports: list[str]) -> None:
+    """Insert plugin class imports if not already present."""
+    add = [imp for imp in sorted(set(imports)) if all(imp not in l for l in lines)]
+    if not add:
+        return
+    # insert after the last import block
+    insert_at = 0
+    for i, l in enumerate(lines):
+        if l.startswith(("from ", "import ")):
+            insert_at = i + 1
+    for imp in add:
+        lines.insert(insert_at, imp + "\n")
+        insert_at += 1
 
-    # typing constructs (e.g., Sequence[T], Mapping[K, V])
-    if origin is not None:
-        mod = getattr(origin, "__module__", "")
-        qual = getattr(origin, "__qualname__", str(origin))
-        prefix = "" if mod == "builtins" else f"{mod}."
-        if args:
-            return f"{prefix}{qual}[{', '.join(_format_type(a, ref_resolver, needed_imports) for a in args)}]"
-        return f"{prefix}{qual}"
 
-    # ForwardRef or classes
-    if isinstance(ann, t.ForwardRef):
-        name = ann.__forward_arg__
-        if ref_resolver and name in ref_resolver:
-            if needed_imports is not None:
-                needed_imports.add(f"from {ref_resolver[name]} import {name}")
-            return name
-        return name
-
-    mod = getattr(ann, "__module__", "")
-    qual = getattr(ann, "__qualname__", None)
-    if qual:
-        if mod == "builtins":
-            return qual
-        return f"{mod}.{qual}"
-
-    # Fallback
-    return repr(ann)
-
-def _format_default(val: t.Any) -> str:
-    try:
-        return repr(val)
-    except Exception:
-        return "..."  # fallback for unserializable defaults
-
-def _format_docstring(doc: str, indent: str) -> list[str]:
-    if not doc:
-        return []
-    # Keep the doc readable in .pyi
-    lines = doc.splitlines()
-    out = [f'{indent}"""']
-    out.extend(f"{indent}{line}" for line in lines)
-    out.append(f'{indent}"""')
-    return out
-
-def _build_func_stub(
-    name: str,
-    obj: t.Any,
-    indent: str = "    ",
-    ref_resolver: dict[str, str] | None = None,
-    needed_imports: set[str] | None = None,
-) -> list[str]:
-    """Build a function/method stub with decorators and docstring."""
-    dec_lines: list[str] = []
-    func = obj
-    is_cm = isinstance(obj, classmethod)
-    is_sm = isinstance(obj, staticmethod)
-    if is_cm or is_sm:
-        func = obj.__func__  # unwrap
-
-    # Decorators
-    if getattr(func, "__isabstractmethod__", False):
-        dec_lines.append(indent + "@abstractmethod")
-    if is_cm:
-        dec_lines.append(indent + "@classmethod")
-    if is_sm:
-        dec_lines.append(indent + "@staticmethod")
-
-    sig = inspect.signature(func)
-
-    parts: list[str] = []
-    need_kwonly_marker = True
-    for p in sig.parameters.values():
-        p_txt = p.name
-        if p.kind is p.VAR_POSITIONAL:
-            p_txt = "*" + p_txt
-        elif p.kind is p.VAR_KEYWORD:
-            p_txt = "**" + p_txt
-        elif p.kind is p.KEYWORD_ONLY and need_kwonly_marker:
-            # Insert * to start keyword-only section
-            parts.append("*")
-            need_kwonly_marker = False
-
-        if p.annotation is not inspect._empty:
-            p_txt += f": {_format_type(p.annotation, ref_resolver, needed_imports)}"
-        if p.default is not inspect._empty:
-            p_txt += f" = {_format_default(p.default)}"
-        parts.append(p_txt)
-
-    params_str = ", ".join(parts)
-    ret_str = ""
-    if sig.return_annotation is not inspect._empty:
-        ret_str = f" -> {_format_type(sig.return_annotation, ref_resolver, needed_imports)}"
-
-    header = indent + f"def {func.__name__}({params_str}){ret_str}:"
-
-    # Docstring
-    raw_doc = inspect.getdoc(func) or func.__doc__ or ""
-    body: list[str] = []
-    body.extend(_format_docstring(raw_doc, indent + "    "))
-    body.append(indent + "    ...")
-
-    return dec_lines + [header] + body
-
-def _gen_base_stub(
-    base: type,
-    ref_resolver: dict[str, str] | None,
-    needed_imports: set[str],
-) -> tuple[list[str], bool]:
-    """Generate class stub lines for the base class with docstrings, return (lines, needs_abstractmethod_import)."""
-    base_name = base.__name__
-    lines: list[str] = []
-    needs_abstract = False
-
-    lines.append(f"class {base_name}(_{base_name}):")
-    class_doc = inspect.getdoc(base) or base.__doc__ or ""
-    body_lines: list[str] = []
-    body_lines.extend(_format_docstring(class_doc, "    "))
-
-    # Only methods defined on this class (not inherited)
-    for name, obj in base.__dict__.items():
-        if name.startswith("__") and name.endswith("__"):
+def _class_block_range(lines: list[str], cls_name: str) -> tuple[int, int, int]:
+    """
+    Return (start_index, end_index, body_indent) for class cls_name in given lines.
+    end_index points to the first line after the class block (insertion point).
+    """
+    start = -1
+    for i, l in enumerate(lines):
+        # Only match top-level classes
+        if not l.startswith("class "):
             continue
-        if not (callable(obj) or isinstance(obj, (classmethod, staticmethod))):
+        rest = l[len("class "):]
+        # class Name(...): or class Name:
+        name = rest.split("(", 1)[0].split(":", 1)[0].strip()
+        if name == cls_name:
+            start = i
+            break
+    if start < 0:
+        return -1, -1, 4
+    # find body indent
+    j = start + 1
+    body_indent = 4
+    while j < len(lines) and lines[j].strip() == "":
+        j += 1
+    if j < len(lines):
+        body_indent = len(lines[j]) - len(lines[j].lstrip(" "))
+    # find end (dedent)
+    k = j
+    while k < len(lines):
+        s = lines[k].strip()
+        if s != "":
+            indent = len(lines[k]) - len(lines[k].lstrip(" "))
+            if indent < body_indent:
+                break
+        k += 1
+    end = k
+    return start, end, body_indent
+
+
+def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> None:
+    """Inject overload methods into the manager class body if not already present."""
+    if not overloads:
+        return
+    start, end, body_indent = _class_block_range(lines, mgr_name)
+    if start < 0:
+        # No manager class in stub? Append a partial class stub.
+        lines += [
+            f"\nclass {mgr_name}:\n",
+        ] + [ol for ol in overloads]
+        return
+
+    # If the class is a single-line stub: "class X(...): ...", expand it to a block
+    header_line = lines[start]
+    after_colon = header_line.split(":", 1)[1] if ":" in header_line else ""
+    if after_colon.strip() in ("...", "pass"):
+        # Turn into:
+        # class X(...):
+        #     ...
+        prefix = header_line.split(":", 1)[0]
+        lines[start] = prefix + ":\n"
+        # Prefer a 4-space indent for class body
+        placeholder = " " * 4 + "...\n"
+        lines.insert(start + 1, placeholder)
+        # Recompute class block after expansion
+        start, end, body_indent = _class_block_range(lines, mgr_name)
+
+    # Filter out overloads already present (by plugin Literal[...] marker)
+    class_block = "".join(lines[start:end])
+    todo = []
+    for chunk in overloads:
+        # Each chunk contains 'Literal["{pname}"]'
+        if "Literal[" in chunk and chunk in class_block:
             continue
-        if getattr(getattr(obj, "__func__", obj), "__isabstractmethod__", False):
-            needs_abstract = True
-        if body_lines and body_lines[-1] != "":
-            body_lines.append("")  # blank line between methods
-        body_lines.extend(_build_func_stub(name, obj, indent="    ", ref_resolver=ref_resolver, needed_imports=needed_imports))
-
-    if not body_lines:
-        body_lines.append("    ...")
-
-    lines.extend(body_lines)
-    lines.append("")  # trailing blank line after class
-    return lines, needs_abstract
-
-def _collect_type_checking_imports(module_name: str) -> dict[str, str]:
-    """Collect names imported inside 'if TYPE_CHECKING:' blocks in the given module."""
-    try:
-        mod = sys.modules.get(module_name)
-        if mod is None:
-            __import__(module_name)
-            mod = sys.modules[module_name]
-        src = inspect.getsource(mod)
-    except Exception:
-        return {}
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return {}
-    mapping: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.If):
-            test = node.test
-            is_tc = isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
-            if not is_tc and isinstance(test, ast.Attribute):
-                is_tc = test.attr == "TYPE_CHECKING"
-            if not is_tc:
+        if "Literal[" in chunk:
+            lit = chunk.split("Literal[", 1)[1].split("]", 1)[0]
+            if lit in class_block:
                 continue
-            for stmt in node.body:
-                if isinstance(stmt, ast.ImportFrom) and stmt.module:
-                    modname = stmt.module
-                    for alias in stmt.names:
-                        # Support: from mod import Name [as alias]
-                        name = alias.asname or alias.name
-                        mapping[name] = modname
-                # 'import X as Y' not handled here for types; uncommon in TYPE_CHECKING for names used bare.
-    return mapping
+        todo.append(chunk)
+    if not todo:
+        return
 
-def gen_manager_pyi(manager: Type[PluginManager], out_dir: Path) -> None:
-    mgr_name = manager.__name__
-    module = manager.__module__
+    # If the class body only contains a placeholder "...", remove it before inserting methods
+    body_start = start + 1
+    if body_start < len(lines) and lines[body_start].strip() == "...":
+        del lines[body_start]
+        # Adjust end because we removed one line
+        end -= 1
 
+    # Ensure a blank line before injected methods if body not empty
+    insert_lines = []
+    if any(lines[i].strip() for i in range(start + 1, end)):
+        insert_lines.append("\n")
+    insert_lines += todo
+
+    lines[end:end] = insert_lines
+
+
+def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
+    """
+    Run stubgen for a module and return the path to the generated .pyi.
+    Try 'stubgen' CLI first, then in-process API, then 'python -m mypy.stubgen'.
+    """
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    # 1) Try console script 'stubgen'
+    tried: list[list[str]] = []
+    for cmd in (
+        ["stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
+        [sys.executable, "-m", "mypy.stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
+    ):
+        tried.append(cmd)
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            break
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            continue
+    else:
+        # 2) Try in-process API as last robust option
+        try:
+            import mypy.stubgen as _stubgen  # type: ignore
+            try:
+                _stubgen.main(["-m", module_name, "-o", str(out_root), "--include-docstrings"])
+            except SystemExit as e:
+                if e.code not in (0, None):
+                    raise RuntimeError(f"stubgen failed for {module_name} with exit code {e.code}")
+        except Exception as e:
+            cmds = "\n".join(" ".join(c) for c in tried)
+            raise RuntimeError(
+                f"stubgen not available or failed for {module_name}.\n"
+                f"Tried commands:\n{cmds}\n"
+                f"Hint: pip install -U mypy"
+            ) from e
+
+    # Resolve output file path
+    parts = module_name.split(".")
+    rel_dir = out_root.joinpath(*parts[:-1]) if len(parts) > 1 else out_root
+    pyi_path = rel_dir / (parts[-1] + ".pyi")
+    if not pyi_path.exists():
+        # If stubgen emitted package stub, expect __init__.pyi
+        pkg_init = rel_dir / "__init__.pyi"
+        if pkg_init.exists():
+            pyi_path = pkg_init
+        else:
+            raise FileNotFoundError(f"Generated stub not found: {pyi_path}")
+    return pyi_path
+
+
+def gen_manager_pyi(manager: Type[PluginManager]) -> None:
+    # Discover plugins first
     plugins = manager.available_plugins()
 
-    lines: list[str] = []
-    lines.append(HEADER)
+    # Locate source module and output root
+    module_name = manager.__module__
+    src_file = inspect.getsourcefile(manager)
+    if not src_file:
+        raise RuntimeError(f"Cannot locate source for {manager}")
+    src_path = Path(src_file)
+    top_pkg = module_name.split(".")[0]
+    out_root = _find_package_root(src_path, top_pkg)
 
-    # typing imports
-    typing_imports = ["Any", "Literal", "overload"]
-    # Will add abstractmethod if needed later
-    lines.append(f"from typing import {', '.join(typing_imports)}\n")
-    lines.append(f"from {module} import {mgr_name} as _{mgr_name}\n")
+    # Generate base .pyi via stubgen
+    pyi_path = _run_stubgen_for_module(module_name, out_root)
 
-    base = manager._base_class
-    base_name = base.__name__
-    lines.append(f"from {base.__module__} import {base_name} as _{base_name}\n")
-
+    # Build plugin import lines and overloads
     imports: list[str] = []
     overloads_get: list[str] = []
-    extra_type_imports: set[str] = set()
-    # Build a resolver for ForwardRef names from TYPE_CHECKING imports in the base module
-    ref_resolver = _collect_type_checking_imports(base.__module__)
-
     for pname in plugins:
         cls = manager.get_plugin(pname)
         cls_name = cls.__name__
         imports.append(f"from {cls.__module__} import {cls_name}")
         overloads_get.append(
             "    @overload\n"
-            f"    @classmethod\n"
+            "    @classmethod\n"
             f"    def get_plugin(cls, name: Literal[\"{pname}\"]) -> type[{cls_name}]: ...\n"
         )
 
-    lines.extend(i + "\n" for i in sorted(set(imports)))
-    # Base class stub with docs and typed method stubs (collects extra imports for ForwardRefs)
-    base_stub_lines, needs_abstract = _gen_base_stub(base, ref_resolver, extra_type_imports)
-    # Insert any extra imports required by ForwardRefs used in annotations
-    if extra_type_imports:
-        for imp in sorted(extra_type_imports):
-            lines.append(imp + "\n")
-    if needs_abstract:
-        # Place after typing import line
-        lines.insert(2, "from abc import abstractmethod\n")
-    lines.append("\n".join(base_stub_lines))
+    # Read, patch, write
+    text = pyi_path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
 
-    # Manager class with overloads
-    lines.append(f"class {mgr_name}(_{mgr_name}):\n")
-    lines.extend(overloads_get)
+    # Ensure typing imports (Literal, overload)
+    _ensure_typing_imports(lines)
+    # Ensure plugin imports
+    _ensure_plugin_imports(lines, imports)
+    # Inject overloads in the manager class
+    mgr_name = manager.__name__
+    _inject_overloads(lines, mgr_name, overloads_get)
 
-    src = inspect.getsourcefile(manager)
-    assert src
-    out_path = Path(src).with_suffix(".pyi")
-    out_path.write_text("".join(lines), encoding="utf-8")
-    print(f"Wrote {out_path}")
+    pyi_path.write_text("".join(lines), encoding="utf-8")
+    print(f"Patched {pyi_path}")
 
-def main():
+
+def main() -> None:
     PluginManagerRegistry.all_managers()
     for _, mgr in PluginManagerRegistry._managers.items():
         if mgr is PluginManager:
             continue
-        gen_manager_pyi(mgr, Path("."))
+        gen_manager_pyi(mgr)
 
 if __name__ == "__main__":
     main()

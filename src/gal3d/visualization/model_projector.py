@@ -1,3 +1,6 @@
+"""
+Model projector base class and factory for generating 2D projections from 3D models.
+"""
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
@@ -18,6 +21,7 @@ logger = logging.getLogger("gal3d.visualization.model_projector")
 
 @dataclass
 class ImageData:
+    """ Data class to hold projected image information."""
     value: np.ndarray
     xs: np.ndarray
     ys: np.ndarray
@@ -79,7 +83,8 @@ class ModelProjectorBase(PluginBase):
         cache_len : int, default=100
             Maximum number of images to store in the cache.
         """
-        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], NDArray[np.float64]] = CacheDict(cache_len=cache_len)
+        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], NDArray[np.float64]]
+        self._image_cache = CacheDict(cache_len=cache_len)
 
     @staticmethod
     def ImageCache(func: Callable) -> Callable:
@@ -260,7 +265,7 @@ class ModelProjectorBase(PluginBase):
 
         Returns
         -------
-        tuple
+        ImageData
             The projected image in the x-z plane.
         """
         return self.image(
@@ -296,7 +301,7 @@ class ModelProjectorBase(PluginBase):
 
         Returns
         -------
-        tuple
+        ImageData
             The projected image in the y-z plane.
         """
         return self.image(
@@ -316,6 +321,3 @@ class ModelProjector(PluginManager[ModelProjectorBase]):
     _plugins = {}
     _plugin_module = "gal3d.visualization.model_projector_plugins"
     _base_class = ModelProjectorBase
-
-
-# Removed unused imports: ProjectorLineIntegration, ProjectorSphGrid

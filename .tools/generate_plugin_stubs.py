@@ -155,7 +155,7 @@ def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
     # 1) Try console script 'stubgen'
     tried: list[list[str]] = []
     for cmd in (
-        ["stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
+        ["stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"], #  "--include-private"
         [sys.executable, "-m", "mypy.stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
     ):
         tried.append(cmd)
@@ -223,6 +223,11 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
             "    @classmethod\n"
             f"    def get_plugin(cls, name: Literal[\"{pname}\"]) -> type[{cls_name}]: ...\n"
         )
+    overloads_get.append(
+        "    @overload\n"
+        "    @classmethod\n"
+        f"    def get_plugin(cls, name: str) -> type[{manager._base_class.__name__}]: ...\n"
+    )
 
     # Read, patch, write
     text = pyi_path.read_text(encoding="utf-8")

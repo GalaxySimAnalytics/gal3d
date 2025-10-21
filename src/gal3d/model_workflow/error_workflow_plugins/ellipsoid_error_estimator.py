@@ -1,5 +1,6 @@
 """
 Spherical harmonics-based error estimation workflow, estimator for Ellipsoidal shapes.
+This module still under development.
 """
 import math
 from collections import defaultdict
@@ -13,6 +14,7 @@ from gal3d.field.spherical_field.spherical_vector import SphVector
 from gal3d.model_workflow.error_workflow import ErrorWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.shape import StructureCore
+from gal3d.util.func_decorator import development_warning
 
 if TYPE_CHECKING:
     from gal3d.optimization.parameter import Parameters
@@ -367,6 +369,7 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
         else:
             return False
 
+    @development_warning("EllipsoidErrorEstimator.estimate_error is under development and may change in future versions.")
     @classmethod
     def estimate_error(cls, result: Union[StructureCore, "ModelResult"], param_name: list[str] | None = None, *,max_iter: int = 10, **kwargs: Any) -> dict[str, Any]:
 
@@ -413,6 +416,7 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
             ret = {i: np.array(ret_list[i]) for i in ret_list.keys()}
             return ret
 
+    @development_warning("estimate_structure_update is under development and may change in future versions.")
     @classmethod
     def estimate_structure_update(cls, result: StructureCore, pos: np.ndarray,*, estimator_key: list[str] | None = None, **kwargs: Any) -> dict[str, np.ndarray]:
         if not cls.condition(result):
@@ -533,6 +537,7 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
         # Return parameter change
         return best_value - original_value
 
+    @development_warning("estimate_model_update is under development and may change in future versions.")
     @classmethod
     def estimate_model_update(cls, result: ModelResult,*, estimator_key: list[str] | None = None, **kwargs: Any) -> dict[str, np.ndarray]:
 

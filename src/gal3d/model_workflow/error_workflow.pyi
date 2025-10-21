@@ -19,7 +19,7 @@ class ErrorWorkflowBase(PluginBase):
     Registration:
     Subclasses are automatically registered as plugins via __init_subclass__.
     """
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as an error estimator workflow plugin.
         """
@@ -106,9 +106,6 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
     _base_class : type
         The base class for all error estimator workflow plugins
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = ErrorWorkflowBase
     @classmethod
     def get_error_estimator(cls, result: StructureCore | ModelResult | None = None, name: str | None = None) -> ErrorWorkflowBase:
         """
@@ -145,3 +142,6 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["EllipsoidErrorEstimator"]) -> type[EllipsoidErrorEstimator]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[ErrorWorkflowBase]: ...

@@ -63,7 +63,7 @@ class ModelProjectorBase(PluginBase):
         Cache for storing previously computed images.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register subclass as a ModelProjector plugin.
 
         Parameters

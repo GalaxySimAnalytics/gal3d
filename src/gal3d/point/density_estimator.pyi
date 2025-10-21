@@ -43,7 +43,7 @@ class DensityEstimatorBase(PluginBase, Auto3DShape, metaclass=abc.ABCMeta):
     pa_mode: Incomplete
     kernel: Incomplete
     def __init__(self, pos: ArrayLike, mass: np.ndarray, parameter_mode: str = 'Density', kernel: None = None) -> None: ...
-    def __init_subclass__(cls, **kwargs) -> None: ...
+    def __init_subclass__(cls, **kwargs: Any) -> None: ...
     @cached_property
     def parameter(self) -> np.ndarray:
         """
@@ -130,10 +130,10 @@ class DensityEstimator(PluginManager[DensityEstimatorBase]):
     """
     Factory class for accessing registered density estimator plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = DensityEstimatorBase
 
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["DensityEstimatorKNN"]) -> type[DensityEstimatorKNN]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[DensityEstimatorBase]: ...

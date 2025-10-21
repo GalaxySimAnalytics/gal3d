@@ -23,7 +23,7 @@ class FitWorkflowBase(PluginBase):
     Registration:
     Subclasses are automatically registered as plugins via __init_subclass__.
     """
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as a fitting workflow plugin.
         """

@@ -1,12 +1,10 @@
 import abc
 import numpy as np
-from _typeshed import Incomplete
-from abc import abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from gal3d.plugin import PluginBase, PluginManager
-from gal3d.util.func_cache import CacheDict
 from numpy.typing import NDArray
-from typing import Any, Callable, Sequence
+from typing import Any
 from typing import Literal, overload
 from gal3d.visualization.model_projector_plugins.projector_line_integration import ProjectorLineIntegration
 from gal3d.visualization.model_projector_plugins.projector_sph_grid import ProjectorSphGrid
@@ -47,7 +45,7 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
     _image_cache : CacheDict
         Cache for storing previously computed images.
     """
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register subclass as a ModelProjector plugin.
 
         Parameters
@@ -55,7 +53,6 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         **kwargs
             Additional keyword arguments passed to the parent __init_subclass__.
         """
-    _image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], NDArray[np.float64]]
     def __init__(self, cache_len: int = 100) -> None:
         """Initialize the model projector.
 
@@ -79,21 +76,6 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         -------
         callable
             Wrapped function that includes caching behavior.
-        """
-    def _validate_range(self, value_range: Sequence[float], name: str) -> None:
-        """Validate that a range is a tuple of two floats with min < max.
-
-        Parameters
-        ----------
-        value_range : sequence of float
-            The range to validate.
-        name : str
-            The name of the range for error messages.
-
-        Raises
-        ------
-        ValueError
-            If the range is invalid.
         """
     @ImageCache
     def image(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20), rotation: NDArray[np.float64] | None = None, **kwargs: Any) -> ImageData:
@@ -124,33 +106,6 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         ------
         ValueError
             If provided ranges are invalid or inconsistent.
-        """
-    @abstractmethod
-    def _image(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20), rotation: NDArray[np.float64] | None = None, **kwargs: Any) -> ImageData:
-        """Abstract method to generate a projected image.
-
-        This method must be implemented by subclasses to perform
-        the actual image generation.
-
-        Parameters
-        ----------
-        x_range : Tuple of float
-            The (min, max) range in x-direction for the projection.
-        y_range : Tuple of float
-            The (min, max) range in y-direction for the projection.
-        nbins : int, default=100
-            Number of bins in each dimension for the projection.
-        z_range : Tuple of float, default=(-20, 20)
-            The (min, max) range in z-direction to include in the projection.
-        rotation : ndarray, default=identity matrix
-            3x3 rotation matrix to apply to the model before projection.
-        **kwargs : dict
-            Additional keyword arguments for specific projection methods.
-
-        Returns
-        -------
-        ImageData
-            The projected image data.
         """
     def image_xz(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20)) -> ImageData:
         """Generate a projection in the x-z plane.
@@ -201,9 +156,6 @@ class ModelProjector(PluginManager[ModelProjectorBase]):
     """
     Factory class for accessing registered ModelProjector plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = ModelProjectorBase
 
     @overload
     @classmethod
@@ -211,3 +163,6 @@ class ModelProjector(PluginManager[ModelProjectorBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["ProjectorSphGrid"]) -> type[ProjectorSphGrid]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[ModelProjectorBase]: ...

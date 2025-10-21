@@ -96,7 +96,7 @@ class OptimizerScipy(OptimizerBase):
         )
         start_fun = fn(x0)
         start_params = np.array(x0)
-        params = self._create_params(res.x, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
+        params = self.create_params(res.x, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
         return process_scipy_result(self.algo_name,start_params,start_fun,res, params)
 
     @classmethod

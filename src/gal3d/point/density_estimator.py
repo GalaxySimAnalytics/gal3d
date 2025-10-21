@@ -50,7 +50,7 @@ class DensityEstimatorBase(PluginBase,Auto3DShape):
         self.pa_mode = parameter_mode
         self.kernel = kernel
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         DensityEstimator.register(cls)
 

@@ -29,7 +29,7 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         Inverse transforms the given position.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register a new coordinate plugin subclass and update the plugin stub.
         """

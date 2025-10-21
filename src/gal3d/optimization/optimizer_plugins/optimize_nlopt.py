@@ -96,7 +96,7 @@ class OptimizerNLopt(OptimizerBase):
 
         xopt = opt.optimize(start_params)
         start_fun = fun(start_params, *func_args, **func_kwargs)
-        params = self._create_params(xopt, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
+        params = self.create_params(xopt, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
         return _process_nlopt_results(self.algo_name, start_params, start_fun, opt, params, is_global)
 
     @classmethod

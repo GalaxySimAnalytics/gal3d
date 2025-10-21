@@ -145,7 +145,7 @@ class OptimizerBase(PluginBase):
         self.algo_options = algo_options or {}
         self.kwargs: dict = {}
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as an optimizer plugin.
         """
@@ -233,7 +233,7 @@ class OptimizerBase(PluginBase):
             The result of the fitting.
         """
 
-    def _create_params(
+    def create_params(
         self,
         param_values: Sequence[float],
         param_names: list[str] | None = None,
@@ -273,7 +273,7 @@ class OptimizerBase(PluginBase):
             params[name] = Parameter(value, lb=lb, ub=ub, err=err)
         return params
 
-    def set_options(self, **kwargs):
+    def set_options(self, **kwargs: Any) -> None:
         """
         Update the algorithm options.
 

@@ -1,6 +1,5 @@
 import numpy as np
 from .with_parameter import WithParameter, abstractmethod
-from _typeshed import Incomplete
 from gal3d.plugin import PluginBase, PluginManager
 from gal3d.util.array_operate import Auto3DShape
 from numpy.typing import NDArray
@@ -208,9 +207,6 @@ class Geometry(PluginManager[GeometryBase]):
     """
     Factory class for accessing registered Geometry plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = GeometryBase
 
     @overload
     @classmethod
@@ -218,3 +214,6 @@ class Geometry(PluginManager[GeometryBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["Ellipsoid_S"]) -> type[Ellipsoid_S]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[GeometryBase]: ...

@@ -1,6 +1,5 @@
 import numpy as np
 from .with_parameter import WithParameter, abstractmethod
-from _typeshed import Incomplete
 from gal3d.plugin import PluginBase, PluginManager
 from gal3d.util.array_operate import Auto3DShape
 from numpy.typing import NDArray
@@ -28,7 +27,7 @@ class CoordinateBase(WithParameter, PluginBase, Auto3DShape):
     inverse(pos):
         Inverse transforms the given position.
     """
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register a new coordinate plugin subclass and update the plugin stub.
         """
@@ -115,9 +114,6 @@ class Coordinate(PluginManager[CoordinateBase]):
     """
     Factory class for accessing registered Coordinate plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = CoordinateBase
 
     @overload
     @classmethod
@@ -131,3 +127,6 @@ class Coordinate(PluginManager[CoordinateBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["ShiftEuler"]) -> type[ShiftEuler]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[CoordinateBase]: ...

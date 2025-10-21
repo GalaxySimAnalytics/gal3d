@@ -1,4 +1,3 @@
-from _typeshed import Incomplete
 from gal3d.analyzer import Gal3DAnalyzer as Gal3DAnalyzer
 from gal3d.optimization.result import ModelResult as ModelResult
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
@@ -21,7 +20,7 @@ class FitWorkflowBase(PluginBase):
     Registration:
     Subclasses are automatically registered as plugins via __init_subclass__.
     '''
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as a fitting workflow plugin.
         """
@@ -78,9 +77,6 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     _base_class : type
         The base class for all workflow plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = FitWorkflowBase
     @classmethod
     def get_workflow(cls, obj: Gal3DAnalyzer | Particles) -> FitWorkflowBase:
         """
@@ -108,3 +104,6 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["IterateEllipsoidWorkflow"]) -> type[IterateEllipsoidWorkflow]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[FitWorkflowBase]: ...

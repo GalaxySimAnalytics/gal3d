@@ -3,6 +3,7 @@ from _typeshed import Incomplete
 from abc import abstractmethod
 from gal3d.optimization.result import ModelResult
 from gal3d.plugin import PluginBase, PluginManager
+from typing import Any
 from typing import Literal, overload
 from gal3d.characterization.characterizer_plugins.galaxy_bar import Bar
 from gal3d.characterization.characterizer_plugins.galaxy_disk import Disk
@@ -13,7 +14,7 @@ __all__ = ['Characterizer', 'CharacterizerBase']
 class CharacterizerBase(PluginBase, metaclass=abc.ABCMeta):
     data: Incomplete
     def __init__(self, data: dict | ModelResult) -> None: ...
-    def __init_subclass__(cls, **kwargs) -> None: ...
+    def __init_subclass__(cls, **kwargs: Any) -> None: ...
     @abstractmethod
     def measure(self, *args, **kwargs): ...
 
@@ -21,9 +22,6 @@ class Characterizer(PluginManager[CharacterizerBase]):
     """
     Factory class for accessing registered characterizer plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = CharacterizerBase
 
     @overload
     @classmethod
@@ -34,3 +32,6 @@ class Characterizer(PluginManager[CharacterizerBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["Segment"]) -> type[Segment]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[CharacterizerBase]: ...

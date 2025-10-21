@@ -71,7 +71,7 @@ class ModelIOBase(PluginBase):
     ModelResult objects and for checking file paths.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Registers the subclass as a model I/O plugin.
         """

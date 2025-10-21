@@ -129,6 +129,7 @@ class Gal3DAnalyzer:
 
         field = cls._build_field(particles=particles, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
         structure = cls._build_structure(np.mean(field.inner_r))
+        optimizer: OptimizerBase
         if "OptimizerLMFit" in Optimizer.available_plugins(): # LMFit is better, if available
             optimizer = Optimizer.get_plugin(name="OptimizerLMFit")("least_squares")#  leastsq or least_squares?, least_squares is more robust but slightly slower
         else:

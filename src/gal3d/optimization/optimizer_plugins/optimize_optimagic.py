@@ -100,7 +100,7 @@ class OptimizerOptimagic(OptimizerBase):
             algo_options=self.algo_options,
             **kwargs,
         )
-        params = self._create_params(om_result.x, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
+        params = self.create_params(om_result.x, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
 
         return process_om_result(self.algo_name, start_params, om_result, params)
 

@@ -3,6 +3,7 @@ Characterizer base class and factory for measuring properties from data or model
 """
 import logging
 from abc import abstractmethod
+from typing import Any
 
 from gal3d.optimization.result import ModelResult
 from gal3d.plugin import PluginBase, PluginManager
@@ -19,7 +20,7 @@ class CharacterizerBase(PluginBase):
             raise TypeError(f"Expected 'data' to be of type 'dict' or 'ModelResult', but got {type(data).__name__}")
         self.data = data
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
 
         super().__init_subclass__(**kwargs)
         Characterizer.register(cls)

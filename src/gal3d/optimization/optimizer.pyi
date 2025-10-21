@@ -65,8 +65,6 @@ class OptimizeResult(_RichResult):
     algorithm_output: dict
         Additional algorithm specific information.
     """
-    _order_keys: list[str]
-    def __repr__(self) -> str: ...
 
 class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
     """
@@ -100,7 +98,7 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         ------
             ValueError: If the specified algorithm is not valid.
         """
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as an optimizer plugin.
         """
@@ -153,7 +151,7 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         result : OptimizeResult
             The result of the fitting.
         """
-    def _create_params(self, param_values: Sequence[float], param_names: list[str] | None = None, param_lbs: Sequence[float | None] | None = None, param_ubs: Sequence[float | None] | None = None, param_errors: Sequence[float | None] | None = None) -> ParameterDict:
+    def create_params(self, param_values: Sequence[float], param_names: list[str] | None = None, param_lbs: Sequence[float | None] | None = None, param_ubs: Sequence[float | None] | None = None, param_errors: Sequence[float | None] | None = None) -> ParameterDict:
         """
         Create a ParameterDict from the given parameter information.
 
@@ -175,7 +173,7 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         ParameterDict
             A ParameterDict containing the created parameters.
         """
-    def set_options(self, **kwargs) -> None:
+    def set_options(self, **kwargs: Any) -> None:
         """
         Update the algorithm options.
 
@@ -204,9 +202,6 @@ class Optimizer(PluginManager[OptimizerBase]):
     """
     Factory class for accessing registered optimizer plugins.
     """
-    _plugins: Incomplete
-    _plugin_module: str
-    _base_class = OptimizerBase
 
     @overload
     @classmethod
@@ -220,3 +215,6 @@ class Optimizer(PluginManager[OptimizerBase]):
     @overload
     @classmethod
     def get_plugin(cls, name: Literal["OptimizerLMFit"]) -> type[OptimizerLMFit]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: str) -> type[OptimizerBase]: ...

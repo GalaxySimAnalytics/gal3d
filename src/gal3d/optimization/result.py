@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
 
-from gal3d.model_workflow.error_workflow import ErrorWorkflow
 from gal3d.shape import Structure3D, StructureCore
 
 from .optimizer import OptimizeResult
@@ -86,6 +85,7 @@ class ModelResult:
         """
         Get the estimated errors for the model.
         """
+        from gal3d.model_workflow.error_workflow import ErrorWorkflow
         if isinstance(param_name, str):
             param_name = [param_name]
         return ErrorWorkflow.estimate_error(self, param_name=param_name)
@@ -422,7 +422,7 @@ class ModelResult:
             If the group path already exists and overwrite=False
         """
         from .model_io import ModelIO
-        load = ModelIO.get_plugin(handler)  # type: ignore
+        load = ModelIO.get_plugin(handler)
         load.save(self, filename,info_keys=info_keys,result_keys=result_keys, metadata=metadata,overwrite=overwrite, **kwargs)
 
     @classmethod
@@ -449,7 +449,7 @@ class ModelResult:
             The loaded model result
         """
         from .model_io import ModelIO
-        load = ModelIO.get_plugin(handler) # type: ignore
+        load = ModelIO.get_plugin(handler)
         return load.load(filename, structure,**kwargs)
 
 load_model = ModelResult.load_from_file

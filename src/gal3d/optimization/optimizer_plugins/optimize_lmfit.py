@@ -79,7 +79,7 @@ class OptimizerLMFit(OptimizerBase):
             x = list(params.valuesdict().values())
             return fun(x, *func_args, **func_kwargs)
         x0_seq = np.asarray(x0, dtype=float).tolist()
-        params = self._create_params(x0_seq, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
+        params = self.create_params(x0_seq, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
 
         lm_params = lmfit.Parameters()
         for i, param in params.items():

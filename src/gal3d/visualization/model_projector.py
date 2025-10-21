@@ -79,7 +79,7 @@ class ModelProjectorBase(PluginBase):
         cache_len : int, default=100
             Maximum number of images to store in the cache.
         """
-        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes], NDArray[np.float64]] = CacheDict(cache_len=cache_len)
+        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], NDArray[np.float64]] = CacheDict(cache_len=cache_len)
 
     @staticmethod
     def ImageCache(func: Callable) -> Callable:
@@ -99,9 +99,9 @@ class ModelProjectorBase(PluginBase):
         """
         @wraps(func)
         def wrapper(self: "ModelProjectorBase", x_range: tuple[float, float], y_range: tuple[float, float],
-                   nbins: int, z_range: tuple[float, float], rotation: NDArray[np.float64],
+                   nbins: int, z_range: tuple[float, float], rotation: NDArray[np.float64] | None = None,
                    **kwargs: Any) -> NDArray[np.float64]:
-            rotation_bytes = rotation.tobytes()
+            rotation_bytes = rotation.tobytes() if rotation is not None else None
             recod = (
                 x_range[0],
                 x_range[1],
@@ -115,12 +115,12 @@ class ModelProjectorBase(PluginBase):
             if recod in self._image_cache:
                 logger.debug("Get image from cache for input: x:%s, y:%s, "
                              "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, np.array2string(rotation))
+                             x_range, y_range, z_range, nbins, rotation)
                 return self._image_cache[recod]
             else:
                 logger.debug("Cache image, register input: x:%s, y:%s, "
                              "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, np.array2string(rotation))
+                             x_range, y_range, z_range, nbins, rotation)
                 self._image_cache[recod] = func(
                     self, x_range, y_range, nbins, z_range, rotation, **kwargs
                 )
@@ -176,11 +176,8 @@ class ModelProjectorBase(PluginBase):
 
         Returns
         -------
-        tuple
-            A tuple containing:
-            - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
-            - xs (numpy.ndarray): The x-coordinates of the bin centers.
-            - ys (numpy.ndarray): The y-coordinates of the bin centers.
+        ImageData
+            The projected image data.
 
         Raises
         ------
@@ -233,10 +230,8 @@ class ModelProjectorBase(PluginBase):
 
         Returns
         -------
-        tuple: A tuple containing:
-            - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
-            - xs (numpy.ndarray): The x-coordinates of the bin centers.
-            - ys (numpy.ndarray): The y-coordinates of the bin centers.
+        ImageData
+            The projected image data.
         """
         raise NotImplementedError("Subclasses must implement the '_image' method to generate a projected image.")
 

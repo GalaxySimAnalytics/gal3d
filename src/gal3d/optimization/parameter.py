@@ -20,7 +20,7 @@ _RichParamDict = TypeVar("_RichParamDict", bound="RichParameterDict")
 logger = logging.getLogger("gal3d.optimization.parameter")
 
 
-__all__ = ["Parameters"]
+__all__ = ["Parameters","Parameter", "ParameterDict", "ConstrainedParameterDict", "RichParameterDict"]
 
 
 class Parameter(float):
@@ -125,7 +125,7 @@ class Parameter(float):
         Returns
         -------
         Parameter
-            A new instance of the Parameter class with the same value and updated bounds.
+            The instance with updated bounds.
 
         Examples
         --------
@@ -369,7 +369,7 @@ class ParameterDict(dict):
         """
         flat_args = []
         for arg in args:
-            if isinstance(arg, list | tuple | np.ndarray):
+            if isinstance(arg, (list, tuple, np.ndarray)):
                 flat_args.extend(np.array(arg).flatten().tolist())
             else:
                 flat_args.append(arg)
@@ -497,7 +497,7 @@ class ParameterDict(dict):
         """
         Get all available parameter keys, including derived and info keys.
         """
-        return self.keys()
+        return set(self.keys())
 
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()[1:-1]})"
@@ -724,7 +724,7 @@ class ConstrainedParameterDict(ParameterDict):
         """
         return self._equal_constraints.keys()
 
-    def available_keys(self) -> KeysView:
+    def available_keys(self) -> set[str]:
         """
         Returns all available keys, including constrained parameters.
 
@@ -733,7 +733,7 @@ class ConstrainedParameterDict(ParameterDict):
         set
             A set of all available parameter keys
         """
-        return super().available_keys() | self.constraint_keys()
+        return set(super().available_keys()) | set(self.constraint_keys())
 
     @property
     def all_parameter_names(self):
@@ -888,11 +888,11 @@ class RichParameterDict(ParameterDict):
         """Get all info keys."""
         return self._info.keys()
 
-    def available_keys(self) -> KeysView:
+    def available_keys(self) -> set[str]:
         """
         Get all available parameter keys, including derived and info keys.
         """
-        return super().available_keys() | self.derived_keys() | self.info_keys()
+        return set(super().available_keys()) | set(self.derived_keys()) | set(self.info_keys())
 
     def __getitem__(self, key: str) -> Parameter | float | Any:
         if key in self:

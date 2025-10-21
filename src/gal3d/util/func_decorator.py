@@ -2,17 +2,17 @@ import functools
 import time
 import warnings
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 __all__ = ["timer"]
 
 # Define type variables for better type checking
 F = TypeVar("F", bound=Callable[..., Any])
-T = TypeVar("T")
-LoggerType = Any  # Ideally would be logging.Logger, but avoiding import
+if TYPE_CHECKING:
+    from logging import Logger
 
 
-def timer(logger: LoggerType) -> Callable[[F], F]:
+def timer(logger: "Logger") -> Callable[[F], F]:
     """
     Decorator to measure the execution time of a function and log it.
 

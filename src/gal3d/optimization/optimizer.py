@@ -1,3 +1,7 @@
+"""
+Base classes and utilities for optimization algorithms.
+
+"""
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
@@ -239,6 +243,24 @@ class OptimizerBase(PluginBase):
         ) -> ParameterDict:
         """
         Create a ParameterDict from the given parameter information.
+
+        Parameters
+        ----------
+        param_values : Sequence[float]
+            List of parameter values.
+        param_names : list[str], optional
+            List of parameter names. If None, default names will be generated.
+        param_lbs : Sequence[float | None], optional
+            List of lower bounds for the parameters. If None, no bounds will be set.
+        param_ubs : Sequence[float | None], optional
+            List of upper bounds for the parameters. If None, no bounds will be set.
+        param_errors : Sequence[float | None], optional
+            List of parameter errors. If None, no errors will be set.
+
+        Returns
+        -------
+        ParameterDict
+            A ParameterDict containing the created parameters.
         """
         n = len(param_values)
         param_names = [f"param_{i}" for i in range(n)] if param_names is None else param_names

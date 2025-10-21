@@ -3,6 +3,7 @@ from .optimizer import OptimizeResult as OptimizeResult
 from .parameter import Parameters as Parameters
 from .result import ModelResult as ModelResult
 from _typeshed import Incomplete
+from abc import abstractmethod
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.shape import Structure3D as Structure3D, StructureCore as StructureCore
 from typing import Any, Literal
@@ -91,6 +92,23 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
             Additional keyword arguments for the save function.
         """
     @classmethod
+    @abstractmethod
+    def _save(cls, data: dict[Literal['meta', 'parameters', 'opt_info'], dict[str, Any]], filename: str, overwrite: bool = False, **kwargs: Any) -> None:
+        """
+        Abstract method to save data to a file.
+
+        Parameters
+        ----------
+        data : dict
+            The data to save.
+        filename : str
+            The name of the file to save the data to.
+        overwrite : bool, optional
+            Whether to overwrite the file if it exists.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+    @classmethod
     def load(cls, filename: str, structure: Structure3D | StructureCore | None = None, **kwargs: Any) -> ModelResult:
         """
         Load the model from a file.
@@ -111,6 +129,60 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
             The loaded model result.
         """
     @classmethod
+    @abstractmethod
+    def _load_metadata_from_file(cls, filename: str, **kwargs: Any) -> MetaDataDict:
+        """
+        Abstract method to load metadata from a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load metadata from.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        MetaDataDict
+            The loaded metadata.
+        """
+    @classmethod
+    @abstractmethod
+    def _load_parameters_from_file(cls, filename: str, **kwargs: Any) -> list[Parameters]:
+        """
+        Abstract method to load parameters from a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load parameters from.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        list[Parameters]
+            The loaded parameter sets.
+        """
+    @classmethod
+    @abstractmethod
+    def _load_opt_from_file(cls, filename: str, **kwargs: Any) -> list[OptimizeResult]:
+        """
+        Abstract method to load optimization results from a file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load optimization results from.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        list[OptimizeResult]
+            The loaded optimization results.
+        """
+    @classmethod
     def check_file_path(cls, filename: str) -> str:
         """
         Check and create the directory path for the file if it does not exist.
@@ -124,6 +196,55 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
         -------
         str
             The directory path.
+        """
+    @classmethod
+    def _extract_metadata_from_model(cls, model: ModelResult) -> MetaDataDict:
+        """
+        Extract metadata from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract metadata from.
+
+        Returns
+        -------
+        MetaDataDict
+            The extracted metadata.
+        """
+    @classmethod
+    def _extract_parameters_from_model(cls, model: ModelResult, info_keys: tuple[str, ...] = ('parameter',)) -> dict[str, Any]:
+        """
+        Extract parameters from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract parameters from.
+        info_keys : tuple[str, ...], optional
+            Keys of additional info to extract.
+
+        Returns
+        -------
+        dict[str, Any]
+            The extracted parameters and info.
+        """
+    @classmethod
+    def _extract_opt_from_model(cls, model: ModelResult, result_keys: tuple[str, ...] = ('cost', 'success', 'n_fun_evals', 'n_iterations')) -> dict[str, Any]:
+        """
+        Extract optimization results from the model.
+
+        Parameters
+        ----------
+        model : ModelResult
+            The model to extract optimization results from.
+        result_keys : tuple[str, ...], optional
+            Keys of optimization results to extract.
+
+        Returns
+        -------
+        dict[str, Any]
+            The extracted optimization results.
         """
     @classmethod
     def extract_data_from_model(cls, model: ModelResult, info_keys: tuple[str, ...] = ('parameter',), result_keys: tuple[str, ...] = ('cost', 'success', 'n_fun_evals', 'n_iterations')) -> dict[Literal['meta', 'parameters', 'opt_info'], dict[str, Any] | MetaDataDict]:
@@ -147,6 +268,9 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
 
 class ModelIO(PluginManager[ModelIOBase]):
     """Factory class for accessing registered model I/O plugins."""
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = ModelIOBase
 
     @overload
     @classmethod

@@ -106,6 +106,9 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
     _base_class : type
         The base class for all error estimator workflow plugins
     """
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = ErrorWorkflowBase
     @classmethod
     def get_error_estimator(cls, result: StructureCore | ModelResult | None = None, name: str | None = None) -> ErrorWorkflowBase:
         """

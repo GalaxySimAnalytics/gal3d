@@ -21,6 +21,9 @@ class Characterizer(PluginManager[CharacterizerBase]):
     """
     Factory class for accessing registered characterizer plugins.
     """
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = CharacterizerBase
 
     @overload
     @classmethod

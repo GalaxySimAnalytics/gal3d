@@ -1,3 +1,7 @@
+"""
+Parameter classes for optimization algorithms.
+
+"""
 import logging
 from collections.abc import Callable, Iterable, KeysView, Mapping, Sequence
 from functools import wraps

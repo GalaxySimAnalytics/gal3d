@@ -1,3 +1,6 @@
+"""
+Characterizer base class and factory for measuring properties from data or model results.
+"""
 import logging
 from abc import abstractmethod
 

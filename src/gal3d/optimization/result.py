@@ -1,3 +1,7 @@
+"""
+Model result classes for optimization algorithms.
+
+"""
 import copy
 import logging
 from typing import TYPE_CHECKING, Any, Union, cast, overload
@@ -418,7 +422,7 @@ class ModelResult:
             If the group path already exists and overwrite=False
         """
         from .model_io import ModelIO
-        load = ModelIO.get_plugin(handler)
+        load = ModelIO.get_plugin(handler)  # type: ignore
         load.save(self, filename,info_keys=info_keys,result_keys=result_keys, metadata=metadata,overwrite=overwrite, **kwargs)
 
     @classmethod
@@ -445,7 +449,7 @@ class ModelResult:
             The loaded model result
         """
         from .model_io import ModelIO
-        load = ModelIO.get_plugin(handler)
+        load = ModelIO.get_plugin(handler) # type: ignore
         return load.load(filename, structure,**kwargs)
 
 load_model = ModelResult.load_from_file

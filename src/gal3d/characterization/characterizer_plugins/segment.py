@@ -1,57 +1,121 @@
 """
-Segment profile characterizer: multivariate piecewise-constant segmentation
-===========================================================================
+Segment profile characterizer: multivariate piecewise-constant/linear segmentation
+==================================================================================
 
-Principle
----------
-Partition the radii-sorted multi-channel profile :math:`X \\in \\mathbb{R}^{n \times p}` into
-contiguous segments so each channel is well-approximated by a constant within each segment
-in a weighted least-squares sense, subject to a minimum segment size.
+Overview
+--------
+Partition a radii-sorted, multi-channel profile :math:`X \\in \\mathbb{R}^{n \\times P}` into
+contiguous segments so each channel is well-approximated within each segment, subject to
+a minimum segment size. Three models are supported:
+- constant: per-segment, per-channel constant level;
+- linear: per-segment, per-channel linear trend in the working radius coordinate;
+- mix: each segment is either constant or linear, selected by dynamic programming.
+
+The algorithm uses weighted least squares with user-configurable point and channel weights,
+measurement uncertainties, and optional standardization/range scaling. Segment count (or
+overall model complexity in mix mode) is chosen by a BIC-like criterion or fixed by the user.
 
 Notation
 --------
-- Radii: :math:`r_1,\\dots,r_n` (sorted).
-- Data: :math:`X_{t,p}` (sample t, channel p), errors :math:`\\mathrm{err}_{t,p}`.
+- Radii (sorted): :math:`r_1,\\dots,r_n`. The working coordinate is
+  :math:`r^*_t \\in \\{r_t, \\log_{10}(r_t + 10^{-3})\\}` depending on `radial_log`.
+- Data: :math:`X_{t,p}` for sample :math:`t \\in \\{1,\\dots,n\\}` and channel :math:`p \\in \\{1,\\dots,P\\}`.
+- Errors: :math:`\\mathrm{err}_{t,p}`.
 - Weights combine point/channel weights and uncertainty:
 
   .. math::
-     W_{t,p} \\;=\\; \frac{w_{\\mathrm{point}}(t)\\, w_{\\mathrm{chan}}(p)}{V_{t,p}},
-     \\quad V_{t,p} \\;=\\; \\mathrm{err}_{t,p}^2 + \\mathrm{scale}_p^2.
+     W_{t,p} \\;=\\; \\frac{w_{\\mathrm{point}}(t)\\, w_{\\mathrm{chan}}(p)}{V_{t,p}},
+     \\quad V_{t,p} \\;=\\; \\mathrm{err}_{t,p}^2 + \\mathrm{scale}_p^2,
 
-Key equations
--------------
-- Weighted mean in [i:j) for channel p:
+  where :math:`\\mathrm{scale}_p` reflects the feature scaling (e.g. std or range) to stabilize the fit.
+  Internally, additional cross-feature weights may be applied for certain pairs.
 
-  .. math::
-     \\hat{\\mu}_p(i:j) \\;=\\;
-     \frac{\\sum_{t=i}^{j-1} W_{t,p} X_{t,p}}{\\sum_{t=i}^{j-1} W_{t,p}}.
+Constant model (per-segment weighted mean)
+------------------------------------------
+For a segment :math:`[i:j)` (i inclusive, j exclusive), the weighted mean for channel :math:`p`:
 
-- Weighted SSE of segment [i:j):
+.. math::
+   \\hat{\\mu}_p(i:j) \\;=\\;
+   \\frac{\\sum_{t=i}^{j-1} W_{t,p} X_{t,p}}{\\sum_{t=i}^{j-1} W_{t,p}}.
 
-  .. math::
-     \\mathrm{SSE}(i,j) \\;=\\; \\sum_{p=1}^{p}
-     \\left[
-       \\sum_{t=i}^{j-1} W_{t,p} X_{t,p}^2 \\;-\\;
-       \frac{\\left(\\sum_{t=i}^{j-1} W_{t,p} X_{t,p}\right)^2}{\\sum_{t=i}^{j-1} W_{t,p}}
-     \right].
+The weighted SSE (sum over channels):
 
-- Optimal m-segment partition with min_size via dynamic programming:
+.. math::
+   \\mathrm{SSE}_{\\text{const}}(i,j) \\;=\\;
+   \\sum_{p=1}^{P}
+   \\left[
+     \\sum_{t=i}^{j-1} W_{t,p} X_{t,p}^2 \\;-
+     \\frac{\\left(\\sum_{t=i}^{j-1} W_{t,p} X_{t,p}\\right)^2}{\\sum_{t=i}^{j-1} W_{t,p}}
+   \\right].
+
+Linear model (per-segment weighted regression)
+----------------------------------------------
+Within :math:`[i:j)`, fit :math:`X_{t,p} \\approx a_p + b_p \\; r^*_t` by weighted least squares:
+
+.. math::
+   (a_p, b_p) \\;=\\; \\arg\\min_{a,b}
+   \\sum_{t=i}^{j-1} W_{t,p}\\,\\bigl(X_{t,p} - a - b\\,r^*_t\\bigr)^2,
+
+and the segment cost is the sum of the channel-wise residual SSEs:
+
+.. math::
+   \\mathrm{SSE}_{\\text{lin}}(i,j) \\;=\\; \\sum_{p=1}^{P}
+   \\sum_{t=i}^{j-1} W_{t,p}\\,\\bigl(X_{t,p} - \\hat{a}_p - \\hat{b}_p\\,r^*_t\\bigr)^2.
+
+Using prefix sums of :math:`W, WX, WX^2, W r^*, W (r^*)^2, W r^* X`, both
+:math:`\\mathrm{SSE}_{\\text{const}}` and :math:`\\mathrm{SSE}_{\\text{lin}}` can be evaluated in :math:`\\mathcal{O}(1)`
+per candidate segment.
+
+Dynamic programming with minimum segment size
+---------------------------------------------
+Let :math:`\\mathrm{min\\_size}` be the minimum number of points per segment.
+
+- For constant/linear-only modes (m segments):
 
   .. math::
      \\mathrm{dp}[m,j] \\;=\\;
-     \\min_{k \\in [ (m-1)\\,\\mathrm{min\\_size},\\, j-\\mathrm{min\\_size} ]}
-     \big\\{ \\mathrm{dp}[m-1,k] + \\mathrm{SSE}(k,j) \big\\}.
+     \\min_{k \\in [ (m-1)\\,\\mathrm{min\\_size},\\; j-\\mathrm{min\\_size} ]}
+     \\Big\\{ \\mathrm{dp}[m-1,k] + \\mathrm{Cost}(k,j) \\Big\\},
 
-- Segment count (BIC-like selection):
+  where :math:`\\mathrm{Cost}` is :math:`\\mathrm{SSE}_{\\text{const}}` or :math:`\\mathrm{SSE}_{\\text{lin}}`.
+
+- For mix mode, we optimize over a "complexity budget" :math:`c`, where a constant segment costs 1 unit
+  and a linear segment costs 2 units:
 
   .. math::
-     \\mathrm{Crit}(m) \\;=\\; \\mathrm{dp}[m,n] + \\lambda \\,(m\\,p)\\,\\log n.
+     \\mathrm{dp}[c,j] \\;=\\; \\min\\bigg\\{
+       \\min_{k} \\mathrm{dp}[c-1,k] + \\mathrm{SSE}_{\\text{const}}(k,j),\\;
+       \\min_{k} \\mathrm{dp}[c-2,k] + \\mathrm{SSE}_{\\text{lin}}(k,j)
+     \\bigg\\}.
 
-Explanation
------------
-Prefix sums of :math:`W,\\, W X,\\, W X^2` give :math:`\\mathrm{SSE}(i,j)` in :math:`\\mathcal{O}(1)`.
-Dynamic programming yields the globally optimal partition under the min_size constraint.
-The BIC-like criterion balances data fit (SSE) against model complexity (segments x channels).
+Model selection: BIC-like criterion
+-----------------------------------
+We select the partition size by balancing fit (SSE) and complexity:
+
+- constant/linear modes (m segments):
+
+  .. math::
+     \\mathrm{Crit}(m) \\;=\\; \\mathrm{dp}[m,n] \\;+
+     \\lambda \\,(m\\,P)\\,\\log n.
+
+- mix mode (complexity :math:`c` units):
+
+  .. math::
+     \\mathrm{Crit}(c) \\;=\\; \\mathrm{dp}[c,n] \\;+
+     \\lambda \\,(c\\,P)\\,\\log n.
+
+Here :math:`P` is the number of channels and :math:`\\lambda=\\text{lam\\_scale}` controls the penalty strength.
+Weights are optionally normalized so that the overall scale of the penalty is stable across settings.
+
+Implementation notes
+--------------------
+- Prefix sums provide :math:`\\mathcal{O}(1)` segment cost queries; the DP enforces :math:`\\mathrm{min\\_size}`.
+- A divide-and-conquer DP is used for fast constant-model optimization when applicable.
+- The working radius can be :math:`r` or :math:`\\log_{10}(r+10^{-3})` (`radial_log=True`), while
+  output radii remain in original units.
+- Segment statistics (mean, median, std, percentiles) are reported; linear segments also report slopes
+  and intercepts w.r.t. the working radius coordinate.
+
 """
 
 import logging

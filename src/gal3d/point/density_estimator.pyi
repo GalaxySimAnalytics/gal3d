@@ -130,6 +130,9 @@ class DensityEstimator(PluginManager[DensityEstimatorBase]):
     """
     Factory class for accessing registered density estimator plugins.
     """
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = DensityEstimatorBase
 
     @overload
     @classmethod

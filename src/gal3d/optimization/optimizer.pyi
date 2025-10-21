@@ -1,8 +1,8 @@
 import abc
 from _typeshed import Incomplete
 from abc import abstractmethod
-from collections.abc import Callable
-from gal3d.optimization.parameter import Parameters
+from collections.abc import Callable, Sequence
+from gal3d.optimization.parameter import ParameterDict, Parameters
 from gal3d.plugin import PluginBase, PluginManager
 from numpy.typing import ArrayLike
 from scipy._lib._util import _RichResult
@@ -65,6 +65,8 @@ class OptimizeResult(_RichResult):
     algorithm_output: dict
         Additional algorithm specific information.
     """
+    _order_keys: list[str]
+    def __repr__(self) -> str: ...
 
 class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
     """
@@ -151,6 +153,28 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         result : OptimizeResult
             The result of the fitting.
         """
+    def _create_params(self, param_values: Sequence[float], param_names: list[str] | None = None, param_lbs: Sequence[float | None] | None = None, param_ubs: Sequence[float | None] | None = None, param_errors: Sequence[float | None] | None = None) -> ParameterDict:
+        """
+        Create a ParameterDict from the given parameter information.
+
+        Parameters
+        ----------
+        param_values : Sequence[float]
+            List of parameter values.
+        param_names : list[str], optional
+            List of parameter names. If None, default names will be generated.
+        param_lbs : Sequence[float | None], optional
+            List of lower bounds for the parameters. If None, no bounds will be set.
+        param_ubs : Sequence[float | None], optional
+            List of upper bounds for the parameters. If None, no bounds will be set.
+        param_errors : Sequence[float | None], optional
+            List of parameter errors. If None, no errors will be set.
+
+        Returns
+        -------
+        ParameterDict
+            A ParameterDict containing the created parameters.
+        """
     def set_options(self, **kwargs) -> None:
         """
         Update the algorithm options.
@@ -180,6 +204,9 @@ class Optimizer(PluginManager[OptimizerBase]):
     """
     Factory class for accessing registered optimizer plugins.
     """
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = OptimizerBase
 
     @overload
     @classmethod

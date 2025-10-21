@@ -1,3 +1,8 @@
+"""
+Optimizer plugin for NLopt.
+
+"""
+
 from collections.abc import Callable
 from typing import Any
 

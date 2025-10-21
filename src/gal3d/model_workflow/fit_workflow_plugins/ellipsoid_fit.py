@@ -1,3 +1,8 @@
+"""
+Ellipsoidal fitting workflow plugin for Gal3D.
+This module provides a fitting workflow for ellipsoidal and generalized ellipsoidal structures.
+"""
+
 import logging
 from typing import TYPE_CHECKING, Any, Union, cast
 

@@ -1,3 +1,6 @@
+"""
+Optimizer plugin for optimagic.
+"""
 
 from collections.abc import Callable
 from typing import Any

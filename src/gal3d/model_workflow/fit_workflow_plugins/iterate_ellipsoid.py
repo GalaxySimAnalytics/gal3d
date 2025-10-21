@@ -1,3 +1,9 @@
+"""
+Iterative ellipsoidal shape estimation workflow plugin for Gal3D.
+This module provides a fitting workflow that estimates the ellipsoidal shape of a structure
+using an iterative mass moment method.
+"""
+
 import logging
 from typing import TYPE_CHECKING, Any, Literal, Union
 
@@ -82,7 +88,7 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
                 break
             shell_pos, shell_mass = pos[shell_idx], mass[shell_idx]
             new_shape = (a[0], 1 - a[1] / a[0], 1 - a[2] / a[1])
-            new_ang = stru._coordinate.mat_to_angle(R) # type: ignore
+            new_ang = stru._coordinate.mat_to_angle(R)
             d = stru.quick_f_ray_d(*new_ang, *new_shape, pos=shell_pos)[0]
             ellipse_idx: np.ndarray = np.where((d > mult[0]) & (d < mult[1]))[0]
             if ellipse_idx.size == 0:
@@ -113,7 +119,7 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         stru.parameters["a"] = a[0]
         stru.parameters["eps_ab"] = 1 - a[1] / a[0]
         stru.parameters["eps_bc"] = 1 - a[2] / a[1]
-        ang = stru._coordinate.mat_to_angle(R) # type: ignore
+        ang = stru._coordinate.mat_to_angle(R)
         stru.parameters["ang1"], stru.parameters["ang2"], stru.parameters["ang3"] = ang
         params = stru.parameters.deepcopy()
         params.add_info(parameter=ellipsoid_density)

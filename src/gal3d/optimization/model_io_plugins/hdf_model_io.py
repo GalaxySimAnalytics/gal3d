@@ -1,4 +1,7 @@
+"""
+HDF5-based Model I/O plugin for saving and loading model optimization results.
 
+"""
 import logging
 import os
 from typing import Any, Literal

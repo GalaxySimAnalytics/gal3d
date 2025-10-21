@@ -1,3 +1,4 @@
+from _typeshed import Incomplete
 from gal3d.analyzer import Gal3DAnalyzer as Gal3DAnalyzer
 from gal3d.optimization.result import ModelResult as ModelResult
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
@@ -77,6 +78,9 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     _base_class : type
         The base class for all workflow plugins.
     """
+    _plugins: Incomplete
+    _plugin_module: str
+    _base_class = FitWorkflowBase
     @classmethod
     def get_workflow(cls, obj: Gal3DAnalyzer | Particles) -> FitWorkflowBase:
         """

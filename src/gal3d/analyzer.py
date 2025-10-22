@@ -8,7 +8,8 @@ Usage Example
 >>> result = analyzer.fit(num_step=100)
 """
 import logging
-from collections.abc import Iterable
+import sys
+from collections.abc import Callable, Iterable
 from typing import Any, TypeVar
 
 import numpy as np
@@ -34,8 +35,8 @@ class Gal3DAnalyzer:
 
     Attributes
     ----------
-    fit_workflow : dict of str to tuple of (Callable, Callable)
-        A registry for fitting workflow conditions and their corresponding functions.
+    fit_workflow : FitWorkflow
+        The fitting workflow manager for selecting fitting strategies.
     particles : Particles
         The input particle data.
     field : SphField
@@ -76,34 +77,35 @@ class Gal3DAnalyzer:
         Parameters
         ----------
         pos : np.ndarray
-            The positions of the particles. Shape: (N, 3)
+            Particle positions; shape (N, 3), float.
         mass : np.ndarray
-            The masses of the particles. Shape: (N,)
+            Particle masses; shape (N,), float.
         recenter : bool, optional
-            Whether to recenter the particles' positions (default is True).
+            Whether to recenter the particle positions (default True).
         inner_frac : float, optional
-            inner_frac * center_value for inner boundary definition (default is 0.9).
+            Fraction of the central parameter used to set the inner boundary (default 0.9).
         **kwargs
             Additional keyword arguments for analysis.
             inner : float, optional
-                used to define the inner boundary.
+                Value used to define the inner boundary (with `inner_mode`).
             inner_mode : str, optional
-                method used to define the inner boundary.
+                Method used to define the inner boundary (default "value" when `inner` is provided).
             outer : float, optional
-                used to define the outer boundary.
+                Value used to define the outer boundary (with `outer_mode`).
             outer_mode : str, optional
-                method used to define the outer boundary.
+                Method used to define the outer boundary (default "value" when `outer` is provided).
 
         Notes
         -----
-        Boundary definitions:
-        - Inner boundary: Defined by the `inner` parameter or a fraction of the center value.
-        - Outer boundary: Defined by the `outer` parameter or the mean mass of the particles.
+        Boundary defaults:
+        - Inner boundary: If `inner` is not provided, use `inner_frac * center_parameter`.
+        - Outer boundary: If `outer` is not provided, defaults to mean particle mass (placeholder).
+          TODO: replace with a physically motivated density threshold.
 
         Returns
         -------
         Gal3DAnalyzer
-            An instance of Gal3DAnalyzer initialized with the analyzed data.
+            An instance initialized with the analyzed data.
         """
 
         particles = Particles(pos=pos, mass=mass, recenter=recenter)
@@ -174,9 +176,13 @@ class Gal3DAnalyzer:
         step_mode : str
             The mode of the steps (e.g., 'log' for logarithmic spacing).
 
+        Returns
+        -------
+        ModelResult
+            Aggregated result across radii.
         """
-        r_min = max(np.median(self.field.inner_r)*3,self.field.iso_pro_r[0]*3)
-        r_max = min(self.field.iso_pro_r[-1],np.median(self.field.outer_r))
+        r_min = max(np.median(self.field.inner_r) * 3, self.field.iso_pro_r[0] * 3)
+        r_max = min(self.field.iso_pro_r[-1], np.median(self.field.outer_r))
 
         if step_mode == "log":
             r = np.geomspace(r_min, r_max, num_step)
@@ -215,18 +221,21 @@ class Gal3DAnalyzer:
         else:
             resall: list[ModelResult] = []
             errors: dict[str, list[str]] = {}
-            for i in tqdm(r, desc="Fitting radii", disable=False):
-                try:
-                    if resall:
-                        res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
-                        kwargs["init_parameters"] = res_value
-                    res = workflow(self, i, **kwargs)
-                    resall.append(res)
-                except FitDataError as e:
-                    etype = type(e).__name__
-                    if etype not in errors:
-                        errors[etype] = []
-                    errors[etype].append(f"{i:.2f}")
+            try:
+                for i in tqdm(r, desc="Fitting radii", disable=not sys.stderr.isatty()):
+                    try:
+                        if resall:
+                            res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
+                            kwargs["init_parameters"] = res_value
+                        res = workflow(self, i, **kwargs)
+                        resall.append(res)
+                    except FitDataError as e:
+                        etype = type(e).__name__
+                        if etype not in errors:
+                            errors[etype] = []
+                        errors[etype].append(f"{i:.2f}")
+            except KeyboardInterrupt:
+                logger.warning("Interrupted by user; returning partial results.")
 
             if errors:
                 for etype, radii in errors.items():
@@ -237,13 +246,13 @@ class Gal3DAnalyzer:
             else:
                 return EmptyModelResult()
 
-    def get_workflow(self):
+    def get_workflow(self) -> Callable[..., ModelResult]:
         """
         Determine which registered workflow to use based on its condition.
 
         Returns
         -------
-        Callable
+        Callable[..., ModelResult]
             The fitting workflow function to be used.
 
         Raises

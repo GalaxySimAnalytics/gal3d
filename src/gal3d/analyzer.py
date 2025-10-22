@@ -8,14 +8,8 @@ Usage Example
 >>> result = analyzer.fit(num_step=100)
 """
 import logging
-import sys
 from collections.abc import Iterable
-from typing import Any
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
+from typing import Any, TypeVar
 
 import numpy as np
 from tqdm import tqdm
@@ -32,6 +26,8 @@ from .util.errors import FitDataError
 logger = logging.getLogger("gal3d.analyzer")
 
 config.general.set_optimal_thread_count(logger)
+
+T = TypeVar("T", bound="Gal3DAnalyzer")
 class Gal3DAnalyzer:
     """
     An analyzer for fitting galaxy 3D structures using particle, field, and shape information.
@@ -67,13 +63,13 @@ class Gal3DAnalyzer:
 
     @classmethod
     def analyze(
-        cls,
+        cls: type[T],
         pos: np.ndarray,
         mass: np.ndarray,
         recenter: bool = True,
         inner_frac: float = 0.9,
         **kwargs: Any
-    ) -> Self:
+    ) -> T:
         """
         Analyze the given particle data.
 

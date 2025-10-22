@@ -493,11 +493,11 @@ class ParameterDict(dict):
         from copy import deepcopy
         return deepcopy(self)
 
-    def available_keys(self):
+    def available_keys(self) -> KeysView:
         """
         Get all available parameter keys, including derived and info keys.
         """
-        return set(self.keys())
+        return self.keys()
 
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()[1:-1]})"
@@ -724,7 +724,7 @@ class ConstrainedParameterDict(ParameterDict):
         """
         return self._equal_constraints.keys()
 
-    def available_keys(self) -> set[str]:
+    def available_keys(self) -> KeysView:
         """
         Returns all available keys, including constrained parameters.
 
@@ -733,7 +733,9 @@ class ConstrainedParameterDict(ParameterDict):
         set
             A set of all available parameter keys
         """
-        return set(super().available_keys()) | set(self.constraint_keys())
+        return dict.fromkeys(
+            list(super().available_keys())+list(self.constraint_keys())
+            ).keys()
 
     @property
     def all_parameter_names(self):
@@ -888,11 +890,13 @@ class RichParameterDict(ParameterDict):
         """Get all info keys."""
         return self._info.keys()
 
-    def available_keys(self) -> set[str]:
+    def available_keys(self) -> KeysView:
         """
         Get all available parameter keys, including derived and info keys.
         """
-        return set(super().available_keys()) | set(self.derived_keys()) | set(self.info_keys())
+        return dict.fromkeys(
+            list(super().available_keys()) + list(self.derived_keys()) + list(self.info_keys())
+            ).keys()
 
     def __getitem__(self, key: str) -> Parameter | float | Any:
         if key in self:

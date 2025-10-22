@@ -8,8 +8,14 @@ Usage Example
 >>> result = analyzer.fit(num_step=100)
 """
 import logging
+import sys
 from collections.abc import Iterable
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import numpy as np
 from tqdm import tqdm
@@ -67,7 +73,7 @@ class Gal3DAnalyzer:
         recenter: bool = True,
         inner_frac: float = 0.9,
         **kwargs: Any
-    ) -> "Gal3DAnalyzer":
+    ) -> Self:
         """
         Analyze the given particle data.
 
@@ -135,7 +141,7 @@ class Gal3DAnalyzer:
         else:
             optimizer = Optimizer.get_plugin(name="OptimizerScipy")(algorithm="trf")  # trf for curve fit, OptimizerScipy Powell for sum
 
-        return Gal3DAnalyzer(particles=particles, field=field, structure=structure, optimizer=optimizer)
+        return cls(particles=particles, field=field, structure=structure, optimizer=optimizer)
 
     @staticmethod
     def _build_field(particles: Particles, inner: float, outer: float, inner_mode: str = "value", outer_mode: str = "value") -> SphField:

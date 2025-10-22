@@ -33,13 +33,13 @@ class GlobalCalculator(Auto3DShape):
 
     """
 
-    def __init__(self, pos: ArrayLike, mass: np.ndarray, recenter: bool = True, sort_by_radius: bool = False):
+    def __init__(self, pos: ArrayLike, mass: ArrayLike, recenter: bool = True, sort_by_radius: bool = False):
         """
         Parameters
         ----------
-        pos : numpy.ndarray
+        pos : ArrayLike
             Particle positions.
-        mass : numpy.ndarray
+        mass : ArrayLike
             Particle masses.
         recenter : bool, optional
             Whether to recenter positions using the shrink-sphere method. Default is True.
@@ -48,19 +48,20 @@ class GlobalCalculator(Auto3DShape):
         """
 
         posarr: np.ndarray = self.to_3d_array(pos)
+        massarr: np.ndarray = np.array(mass)
         if recenter:
-            cen: np.ndarray = self.shrink_sphere_center(posarr,mass)
+            cen: np.ndarray = self.shrink_sphere_center(posarr,massarr)
             posarr = posarr - cen
             logger.info("Recentered positions by subtracting center: %s", cen)
         r: np.ndarray = vector_length3d(posarr)
         if sort_by_radius:
             ind = np.argsort(r)
             self.pos = posarr[ind]
-            self.mass = mass[ind]
+            self.mass = massarr[ind]
             self.r = r[ind]
         else:
             self.pos = posarr
-            self.mass = mass
+            self.mass = massarr
             self.r = r
 
         if self.pos.shape[0] != self.mass.shape[0]:

@@ -12,7 +12,7 @@ Usage examples
 >>> particles.parameter
 
 """
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -31,11 +31,11 @@ class Particles(GlobalCalculator):
     def __init__(
         self,
         pos: ArrayLike,
-        mass: np.ndarray,
+        mass: ArrayLike,
         rmax: float | None = None,
         recenter: bool = True,
         parameter_mode: str = "Density",
-        density_estimator: str | DensityEstimatorBase = "DensityEstimatorKNN",
+        density_estimator: str | DensityEstimatorBase | type[DensityEstimatorBase] = "DensityEstimatorKNN",
         estimator_kwargs: dict | None = None,
     ):
         """
@@ -49,14 +49,18 @@ class Particles(GlobalCalculator):
             The properties of N particles, such as mass.
         parameter_mode : str, optional
             {'Density', 'Mean'}, determines how to calculate the target parameter. Default is 'Density'.
-        density_estimator:
-
+        density_estimator : str | DensityEstimatorBase | type[DensityEstimatorBase], optional
+            - A plugin name registered in DensityEstimator (e.g., 'DensityEstimatorKNN'), or
+            - An instance of DensityEstimatorBase, or
+            - A subclass of DensityEstimatorBase to be constructed.
         estimator_kwargs : dict, optional
             Additional keyword arguments passed to `density_estimator`.
         """
 
         GlobalCalculator.__init__(self, pos, mass, recenter)
-        if rmax:
+        if rmax is not None:
+            if rmax <= 0:
+                raise ValueError(f"rmax must be positive; got {rmax}")
             sel = (self.r<rmax)
             self.pos = self.pos[sel]
             self.mass = self.mass[sel]
@@ -115,48 +119,51 @@ class Particles(GlobalCalculator):
         """Cached property that returns the gradient of the parameter at the input positions."""
         return self.estimator.gradient
 
-    def get_parameter(self, target_pos, **kwargs):
+    def get_parameter(self, target_pos: ArrayLike, **kwargs: Any) -> np.ndarray:
         """
         Estimate the parameter value at the target positions.
 
-        Parameters:
-            target_pos: ndarray, shape(m,3)
-                The target positions (x, y, z) where the parameter values are to be estimated.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree query method.
+        Parameters
+        ----------
+        target_pos : array_like, shape (M, 3)
+            Target positions (x, y, z) where parameter values are estimated.
+        **kwargs : dict
+            Additional keyword arguments passed to the KDTree query.
 
-        Returns:
-            results: array, shape(m,)
-                The estimated parameter values at the target positions.
+        Returns
+        -------
+        np.ndarray, shape (M,)
+            Estimated parameter values at target positions.
         """
         return self.estimator.get_parameter(target_pos, **kwargs)
 
-    def get_gradient(self, target_pos, **kwargs):
+    def get_gradient(self, target_pos: ArrayLike, **kwargs: Any) -> np.ndarray:
         """
         Estimate the gradient of the parameter at the target positions.
 
-        Parameters:
-            target_pos: ndarray, shape(m,3)
-                The target positions (x, y, z) where the gradient is to be estimated.
-            **kwargs: dict, optional
-                Additional keyword arguments passed to the KDTree query method.
+        Parameters
+        ----------
+        target_pos : array_like, shape (M, 3)
+            Target positions (x, y, z) where the gradient is estimated.
+        **kwargs : dict
+            Additional keyword arguments passed to the KDTree query.
 
         Returns:
-            gradient: tuple of tuples
-                A tuple containing two tuples:
-                - The first tuple contains the upward gradient magnitude and direction.
-                - The second tuple contains the downward gradient magnitude and direction.
+        gradient: np.ndarray, shape (M, 3)
+                Estimated gradient vectors at target positions.
         """
         return self.estimator.get_gradient(target_pos, **kwargs)
 
 
-    def estimate_spatial_resolution(self):
+    def estimate_spatial_resolution(self) -> float:
         """
-        Estimate the spatial resolution based on the half-smooth length (hsm).
+        Estimate a spatial resolution scale from the half-smoothing length (hsm).
+        Uses a 3-sigma clipped mean and scales by 0.55.
+
         Returns
         -------
         float
-            Estimated spatial resolution.
+            Estimated spatial resolution (> 0).
         """
         hsm = self.hsm
         d_in = np.median(hsm) - 3 * np.std(hsm)
@@ -164,9 +171,10 @@ class Particles(GlobalCalculator):
         res_r = np.mean(hsm[(hsm > d_in) & (hsm < d_ou)]) * 0.55
         return res_r
 
-    def estimate_mass_resolution(self):
+    def estimate_mass_resolution(self) -> float:
         """
-        Estimate the mass resolution as the mean particles' mass.
+        Estimate the mass resolution as the mean particle mass.
+
         Returns
         -------
         float
@@ -184,22 +192,22 @@ class Particles(GlobalCalculator):
         tol: float = 1e-3,
     ) -> "ModelResult":
         """
-        Fit ellipsoidal shape using iterative mass moment method.
+        Fit ellipsoidal shape using an iterative reduced inertia tensor method.
 
         Parameters
         ----------
         nbins : int, optional
-            Number of radial bins to use (default is 100).
+            Number of radial bins (default 100).
         rmin : float, optional
             Minimum radius for binning. If None, set to rmax / 1E3.
         rmax : float, optional
             Maximum radius for binning. If None, set to maximum particle radius.
         bins : {'equal', 'log', 'lin'}, optional
-            Binning method for radial shells (default is 'equal').
+            Binning method for radial shells (default 'equal').
         max_iterations : int, optional
-            Maximum number of iterations per shell (default is 10).
+            Maximum iterations per shell (default 10).
         tol : float, optional
-            Tolerance for convergence in iterative shape estimation (default is 1e-3).
+            Convergence tolerance (default 1e-3).
 
         Returns
         -------
@@ -212,7 +220,7 @@ class Particles(GlobalCalculator):
 
 
     @classmethod
-    def available_estimator(cls) -> list[str]:
+    def available_estimators(cls) -> list[str]:
         """
         Returns a list of available density estimator plugin names.
         """

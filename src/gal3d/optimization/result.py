@@ -76,6 +76,12 @@ class ModelResult:
         """
         return self._param_sets[0].keys()
 
+    def available_keys(self):
+        """
+        Get all available keys of parameters.
+        """
+        return self._param_sets[0].available_keys()
+
     @property
     def structure(self) -> Union["Structure3D", "StructureCore"]:
         """Get the 3D structure model"""

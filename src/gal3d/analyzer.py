@@ -8,7 +8,6 @@ Usage Example
 >>> result = analyzer.fit(num_step=100)
 """
 import logging
-import sys
 from collections.abc import Callable, Iterable
 from typing import Any, TypeVar
 
@@ -222,7 +221,7 @@ class Gal3DAnalyzer:
             resall: list[ModelResult] = []
             errors: dict[str, list[str]] = {}
             try:
-                for i in tqdm(r, desc="Fitting radii", disable=not sys.stderr.isatty()):
+                for i in tqdm(r, desc="Fitting radii"):
                     try:
                         if resall:
                             res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}

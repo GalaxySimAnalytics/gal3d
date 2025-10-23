@@ -132,7 +132,7 @@ logger = logging.getLogger("gal3d.characterization.segment")
 
 class Segment(CharacterizerBase):
     """
-    Multivariate piecewise-constant segmentation for shape profiles.
+    Multivariate piecewise-constant/linear segmentation for shape profiles.
 
     This characterizer partitions a radial profile into contiguous segments
     and summarizes each segment across one or more channels by weighted

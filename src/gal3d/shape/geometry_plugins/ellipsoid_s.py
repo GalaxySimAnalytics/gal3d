@@ -26,7 +26,7 @@ class Ellipsoid_S(GeometryBase):
     """
     A shaped ellipsoid geometry class.
 
-    This class implements a generalized ellipsoid with shape parameters that allow
+    This class implements a generalized ellipsoid (superellipsoid) with shape parameters that allow
     for more flexible modeling of 3D geometric shapes.
     """
 
@@ -226,11 +226,11 @@ class Ellipsoid_S(GeometryBase):
         eps_bc : float
             The ellipticity between the 'b' and 'c' axes.
         sa : float
-            Shape index along the 'a' axis.
+            Shape exponent along the 'a' axis.
         sb : float
-            Shape index along the 'b' axis.
+            Shape exponent along the 'b' axis.
         sc : float
-            Shape index along the 'c' axis.
+            Shape exponent along the 'c' axis.
         pos : array_like
             An array of positions where the ellipsoid function is evaluated.
 
@@ -262,11 +262,11 @@ class Ellipsoid_S(GeometryBase):
         eps_bc : float
             The ellipticity between the 'b' and 'c' axes.
         sa : float
-            Shape index along the 'a' axis.
+            Shape exponent along the 'a' axis.
         sb : float
-            Shape index along the 'b' axis.
+            Shape exponent along the 'b' axis.
         sc : float
-            Shape index along the 'c' axis.
+            Shape exponent along the 'c' axis.
         pos : array_like
             An array of positions where the area factor is evaluated.
 
@@ -306,11 +306,11 @@ class Ellipsoid_S(GeometryBase):
         eps_bc : float
             The ellipticity between the 'b' and 'c' axes.
         sa : float
-            Shape index along the 'a' axis.
+            Shape exponent along the 'a' axis.
         sb : float
-            Shape index along the 'b' axis.
+            Shape exponent along the 'b' axis.
         sc : float
-            Shape index along the 'c' axis.
+            Shape exponent along the 'c' axis.
         pos : array_like
             An array of positions where the distance is computed.
 
@@ -359,11 +359,11 @@ class Ellipsoid_S(GeometryBase):
         c : float
             The semi-minor axis of the ellipsoid along the 'c' axis.
         sa : float
-            Shape index along the 'a' axis.
+            Shape exponent along the 'a' axis.
         sb : float
-            Shape index along the 'b' axis.
+            Shape exponent along the 'b' axis.
         sc : float
-            Shape index along the 'c' axis.
+            Shape exponent along the 'c' axis.
         pos : array_like
             An array of positions where the Jacobian is computed.
 

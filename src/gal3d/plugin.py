@@ -65,7 +65,11 @@ class PluginManagerRegistry:
     def all_managers(cls) -> dict[str, type["PluginManager"]]:
         import importlib
         for module_path in config.plugin_modules.modules:
-            importlib.import_module(module_path)
+            try:
+                importlib.import_module(module_path)
+            except ImportError as e:
+                logger.error("Failed to import plugin module '%s': %s", module_path, e)
+                continue
         return dict(cls._managers)
 
     @classmethod
@@ -127,13 +131,8 @@ class PluginBase:
     """
     Abstract base class for all plugins.
 
-    This class should be inherited by all plugin implementations. It provides a unified
-    interface and ensures that plugins can be managed by a corresponding PluginManager.
-
-    Notes
-    -----
     Subclasses should implement __init_subclass__ and call super().__init_subclass__().
-    Registration is handled by the specific plugin type's Manager, not here.
+    Registration is handled by the specific plugin type's Manager (not here).
     """
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -143,14 +142,13 @@ class PluginBase:
         """
         super().__init_subclass__(**kwargs)
          # Registration is handled by the specific plugin type's Manager
-        # No registration is done here
 
 class PluginManager(Generic[_PluginType]):
     """
     Generic plugin manager base class.
-
     This class provides a unified interface for registering, retrieving, and listing plugins.
-    Subclasses should set the following class attributes:
+
+    Subclasses should set:
         - _plugins: Dict[str, Type[PluginBase]]
             A dictionary mapping plugin names to their classes.
         - _plugin_module: str
@@ -239,27 +237,26 @@ class PluginManager(Generic[_PluginType]):
         Returns
         -------
         List[str]
-            A list of all registered plugin class names.
+            Sorted list of all registered plugin class names.
         """
         cls._check_subclass_config()
         if not cls._plugins:
             cls._load_plugins()
-        return list(cls._plugins.keys())
+        return sorted(cls._plugins.keys())
 
     @classmethod
-    def _load_plugins(cls):
+    def _load_plugins(cls) -> None:
         """
         Dynamically import the plugin module to register all available plugins.
 
         This method imports the module specified by _plugin_module, which should
         trigger registration of all plugin classes in that module.
-
-        Raises
-        ------
-        ImportError
-            If the plugin module cannot be imported.
         """
         cls._check_subclass_config()
         import importlib
-        importlib.import_module(cls._plugin_module)
-        logger.debug("%s loaded plugins: %s", cls.__name__, ", ".join(cls._plugins.keys()))
+        try:
+            importlib.import_module(cls._plugin_module)
+            logger.debug("%s loaded plugins: %s", cls.__name__, ", ".join(cls._plugins.keys()))
+        except ImportError as e:
+            logger.error("Failed to import plugin module '%s': %s", cls._plugin_module, e)
+            raise ImportError(f"Could not load plugins for {cls.__name__} from module '{cls._plugin_module}'") from e

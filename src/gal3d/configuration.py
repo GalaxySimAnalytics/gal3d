@@ -65,8 +65,7 @@ class IterationMethod(IntEnum):
     HOUSEHOLDER : int
         Householder's method (3rd order).
         Iteration formula:
-            :math:`x_{n+1} = x_n - [6 f(x_n) (f'(x_n))^2 - 3 f(x_n)^2 f''(x_n)] /
-                            [6 (f'(x_n))^3 - 6 f(x_n) f'(x_n) f''(x_n) + f(x_n)^2 f'''(x_n)]`
+            :math:`x_{n+1} = x_n - [6 f(x_n) (f'(x_n))^2 - 3 f(x_n)^2 f''(x_n)] / [6 (f'(x_n))^3 - 6 f(x_n) f'(x_n) f''(x_n) + f(x_n)^2 f'''(x_n)]`
     """
     NEWTON = 1
     HALLEY = 2
@@ -155,23 +154,23 @@ class GeneralConfig(BaseConfig):
         Parameters
         ----------
         benchmark_size : int, optional
-            Size of the arrays used for benchmarking, by default 1,000,000
+            Size of the arrays used for benchmarking, by default 1,024.
         min_threads : int, optional
-            Minimum number of threads to test, by default 1
+            Minimum number of threads to test, by default 1.
         max_threads : int, optional
-            Maximum number of threads to test, defaults to 2x physical cores if None
+            Maximum number of threads to test, defaults to 2x physical cores if None.
         test_function : Callable, optional
-            Custom function to benchmark. If None, uses RotateAndShift as default test
+            Custom function to benchmark. If None, uses RotateAndShift as default test.
         iterations : int, optional
-            Number of iterations for each benchmark, by default 10
+            Number of iterations for each benchmark, by default 100.
         progress_bar : bool, optional
-            Whether to show a progress bar during benchmarking, by default False
+            Whether to show a progress bar during benchmarking, by default False.
         print_result : bool, optional
-            Whether to print the result of the benchmarking, by default False
+            Whether to print the result of the benchmarking, by default False.
         early_stop : bool, optional
-            Whether to stop testing when performance degrades, by default True
+            Whether to stop testing when performance degrades, by default True.
         real_world_factor : float, optional
-            Factor to apply to raw thread count for real-world workloads, by default 0.75
+            Factor to apply to raw thread count for real-world workloads, by default 0.75.
         return_mode: Literal["recommended", "fastest", "adjusted", "balanced"], optional
             The mode for returning the thread count, by default "recommended".
 
@@ -315,7 +314,6 @@ class EllipsoidConfig(BaseConfig):
         Maximum iterations for ray distance.
     MaxIterationLine : int
         Maximum iterations for line intersection.
-
     """
     DistIteration: IterationMethod = IterationMethod.HALLEY   # Distance iteration method
     LineIteration: IterationMethod = IterationMethod.HALLEY    # Line iteration method  #TODO, currently only Newton

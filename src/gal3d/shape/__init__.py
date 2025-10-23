@@ -277,12 +277,13 @@ class StructureCore:
         return self._coordinate(**coord_pa).inverse(pos)
 
     def _split_parameters(self, **kwargs: Any) -> tuple[dict, dict]:
-        coord_pa = (
-            self._coordinate.create_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
-        )
-        geoty_pa = (
-            self._geometry.create_parameters(**kwargs) if kwargs else self.parameters.structure_parameters
-        )
+
+        if kwargs:
+            coord_pa = self._coordinate.create_parameters(**kwargs)
+            geoty_pa = self._geometry.create_parameters(**kwargs)
+        else:
+            coord_pa = self.parameters.structure_parameters
+            geoty_pa = self.parameters.structure_parameters
 
         return coord_pa, geoty_pa
 
@@ -417,16 +418,18 @@ class StructureCore:
         Parameters
         ----------
         *args : tuple
-            Positional arguments for the quick evaluation.
+            Flat sequence of parameter values (coordinate first, then geometry), or leave empty to use current parameters.
         pos : array_like
-            The position at which to evaluate the structure.
+            Positions to evaluate.
         **kwargs : dict
-            Additional keyword arguments for the evaluation.
+            Parameter overrides by name.
 
         Returns
         -------
-        array_like
-            The quick evaluated structure at the given position.
+        tuple[np.ndarray, np.ndarray]
+            A tuple (f, r), where:
+            - f: shape evaluation.
+            - r: radius after transformation.
 
         Raises
         ------
@@ -449,10 +452,10 @@ class StructureCore:
 
         Returns
         -------
-        np.ndarray
-            Result of quick directional evaluation.
+        tuple[np.ndarray, np.ndarray]
+            (d, r), where d are normalized distances along rays to the surface and r the radius after transformation.
         """
-        # Convert to numpy array efficiently
+        # Convert to numpy array
         if not isinstance(pos, np.ndarray):
             pos = np.asarray(pos)
 
@@ -514,7 +517,7 @@ class StructureCore:
         Returns
         -------
         np.ndarray
-            Intersection points or indicators.
+            Intersection points or indicators (geometry-dependent).
         """
 
         pos1 = np.asarray(pos1)
@@ -522,10 +525,10 @@ class StructureCore:
 
         coord_pa, geoty_pa = self._split_quick_parameters(**kwargs)
 
+        pos1_t = self._coordinate.quick_call(**coord_pa, pos=pos1)
+        pos2_t = self._coordinate.quick_call(**coord_pa, pos=pos2)
         return self._geometry.quick_line_intersect(
-            **geoty_pa,
-            pos1=self._coordinate(**coord_pa)(pos1),
-            pos2=self._coordinate(**coord_pa)(pos2),
+            **geoty_pa, pos1=pos1_t, pos2=pos2_t
         )
 
     def generate_points(self, random_np: int = 1024) -> np.ndarray:
@@ -641,7 +644,7 @@ class StructureCore:
             pos0_all = np.matmul(pos0_all, rotation.T)
             pos1_all = np.matmul(pos1_all, rotation.T)
 
-        lineinter = self.line_intersect(pos0_all,pos1_all)[:,0]
+        lineinter = self.line_intersect(pos0_all,pos1_all)[:, 0]
         lineinter = lineinter.reshape(n_angle_bins,n_r_bins)
 
         R_all: np.ndarray = np.array([r_bins[lineinter[i]>0][-1] for i in range(n_angle_bins)])
@@ -739,12 +742,10 @@ class StructureError:
         )
         self._error_func_name = self._error_func.__name__
 
-        self._error_params = list(func_required_key(self._error_func).keys())
-        self._error_params = list(
-            filter(
-                lambda x: ("_call" not in x) and ("_call" not in x), self._error_params
-            )
-        )
+        self._error_params = [
+            k for k in func_required_key(self._error_func).keys()
+            if "_call" not in k
+        ]
 
     def _set_error_method(self, error_method: Callable | str) -> None:
         assert callable(error_method) or isinstance(error_method, str)

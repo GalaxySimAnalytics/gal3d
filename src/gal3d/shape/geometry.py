@@ -170,8 +170,8 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
         Returns
         -------
-        ndarray of float64
-            Evaluated result.
+        tuple of ndarray
+            (values, radius).
         """
 
     @staticmethod
@@ -182,8 +182,8 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
         Returns
         -------
-        ndarray of float64
-            Normalized ray distances.
+        tuple of ndarray
+            (Normalized ray distances, radius).
         """
 
     @staticmethod
@@ -194,8 +194,8 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
 
         Returns
         -------
-        ndarray of float64
-            Distances to the surface.
+        tuple of ndarray
+            (ray distances, radius).
         """
 
     @staticmethod

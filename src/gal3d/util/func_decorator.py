@@ -47,7 +47,8 @@ def timer(logger: "Logger") -> Callable[[F], F]:
             try:
                 result = fun(*args, **kwargs)
                 end_time = time.time()
-                logname = name.replace("_", " ").capitalize()
+                clean = name.lstrip("_").replace("_", " ").strip()
+                logname = clean.capitalize() if clean else name
                 usetime = (end_time - start_time)
                 logger.info("%s: %.2f sec", logname, usetime)
                 return result

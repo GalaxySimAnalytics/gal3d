@@ -28,6 +28,8 @@ Notation
      \\quad V_{t,p} \\;=\\; \\mathrm{err}_{t,p}^2 + \\mathrm{scale}_p^2,
 
   where :math:`\\mathrm{scale}_p` reflects the feature scaling (e.g. std or range) to stabilize the fit.
+  In practice, :math:`\\mathrm{scale}_p=1` in "std"/"range" modes (internal units), and when
+  ``scale_mode="none"`` it is estimated from allowed ranges (≈ (range/6)^2) or median error if no range.
   Internally, additional cross-feature weights may be applied for certain pairs.
 
 Constant model (per-segment weighted mean)
@@ -203,6 +205,7 @@ class Segment(CharacterizerBase):
         normalize_weights: bool = True,
         allowed_ranges: dict[str, tuple[float, float]] | None = None,
         fit: Literal["constant", "linear","mix"] = "constant",
+        output_format: Literal["arrays","records"] = "arrays",
         ) -> dict[str, Any]:
         """
         Run the segmentation algorithm on the specified keys.
@@ -241,14 +244,14 @@ class Segment(CharacterizerBase):
         channel_weights : np.ndarray or None, default None.
             Custom per-channel weights.
         normalize_weights : bool, optional, default True.
-            If True and weights are finite and sum > 0, rescale them so that
-            sum(w) = n (number of samples) to stabilize the penalty scale.
+            If True and weights are finite, rescale them so that mean(W) = 1 across all entries
+            (sum becomes n·P), stabilizing the penalty scale.
         scale_mode : Literal["std","range","none"] | list[str], default "std".
             The scaling mode to use for the data.
             - "std": standardize each channel to zero mean, unit variance;
             - "range": scale each channel to [0, 1] range;
             - "none": no scaling.
-            - If list[str], each channel is scaled according to its name.
+            - If list[str], provide one mode per channel in the same order as `keys`.
         allowed_ranges : dict[str, tuple[float, float]] | None
             The allowed ranges for each key, first key is the channel name, second is a tuple (min, max).
             Will be used to scale the data if scale_mode is "range".
@@ -259,7 +262,9 @@ class Segment(CharacterizerBase):
             - "linear": use a linear fit for the segments.
             - "mix": allow each segment to be either constant or linear,
             Default "constant".
-
+        output_format: Literal["arrays","records"] = "arrays"
+            - "arrays": returns NumPy arrays (mean, std, p16, p84, slope, intercept).
+            - "records": returns per-segment dicts; percentiles are under "16th"/"84th".
         Returns
         -------
         result : dict
@@ -315,7 +320,8 @@ class Segment(CharacterizerBase):
 
         # 4) Edge case
         edge_case = self._handle_edge_case(
-            n_points, min_size, r, series_dict, names, with_stats,)
+            n_points, min_size, r, series_dict, names, with_stats,
+            r_fit=r_fit, weights=None, fit=fit, output_format=output_format)
         if edge_case is not None:
             return edge_case
 
@@ -348,7 +354,8 @@ class Segment(CharacterizerBase):
 
         # 8) Prepare output regions
         return self._prepare_output_regions(
-            bkps, r, r_fit, series_dict, names, n_points_w, with_stats, fit, seg_models=seg_models)
+            bkps, r, r_fit, series_dict, names, n_points_w, with_stats, fit,
+            seg_models=seg_models, output_format = output_format)
 
     def _specific_weights(self, series_dict: dict[str, np.ndarray]) -> np.ndarray:
         """ Compute specific weights from error data. """
@@ -498,58 +505,203 @@ class Segment(CharacterizerBase):
         fit: Literal["constant", "linear","mix"] = "constant",
         *,
         seg_models: list[Literal["constant","linear"]] | None = None,
+        output_format: Literal["arrays","records"] = "arrays",
     ) -> dict[str, Any]:
-        """ Prepare output regions with statistics. """
-        regions: list[dict[str, Any]] = []
-        start_idx = 0
-        seg_idx = 0
-        for end_idx in bkps:
-            seg_model = seg_models[seg_idx] if seg_models is not None else fit
+        """Prepare output either as list[dict] ('records') or arrays ('arrays') via shared aggregation."""
+        arrays_out = self._aggregate_segments_arrays(
+            bkps=bkps,
+            r=r,
+            r_fit=r_fit,
+            series_dict=series_dict,
+            names=names,
+            weights=weights,
+            with_stats=with_stats,
+            fit=fit,
+            seg_models=seg_models,
+        )
+        if output_format == "records":
+            return self._arrays_to_records(arrays_out)
+        return arrays_out
 
+    def _aggregate_segments_arrays(
+        self,
+        bkps: list[int],
+        r: np.ndarray,
+        r_fit: np.ndarray,
+        series_dict: dict[str, np.ndarray],
+        names: list[str],
+        weights: np.ndarray | None,
+        with_stats: bool,
+        fit: Literal["constant", "linear","mix"] = "constant",
+        *,
+        seg_models: list[Literal["constant","linear"]] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Aggregate segment summaries once (arrays output).
+        - If weights is None: use unweighted stats; linear params left NaN (preserves previous edge-case behavior).
+        - If seg_models is provided: per-segment model; else all segments use 'fit'.
+        """
+        n_segments = len(bkps)
+        n_features = len(names)
+
+        segments = np.zeros((n_segments, 2), dtype=int)
+        R_in = np.zeros(n_segments, dtype=float)
+        R_ou = np.zeros(n_segments, dtype=float)
+        mean = np.zeros((n_segments, n_features), dtype=float)
+
+        # model: 0=constant, 1=linear
+        model = np.zeros(n_segments, dtype=np.int8)
+        if seg_models is not None:
+            model[:] = np.array([1 if m == "linear" else 0 for m in seg_models], dtype=np.int8)
+        else:
+            model[:] = 1 if fit == "linear" else 0
+
+        slope = np.full((n_segments, n_features), np.nan, dtype=float)
+        intercept = np.full((n_segments, n_features), np.nan, dtype=float)
+
+        if with_stats:
+            median = np.zeros((n_segments, n_features), dtype=float)
+            std    = np.zeros((n_segments, n_features), dtype=float)
+            p16    = np.zeros((n_segments, n_features), dtype=float)
+            p84    = np.zeros((n_segments, n_features), dtype=float)
+
+        start_idx = 0
+        for s, end_idx in enumerate(bkps):
+            segments[s, 0] = start_idx
+            segments[s, 1] = end_idx
+            R_in[s] = float(r[start_idx])
+            R_ou[s] = float(r[end_idx - 1])
+
+            sel = slice(start_idx, end_idx)
+            w_seg = None if weights is None else weights[sel]
+            r_seg = r_fit[sel]
+
+            for j, k in enumerate(names):
+                vals = np.asarray(series_dict[k])[sel]
+
+                # mean
+                mean_val = self._weighted_mean(vals, w_seg)
+                mean[s, j] = mean_val
+
+                # linear params only if modeled linear and weights provided
+                if model[s] == 1 and w_seg is not None:
+                    b, a = self._weighted_linear_fit(r_seg, vals, w_seg)
+                    slope[s, j] = b
+                    intercept[s, j] = a
+
+                # stats
+                if with_stats:
+                    p16_v, med_v, p84_v, std_v = self._weighted_stats(vals, w_seg, mean_val)
+                    median[s, j] = med_v
+                    std[s, j]    = std_v
+                    p16[s, j]    = p16_v
+                    p84[s, j]    = p84_v
+
+            start_idx = end_idx
+
+        out: dict[str, Any] = {
+            "bkps": np.asarray(bkps, dtype=int),
+            "segments": segments,         # (n_segments, 2) -> [start, end)
+            "R_in": R_in,                 # (n_segments,)
+            "R_ou": R_ou,                 # (n_segments,)
+            "mean": mean,                 # (n_segments, n_features)
+            "model": model,               # (n_segments,), 0=const,1=linear
+            "r": r,
+            "keys": names,                # channel order
+        }
+        # Only include slope/intercept if any linear params were computed
+        if not np.isnan(slope).all():
+            out["slope"] = slope
+            out["intercept"] = intercept
+
+        if with_stats:
+            out.update({
+                "median": median,
+                "std": std,
+                "p16": p16,
+                "p84": p84,
+            })
+        return out
+    def _weighted_mean(
+        self,
+        vals: np.ndarray,
+        w: np.ndarray | None,
+    ) -> float:
+        """Weighted mean with fallback."""
+        if vals.size == 0:
+            return float("nan")
+        if w is None:
+            return float(np.mean(vals))
+        w_sum = float(np.sum(w))
+        if w_sum > 0:
+            return float(np.sum(vals * w) / w_sum)
+        return float(np.mean(vals))
+
+    def _weighted_stats(
+        self,
+        vals: np.ndarray,
+        w: np.ndarray | None,
+        mean_val: float,
+    ) -> tuple[float, float, float, float]:
+        """
+        Weighted percentiles (16/50/84) and std (population) around mean_val.
+        Returns (p16, median, p84, std).
+        """
+        if vals.size == 0:
+            return float("nan"), float("nan"), float("nan"), 0.0
+        if w is None:
+            p16_v = float(np.percentile(vals, 16))
+            med_v = float(np.median(vals))
+            p84_v = float(np.percentile(vals, 84))
+            std_v = float(np.sqrt(np.var(vals, ddof=0)))
+            return p16_v, med_v, p84_v, std_v
+
+        p16_v, med_v, p84_v = self._weighted_percentiles(vals, w, ps=(0.16, 0.5, 0.84))
+        w_sum = float(np.sum(w))
+        var_v = float(np.sum(w * (vals - mean_val) ** 2) / w_sum) if w_sum > 0 else float(np.var(vals, ddof=0))
+        return p16_v, med_v, p84_v, float(np.sqrt(var_v))
+
+    def _arrays_to_records(self, arrays_out: dict[str, Any]) -> dict[str, Any]:
+        """
+        Convert arrays-style output to records-style list of dicts.
+        Preserves previous field names: '16th' and '84th' in records mode.
+        """
+        bkps_arr: np.ndarray = arrays_out["bkps"]
+        names: list[str] = arrays_out["keys"]
+        r: np.ndarray = arrays_out["r"]
+        segments: np.ndarray = arrays_out["segments"]
+        mean: np.ndarray = arrays_out["mean"]
+        model: np.ndarray = arrays_out["model"]
+        slope = arrays_out.get("slope", None)
+        intercept = arrays_out.get("intercept", None)
+        median = arrays_out.get("median", None)
+        std = arrays_out.get("std", None)
+        p16 = arrays_out.get("p16", None)
+        p84 = arrays_out.get("p84", None)
+
+        regions: list[dict[str, Any]] = []
+        for s in range(segments.shape[0]):
+            start_idx, end_idx = int(segments[s, 0]), int(segments[s, 1])
             reg: dict[str, Any] = {
                 "idx": (start_idx, end_idx),
                 "R_in": float(r[start_idx]),
                 "R_ou": float(r[end_idx - 1]),
-                "mean": {},
+                "mean": {k: float(mean[s, j]) for j, k in enumerate(names)},
             }
-            if seg_model == "linear":
-                reg["slope"] = {}
-                reg["intercept"] = {}
 
-            sel = slice(start_idx, end_idx)
-            w_seg = weights[sel]
+            if model[s] == 1:
+                reg["slope"] = {k: float(slope[s, j]) for j, k in enumerate(names)} if slope is not None else {}
+                reg["intercept"] = {k: float(intercept[s, j]) for j, k in enumerate(names)} if intercept is not None else {}
 
-            if with_stats:
-                reg["median"] = {}
-                reg["std"] = {}
-                reg["16th"] = {}
-                reg["84th"] = {}
-
-            for k in names:
-                vals = np.asarray(series_dict[k])[sel]
-                w_sum = float(np.sum(w_seg))
-                mean_val = float(np.sum(vals * w_seg) / w_sum) if w_sum > 0 else float(np.mean(vals))
-                reg["mean"][k] = mean_val
-
-                if seg_model == "linear":
-                    b, a = self._weighted_linear_fit(r_fit[sel], vals, w_seg)
-                    reg["slope"][k] = b
-                    reg["intercept"][k] = a
-
-                if with_stats:
-                    p16, med, p84 = self._weighted_percentiles(vals, w_seg, ps=(0.16, 0.5, 0.84))
-                    # weighted population std around weighted mean
-                    variance = float(np.sum(w_seg * (vals - mean_val) ** 2) / w_sum) if w_sum > 0 else 0.0
-                    reg["median"][k] = med
-                    reg["std"][k] = float(np.sqrt(variance))
-                    reg["16th"][k] = p16
-                    reg["84th"][k] = p84
+            if median is not None and std is not None and p16 is not None and p84 is not None:
+                reg["median"] = {k: float(median[s, j]) for j, k in enumerate(names)}
+                reg["std"]    = {k: float(std[s, j])    for j, k in enumerate(names)}
+                reg["16th"]   = {k: float(p16[s, j])    for j, k in enumerate(names)}
+                reg["84th"]   = {k: float(p84[s, j])    for j, k in enumerate(names)}
 
             regions.append(reg)
-            start_idx = end_idx
-            seg_idx += 1
 
-        return {"bkps": bkps, "regions": regions, "r": r, "keys": names}
+        return {"bkps": list(map(int, bkps_arr.tolist())), "regions": regions, "r": r, "keys": names}
 
     def _weighted_linear_fit(
         self,
@@ -944,8 +1096,6 @@ class Segment(CharacterizerBase):
               - "uniform": all ones
               - "linear": gradient(r)
               - "log": gradient(log10(r + 1e-3))
-        normalize_weights : bool
-            If True, rescale so sum(w) == len(r) when finite and sum > 0.
         """
         n = r.size
         if isinstance(scheme_or_array, np.ndarray):
@@ -971,31 +1121,38 @@ class Segment(CharacterizerBase):
         series_dict: dict[str, np.ndarray],
         names: list[str],
         with_stats: bool,
+        *,
+        r_fit: np.ndarray | None = None,
+        weights: np.ndarray | None = None,
+        fit: Literal["constant","linear","mix"] = "constant",
+        output_format: Literal["arrays","records"] = "arrays",
     ) -> dict | None:
+        """
+        Handle small-n case by creating a single segment [0:n) and delegating to
+        shared aggregation. Keeps previous behavior:
+        - If weights is None: unweighted stats; linear params remain NaN.
+        """
         if n < 2 * min_size:
             logger.warning("Not enough data points for segmentation.")
             bkps = [n]
-            regs: list[dict[str, Any]] = [{
-                "idx": (0, n),
-                "R_in": float(r[0]),
-                "R_ou": float(r[-1]),
-                "mean": {k: float(np.mean(series_dict[k])) for k in names},
-            }]
-            if with_stats:
-                regs[0]["median"] = {}
-                regs[0]["std"] = {}
-                regs[0]["16th"] = {}
-                regs[0]["84th"] = {}
 
-                for k in names:
-                    vals = np.asarray(series_dict[k])
+            # r_fit may be None here; ensure we have an array if linear params are ever needed
+            r_fit_arr = r_fit if r_fit is not None else r
 
-                    regs[0]["median"][k] = float(np.median(vals))
-                    regs[0]["std"][k] = float(np.std(vals, ddof=0))
-                    regs[0]["16th"][k] = float(np.percentile(vals, 16))
-                    regs[0]["84th"][k] = float(np.percentile(vals, 84))
-            out = {"bkps": bkps, "regions": regs, "r": r, "keys": names}
-            return out
+            arrays_out = self._aggregate_segments_arrays(
+                bkps=bkps,
+                r=r,
+                r_fit=r_fit_arr,
+                series_dict=series_dict,
+                names=names,
+                weights=weights,  # None -> unweighted; leaves linear params NaN (as before)
+                with_stats=with_stats,
+                fit=fit,
+                seg_models=None,
+            )
+            if output_format == "records":
+                return self._arrays_to_records(arrays_out)
+            return arrays_out
 
         # General case
         return None
@@ -1013,14 +1170,8 @@ class Segment(CharacterizerBase):
         n_features: int = len(names)
 
         # Stack data into feature matrix
-        X: np.ndarray = np.zeros((n_points, n_features))
-        X_variance: np.ndarray = np.zeros((n_points, n_features))
-        for j, name in enumerate(names):
-            X[:, j] = series_dict[name]
-
-        # Handle scaling
-        mu: np.ndarray = np.zeros(n_features)
-        sd: np.ndarray = np.ones(n_features)
+        X: np.ndarray = np.zeros((n_points, n_features), dtype=float)
+        X_variance: np.ndarray = np.zeros((n_points, n_features), dtype=float)
 
         # scaling based on scale_mode
         if isinstance(scale_mode, str):
@@ -1028,27 +1179,66 @@ class Segment(CharacterizerBase):
         else:
             scale_list = list(scale_mode)
 
-        for i, name in enumerate(names):
-            x_err: np.ndarray = np.zeros(n_points, dtype=float)
-            mode = scale_list[i]
-            if mode == "range":
-                min_val, max_val = allowed_ranges[name]
-                range_val = max_val - min_val
-                if range_val > 0:
-                    X[:, i] = (X[:, i] - min_val) / range_val
+        mu: np.ndarray = np.zeros(n_features, dtype=float)
+        sd: np.ndarray = np.ones(n_features, dtype=float)
+        tiny = 1e-12
 
-                    if name in self.err_data:
-                        x_err = self.err_data[name] / range_val
-            mu[i] = np.mean(X[:, i])
-            sd[i] = np.std(X[:, i])
-            if mode == "std":
-                if sd[i] > 0:
-                    X[:, i] = (X[:, i] - mu[i]) / sd[i]
-                    if name in self.err_data:
-                        x_err = self.err_data[name] / sd[i]
-                mu[i] = 0.0
-                sd[i] = 1.0
-            X_variance[:, i] = x_err ** 2 + sd[i] ** 2
+        for i, name in enumerate(names):
+            raw = np.asarray(series_dict[name], dtype=float)
+            err_raw = np.asarray(self.err_data.get(name, np.zeros_like(raw)), dtype=float)
+
+            mode = scale_list[i]
+
+            if mode == "range":
+                # Use provided allowed range if available; else fallback to data min/max
+                mn, mx = allowed_ranges.get(name, (float(np.min(raw)), float(np.max(raw))))
+                rng = float(mx - mn)
+                if rng <= tiny:
+                    rng = 1.0  # avoid degenerate scaling
+                # Scale to [0,1] in "range units"
+                Xi = (raw - mn) / rng
+                # Optional clamp to [0,1] to prevent out-of-range dominating
+                Xi = np.clip(Xi, 0.0, 1.0)
+                # Scale measurement errors into the same units
+                err_scaled = err_raw / rng
+                # Unified base variance in the normalized units
+                base_var = 1.0
+
+            elif mode == "std":
+                # z-score by data statistics
+                mu_raw = float(np.mean(raw))
+                sd_raw = float(np.std(raw))
+                if sd_raw <= tiny:
+                    sd_raw = 1.0
+                Xi = (raw - mu_raw) / sd_raw
+                err_scaled = err_raw / sd_raw
+                base_var = 1.0
+
+            else:  # "none"
+                # No scaling of X; build a reasonable variance floor from ranges or errors
+                Xi = raw.copy()
+                if allowed_ranges is not None and name in allowed_ranges:
+                    mn, mx = allowed_ranges[name]
+                    rng = float(mx - mn)
+                    if rng > tiny:
+                        # assume ±3σ ≈ range -> σ = range/6
+                        sigma = rng / 6.0
+                        base_var = float(sigma * sigma)
+                    else:
+                        base_var = 1.0
+                else:
+                    # fallback to error-based or unit variance
+                    base_var = float(np.nanmedian(err_raw**2)) if np.isfinite(err_raw).any() else 1.0
+                err_scaled = err_raw  # stays in raw units
+
+            # Fill outputs
+            X[:, i] = Xi
+            # Per-point variance in the internal units
+            X_variance[:, i] = err_scaled**2 + max(base_var, tiny)
+
+            # Report mu/sd in the internal units (not used by the optimizer but kept for API)
+            mu[i] = float(np.mean(Xi))
+            sd[i] = float(np.std(Xi))
 
         return names, n_points, n_features, X, X_variance, mu, sd
 

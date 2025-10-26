@@ -171,6 +171,12 @@ class HDF5ModelIO(ModelIOBase):
     ) -> MetaDataDict:
         """ Load metadata from the HDF5 file. """
         group_path = cls.standardize_group_path(group_path)
+        keys_input = kwargs.get("keys",None)
+        keys: list[str] | None
+        if isinstance(keys_input,str):
+            keys = [keys_input]
+        else:
+            keys = keys_input
         with h5py.File(filename, "r") as f:
             if group_path not in f:
                 raise ValueError(
@@ -181,7 +187,8 @@ class HDF5ModelIO(ModelIOBase):
             meta_group = group[cls.meta_group]
             meta = MetaDataDict()
             # Load all keys from attrs and datasets
-            for key in list(meta_group.attrs.keys()) + list(meta_group.keys()):
+            load_keys = list(meta_group.attrs.keys()) + list(meta_group.keys()) if keys is None else keys
+            for key in load_keys:
                 meta[key] = _load_hdf_value(meta_group, key)
         return meta
 

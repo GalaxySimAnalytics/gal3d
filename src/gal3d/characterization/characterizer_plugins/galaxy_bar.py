@@ -82,6 +82,7 @@ class Bar(CharacterizerBase):
         eps_cond: float = 0.25,
         range_min: float = 0.2,
         start_max: float = 3,
+        R_max_max: float = 5,
         angle_dev: float = 10,
         dec: float = 0.85,
         detail: bool = False,
@@ -98,6 +99,8 @@ class Bar(CharacterizerBase):
             Minimum required length of bar region (default: 0.2)
         start_max : float, optional
             Maximum allowed starting radius (default: 3)
+        R_max_max: float, optional
+            Maximum allowed R_max radius (default: 5)
         angle_dev : float, optional
             Maximum allowed position angle deviation in degrees (default: 10)
         dec : float, optional
@@ -167,7 +170,7 @@ class Bar(CharacterizerBase):
         R_start_val: float = float(R_start[0])
         R_end_val: float = float(R_end[0])
 
-        eps_max, R_max, pa_max = self.get_max_epsRpa(R_start_val, R_end_val, R_cond=start_max)
+        eps_max, R_max, pa_max = self.get_max_epsRpa(R_start_val, R_end_val, R_cond=start_max, R_max_max = R_max_max)
 
         eps_dc, R_dc, f_eps_R = self.get_dec_epsRpa(R_max, eps_max, dec=dec)
         eps_pa, R_pa = self.get_dev_epsRpa(R_max, angle_cond=angle_dev)
@@ -332,7 +335,7 @@ class Bar(CharacterizerBase):
         self.pa_dev_mean = mean_dev
         self.pa_dev_std = mean_std
 
-    def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float =3) -> tuple[float, float, float]:
+    def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float = 3, R_max_max: float = 5,) -> tuple[float, float, float]:
         """
         Find maximum ellipticity and corresponding parameters in a region.
 
@@ -355,7 +358,7 @@ class Bar(CharacterizerBase):
             Position angle at maximum ellipticity
         """
         if R_start != R_end:
-            range_cut = (self.a >= R_start) & (self.a <= R_end)
+            range_cut = (self.a >= R_start) & (self.a <= R_end) & (self.a <= R_max_max)
             if np.any(range_cut):
                 eps_max = float(np.max(self.eps[range_cut]))
                 R_max = float(self.a[range_cut][np.argmax(self.eps[range_cut])])

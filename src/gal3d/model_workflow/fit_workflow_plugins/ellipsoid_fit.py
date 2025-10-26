@@ -91,7 +91,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         init_parameters = kwargs.get("init_parameters", {})
         upper_bounds = kwargs.get("upper_bounds", {})
         lower_bounds = kwargs.get("lower_bounds", {})
-        min_uniform = kwargs.get("min_uniform", 0.75)
+        min_uniform = kwargs.get("min_uniform", 0.9)
 
         # Generate data only once
         data = obj.field.generate(a, for_fit=True)

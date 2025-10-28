@@ -166,17 +166,12 @@ class HDF5ModelIO(ModelIOBase):
     @classmethod
     def _load_metadata_from_file(cls,
         filename: str,
+        keys: list[str] | None = None,
         group_path: str = "/",
         **kwargs: Any
     ) -> MetaDataDict:
         """ Load metadata from the HDF5 file. """
         group_path = cls.standardize_group_path(group_path)
-        keys_input = kwargs.get("keys",None)
-        keys: list[str] | None
-        if isinstance(keys_input,str):
-            keys = [keys_input]
-        else:
-            keys = keys_input
         with h5py.File(filename, "r") as f:
             if group_path not in f:
                 raise ValueError(

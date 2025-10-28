@@ -173,7 +173,8 @@ class ModelIOBase(PluginBase):
         start_time = time.time()
 
         if structure is None:
-            metadata = cls._load_metadata_from_file(filename,**kwargs)
+            metadata = cls._load_metadata_from_file(
+                filename, keys=["coordinate_name", "geometry_name","error_method_name","error_func_name"], **kwargs)
             if metadata.get("error_method_name") is None or metadata.get("error_func_name") is None:
                 structure = StructureCore(
                     coordinate=metadata["coordinate_name"],
@@ -209,7 +210,7 @@ class ModelIOBase(PluginBase):
     @classmethod
     @abstractmethod
     def _load_metadata_from_file(
-        cls, filename: str, **kwargs: Any
+        cls, filename: str, keys: list[str] | None = None, **kwargs: Any
     ) -> MetaDataDict:
         """
         Abstract method to load metadata from a file.
@@ -218,6 +219,8 @@ class ModelIOBase(PluginBase):
         ----------
         filename : str
             The name of the file to load metadata from.
+        keys : list[str] | None
+            The keys to load from the metadata. If None, all keys will be loaded.
         **kwargs : Any
             Additional keyword arguments.
 

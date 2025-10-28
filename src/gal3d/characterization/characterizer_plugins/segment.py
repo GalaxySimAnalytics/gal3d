@@ -560,10 +560,9 @@ class Segment(CharacterizerBase):
         intercept = np.full((n_segments, n_features), np.nan, dtype=float)
 
         if with_stats:
-            median = np.zeros((n_segments, n_features), dtype=float)
-            std    = np.zeros((n_segments, n_features), dtype=float)
-            p16    = np.zeros((n_segments, n_features), dtype=float)
-            p84    = np.zeros((n_segments, n_features), dtype=float)
+            shape = (n_segments, n_features)
+            median, std, p16, p84 = (np.zeros(shape, dtype=float) for _ in range(4))
+            err_mean, err_median, err_std, err_p16, err_p84 = (np.full(shape, np.nan, dtype=float) for _ in range(5))
 
         start_idx = 0
         for s, end_idx in enumerate(bkps):
@@ -585,17 +584,18 @@ class Segment(CharacterizerBase):
 
                 # linear params only if modeled linear and weights provided
                 if model[s] == 1 and w_seg is not None:
-                    b, a = self._weighted_linear_fit(r_seg, vals, w_seg)
-                    slope[s, j] = b
-                    intercept[s, j] = a
+                    slope[s, j], intercept[s, j] = self._weighted_linear_fit(r_seg, vals, w_seg)
 
                 # stats
                 if with_stats:
-                    p16_v, med_v, p84_v, std_v = self._weighted_stats(vals, w_seg, mean_val)
-                    median[s, j] = med_v
-                    std[s, j]    = std_v
-                    p16[s, j]    = p16_v
-                    p84[s, j]    = p84_v
+                    p16[s, j], median[s, j], p84[s, j], std[s, j] = self._weighted_stats(vals, w_seg, mean_val)
+                    # ---- error stats (use same per-point weights) ----
+                    err_arr_full = self.err_data.get(k, None)
+                    if err_arr_full is not None and err_arr_full.size >= end_idx:
+                        err_vals = np.asarray(err_arr_full)[sel]
+                        err_mean_val = self._weighted_mean(err_vals, w_seg)
+                        err_p16[s, j], err_median[s, j], err_p84[s, j], err_std[s, j] = self._weighted_stats(err_vals, w_seg, err_mean_val)
+                        err_mean[s, j]   = err_mean_val
 
             start_idx = end_idx
 
@@ -616,10 +616,10 @@ class Segment(CharacterizerBase):
 
         if with_stats:
             out.update({
-                "median": median,
-                "std": std,
-                "p16": p16,
-                "p84": p84,
+                "median": median, "std": std, "p16": p16, "p84": p84,
+                # ---- add error stats to arrays output ----
+                "err_mean": err_mean, "err_median": err_median, "err_std": err_std,
+                "err_p16": err_p16, "err_p84": err_p84,
             })
         return out
     def _weighted_mean(
@@ -674,10 +674,12 @@ class Segment(CharacterizerBase):
         model: np.ndarray = arrays_out["model"]
         slope = arrays_out.get("slope", None)
         intercept = arrays_out.get("intercept", None)
-        median = arrays_out.get("median", None)
-        std = arrays_out.get("std", None)
-        p16 = arrays_out.get("p16", None)
-        p84 = arrays_out.get("p84", None)
+
+        def attach_stats(reg: dict[str, Any], s_idx: int, mapping: dict[str, str]) -> None:
+            if all(arrays_out.get(arr_key) is not None for arr_key in mapping.values()):
+                for out_key, arr_key in mapping.items():
+                    arr = arrays_out[arr_key]
+                    reg[out_key] = {k: float(arr[s_idx, j]) for j, k in enumerate(names)}
 
         regions: list[dict[str, Any]] = []
         for s in range(segments.shape[0]):
@@ -693,11 +695,20 @@ class Segment(CharacterizerBase):
                 reg["slope"] = {k: float(slope[s, j]) for j, k in enumerate(names)} if slope is not None else {}
                 reg["intercept"] = {k: float(intercept[s, j]) for j, k in enumerate(names)} if intercept is not None else {}
 
-            if median is not None and std is not None and p16 is not None and p84 is not None:
-                reg["median"] = {k: float(median[s, j]) for j, k in enumerate(names)}
-                reg["std"]    = {k: float(std[s, j])    for j, k in enumerate(names)}
-                reg["16th"]   = {k: float(p16[s, j])    for j, k in enumerate(names)}
-                reg["84th"]   = {k: float(p84[s, j])    for j, k in enumerate(names)}
+            attach_stats(reg, s, {
+                "median": "median",
+                "std": "std",
+                "16th": "p16",
+                "84th": "p84",
+            })
+
+            attach_stats(reg, s, {
+                "err_mean": "err_mean",
+                "err_median": "err_median",
+                "err_std": "err_std",
+                "err_16th": "err_p16",
+                "err_84th": "err_p84",
+            })
 
             regions.append(reg)
 

@@ -22,9 +22,8 @@ Key ideas
   and where each manager’s plugin implementations live (`_plugin_module`).
 
 Examples
---------
-To create a new plugin type, define a subclass of `PluginBase` and a corresponding
-`PluginManager` subclass. Register plugins by subclassing the plugin base class.
+-----------
+1) Define a plugin base and a manager for that plugin type.
 
 >>> from gal3d.plugin import PluginBase, PluginManager
 >>> class MyPlugin(PluginBase):
@@ -44,7 +43,8 @@ To create a new plugin type, define a subclass of `PluginBase` and a correspondi
 2) Put actual implementations in the manager’s `_plugin_module` and let class
    creation auto-register them:
 
-# gal3d/my_plugins.py
+
+>>> # gal3d/my_plugins.py
 >>> from gal3d.plugin import PluginBase  # optional if importing MyPlugin directly
 >>> from gal3d.my_api import needs      # your own imports
 >>> from gal3d.your_managers import MyPlugin, MyPluginManager
@@ -68,7 +68,6 @@ To create a new plugin type, define a subclass of `PluginBase` and a correspondi
 >>> # Discover all managers and their plugins
 >>> PluginManagerRegistry.print_plugins()
 
->>>
 >>> # Or work with a specific manager directly
 >>> MyPluginManager.available_plugins()
 ['Bar', 'Foo']

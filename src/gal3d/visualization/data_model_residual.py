@@ -1,4 +1,43 @@
+"""
+Side-by-side visualization: data vs model projections and residuals (with zooms)
 
+Overview
+--------
+This module provides high-level plotting utilities to compare observed (particle)
+data with model projections produced by a ModelProjector. It renders:
+
+- Data image + contours
+- Model image + contours (sharing data normalization)
+- Residual image + contours
+
+For each of two viewpoints (e.g., face-on and edge-on), both a large field and a zoomed-in field.
+
+Quick start
+-----------
+>>> import matplotlib.pyplot as plt
+>>> from gal3d.point import Particles
+>>> from gal3d.visualization.model_projector import ModelProjectorBase, ImageData
+>>> from gal3d.visualization.data_model_residual import show_image_model_residual
+>>>
+>>> # Example model projector
+>>> class DummyProjector(ModelProjectorBase):
+...     def _image(self, x_range, y_range, nbins=100, z_range=(-20,20), rotation=None, **kwargs):
+...         import numpy as np
+...         xs = np.linspace(*x_range, nbins)
+...         ys = np.linspace(*y_range, nbins)
+...         X, Y = np.meshgrid(xs, ys, indexing="xy")
+...         img = np.exp(-(X**2 + Y**2))
+...         return ImageData(img, xs, ys, x_range, y_range)
+>>>
+>>> # Particle data (fill with your Sim data)
+>>> pos = np.random.normal(size=(10_000, 3))
+>>> mass = np.abs(np.random.normal(size=10_000))
+>>> hsm = np.full(10_000, 0.05)
+>>> data = Particles(pos=pos, mass=mass, hsm=hsm, recenter=True)
+>>>
+>>> fig = show_image_model_residual(data, DummyProjector())
+>>> plt.show()
+"""
 from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
@@ -41,6 +80,14 @@ def show_data_model(
     linestyle: str = "-",
     render: bool = True
 ) -> tuple[tuple[AxesImage, AxesImage, AxesImage], tuple[QuadContourSet, QuadContourSet, QuadContourSet]]:
+    """
+    Draw data, model, and residual panels for one viewpoint (3 stacked subplots).
+
+    Returns
+    -------
+    ((data_img, model_img, residual_img), (data_cont, model_cont, residual_cont))
+    where images are AxesImage and contours are QuadContourSet.
+    """
     if rotation_matrix is None:
         rotation_matrix = np.eye(3)
     if render:
@@ -305,7 +352,7 @@ def show_image_model_residual(
     savefile: str | None = None,
 ) -> plt.Figure | list[plt.Figure]:
     """
-    Create a comprehensive visualization comparing observed data, model, and residuals.
+    Create a comprehensive data vs model visualization (two viewpoints x two scales).
 
     This function generates a detailed visualization that shows the observed data,
     model projections, and their residuals in both large-scale and zoomed-in views.

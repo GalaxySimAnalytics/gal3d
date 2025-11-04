@@ -1,12 +1,23 @@
+"""
+2D image generation helpers for particle data and model visualization.
+
+Includes:
+- hist_2d: produce density-like 2D histograms as ImageData
+- render_2d: high-quality SPH rendering wrapper returning ImageData
+- show_image / show_contour: display helpers with consistent normalization reuse
+- add_colorbar: attach colorbar to any ScalarMappable
+- which_pos_to_rotation: helper to construct a rotation from axis selection
+"""
 # This code is inspired by or adapted from the plotting utilities in the following repository:
 # https://github.com/perwin/barprofiles_paper/blob/main/plotutils.py
 
 from collections.abc import Sequence
-from typing import Any, Literal, overload
+from typing import Any, Literal, cast, overload
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
+from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
 from matplotlib.colorizer import ColorizingArtist
 from matplotlib.contour import QuadContourSet
@@ -21,7 +32,20 @@ from .model_projector import ImageData
 from .render_wrapper import PyRenderImage, PyRenderImageFloat, get_kernel, get_render_image
 
 
-def which_pos_to_rotation(which_pos):
+def which_pos_to_rotation(which_pos: Sequence[int]) -> np.ndarray:
+    """
+    Build a rotation matrix that maps an axis order (e.g., (0,1) for xy) to view orientation.
+
+    Parameters
+    ----------
+    which_pos : Sequence[int]
+        Two axes indices from {0,1,2}. The third axis is inferred.
+
+    Returns
+    -------
+    np.ndarray
+        3x3 rotation matrix (float64).
+    """
     order = list(which_pos)
     for i in [0, 1, 2]:
         if i not in order:
@@ -47,39 +71,33 @@ def hist_2d(
     **kwargs: Any,
 ) -> ImageData:
     """
-    Generate a 2D histogram from input data.
+    Generate a 2D histogram as ImageData.
+
+    If `parameters` is given, returns a weighted average in each bin.
 
     Parameters
     ----------
-    x : array-like
-        Input data for the x-axis.
-    y : array-like
-        Input data for the y-axis.
+    x, y : array-like
+        Coordinates.
     weights : array-like, optional
-        Weights for each data point. Default is None.
+        Weights per point.
     parameters : array-like, optional
-        Additional parameters for weighted histograms. Default is None.
-    density : bool, optional
-        If True, normalize the histogram to form a probability density. Default is True.
-    gridsize : tuple of int, optional
-        Number of bins for the histogram in (y, x) directions. Default is (100, 100).
+        Values to average in bins (weighted by `weights`).
+    density : bool, default True
+        Normalize by bin area.
+    gridsize : (ny, nx), default (100, 100)
+        Bin counts per axis. If `nbins` is given, overrides both to (nbins, nbins).
     nbins : int, optional
-        Number of bins for both axes (overrides gridsize if provided). Default is None.
-    x_logscale : bool, optional
-        If True, apply log scaling to the x-axis. Default is False.
-    y_logscale : bool, optional
-        If True, apply log scaling to the y-axis. Default is False.
-    x_range : list or tuple, optional
-        Range for the x-axis as [min, max]. Default is None.
-    y_range : list or tuple, optional
-        Range for the y-axis as [min, max]. Default is None.
-    **kwargs : dict
-        Additional keyword arguments.
+        Set both axes to the same number of bins.
+    x_logscale, y_logscale : bool, default False
+        If True, log10-transform the axis before binning and compute ranges accordingly.
+    x_range, y_range : (min, max), optional
+        If None, use min/max of data (or log10 thereof).
 
     Returns
     -------
-    im : ImageData
-        The 2D histogram image data.
+    ImageData
+        The binned image with coordinates and extents.
     """
     if nbins is not None:
         gridsize = (nbins, nbins)
@@ -178,6 +196,11 @@ def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Seq
             subsample: int | None = None,
             ret_image: bool = True
             ) -> (ImageData | PyRenderImage | PyRenderImageFloat):
+    """
+    SPH-based 2D rendering (fast and smooth). Returns ImageData by default.
+
+    Set ret_image=False to get the renderer object itself for advanced usage.
+    """
     if nbins is None:
         nbins = config.sph_render.resolution
     if subsample is None:
@@ -193,10 +216,6 @@ def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Seq
     render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],mass,hsm)
 
     if ret_image:
-        xs = np.linspace(x_range[0], x_range[1], nbins+1)
-        ys = np.linspace(y_range[0], y_range[1], nbins+1)
-        xs = 0.5 * (xs[:-1] + xs[1:])
-        ys = 0.5 * (ys[:-1] + ys[1:])
         return render.get_image()
     else:
         return render
@@ -264,7 +283,7 @@ def show_image(
 
 
     if axesObj is None:
-        if noErase is False:
+        if not noErase:
             plt.clf()
         axesImg = plt.imshow(
             im_arr,
@@ -285,7 +304,6 @@ def show_image(
             norm=cont_color,
             cmap=cmap,
         )
-
     return axesImg
 
 
@@ -307,7 +325,7 @@ def show_contour(
     linestyle: str = "-",
 ) -> QuadContourSet:
     """
-    Function which contour-plots an image.
+     Contour-plot an image. Can auto-generate log- or linear-spaced levels.
 
     Parameters
     ----------
@@ -382,28 +400,17 @@ def show_contour(
         sigma = sigma or 1
         im_arr = gaussian_filter(im_arr, sigma=sigma)
     if axesObj is None:
-        if noErase is False:
+        if not noErase:
             plt.clf()
-            axesCont = plt.contour(
-                xs,
-                ys,
-                im_arr,
-                levels,
-                colors=color,
-                linewidths=linewidth,
-                linestyles=linestyle,
-            )
-
-        else:
-            axesCont = plt.contour(
-                xs,
-                ys,
-                im_arr,
-                levels,
-                colors=color,
-                linewidths=linewidth,
-                linestyles=linestyle,
-            )
+        axesCont = plt.contour(
+            xs,
+            ys,
+            im_arr,
+            levels,
+            colors=color,
+            linewidths=linewidth,
+            linestyles=linestyle,
+        )
 
     else:  # user supplied a matplotlib.axes.Axes object to receive the plotting commands
         axesCont = axesObj.contour(
@@ -419,7 +426,7 @@ def show_contour(
 
 
 def add_colorbar(
-    mappable: ColorizingArtist,
+    mappable: ScalarMappable | ColorizingArtist,
     ax: plt.Axes | None = None,
     loc: str = "right",
     size: str ="5%",
@@ -428,12 +435,7 @@ def add_colorbar(
     tick_label_size: float = 10
 ) -> Colorbar:
     """
-    Function which adds a colorbar to a "mappable" object (e.g., the result of
-    calling plt.imshow).
-
-    Example:
-        img = plt.imshow(somedata, ...)
-        add_colorbar(img, ...)
+    Add a colorbar to a 'mappable' (ScalarMappable/ColorizingArtist) with flexible placement.
 
     Parameters
     ----------
@@ -441,16 +443,12 @@ def add_colorbar(
         E.g., instance of Image, ContourSet, etc. -- basically any Artist subclass that
         inherits from the ScalarMappable mixin
         https://matplotlib.org/api/cm_api.html
-
     loc : str, optional
         location for colorbar -- one of "right", "left", "top", "bottom"
-
     size : str, optional
         relative size for colorbar as fraction of main plot, as a percentage (e.g. "2%")
-
     pad : float, optional
         padding between colorbar and main plot
-
     label_pad : str, optional
         padding between colorbar and its tick labels
     tick_label_size : float, optional
@@ -460,6 +458,11 @@ def add_colorbar(
     -------
     cbar : instance of matplotlib.colorbar.Colorbar
         The generated colorbar
+
+    Example
+    -------
+    >>> img = plt.imshow(data)
+    >>> add_colorbar(img, loc="right")
     """
     if loc in ["top", "bottom"]:
         orient = "horizontal"
@@ -473,13 +476,9 @@ def add_colorbar(
             tickPos = "left"
         else:
             tickPos = "right"
-    axe: plt.Axes | plt._AxesBase
-    if ax is not None:
-        axe = ax
-    elif mappable.axes is not None:
-        axe = mappable.axes
-    else:
-        raise ValueError("No axes found for colorbar.")
+    axe = ax or cast("plt.Axes | None", getattr(mappable, "axes", None))
+    if axe is None:
+        raise ValueError("No axes found for colorbar. Pass ax=... or provide a mappable attached to an Axes.")
     fig = axe.figure
     divider = make_axes_locatable(axe)
     cbar_axes = divider.append_axes(loc, size=size, pad=pad)

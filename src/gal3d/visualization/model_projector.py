@@ -1,5 +1,43 @@
 """
-Model projector base class and factory for generating 2D projections from 3D models.
+Project 3D models to 2D images (base + plugin manager)
+
+Overview
+--------
+This module defines:
+- ImageData: a small container for image arrays with coordinates and extents.
+- ModelProjectorBase: an abstract base for projectors, including:
+  - Auto-registration as a plugin
+  - A caching decorator for identical image requests
+  - Convenience projections (xz, yz) via predefined rotations
+- ModelProjector: the plugin manager for projector implementations
+
+Quick start
+-----------
+Implement your projector:
+
+>>> from gal3d.visualization.model_projector import ModelProjectorBase, ImageData
+>>> import numpy as np
+>>>
+>>> class SimpleDensityProjector(ModelProjectorBase):
+...     def _image(self, x_range, y_range, nbins=100, z_range=(-20,20), rotation=None, **kwargs):
+...         # Example: draw a 2D Gaussian as a stand-in for a model projection
+...         xs = np.linspace(*x_range, nbins)
+...         ys = np.linspace(*y_range, nbins)
+...         X, Y = np.meshgrid(xs, ys, indexing="xy")
+...         img = np.exp(-(X**2 + Y**2))
+...         return ImageData(value=img, xs=xs, ys=ys, xrange=x_range, yrange=y_range)
+
+Use it:
+
+>>> proj = SimpleDensityProjector()
+>>> img = proj.image(x_range=(-5, 5), y_range=(-5, 5), nbins=200)
+>>> img.value.shape
+(200, 200)
+
+Discover available projectors:
+
+>>> from gal3d.visualization.model_projector import ModelProjector
+>>> ModelProjector.available_plugins()
 """
 import logging
 from abc import abstractmethod
@@ -21,7 +59,22 @@ logger = logging.getLogger("gal3d.visualization.model_projector")
 
 @dataclass
 class ImageData:
-    """ Data class to hold projected image information."""
+    """
+    Container for a projected image and its grid information.
+
+    Attributes
+    ----------
+    value : np.ndarray
+        Image array of shape (ny, nx).
+    xs : np.ndarray
+        X bin centers of shape (nx,).
+    ys : np.ndarray
+        Y bin centers of shape (ny,).
+    xrange : tuple[float, float]
+        (xmin, xmax)
+    yrange : tuple[float, float]
+        (ymin, ymax)
+    """
     value: np.ndarray
     xs: np.ndarray
     ys: np.ndarray
@@ -48,42 +101,32 @@ class ImageData:
         return np.sum(self.value) * self.pixel_area
 
 class ModelProjectorBase(PluginBase):
-    """Abstract base class for model projectors that generate 2D projections from 3D models.
+    """
+    Abstract base class for model projectors that generate 2D projections from 3D models.
 
-    This class provides a framework for creating different types of model projectors
-    that can generate 2D projections of 3D models. It includes functionality for:
+    Features
+    --------
     - Automatic plugin registration of subclasses
-    - Image caching to avoid recomputation
-    - Standard rotation matrices for different viewing angles
-    - Abstract methods that subclasses must implement
+    - Image caching to avoid recomputation (based on ranges, nbins, z-range, rotation)
+    - Standard convenience rotations for XZ and YZ projections
 
-    Attributes
-    ----------
-    _image_cache : CacheDict
-        Cache for storing previously computed images.
+    Subclasses must implement: `_image(...) -> ImageData`.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Register subclass as a ModelProjector plugin.
-
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to the parent __init_subclass__.
-        """
+        """Register subclass as a ModelProjector plugin."""
         super().__init_subclass__(**kwargs)
         ModelProjector.register(cls)
 
 
     def __init__(self, cache_len: int = 100):
-        """Initialize the model projector.
-
+        """
         Parameters
         ----------
         cache_len : int, default=100
-            Maximum number of images to store in the cache.
+            Maximum number of inputs to store in the image cache.
         """
-        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], NDArray[np.float64]]
+        self._image_cache: CacheDict[tuple[float, float, float, float, int, float, float, bytes | None], ImageData]
         self._image_cache = CacheDict(cache_len=cache_len)
 
     @staticmethod
@@ -105,7 +148,7 @@ class ModelProjectorBase(PluginBase):
         @wraps(func)
         def wrapper(self: "ModelProjectorBase", x_range: tuple[float, float], y_range: tuple[float, float],
                    nbins: int, z_range: tuple[float, float], rotation: NDArray[np.float64] | None = None,
-                   **kwargs: Any) -> NDArray[np.float64]:
+                   **kwargs: Any) -> ImageData:
             rotation_bytes = rotation.tobytes() if rotation is not None else None
             recod = (
                 x_range[0],
@@ -247,7 +290,7 @@ class ModelProjectorBase(PluginBase):
         nbins: int = 100,
         z_range: tuple[float,float] = (-20, 20),
     ) -> ImageData:
-        """Generate a projection in the x-z plane.
+        """Generate a projection in the x-z plane (viewing along +y).
 
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the y direction.
@@ -283,7 +326,7 @@ class ModelProjectorBase(PluginBase):
         nbins: int = 100,
         z_range: tuple[float,float] = (-20, 20),
     ) -> ImageData:
-        """Generate a projection in the y-z plane.
+        """Generate a projection in the y-z plane (viewing along +x).
 
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the x direction.
@@ -314,9 +357,7 @@ class ModelProjectorBase(PluginBase):
 
 
 class ModelProjector(PluginManager[ModelProjectorBase]):
-    """
-    Factory class for accessing registered ModelProjector plugins.
-    """
+    """Factory class for accessing registered ModelProjector plugins."""
 
     _plugins = {}
     _plugin_module = "gal3d.visualization.model_projector_plugins"

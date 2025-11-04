@@ -1,16 +1,34 @@
 """
 Module: gal3d.configuration
 
-This module defines configuration classes and utilities for the gal3d framework.
+Centralized configuration for gal3d with safe defaults, validation, and easy persistence.
 
-Usage Example
--------------
+Quick start
+-----------
 >>> from gal3d.configuration import config
->>> print(config.general.min_batchsize)
+>>>
+>>> # Inspect core settings
+>>> print(config.general.number_of_threads)
+>>> print(config.general.compute_backend)
+>>>
+>>> # Change threads and backend
 >>> config.general.number_of_threads = 8
->>> config.update({"general": {"number_of_threads": 16}})
->>> config.save("my_config.json")  # Save configuration to file
->>> config.load("my_config.json")  # Load configuration from file
+>>> config.general.compute_backend = "auto"   # or "cython", "numba"
+>>>
+>>> # Enable your plugin package for discovery
+>>> config.plugin_modules.add_module("gal3d.my_plugins")
+>>>
+>>> # Save and load
+>>> config.save("my_config.json")
+>>> config.load("my_config.json")
+
+Plugin discovery
+----------------
+Add modules that define PluginManager subclasses (or import them) so they self-register:
+>>> config.plugin_modules.add_module("gal3d.optimization.optimizer")
+>>> # later:
+>>> from gal3d.plugin import PluginManagerRegistry
+>>> PluginManagerRegistry.print_plugins()
 
 """
 
@@ -182,7 +200,6 @@ class GeneralConfig(BaseConfig):
         Examples
         --------
         >>> from gal3d.config import config
-        >>> # Basic usage
         >>> optimal_threads = config.general.optimize_thread_count()
         >>> config.general.number_of_threads = optimal_threads
         """
@@ -403,6 +420,8 @@ class Config:
         SPH rendering settings section.
     ellipsoid_s : EllipsoidConfig
         Ellipsoid_S settings section.
+    plugin_modules : PluginManagerConfig
+        Plugin manager discovery settings.
     # Add more sections as needed, e.g. database, simulation, etc.
     """
     general: GeneralConfig = field(default_factory=GeneralConfig)
@@ -465,10 +484,19 @@ class Config:
                 warnings.warn(f"Unknown configuration section: {section_name}", stacklevel=2)
                 continue
 
-            # Special handling for plugin_modules which is a tuple, not a config class
             if section_name == "plugin_modules":
-                if isinstance(section_value, list):
-                    setattr(self, section_name, tuple(section_value))
+                # Accept either {"modules": [...]} or a sequence of modules
+                if isinstance(section_value, dict):
+                    modules = section_value.get("modules")
+                    if modules is not None:
+                        self.plugin_modules.modules = set(modules)
+                elif isinstance(section_value, (list, set, tuple)):
+                    self.plugin_modules.modules = set(section_value)
+                else:
+                    warnings.warn(
+                        "plugin_modules must be a dict with 'modules' or a sequence of module paths.",
+                        stacklevel=2,
+                    )
                 continue
 
             # For normal config sections (which are objects)
@@ -549,8 +577,6 @@ class Config:
         ----------
         logger_name : str
             The name of the logger to configure (default: "gal3d").
-        override : bool
-            Ignored (always resets handlers).
         """
         from gal3d.log import _setup_logging
         _setup_logging(self.logger, logger_name=logger_name)

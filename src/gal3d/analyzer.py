@@ -15,19 +15,19 @@ Quick start
 >>> import numpy as np
 >>> from gal3d.analyzer import Gal3DAnalyzer
 >>>
->>> # Dummy data (N, 3) positions and (N,) masses
->>> pos = np.random.normal(size=(100000, 3))
->>> pos[:,0] = pos[:,0]*5
->>> pos[:,1] = pos[:,1]*2
->>> mass = np.ones(100000)
+>>> # Example synthetic data: (N, 3) positions, (N,) masses
+>>> N = 100_000
+>>> pos = np.random.normal(size=(N, 3))
+>>> pos[:, 0] *= 5.0
+>>> pos[:, 1] *= 2.0
+>>> mass = np.ones(N)
 >>>
->>> # Run analysis with sensible defaults
+>>> # Analyze with sensible defaults and run a fit
 >>> analyzer = Gal3DAnalyzer.analyze(pos, mass)
+>>> result = analyzer.fit(num_step=100)   # log-spaced radii by default
 >>>
->>> # Fit across a range of radii (log-spaced by default)
->>> result = analyzer.fit(num_step=100)
->>> # Or fit a single radius:
->>> single = analyzer._fit(5.0)  # returns a ModelResult
+>>> # Or fit a single radius
+>>> single = analyzer._fit(8.0)  # returns a ModelResult
 
 Tips
 ----

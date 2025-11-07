@@ -76,6 +76,15 @@ class ModelResult:
         """
         return self._param_sets[0].keys()
 
+    def __iter__(self):
+        """
+        Make ModelResult iterable over parameter keys.
+        
+        This allows using ModelResult in for loops directly:
+        `for key in model_result:` instead of `for key in model_result.keys():`
+        """
+        return iter(self._param_sets[0].keys())
+
     def available_keys(self):
         """
         Get all available keys of parameters.
@@ -471,6 +480,10 @@ class EmptyModelResult(ModelResult):
 
     def __getitem__(self, k):
         raise ValueError("EmptyModelResult: No results available.")
+
+    def __iter__(self):
+        """Return empty iterator for EmptyModelResult."""
+        return iter([])
 
     def __repr__(self):
         return "<EmptyModelResult| No parameter sets |>"

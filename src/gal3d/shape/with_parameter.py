@@ -242,22 +242,21 @@ class WithParameter(ABC):
         return self.__class__.__name__
 
 
-    def _repr_latex_(self) -> str:
-        """
-        Render an aligned LaTeX block with vertically aligned colons:
-          Name  : <name>
-          Func  : <equation>
-          Param : <parameter values>
-          Derived param : <definitions>
-        Falls back to plain repr if nothing available.
-        """
-        name     = self._latex_name
-        equation = self._latex_equation
-        params   = self._latex_parameters
-        derived  = self._latex_other
+    def _latex_str_(
+        self,
+        name: str | None = None,
+        equation: str | None = None,
+        params: str | None = None,
+        derived: str | None = None) -> str:
+        if name is None:
+            name = self._latex_name
+        if equation is None:
+            equation = self._latex_equation
+        if params is None:
+            params = self._latex_parameters
+        if derived is None:
+            derived = self._latex_other
 
-        if not self._latex_equation:
-            return self.__repr__()
 
         def _strip_math(s: str) -> str:
             if not s:
@@ -273,7 +272,7 @@ class WithParameter(ABC):
         if equation:
             rows.append(("\\text{Func}", _strip_math(equation)))
         if params:
-            rows.append(("\\text{Param}", _strip_math(params)))
+            rows.append(("\\text{Param ("+f"{len(self.parameters)}"+")}", _strip_math(params)))
         if derived:
             rows.append(("\\text{Derived\\ param}", _strip_math(derived)))
 
@@ -283,7 +282,28 @@ class WithParameter(ABC):
         # Build aligned environment: label & : & value \\
         lines = [f"{lbl} & : & {val} \\\\" for lbl, val in rows]
         body = "\n".join(lines)
+        return body
 
+    def _repr_latex_(
+        self,
+        name: str | None = None,
+        equation: str | None = None,
+        params: str | None = None,
+        derived: str | None = None) -> str:
+        """
+        Render an aligned LaTeX block with vertically aligned colons:
+          Name  : <name>
+          Func  : <equation>
+          Param : <parameter values>
+          Derived param : <definitions>
+        Falls back to plain repr if nothing available.
+        """
+        body = self._latex_str_(
+            name=name,
+            equation=equation,
+            params=params,
+            derived=derived
+        )
         # Use \large once at top to avoid repeating inside each fragment
         return (
             "$\n"

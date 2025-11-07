@@ -34,9 +34,11 @@ class ShiftOnly(CoordinateBase):
 
     def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         N_p = len(pos)
-        d_Px = np.array([-np.ones(N_p), np.zeros(N_p), np.zeros(N_p)])
-        d_Py = np.array([np.zeros(N_p), -np.ones(N_p), np.zeros(N_p)])
-        d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
+        zeros = np.zeros(N_p)
+        ones = np.ones(N_p)
+        d_Px = np.array([-ones, zeros, zeros])
+        d_Py = np.array([zeros, -ones, zeros])
+        d_Pz = np.array([zeros, zeros, -ones])
         return (d_Px.T, d_Py.T, d_Pz.T)
 
     @staticmethod
@@ -52,9 +54,11 @@ class ShiftOnly(CoordinateBase):
     @staticmethod
     def quick_jacobian(x, y, z, pos):
         N_p = len(pos)
-        d_Px = np.array([-np.ones(N_p), np.zeros(N_p), np.zeros(N_p)])
-        d_Py = np.array([np.zeros(N_p), -np.ones(N_p), np.zeros(N_p)])
-        d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
+        zeros = np.zeros(N_p)
+        ones = np.ones(N_p)
+        d_Px = np.array([-ones, zeros, zeros])
+        d_Py = np.array([zeros, -ones, zeros])
+        d_Pz = np.array([zeros, zeros, -ones])
         return (d_Px.T, d_Py.T, d_Pz.T)
     @classmethod
     def estimate_parameters(cls, pos: np.ndarray) -> dict:

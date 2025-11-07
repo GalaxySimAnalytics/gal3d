@@ -28,11 +28,11 @@ class ProjectorSphGrid(ModelProjectorBase):
         inner_r = np.array(
             [
                 np.convolve(
-                    points_r[i],
+                    points_r_i,
                     [0.5, 0.5],
                     mode="same",
                 )
-                for i in range(len(points_r))
+                for i, points_r_i in enumerate(points_r)
             ]
         )
         inner_r[:, 0] = 0

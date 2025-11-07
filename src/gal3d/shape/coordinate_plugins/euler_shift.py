@@ -80,6 +80,17 @@ class ShiftOnly(CoordinateBase):
             "z": centroid[2],
         }
 
+    @property
+    def _latex_equation(self) -> str:
+        return r"\mathbf{X}'=\mathbf{X}-\mathbf{1}_n\,\mathbf{c}"
+
+    @property
+    def _latex_parameters(self) -> str:
+        return rf" x_c={self['x']:.2f},\ y_c={self['y']:.2f},\ z_c={self['z']:.2f}"
+    @property
+    def _latex_other(self) -> str:
+        return r"\mathbf{c}=\begin{bmatrix}x_c&y_c&z_c\end{bmatrix}"
+
 class RotateOnly(CoordinateBase):
     PN = ("ang1", "ang2", "ang3")
     LB = {"ang1": -np.pi, "ang2": -np.pi/2, "ang3": -np.pi}
@@ -184,6 +195,26 @@ class RotateOnly(CoordinateBase):
             The corresponding Euler angles.
         """
         return EulerAngles.from_matrix(mat).as_euler(cls.EulerSeq, degrees=False)
+
+    @property
+    def _latex_parameters(self) -> str:
+        return rf" \alpha={self['ang1']:.2f},\ \beta={self['ang2']:.2f},\ \gamma={self['ang3']:.2f}"
+
+    @property
+    def _latex_equation(self) -> str:
+        # Batch, row-vector form consistent with Rotate(pos, R) -> X @ R^T
+        return r"\ \mathbf{X}'=\mathbf{X}\,R_{"+self._seq+r"}^{\mathsf T}(\alpha,\beta,\gamma)"
+
+    @property
+    def _latex_other(self) -> str:
+        # Define R_seq composition explicitly, matching the seq string order
+        # so angles map as (ang1, ang2, ang3) -> (axis seq[0], seq[1], seq[2])
+        return (
+            fr"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
+            fr"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
+        )
+
+
 class EulerShift(CoordinateBase):
 
     PN = ("x", "y", "z", "ang1", "ang2", "ang3")  ##!!!! not use set !!!!
@@ -431,6 +462,30 @@ class EulerShift(CoordinateBase):
 
         return (d_Px.T, d_Py.T, d_Pz.T, d_ang1, d_ang2, d_ang3)
 
+    @property
+    def _latex_parameters(self) -> str:
+        return (
+            rf" x_c={self['x']:.2f},\ y_c={self['y']:.2f},\ z_c={self['z']:.2f},\ "
+            rf"\alpha={self['ang1']:.2f},\ \beta={self['ang2']:.2f},\ \gamma={self['ang3']:.2f}"
+        )
+
+    @property
+    def _latex_equation(self) -> str:
+        # Rotate first, then shift (subtract c)
+        return (
+            r"\ \mathbf{X}'=\mathbf{X}\,R_{"
+            + self._seq
+            + r"}^{\mathsf T}(\alpha,\beta,\gamma)-\mathbf{1}_n\,\mathbf{c}"
+        )
+
+    @property
+    def _latex_other(self) -> str:
+        return (
+            r"\ \mathbf{c}=\begin{bmatrix}x_c&y_c&z_c\end{bmatrix},\ "
+            fr"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
+            fr"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
+        )
+
 
 
 class ShiftEuler(EulerShift):
@@ -475,6 +530,13 @@ class ShiftEuler(EulerShift):
         pos = self.to_3d_array(pos)
         return Shift(Rotate(pos,self._rotation.as_matrix().T), -self["pos"])
 
+    @property
+    def _latex_equation(self) -> str:
+        # Shift first (subtract c) then rotate
+        return (
+            r"\mathbf{X}'=(\mathbf{X}-\mathbf{1}_n\,\mathbf{c})"
+            r"\,R_{"+self._seq+r"}^{\mathsf T}(\alpha,\beta,\gamma)"
+        )
 
 @ShiftOnly.derived
 @EulerShift.derived

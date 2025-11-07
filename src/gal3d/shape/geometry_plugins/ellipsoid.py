@@ -262,20 +262,20 @@ class Ellipsoid(GeometryBase):
 
     @property
     def _latex_equation(self) -> str:
-        return r"$\large\ ([\frac{x}{a}]^2 + [\frac{y}{b}]^2 + [\frac{z}{c}]^2)$"
+        return r"([\frac{x}{a}]^2 + [\frac{y}{b}]^2 + [\frac{z}{c}]^2)"
 
     @property
     def _latex_parameters(self) -> str:
         a = self.parameters["a"]
         eps_ab = self.parameters["eps_ab"]
         eps_bc = self.parameters["eps_bc"]
-        return rf"$\large a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f}$"
+        return rf" a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f}"
 
     @property
     def _latex_other(self) -> str:
         b = self.parameters["b"]
         c = self.parameters["c"]
-        return rf"$\large b = a(1 - \epsilon_{{ab}})={b:.2f},\ c = b(1 - \epsilon_{{bc}})={c:.2f}$"
+        return rf" b = a(1 - \epsilon_{{ab}})={b:.2f},\ c = b(1 - \epsilon_{{bc}})={c:.2f}"
 
 
 @Ellipsoid.derived

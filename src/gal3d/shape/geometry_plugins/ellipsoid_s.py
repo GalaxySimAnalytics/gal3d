@@ -378,14 +378,14 @@ class Ellipsoid_S(GeometryBase):
 
     @property
     def _latex_equation(self) -> str:
-        return r"$\large\ ([(\frac{x}{a})^2]^{S_a} + [(\frac{y}{b})^2]^{S_b} + [(\frac{z}{c})^2]^{S_c})$"
+        return r"([(\frac{x}{a})^2]^{S_a} + [(\frac{y}{b})^2]^{S_b} + [(\frac{z}{c})^2]^{S_c})"
 
 
     @property
     def _latex_other(self) -> str:
         b = self.parameters["b"]
         c = self.parameters["c"]
-        return rf"$\large b = a(1 - \epsilon_{{ab}})={b:.2f},\ c = b(1 - \epsilon_{{bc}})={c:.2f}$"
+        return rf" b = a(1 - \epsilon_{{ab}})={b:.2f},\ c = b(1 - \epsilon_{{bc}})={c:.2f}"
 
     @property
     def _name(self) -> str:
@@ -399,7 +399,7 @@ class Ellipsoid_S(GeometryBase):
         sa = self.parameters["sa"]
         sb = self.parameters["sb"]
         sc = self.parameters["sc"]
-        return rf"$\large a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f},\ S_a={sa:.2f},\ S_b={sb:.2f},\ S_c={sc:.2f}$"
+        return rf" a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f},\ S_a={sa:.2f},\ S_b={sb:.2f},\ S_c={sc:.2f}"
 
 
 @Ellipsoid_S.derived

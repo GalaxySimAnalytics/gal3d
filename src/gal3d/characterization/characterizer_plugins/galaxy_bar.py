@@ -41,7 +41,7 @@ class Bar(CharacterizerBase):
         """
         super().__init__(data)
         dex = np.argsort(data["a"])
-        self.data: dict[str, np.ndarray] = {k: np.asarray(data[k])[dex] for k in data.keys()}
+        self.data: dict[str, np.ndarray] = {k: np.asarray(data[k])[dex] for k in data}
 
         self.a = self.data["a"]
 
@@ -301,24 +301,24 @@ class Bar(CharacterizerBase):
         n = max(int(len(self.a)/40),1) if n is None else n
         mean_dev = np.zeros(len(self.a))
         mean_std = np.zeros(len(self.a))
-        for i in range(len(self.pa)):
+        for i, pa_i in enumerate(self.pa):
             neighbors = []
             # left
             for k in range(1, n+1):
                 if i - k >= 0:
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i-k]))
+                    neighbors.append(Bar.inter_angle(pa_i, self.pa[i-k]))
             # right
             for k in range(1, n+1):
                 if i + k < len(self.pa):
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i+k]))
+                    neighbors.append(Bar.inter_angle(pa_i, self.pa[i+k]))
             # If one side is insufficient, supplement the other side
             while len(neighbors) < 2*n:
                 # Preferentially supplement the left side
                 if i - (n + len(neighbors) - n) >= 0:
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i - (n + len(neighbors) - n)]))
+                    neighbors.append(Bar.inter_angle(pa_i, self.pa[i - (n + len(neighbors) - n)]))
                 # Then supplement the right side
                 elif i + (n + len(neighbors) - n) < len(self.pa):
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i + (n + len(neighbors) - n)]))
+                    neighbors.append(Bar.inter_angle(pa_i, self.pa[i + (n + len(neighbors) - n)]))
                 else:
                     break
             mean_dev[i] = np.mean(neighbors)

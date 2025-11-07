@@ -743,7 +743,7 @@ class StructureError:
         self._error_func_name = self._error_func.__name__
 
         self._error_params = [
-            k for k in func_required_key(self._error_func).keys()
+            k for k in func_required_key(self._error_func)
             if "_call" not in k
         ]
 
@@ -791,8 +791,8 @@ class StructureError:
             A dictionary of available options.
         """
         return {
-            "error_func": list(MinimizeFunc.minimize_fn.keys()),
-            "error_method": list(cls._compute_error_method.keys()),
+            "error_func": list(MinimizeFunc.minimize_fn),
+            "error_method": list(cls._compute_error_method),
         }
 
     def copy(self) -> "StructureError":

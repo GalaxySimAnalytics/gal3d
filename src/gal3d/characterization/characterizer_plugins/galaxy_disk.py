@@ -37,7 +37,7 @@ class Disk(CharacterizerBase):
         super().__init__(data)
 
         dex = np.argsort(data["a"])
-        self.data={i: data[i][dex] for i in data.keys()}
+        self.data={i: data[i][dex] for i in data}
 
         self.a = self.data["a"]
         if data.get(use_key) is not None:

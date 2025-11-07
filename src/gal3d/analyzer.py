@@ -293,7 +293,7 @@ class Gal3DAnalyzer:
                     try:
                         if resall:
                             # Warm start: use last solution as init for the next radius
-                            res_value = {key: resall[-1][key][0] for key in resall[-1].keys()}
+                            res_value = {key: resall[-1][key][0] for key in resall[-1]}
                             kwargs["init_parameters"] = res_value
                         res = workflow(self, i, **kwargs)
                         resall.append(res)

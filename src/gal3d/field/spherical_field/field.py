@@ -177,7 +177,7 @@ class SphField:
                 interpolator_kwargs=interpolator_kwargs,
                 **kwargs,
             )
-            for i in range(len(self.points_parameter))
+            for i, _ in enumerate(self.points_parameter)
         ]
 
         return self

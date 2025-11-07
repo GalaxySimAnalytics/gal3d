@@ -413,7 +413,7 @@ class EllipsoidErrorEstimator(ErrorWorkflowBase):
                     ret_list[key].append(value)
 
             # Convert to numpy arrays
-            ret = {i: np.array(ret_list[i]) for i in ret_list.keys()}
+            ret = {i: np.array(ret_list[i]) for i in ret_list}
             return ret
 
     @development_warning("estimate_structure_update is under development and may change in future versions.")

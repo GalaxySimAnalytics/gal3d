@@ -252,11 +252,11 @@ class HDF5ModelIO(ModelIOBase):
             opt_group = group[cls.opt_group]
 
             opt_results = []
-            for opt_result_name in sorted(opt_group.keys()):
+            for opt_result_name in sorted(opt_group):
                 opt_data = opt_group[opt_result_name]
                 result_dict: dict[str, Any] = {}
                 # Load all keys from attrs and datasets
-                for key in list(opt_data.attrs.keys()) + list(opt_data.keys()):
+                for key in list(opt_data.attrs) + list(opt_data):
                     result_dict[key] = _load_hdf_value(opt_data, key)
                 opt_results.append(OptimizeResult(**result_dict))
         return opt_results

@@ -502,6 +502,10 @@ class ParameterDict(dict):
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()[1:-1]})"
 
+    def _ipython_key_completions_(self) -> list[str]:
+        """Return a list of parameter names for IPython tab completion."""
+        return list(self)
+
 class ConstrainedParameterDict(ParameterDict):
     """
     A dictionary-like class that extends ParameterDict with parameter constraint capabilities.
@@ -799,6 +803,9 @@ class ConstrainedParameterDict(ParameterDict):
             if i not in self._parameter_names:
                 self._parameter_names.append(i)
 
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self) + list(self._equal_constraints)
+
 class RichParameterDict(ParameterDict):
     """
     A ParameterDict with support for derived parameters and additional info.
@@ -929,6 +936,9 @@ class RichParameterDict(ParameterDict):
         if kwargs:
             super().update(kwargs)
 
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self) + list(self._derived) + list(self._info)
+
 class Parameters(RichParameterDict,ConstrainedParameterDict):
     """
     A class as a container for parameters with constraints and rich metadata.
@@ -996,6 +1006,9 @@ class Parameters(RichParameterDict,ConstrainedParameterDict):
         if key in self._info:
             return self.get_info(key)
         raise KeyError(key)
+
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self) + list(self._equal_constraints)+list(self._derived) + list(self._info)
 
 
     def __add__(self, other: Union[dict, "Parameters"]) -> "Parameters":

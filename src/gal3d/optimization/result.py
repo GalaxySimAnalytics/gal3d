@@ -257,6 +257,9 @@ class ModelResult:
         else:
             raise KeyError(f"Key must be a string, integer, slice, or numpy array, got {type(k).__name__}")
 
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self._param_sets[0]._ipython_key_completions_())
+
     def __getattr__(self, name: str) -> list[Any] | np.ndarray:
         """
         Access attributes from all OptimizeResult instances.

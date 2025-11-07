@@ -220,6 +220,81 @@ class WithParameter(ABC):
 
         return f"<{self.__class__.__name__}|: " + param_repr[10:] + "|>"
 
+
+    @property
+    def _latex_equation(self) -> str:
+        return ""
+
+    @property
+    def _latex_parameters(self) -> str:
+        return ""
+
+    @property
+    def _latex_name(self) -> str:
+        return r"$\large \mathrm{" + self._name + "}$"
+
+    @property
+    def _latex_other(self) -> str:
+        return ""
+
+    @property
+    def _name(self) -> str:
+        return self.__class__.__name__
+
+
+    def _repr_latex_(self) -> str:
+        """
+        Render an aligned LaTeX block with vertically aligned colons:
+          Name  : <name>
+          Func  : <equation>
+          Param : <parameter values>
+          Derived param : <definitions>
+        Falls back to plain repr if nothing available.
+        """
+        name     = self._latex_name
+        equation = self._latex_equation
+        params   = self._latex_parameters
+        derived  = self._latex_other
+
+        if not self._latex_equation:
+            return self.__repr__()
+
+        def _strip_math(s: str) -> str:
+            if not s:
+                return s
+            s = s.strip()
+            if s.startswith("$") and s.endswith("$"):
+                return s[1:-1]
+            return s
+
+        rows: list[tuple[str, str]] = []
+        if name:
+            rows.append(("\\text{Name}", _strip_math(name)))
+        if equation:
+            rows.append(("\\text{Func}", _strip_math(equation)))
+        if params:
+            rows.append(("\\text{Param}", _strip_math(params)))
+        if derived:
+            rows.append(("\\text{Derived\\ param}", _strip_math(derived)))
+
+        if not rows:
+            return self.__repr__()
+
+        # Build aligned environment: label & : & value \\
+        lines = [f"{lbl} & : & {val} \\\\" for lbl, val in rows]
+        body = "\n".join(lines)
+
+        # Use \large once at top to avoid repeating inside each fragment
+        return (
+            "$\n"
+            "\\large\n"
+            "\\begin{array}{r c c}\n" +
+            body +
+            "\n\\end{array}\n"
+            "$"
+        )
+
+
     def __getitem__(self, key: str) -> Any:
         """
         Access parameter values using dictionary-style indexing.

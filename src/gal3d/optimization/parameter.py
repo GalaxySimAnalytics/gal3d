@@ -3,6 +3,8 @@ Parameter classes for optimization algorithms.
 
 """
 import logging
+import math
+import re
 from collections.abc import Callable, Iterable, KeysView, Mapping, Sequence
 from functools import wraps
 from typing import Any, TypeVar, Union
@@ -22,6 +24,55 @@ logger = logging.getLogger("gal3d.optimization.parameter")
 
 __all__ = ["Parameters","Parameter", "ParameterDict", "ConstrainedParameterDict", "RichParameterDict"]
 
+
+def _fmt_num(v: float, nd: int = 3, latex: bool = False) -> str:
+    """
+    Format number for display.
+
+    Parameters
+    ----------
+    v : float
+    nd : int
+        Decimal digits (for fixed / scientific formats).
+    latex : bool
+        If True, return LaTeX-suitable tokens (e.g. \\mathrm{NaN}, \\infty).
+
+    Returns
+    -------
+    str
+    """
+    if math.isnan(v):
+        return r"\mathrm{NaN}" if latex else "NaN"
+    if math.isinf(v):
+        if latex:
+            return r"\infty" if v > 0 else r"-\infty"
+        # plain text: use 'inf' / '-inf'
+        return "inf" if v > 0 else "-inf"
+    # large numbers use scientific notation
+    if abs(v) >= 10 ** (nd + 1):
+        return f"{v:.{nd}e}"
+    return f"{v:.{nd}f}"
+
+def _escape_name(name: str) -> str:
+    return re.sub(r"_", r"\_", name)
+
+def _fmt_bounds(lb: float, ub: float, nd: int = 3, latex: bool = False) -> str:
+    lbs = _fmt_num(lb, nd, latex=latex)
+    ubs = _fmt_num(ub, nd, latex=latex)
+    return rf"[{lbs}, {ubs}]"
+
+def _latex_param_line(param: "Parameter", nd: int = 3, hide_zero_err: bool = True) -> str:
+    """
+    Build a single parameter latex fragment:
+    \\lgroup value±err, [lb, ub] \rgroup
+    """
+    val = _fmt_num(float(param), nd, latex=True)
+    err = _fmt_num(param.err, nd, latex=True)
+    bounds = _fmt_bounds(param.lb, param.ub, nd, latex=True)
+    if hide_zero_err and (math.isnan(param.err) or param.err == 0):
+        return rf"\lgroup {val},\ {bounds} \rgroup"
+    else:
+        return rf"\lgroup {val}\pm {err},\ {bounds} \rgroup"
 
 class Parameter(float):
     """
@@ -143,6 +194,21 @@ class Parameter(float):
 
     def __hash__(self):
         return hash((float(self), self.lb, self.ub, self.err))
+
+    def __repr__(self) -> str:
+        """Return the verbose diagnostic form (old repr style)."""
+        return (f"Parameter(value={float(self):.6g}, lb={self.lb:.6g}, "
+                f"ub={self.ub:.6g}, err={self.err:.6g})")
+
+    def to_latex(self, nd: int = 3, hide_zero_err: bool = True) -> str:
+        """
+        Return a single LaTeX fragment (no surrounding $) for this parameter.
+        """
+        return _latex_param_line(self, nd=nd, hide_zero_err=hide_zero_err)
+
+    def _repr_latex_(self):
+        """Return a KaTeX-safe single-line math representation."""
+        return r"$\text{Param}\ " + self.to_latex()+"$"
 
 class ParameterDict(dict):
     """
@@ -502,6 +568,34 @@ class ParameterDict(dict):
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()[1:-1]})"
 
+    def to_latex_lines(self, nd: int = 3, hide_zero_err: bool = True) -> dict[str,str]:
+        """
+        Produce LaTeX lines (no $) for each direct parameter.
+        """
+        lines: dict[str,str] = {}
+        for k, v in self.items():
+            lines[k] = _latex_param_line(v, nd=nd, hide_zero_err=hide_zero_err)
+        return lines
+
+    def _repr_latex_(self):
+        """
+        Basic LaTeX for direct parameters only.
+        """
+        lines = self.to_latex_lines()
+        rows = [rf"\texttt{{{self.__class__.__name__}}} &  & \\ "] + [
+            rf"\texttt{{{_escape_name(k)}}} & : & " + v + r" \\"
+            for k, v in lines.items()
+        ]
+        body = "\n".join(rows)
+        return (
+            "$\n"
+            "\\small\n"
+            "\\begin{array}{r c l}\n"
+            + body +
+            "\n\\end{array}\n"
+            "$"
+        )
+
     def _ipython_key_completions_(self) -> list[str]:
         """Return a list of parameter names for IPython tab completion."""
         return list(self)
@@ -802,6 +896,22 @@ class ConstrainedParameterDict(ParameterDict):
         for i in self:
             if i not in self._parameter_names:
                 self._parameter_names.append(i)
+
+    def to_latex_lines(
+        self,
+        nd: int = 3,
+        hide_zero_err: bool = True,
+        include_constraints: bool = True
+    ) -> dict[str,str]:
+        lines: dict[str,str] = {}
+        for k in self._parameter_names:
+            if k in self._equal_constraints and include_constraints:
+                val = float(self.get_constraint(k))
+                lines[k] = rf"\lgroup {_fmt_num(val, nd)},\ \text{{constraint}} \rgroup"
+            elif k in self:
+                p: Parameter = self.get_parameter(k)
+                lines[k] = _latex_param_line( p, nd=nd, hide_zero_err=hide_zero_err)
+        return lines
 
     def _ipython_key_completions_(self) -> list[str]:
         return list(self) + list(self._equal_constraints)

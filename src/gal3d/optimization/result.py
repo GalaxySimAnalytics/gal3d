@@ -4,6 +4,7 @@ Model result classes for optimization algorithms.
 """
 import copy
 import logging
+from html import escape as _html_escape
 from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 import numpy as np
@@ -13,7 +14,7 @@ from gal3d.shape import Structure3D, StructureCore
 from .optimizer import OptimizeResult
 
 if TYPE_CHECKING:
-    from .parameter import Parameters
+    from .parameter import Parameter, Parameters
 
 logger = logging.getLogger("gal3d.optimization.result")
 
@@ -318,6 +319,18 @@ class ModelResult:
         """List all attributes including those from OptimizeResult."""
         return sorted(set(super().__dir__()) | self._optimize_result_attrs)
 
+    def _summary_fields(self) -> dict[str, str]:
+        """collect summary fields for repr / html / latex reuse."""
+        coor = getattr(self._structure, "_coordinate_name", "N/A")
+        shape = getattr(self._structure, "_geometry_name", "N/A")
+        error = getattr(self._structure, "_error_method_name", "N/A")
+        return {
+            "num": str(len(self._param_sets)),
+            "coordinate": coor,
+            "geometry": shape,
+            "error_method": error,
+        }
+
     def __repr__(self) -> str:
         """
         Returns a string representation of the ModelResult object.
@@ -327,18 +340,16 @@ class ModelResult:
         str
             A formatted string describing the ModelResult object.
         """
-        coor = self._structure._coordinate_name
-        shape = self._structure._geometry_name
-        error = getattr(self._structure, "_error_method_name", "N/A")
+        info = self._summary_fields()
         lin1 = (
             "<ModelResult| num="
-            + str(len(self._param_sets))
+            + info["num"]
             + " | "
-            + coor
+            + info["coordinate"]
             + " | "
-            + shape
+            + info["geometry"]
             + " | "
-            + error
+            + info["error_method"]
             + " |>"
         )
         lin2 = "Parameters: " + str(list(self.keys()))
@@ -460,6 +471,128 @@ class ModelResult:
         from .model_io import ModelIO
         load = ModelIO.get_plugin(handler)
         return load.load(filename, structure,**kwargs)
+
+    def _format_param_cell(self, val: Union[float, "Parameter"], nd: int = 3, show_err: bool = True) -> str:
+        """
+        format : value or value±err; err=0/NaN.
+        `val` may be Parameter (float) or float.
+        """
+        from .parameter import Parameter  # lazy import to avoid circular dependency
+        v_float = float(val)
+        if np.isnan(v_float):
+            base = "NaN"
+        # similar logic as _fmt_num (avoid latex dependency)
+        elif np.isinf(v_float):
+            base = "inf" if v_float > 0 else "-inf"
+        elif abs(v_float) >= 10 ** (nd + 1):
+            base = f"{v_float:.{nd}e}"
+        else:
+            base = f"{v_float:.{nd}f}"
+        if isinstance(val, Parameter):
+            err = getattr(val, "err", 0.0)
+            if show_err and (err not in (0.0, None)) and not np.isnan(err):
+                if np.isinf(err):
+                    err_s = "inf"
+                elif abs(err) >= 10 ** (nd + 1):
+                    err_s = f"{err:.{nd}e}"
+                else:
+                    err_s = f"{err:.{nd}f}"
+                return f"{base}±{err_s}"
+        return base
+
+    def _table_records(
+        self,
+        nd: int = 3,
+        show_err: bool = True,
+        include_cost: bool = True,
+    ) -> list[dict[str, str]]:
+        """
+        Generate records for table display. Each record represents a parameter set.
+        """
+        if not self._param_sets:
+            return []
+        param_names = list(self.keys())
+        records: list[dict[str, str]] = []
+        costs = self.cost if include_cost and hasattr(self, "cost") else None
+        for idx, params in enumerate(self._param_sets):
+            row: dict[str, str] = {"#": str(idx)}
+            if include_cost and costs is not None and idx < len(costs):
+                c = costs[idx]
+                if isinstance(c, (int, float, np.number)) and not np.isnan(c):
+                    if abs(c) >= 10 ** (nd + 1):
+                        row["cost"] = f"{c:.{nd}e}"
+                    else:
+                        row["cost"] = f"{c:.{nd}f}"
+                else:
+                    row["cost"] = "NaN"
+            for name in param_names:
+                try:
+                    v = params[name]
+                    row[name] = self._format_param_cell(v, nd=nd, show_err=show_err)
+                except KeyError:
+                    row[name] = "—"
+            records.append(row)
+        return records
+
+    def _repr_html_(self):
+        """
+        Jupyter/IPython HTML rich display:
+        Summary (sticky) + table (rows = parameter sets, columns = parameters).
+        """
+        from .util import _model_result_style
+        if not self._param_sets:
+            return "<div><b>ModelResult</b>: (empty)</div>"
+
+        info = self._summary_fields()
+        summary_text = (
+            f"ModelResult | num={_html_escape(info['num'])}"
+            f" | { _html_escape(info['coordinate']) }"
+            f" | { _html_escape(info['geometry']) }"
+            f" | { _html_escape(info['error_method']) } |"
+        )
+
+        param_names = list(self.keys())
+        records = self._table_records()
+
+        cols = ["#"]
+        if records and "cost" in records[0]:
+            cols.append("cost")
+        cols.extend(param_names)
+
+        max_rows_display = 50
+        truncated = len(records) > max_rows_display
+        display_records = records[:max_rows_display] if truncated else records
+
+        # thead
+        thead = "<tr>" + "".join(f"<th>{_html_escape(c)}</th>" for c in cols) + "</tr>"
+
+        # tbody
+        body_rows = []
+        for row in display_records:
+            tds = []
+            for c in cols:
+                val = row.get(c, "")
+                tds.append(f"<td>{_html_escape(val)}</td>")
+            body_rows.append("<tr>" + "".join(tds) + "</tr>")
+        tbody = "\n".join(body_rows)
+
+        trunc_note = ""
+        if truncated:
+            trunc_note = (
+                f"<div class='mr-note'>displaying {max_rows_display} / {len(records)} rows; use slicing or to_dataframe() to see all.</div>"
+            )
+
+        html_table = (
+            "<div class='mr-wrapper'>"
+            f"<div class='mr-summary'>{summary_text}</div>"
+            "<table class='mr-table'>"
+            f"<thead>{thead}</thead><tbody>{tbody}</tbody>"
+            "</table>"
+            "</div>"
+            + trunc_note
+            + _model_result_style
+        )
+        return html_table
 
 load_model = ModelResult.load_from_file
 

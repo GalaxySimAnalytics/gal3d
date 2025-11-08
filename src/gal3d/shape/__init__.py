@@ -112,6 +112,44 @@ class StructureCore:
         lin3 = ["   ", geometry_repr]
         return "".join(lin1 + lin2 + lin3)
 
+
+    def _latex_str_(self):
+        coord_pa = {k: self.parameters[k] for k in self._coordinate.PN}
+        geoty_pa = {k: self.parameters[k] for k in self._geometry.PN}
+        coord_obj = self._coordinate(**coord_pa)
+        geom_obj  = self._geometry(**geoty_pa)
+
+        lines = [
+            r"& \text{Coordinate} & \\",
+            coord_obj._latex_str_(derived=""),
+            r"& \text{Geometry} & \\",
+            geom_obj._latex_str_(derived=""),
+        ]
+        body = "\n".join(lines)
+        return body
+
+    def _repr_latex_(self):
+        """
+        Render a single LaTeX block for the whole StructureCore, containing two sections:
+        - Coordinate: Name / Func / Param / Derived param
+        - Geometry:   Name / Func / Param / Derived param
+
+        Formatting:
+        - One array with 3 columns: label (right aligned), colon (center), value (center)
+        - Section headers span all 3 columns
+        - Avoids nested $ by stripping inner math wrappers
+        """
+        body = self._latex_str_()
+
+        return (
+            "$\n"
+            "\\large\n"
+            "\\begin{array}{r c l}\n" +
+            body +
+            "\n\\end{array}\n"
+            "$"
+        )
+
     @property
     def geometry_name(self) -> str:
         """Get the name of the geometry."""
@@ -811,6 +849,33 @@ class StructureError:
         new_instance.use_ln_error = self.use_ln_error
         return new_instance
 
+    def _latex_str_(self) -> str:
+        """
+        Return LaTeX rows for error configuration.
+        Keep the same 3-column layout: label & : & value, and a centered title row.
+        """
+        def _escape_ident(s: str) -> str:
+            import re
+            return re.sub(r"(?<!\\)_", r"\_", s)
+
+        func_name   = _escape_ident(self._error_func_name)
+        method_name = _escape_ident(self._error_method_name)
+        title = r"{} & \text{Error} & {} \\"
+        line1 = rf"\text{{Err func}} & : & \texttt{{{func_name}}} \\"
+        line2 = rf"\text{{Err method}} & : & \texttt{{{method_name}}} \\"
+        return "\n".join([title, line1, line2])
+
+    def _repr_latex_(self):
+        body = self._latex_str_()
+        return (
+            "$\n"
+            "\\large\n"
+            "\\begin{array}{r c l}\n" +
+            body +
+            "\n\\end{array}\n"
+            "$"
+        )
+
     @classmethod
     def compute_method_registry(cls, fn: str | Callable) -> Callable:
         if callable(fn):
@@ -946,6 +1011,16 @@ class Structure3D(StructureCore, StructureError):
         lin2 = ["   ", coor_repr, "\n"]
         lin3 = ["   ", geometry_repr]
         return "".join(lin1 + lin2 + lin3)
+
+    def _latex_str_(self):
+        """
+        Merge StructureCore (Coordinate/Geometry) and StructureError sections
+        into one 3-column array body with global ':' alignment.
+        """
+        core_body = StructureCore._latex_str_(self)
+        err_body  = StructureError._latex_str_(self)
+
+        return "\n".join([core_body, err_body])
 
 
 

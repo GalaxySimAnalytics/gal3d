@@ -264,12 +264,14 @@ class Ellipsoid(GeometryBase):
     def _latex_equation(self) -> str:
         return r"([\frac{x}{a}]^2 + [\frac{y}{b}]^2 + [\frac{z}{c}]^2)"
 
-    @property
-    def _latex_parameters(self) -> str:
-        a = self.parameters["a"]
-        eps_ab = self.parameters["eps_ab"]
-        eps_bc = self.parameters["eps_bc"]
-        return rf" a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f}"
+    @classmethod
+    def PNlatex(cls):
+        return {
+            "a": "a",
+            "eps_ab": r"\epsilon_{ab}",
+            "eps_bc": r"\epsilon_{bc}",
+            "eps_ac": r"\epsilon_{ac}",
+        }
 
     @property
     def _latex_other(self) -> str:

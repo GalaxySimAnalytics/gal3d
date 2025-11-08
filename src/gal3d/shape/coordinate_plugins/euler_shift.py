@@ -84,9 +84,13 @@ class ShiftOnly(CoordinateBase):
     def _latex_equation(self) -> str:
         return r"\mathbf{X}'=\mathbf{X}-\mathbf{1}_n\,\mathbf{c}"
 
-    @property
-    def _latex_parameters(self) -> str:
-        return rf" x_c={self['x']:.2f},\ y_c={self['y']:.2f},\ z_c={self['z']:.2f}"
+    @classmethod
+    def PNlatex(cls):
+        return {
+            "x": "x_c",
+            "y": "y_c",
+            "z": "z_c",
+        }
     @property
     def _latex_other(self) -> str:
         return r"\mathbf{c}=\begin{bmatrix}x_c&y_c&z_c\end{bmatrix}"
@@ -196,9 +200,13 @@ class RotateOnly(CoordinateBase):
         """
         return EulerAngles.from_matrix(mat).as_euler(cls.EulerSeq, degrees=False)
 
-    @property
-    def _latex_parameters(self) -> str:
-        return rf" \alpha={self['ang1']:.2f},\ \beta={self['ang2']:.2f},\ \gamma={self['ang3']:.2f}"
+    @classmethod
+    def PNlatex(cls):
+        return {
+            "ang1": r"\alpha",
+            "ang2": r"\beta",
+            "ang3": r"\gamma",
+        }
 
     @property
     def _latex_equation(self) -> str:
@@ -462,12 +470,16 @@ class EulerShift(CoordinateBase):
 
         return (d_Px.T, d_Py.T, d_Pz.T, d_ang1, d_ang2, d_ang3)
 
-    @property
-    def _latex_parameters(self) -> str:
-        return (
-            rf" x_c={self['x']:.2f},\ y_c={self['y']:.2f},\ z_c={self['z']:.2f},\ "
-            rf"\alpha={self['ang1']:.2f},\ \beta={self['ang2']:.2f},\ \gamma={self['ang3']:.2f}"
-        )
+    @classmethod
+    def PNlatex(cls):
+        return {
+            "x": "x_c",
+            "y": "y_c",
+            "z": "z_c",
+            "ang1": r"\alpha",
+            "ang2": r"\beta",
+            "ang3": r"\gamma",
+        }
 
     @property
     def _latex_equation(self) -> str:

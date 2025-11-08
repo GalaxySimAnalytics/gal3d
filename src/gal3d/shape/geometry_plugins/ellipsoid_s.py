@@ -391,15 +391,17 @@ class Ellipsoid_S(GeometryBase):
     def _name(self) -> str:
         return "SuperEllipsoid"
 
-    @property
-    def _latex_parameters(self) -> str:
-        a = self.parameters["a"]
-        eps_ab = self.parameters["eps_ab"]
-        eps_bc = self.parameters["eps_bc"]
-        sa = self.parameters["sa"]
-        sb = self.parameters["sb"]
-        sc = self.parameters["sc"]
-        return rf" a={a:.2f},\ \epsilon_{{ab}}={eps_ab:.2f},\ \epsilon_{{bc}}={eps_bc:.2f},\ S_a={sa:.2f},\ S_b={sb:.2f},\ S_c={sc:.2f}"
+    @classmethod
+    def PNlatex(cls):
+        return {
+            "a": "a",
+            "eps_ab": r"\epsilon_{ab}",
+            "eps_bc": r"\epsilon_{bc}",
+            "eps_ac": r"\epsilon_{ac}",
+            "sa": r"S_a",
+            "sb": r"S_b",
+            "sc": r"S_c",
+        }
 
 
 @Ellipsoid_S.derived

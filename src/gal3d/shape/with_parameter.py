@@ -225,9 +225,41 @@ class WithParameter(ABC):
     def _latex_equation(self) -> str:
         return ""
 
+    @classmethod
+    def PNlatex(cls) -> dict[str, str]:
+        """
+        Return a mapping param_name -> LaTeX label (no surrounding $).
+        Subclasses may override if they need special symbols.
+        """
+        import re
+        mapping: dict[str, str] = {}
+        for name in getattr(cls, "PN", ()):
+            safe = re.sub(r"_", r"\_", name)
+            mapping[name] = rf"\texttt{{{safe}}}"
+        return mapping
+
     @property
     def _latex_parameters(self) -> str:
-        return ""
+        r"""
+        Build a unified LaTeX parameter list using PNlatex mapping.
+        Produces: a=..., \epsilon_{ab}=..., S_a=... with global format.
+        """
+        if not hasattr(self, "parameters"):
+            return ""
+        labels = self.__class__.PNlatex()
+        parts: list[str] = []
+        for pname in getattr(self.__class__, "PN", ()):
+            if pname not in self.parameters:
+                continue
+            label = labels.get(pname, pname)
+            val = self.parameters[pname]
+            if isinstance(val, (int, float)):
+                parts.append(rf"{label}={val:.2f}")
+            else:
+                parts.append(rf"{label}={val}")
+        if not parts:
+            return ""
+        return r" " + r",\ ".join(parts)
 
     @property
     def _latex_name(self) -> str:

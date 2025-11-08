@@ -235,7 +235,7 @@ class WithParameter(ABC):
         mapping: dict[str, str] = {}
         for name in getattr(cls, "PN", ()):
             safe = re.sub(r"_", r"\_", name)
-            mapping[name] = rf"\texttt{{{safe}}}"
+            mapping[name] = rf"\text{{{safe}}}"
         return mapping
 
     @property

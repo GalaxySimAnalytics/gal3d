@@ -861,8 +861,8 @@ class StructureError:
         func_name   = _escape_ident(self._error_func_name)
         method_name = _escape_ident(self._error_method_name)
         title = r"{} & \text{Error} & {} \\"
-        line1 = rf"\text{{Err func}} & : & \texttt{{{func_name}}} \\"
-        line2 = rf"\text{{Err method}} & : & \texttt{{{method_name}}} \\"
+        line1 = rf"\text{{Err func}} & : & \text{{{func_name}}} \\"
+        line2 = rf"\text{{Err method}} & : & \text{{{method_name}}} \\"
         return "\n".join([title, line1, line2])
 
     def _repr_latex_(self):

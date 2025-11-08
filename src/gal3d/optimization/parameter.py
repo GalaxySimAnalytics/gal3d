@@ -582,8 +582,8 @@ class ParameterDict(dict):
         Basic LaTeX for direct parameters only.
         """
         lines = self.to_latex_lines()
-        rows = [rf"\texttt{{{self.__class__.__name__}}} &  & \\ "] + [
-            rf"\texttt{{{_escape_name(k)}}} & : & " + v + r" \\"
+        rows = [rf"\text{{{self.__class__.__name__}}} &  & \\ "] + [
+            rf"\text{{{_escape_name(k)}}} & : & " + v + r" \\"
             for k, v in lines.items()
         ]
         body = "\n".join(rows)
@@ -813,7 +813,7 @@ class ConstrainedParameterDict(ParameterDict):
     def get_constraint(self, name: str) -> float:
 
         if name in self._equal_constraints:
-            return self._equal_constraints[name](self)
+            return float(self._equal_constraints[name](self))
         raise KeyError(f"Constraint '{name}' not found.")
 
     def constraint_keys(self) -> KeysView:
@@ -906,7 +906,7 @@ class ConstrainedParameterDict(ParameterDict):
         lines: dict[str,str] = {}
         for k in self._parameter_names:
             if k in self._equal_constraints and include_constraints:
-                val = float(self.get_constraint(k))
+                val = self.get_constraint(k)
                 lines[k] = rf"\lgroup {_fmt_num(val, nd)},\ \text{{constraint}} \rgroup"
             elif k in self:
                 p: Parameter = self.get_parameter(k)

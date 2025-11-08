@@ -66,6 +66,9 @@ class ModelResult:
         # Cache OptimizeResult fields for __getattr__ and __dir__
         self._optimize_result_attrs = set(optimize_result.keys())
 
+        # repr
+        self._display_show_all = False
+
     @property
     def cost(self) -> np.ndarray:
         """Get cost values from all optimization results."""
@@ -534,10 +537,37 @@ class ModelResult:
             records.append(row)
         return records
 
+    def head(self, n: int = 5, show_all: bool = True) -> "ModelResult":
+        """
+        Return a new ModelResult with the first n parameter sets.
+        If show_all is True (default), the returned object will display all n rows
+        in rich output without head/tail collapsing.
+        """
+        n = max(n, 0)
+        out = self[:n]
+        if show_all:
+            out._display_show_all = True
+        return out
+
+    def tail(self, n: int = 5, show_all: bool = True) -> "ModelResult":
+        """
+        Return a new ModelResult with the last n parameter sets.
+        If show_all is True (default), the returned object will display all n rows
+        in rich output without head/tail collapsing.
+        """
+        n = max(n, 0)
+        out = self[-n:] if n > 0 else self[:0]
+        if show_all:
+            out._display_show_all = True
+        return out
+
     def _repr_html_(self):
         """
         Jupyter/IPython HTML rich display:
         Summary (sticky) + table (rows = parameter sets, columns = parameters).
+        - When many rows: show first 5, ellipsis, last 5 (pandas-like).
+        - If the object was produced by head()/tail() with show_all=True,
+          show all selected rows without collapsing.
         """
         from .util import _model_result_style
         if not self._param_sets:
@@ -551,35 +581,60 @@ class ModelResult:
             f" | { _html_escape(info['error_method']) } |"
         )
 
+        # table data
         param_names = list(self.keys())
         records = self._table_records()
 
+        # columns
         cols = ["#"]
         if records and "cost" in records[0]:
             cols.append("cost")
         cols.extend(param_names)
 
-        max_rows_display = 50
-        truncated = len(records) > max_rows_display
-        display_records = records[:max_rows_display] if truncated else records
+        total = len(records)
+        edge = 5
+        force_show_all = bool(getattr(self, "_display_show_all", False))
+
+        # choose display rows: head+ellipsis+tail, unless forced to show all
+        truncated = False
+        # display_rows: actual rows to render; None means an ellipsis row
+        display_rows: list[dict[str, str] | None]
+        if not force_show_all and total > 2 * edge:
+            display_rows = list(records[:edge]) + [None] + list(records[-edge:])
+            truncated = True
+        else:
+            display_rows = list(records)
 
         # thead
         thead = "<tr>" + "".join(f"<th>{_html_escape(c)}</th>" for c in cols) + "</tr>"
 
         # tbody
-        body_rows = []
-        for row in display_records:
+        body_parts: list[str] = []
+        for row in display_rows:
+            if row is None:
+                body_parts.append(
+                    f"<tr><td colspan='{len(cols)}' "
+                    "style='text-align:center;color:#777;font-style:italic;background:#fff;'>"
+                    "…</td></tr>"
+                )
+                continue
             tds = []
             for c in cols:
                 val = row.get(c, "")
                 tds.append(f"<td>{_html_escape(val)}</td>")
-            body_rows.append("<tr>" + "".join(tds) + "</tr>")
-        tbody = "\n".join(body_rows)
+            body_parts.append("<tr>" + "".join(tds) + "</tr>")
+        tbody = "\n".join(body_parts)
 
+        # note
         trunc_note = ""
         if truncated:
             trunc_note = (
-                f"<div class='mr-note'>displaying {max_rows_display} / {len(records)} rows; use slicing or to_dataframe() to see all.</div>"
+                f"<div class='mr-note'>showing first {edge} and last {edge} of {total} rows; "
+                "use head(n)/tail(n) or slicing to see specific ranges.</div>"
+            )
+        elif force_show_all:
+            trunc_note = (
+                f"<div class='mr-note'>showing {total} rows (via head/tail).</div>"
             )
 
         html_table = (

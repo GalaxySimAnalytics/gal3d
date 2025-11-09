@@ -1,5 +1,4 @@
 import logging
-import os
 from collections.abc import Callable
 from typing import Any
 
@@ -222,7 +221,7 @@ class SphVector(metaclass=SphVectorMeta):
             return np.argmax(np.dot(pos_unit, self.pos.T), axis=1)
         else:
             # Fall back to KDTree for larger point sets
-            return self._tree.query(pos, k=1, workers=os.cpu_count())[1]
+            return self._tree.query(pos, k=1, workers=config.densityknn.workers)[1]
 
     @staticmethod
     def cal_uniformity(pos: np.ndarray, cached_voronoi: SphericalVoronoi | None =None) -> float:

@@ -272,9 +272,12 @@ class DensityKNNConfig(BaseConfig):
         Number of neighbors to use for KNN.
     leafsize : int, optional
         Leaf size for KNN tree construction. If None, will be set to max(k_neighbors // 2, 10).
+    workers : int, optional
+        Number of worker threads to use. If None, will be set to the number of CPU cores.
     """
     k_neighbors: int = 32
     leafsize: int | None = None
+    workers: int | None = None
 
     def validate(self) -> None:
         """Validate and correct configuration values."""
@@ -287,6 +290,8 @@ class DensityKNNConfig(BaseConfig):
         elif self.leafsize <= 0:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
             warnings.warn(f"Invalid leafsize corrected to {self.leafsize}",stacklevel=2)
+        if self.workers is None or self.workers <= 0:
+            self.workers = cpu_count
 
 @dataclass
 class SPHRenderConfig(BaseConfig):

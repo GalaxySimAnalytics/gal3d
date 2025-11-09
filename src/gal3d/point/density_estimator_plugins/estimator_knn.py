@@ -1,5 +1,4 @@
 import logging
-import os
 from functools import cached_property
 from typing import Any
 
@@ -230,7 +229,7 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self._tree_query_options = func_optional_key(KDTree.query)
 
         self._tree_build_options["leafsize"] = config.densityknn.leafsize
-        self._tree_query_options["workers"] = os.cpu_count()
+        self._tree_query_options["workers"] = config.densityknn.workers
         self._tree_query_options["k"] = k_nearest
         if r_cut:
             self._tree_query_options["distance_upper_bound"] = r_cut

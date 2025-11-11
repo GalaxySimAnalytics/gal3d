@@ -591,7 +591,7 @@ class StructureCore:
 
         return self._coordinate(**coord_pa).inverse(points)
 
-    def generate_slice2D(self, n_bins: int = 100, z_slice: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
+    def generate_slice2D(self, n_bins: int = 100, z_slice: float = 0.0, bins: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate a 2D slice of the shape at a specific z-coordinate.
 
@@ -601,6 +601,8 @@ class StructureCore:
             Number of bins for the 2D slice, default is 100.
         z_slice : float, optional
             The z-coordinate at which to slice the shape, default is 0.0.
+        bins: np.ndarray, optional
+            Explicit angular sample locations in radians over [0, 2π]. If provided, supersedes `n_bins`.
 
         Returns
         -------
@@ -609,7 +611,10 @@ class StructureCore:
         Y : np.ndarray
             Y coordinates of the 2D slice.
         """
-        ang_bins = np.linspace(0,2*np.pi,n_bins)
+        if bins is not None:
+            ang_bins = np.asarray(bins)
+        else:
+            ang_bins = np.linspace(0,2*np.pi,n_bins)
         x = np.sin(ang_bins)
         y = np.cos(ang_bins)
         z = np.ones_like(x) * z_slice
@@ -617,8 +622,18 @@ class StructureCore:
         points,_ = self.ray_intersect(pos)
         return points[:,0], points[:,1]
 
-    def generate_edge2D(self, n_angle_bins: int = 130, n_r_bins: int = 400,
-                        r_min: float = 0.2, r_max: float = 3, z_l: float = 1.5, rotation: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    def generate_edge2D(
+        self,
+        n_angle_bins: int = 130,
+        n_r_bins: int = 400,
+        r_min: float = 0.2,
+        r_max: float = 3,
+        z_l: float = 1.5,
+        rotation: np.ndarray | None = None,
+        *,
+        angle_bins: np.ndarray | None = None,
+        radius_bins: np.ndarray | None = None,
+        ) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate the 2D projected boundary (edge) of the shape.
 
@@ -640,6 +655,10 @@ class StructureCore:
             Half-length along the projection axis (z), default is 1.5.
         rotation : ndarray of shape (3, 3), optional
             3x3 rotation matrix to apply to the shape before projection, default is identity.
+        angle_bins : ndarray, optional
+            Explicit angular sample locations (radians). If provided, supersedes `n_angle_bins`.
+        radius_bins : ndarray, optional
+            Explicit radial sample locations. If provided, supersedes `n_r_bins`/`r_min`/`r_max`.
 
         Returns
         -------
@@ -660,8 +679,17 @@ class StructureCore:
         >>> X, Y = structure.generate_edge2D()
         >>> plt.plot(X, Y)
         """
-        ang_bins = np.linspace(0,2*np.pi,n_angle_bins)
-        r_bins = np.linspace(r_min,r_max,n_r_bins)
+        # Angles
+        if angle_bins is not None:
+            ang_bins = np.asarray(angle_bins)
+        else:
+            ang_bins = np.linspace(0, 2*np.pi, n_angle_bins)
+
+        # Radii
+        if radius_bins is not None:
+            r_bins = np.asarray(radius_bins)
+        else:
+            r_bins = np.linspace(r_min, r_max, n_r_bins)
 
         x = np.sin(ang_bins)
         y = np.cos(ang_bins)
@@ -691,7 +719,14 @@ class StructureCore:
         Y = R_all*y
         return X,Y
 
-    def generate_edge3D(self, n_phi_bins: int = 120, n_theta_bins: int = 60) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def generate_edge3D(
+        self,
+        n_phi_bins: int = 120,
+        n_theta_bins: int = 60,
+        *,
+        phi_bins: np.ndarray | None = None,
+        theta_bins: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate the 3D surface boundary of the shape.
 
@@ -704,6 +739,10 @@ class StructureCore:
             Number of bins for the azimuthal angle φ (0 to 2π), default is 120.
         n_theta_bins : int, optional
             Number of bins for the polar angle θ (0 to π), default is 60.
+        phi_bins : ndarray, optional
+            Explicit φ samples in radians over [0, 2π]. If provided, supersedes `n_phi_bins`.
+        theta_bins : ndarray, optional
+            Explicit θ samples in radians over [0, π]. If provided, supersedes `n_theta_bins`.
 
         Returns
         -------
@@ -716,8 +755,8 @@ class StructureCore:
 
         Notes
         -----
-        n_phi_bins will be adjusted to 4*a+1, with a at least 1.
-        n_theta_bins will be adjusted to 2*b + 1, with b at least 1.
+        - When using integer bin counts, φ is coerced to 4a+1 and θ to 2b+1 (to include endpoints nicely).
+        - When providing arrays, your exact arrays are used (ensure desired endpoints are included).
 
         Examples
         --------
@@ -727,11 +766,15 @@ class StructureCore:
         >>> ax = fig.add_subplot(111, projection='3d')
         >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
         """
-        n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)
-        n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
-        # need include u = 0, pi 。v = 0, pi/2。
-        u = np.linspace(0, 2* np.pi, 4*n_phi_bins+1,endpoint=True)
-        v = np.linspace(0, np.pi, 2*n_theta_bins + 1, endpoint=True)
+        if phi_bins is None or theta_bins is None:
+            # integer-driven mode, keep the original closure property
+            n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)
+            n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
+            u = np.linspace(0, 2*np.pi, 4*n_phi_bins + 1, endpoint=True)   # φ
+            v = np.linspace(0, np.pi,   2*n_theta_bins + 1, endpoint=True) # θ
+        else:
+            u = np.asarray(phi_bins)
+            v = np.asarray(theta_bins)
 
         x = np.outer(np.cos(u), np.sin(v))
         y = np.outer(np.sin(u), np.sin(v))

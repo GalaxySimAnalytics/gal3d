@@ -26,8 +26,9 @@ Quick start
 >>> analyzer = Gal3DAnalyzer.analyze(pos, mass)
 >>> result = analyzer.fit(num_step=100)   # log-spaced radii by default
 >>>
->>> # Or fit a single radius
->>> single = analyzer._fit(8.0)  # returns a ModelResult
+>>> # Or fit at specific radius
+>>> single = analyzer.fit(radius = 8.0)  # returns a ModelResult
+>>> multiple = analyzer.fit(radius = [5.0, 10.0, 15.0])  # list of radii
 
 Tips
 ----
@@ -45,7 +46,6 @@ from typing import Any, TypeVar
 import numpy as np
 from tqdm import tqdm
 
-from .configuration import config
 from .field import SphField
 from .model_workflow.fit_workflow import FitWorkflow
 from .optimization.optimizer import Optimizer, OptimizerBase
@@ -56,7 +56,6 @@ from .util.errors import FitDataError
 
 logger = logging.getLogger("gal3d.analyzer")
 
-config.general.set_optimal_thread_count(logger)
 
 T = TypeVar("T", bound="Gal3DAnalyzer")
 class Gal3DAnalyzer:
@@ -84,7 +83,7 @@ class Gal3DAnalyzer:
         The optimization engine used for fitting.
     """
 
-    fit_workflow = FitWorkflow()
+    fit_workflow = FitWorkflow
 
     def __init__(
         self,
@@ -217,7 +216,7 @@ class Gal3DAnalyzer:
         return structure
 
 
-    def fit(self, num_step:int = 200, step_mode: str = "log", **kwargs: Any) -> ModelResult:
+    def fit(self, num_step:int = 200, step_mode: str = "log", radius: float | Iterable | None = None , **kwargs: Any) -> ModelResult:
         """
         Fit the model across a range of radii.
 
@@ -227,6 +226,8 @@ class Gal3DAnalyzer:
             Number of radii to evaluate.
         step_mode : str
             'log' for logarithmic spacing (default), anything else for linear.
+        radius : float or iterable of float, optional
+            Specific radius or sequence of radii to fit. If provided, overrides num_step and step_mode.
         **kwargs
             Additional keyword arguments passed to the fitting workflow.
             Special (consumed here, not passed through):
@@ -238,6 +239,12 @@ class Gal3DAnalyzer:
         ModelResult
             Aggregated result across radii.
         """
+        # Allow disabling progress bar via kwargs without leaking into workflow
+        progress = kwargs.pop("progress", True)
+
+        if radius is not None:
+            return self._fit(radius, progress=progress, **kwargs)
+
         r_min = max(np.median(self.field.inner_r) * 3, self.field.iso_pro_r[0] * 3)
         r_max = min(self.field.iso_pro_r[-1], np.median(self.field.outer_r))
 
@@ -245,9 +252,6 @@ class Gal3DAnalyzer:
             r = np.geomspace(r_min, r_max, num_step)
         else:
             r = np.linspace(r_min, r_max, num_step)
-
-        # Allow disabling progress bar via kwargs without leaking into workflow
-        progress = kwargs.pop("progress", True)
 
         return self._fit(r, progress=progress, **kwargs)
 

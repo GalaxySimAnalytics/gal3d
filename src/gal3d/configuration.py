@@ -112,7 +112,7 @@ class BaseConfig:
     def validate(self) -> None:
         """Validate configuration values. To be implemented by subclasses."""
 
-@dataclass
+@dataclass(slots=True)
 class GeneralConfig(BaseConfig):
     """
     General configuration parameters.
@@ -122,14 +122,14 @@ class GeneralConfig(BaseConfig):
     min_batchsize : int
         Minimum batch size for processing, to prevent memory overflow.
     number_of_threads : int
-        Number of threads for parallel processing; -1 means auto-select.
+        Number of threads for parallel processing; default is 1.
     use_cython : bool
         Use Cython for acceleration; if False and numba is available, use numba.
     max_instances : int
         Maximum number of cached instances.
     """
     min_batchsize: int = 200000         # Minimum batch size for processing
-    number_of_threads: int = -1         # Number of threads for parallel processing
+    number_of_threads: int = 1         # Number of threads for parallel processing
     use_cython: bool = True             # Use Cython for acceleration
     max_instances: int = 20              # Maximum number of cached instances
 

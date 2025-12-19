@@ -305,13 +305,18 @@ class Gal3DAnalyzer:
                         etype = type(e).__name__
                         if etype not in errors:
                             errors[etype] = []
-                        errors[etype].append(f"{i:.2f}")
+                        errors[etype].append(i)
             except KeyboardInterrupt:
                 logger.warning("Interrupted by user; returning partial results.")
 
             if errors:
                 for etype, radii in errors.items():
-                    logger.error("%s: Skipped radii: %s", etype, ", ".join(radii))
+                    if len(radii) > 2:
+                        r_l = np.min(radii)
+                        r_h = np.max(radii)
+                        logger.error("%s: Skipped %d radii between %.2f and %.2f", etype, len(radii), r_l, r_h)
+                    else:
+                        logger.error("%s: Skipped radii: %s", etype, ", ".join(f"{rad:.2f}" for rad in radii))
 
             if len(resall) > 0:
                 return sum(resall[1:], resall[0])

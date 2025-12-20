@@ -536,8 +536,8 @@ class StructureCore:
 
         Returns
         -------
-        np.ndarray
-            Ray distances.
+        dist:  tuple[np.ndarray,np.ndarray]
+            Ray distances and distance to origin.
         """
 
         pos = np.asarray(pos)

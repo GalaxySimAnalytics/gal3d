@@ -13,7 +13,22 @@ __all__ = ['ModelProjectorBase', 'ModelProjector']
 
 @dataclass
 class ImageData:
-    """ Data class to hold projected image information."""
+    """
+    Container for a projected image and its grid information.
+
+    Attributes
+    ----------
+    value : np.ndarray
+        Image array of shape (ny, nx).
+    xs : np.ndarray
+        X bin centers of shape (nx,).
+    ys : np.ndarray
+        Y bin centers of shape (ny,).
+    xrange : tuple[float, float]
+        (xmin, xmax)
+    yrange : tuple[float, float]
+        (ymin, ymax)
+    """
     value: np.ndarray
     xs: np.ndarray
     ys: np.ndarray
@@ -31,35 +46,25 @@ class ImageData:
     def total_quantity(self) -> float: ...
 
 class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
-    """Abstract base class for model projectors that generate 2D projections from 3D models.
+    """
+    Abstract base class for model projectors that generate 2D projections from 3D models.
 
-    This class provides a framework for creating different types of model projectors
-    that can generate 2D projections of 3D models. It includes functionality for:
+    Features
+    --------
     - Automatic plugin registration of subclasses
-    - Image caching to avoid recomputation
-    - Standard rotation matrices for different viewing angles
-    - Abstract methods that subclasses must implement
+    - Image caching to avoid recomputation (based on ranges, nbins, z-range, rotation)
+    - Standard convenience rotations for XZ and YZ projections
 
-    Attributes
-    ----------
-    _image_cache : CacheDict
-        Cache for storing previously computed images.
+    Subclasses must implement: `_image(...) -> ImageData`.
     """
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Register subclass as a ModelProjector plugin.
-
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to the parent __init_subclass__.
-        """
+        """Register subclass as a ModelProjector plugin."""
     def __init__(self, cache_len: int = 100) -> None:
-        """Initialize the model projector.
-
+        """
         Parameters
         ----------
         cache_len : int, default=100
-            Maximum number of images to store in the cache.
+            Maximum number of inputs to store in the image cache.
         """
     @staticmethod
     def ImageCache(func: Callable) -> Callable:
@@ -108,7 +113,7 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
             If provided ranges are invalid or inconsistent.
         """
     def image_xz(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20)) -> ImageData:
-        """Generate a projection in the x-z plane.
+        """Generate a projection in the x-z plane (viewing along +y).
 
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the y direction.
@@ -130,7 +135,7 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
             The projected image in the x-z plane.
         """
     def image_yz(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20)) -> ImageData:
-        """Generate a projection in the y-z plane.
+        """Generate a projection in the y-z plane (viewing along +x).
 
         This is a convenience method that applies the appropriate
         rotation (transposed) to view the model from the x direction.
@@ -153,9 +158,7 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         """
 
 class ModelProjector(PluginManager[ModelProjectorBase]):
-    """
-    Factory class for accessing registered ModelProjector plugins.
-    """
+    """Factory class for accessing registered ModelProjector plugins."""
 
     @overload
     @classmethod

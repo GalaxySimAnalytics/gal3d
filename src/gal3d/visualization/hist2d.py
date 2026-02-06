@@ -199,7 +199,31 @@ def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Seq
     """
     SPH-based 2D rendering (fast and smooth). Returns ImageData by default.
 
-    Set ret_image=False to get the renderer object itself for advanced usage.
+    Parameters
+    ----------
+    pos : (N, 3) array
+        Particle positions.
+    mass : (N,) array
+        Particle masses.
+    hsm : (N,) array
+        Particle smoothing lengths.
+    which_pos : sequence of 2 ints, default (0, 1)
+        Indices of pos to use for x and y axes (e.g., (0, 2) for xz).
+    rotation_matrix : (3, 3) array, optional
+        If given, rotate positions by this matrix before rendering. Should be a proper rotation matrix.
+    x_range, y_range : (min, max), default (-15, 15)
+        Extent of the rendered image in physical units.
+    nbins : int, optional
+        Number of pixels along each axis. If None, uses config.sph_render.resolution.
+    subsample : int, optional
+        Subsampling factor for rendering. If None, uses config.sph_render.subsample.
+    ret_image : bool, default True
+        If True, return the rendered image as ImageData. If False, return the renderer object itself.
+
+    Returns
+    -------
+    ImageData or PyRenderImage
+        The rendered image as ImageData if ret_image is True, otherwise the renderer object.
     """
     if nbins is None:
         nbins = config.sph_render.resolution
@@ -325,54 +349,46 @@ def show_contour(
     linestyle: str = "-",
 ) -> QuadContourSet:
     """
-     Contour-plot an image. Can auto-generate log- or linear-spaced levels.
+    Contour-plot an image. Can auto-generate log- or linear-spaced levels.
 
     Parameters
     ----------
     imageData : 2D ndarray
         2D Numpy array
-
     xs : array-like
         x-coordinates of bin centres
-
     ys : array-like
         y-coordinates of bin centres
-
     axesObj : instance of matplotlib.axes.Axes, optional
         Axes instance to receive the plotting commands
-
     withfilter : boolean, optional
         If True, use gaussian_filter. Default is False.
-
     sigma: float, optional
         Used in gaussian_filter
-
     vmin : float, optional
         Minimum value to use for the color scale. Default is arr.min().
-
     vmax : float, optional
         Maximum value to use for the color scale. Default is arr.max().
-
     nlevels : int, optional
         Number of levels to use for contours. Default is 10.
-
     levels : sequence (tuple, list, or Numpy array) of float or None, optional
         contour intensity levels to be plotted (if log=True, then these should be
         log10 of the original values)
-
     logscale : boolean, optional
         If True, use a log-scaled colorbar and log-spaced contours. Default is True.
-
     noErase : bool, optional
         If True, draws the contours into an existing plot window without erasing
         existing content. Default is False.
+    color : str, optional
+        color for contour lines. Default is `k`.
+    linewidth : float, optional
+        lines width for contour lines. Default is 0.5.
+    linestyle : str, optional
+        line styles for contour lines. Default is `-`.
 
-    color = color for the contours
-
-    linewidth = float
-
-    linestyle = one of 'solid', 'dashed', 'dashdot', 'dotted'
-
+    Returns
+    -------
+    axesCont : QuadContourSet
     """
     if isinstance(imageData, ImageData):
         im_arr = np.asarray(imageData.value).copy()

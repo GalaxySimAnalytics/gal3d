@@ -39,7 +39,7 @@ class Auto3DShape:
         Parameters
         ----------
         pos : array_like
-            Input positions of particles.
+            Input positions. Can be in shape (3,), (3, n), or (n, 3).
 
         Returns
         -------

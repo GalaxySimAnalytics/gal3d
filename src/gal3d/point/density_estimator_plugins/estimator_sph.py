@@ -12,13 +12,13 @@ from gal3d.util.func_signature import func_optional_key, update_dict_value
 
 from .compute_pa_cy import sph_density, sph_gradient
 
-logger = logging.getLogger("gal3d.particle.density_estimator.DensityEstimatorKNN")
+logger = logging.getLogger("gal3d.particle.density_estimator.DensityEstimatorSPH")
 
 
-__all__ = ["DensityEstimatorKNN"]
+__all__ = ["DensityEstimatorSPH"]
 
 
-class DensityEstimatorKNN(DensityEstimatorBase):
+class DensityEstimatorSPH(DensityEstimatorBase):
     """Estimate the parameter value at any position by kd-tree.
 
     Attributes
@@ -31,8 +31,6 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         The radial distance of each point from the origin.
     tree: scipy.spatial.KDTree
         A KDTree object constructed from the input positions.
-    pa_mode: str
-        The parameter estimation mode ('Density' or 'Mean').
 
     Methods
     -------
@@ -46,8 +44,6 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         self,
         pos: ArrayLike,
         mass: np.ndarray,
-        parameter_mode: str = "Density",
-        kernel: None = None,
         k_nearest: int = config.densityknn.k_neighbors,
         r_cut: float | None = None,
         **kwargs: Any,
@@ -57,25 +53,16 @@ class DensityEstimatorKNN(DensityEstimatorBase):
         ----------
         pos: ndarray, shape(n,3)
             The coordinates (x, y, z) of the n data points.
-
         mass: array, shape(n,)
-            The property of the n points (e.g., mass, luminosity, etc.).
-
-        parameter_mode : str, optional
-            The mode of parameter estimation. Choices are 'Density' (default) or 'Mean'.
-            If 'Density', the function estimates the density (e.g., returns density if input is mass).
-            If 'Mean', the function returns the average value of the `mass` property.
-
-        kernel : optional
-            Kernel function or object (if used).
-
+            The property of the n points, such as mass.
         k_nearest: int, default 32
             The number of nearest points used to estimate the target parameter.
-
+        r_cut: float, optional
+            The maximum distance to consider for neighbors. If None, no distance cutoff is applied.
         **kwargs: dict, optional
             Additional keyword arguments passed to the KDTree constructor and query methods.
         """
-        super().__init__(pos, mass, parameter_mode, kernel)
+        super().__init__(pos, mass)
 
         self.__generate_kd_options(k_nearest, r_cut, **kwargs)
 

@@ -14,7 +14,6 @@ __all__ = ["DensityEstimator", "DensityEstimatorBase"]
 logger = logging.getLogger("gal3d.particle.density_estimator")
 
 
-# TODO kernel
 class DensityEstimatorBase(PluginBase,Auto3DShape):
     """
     Abstract base class for all density estimators.
@@ -29,10 +28,6 @@ class DensityEstimatorBase(PluginBase,Auto3DShape):
         Input particle positions.
     mass : array_like, shape (n,)
         Mass associated with each particle.
-    parameter_mode : str, optional
-        Mode of the parameter to estimate. Default is 'Density'.
-    kernel : optional
-        Smoothing kernel to use. Not implemented in base class.
 
     Attributes
     ----------
@@ -42,13 +37,10 @@ class DensityEstimatorBase(PluginBase,Auto3DShape):
         Cached estimated gradient of the parameter.
     """
 
-    def __init__(self, pos: ArrayLike, mass: np.ndarray, parameter_mode: str = "Density", kernel: None = None):
+    def __init__(self, pos: ArrayLike, mass: np.ndarray):
 
         self.pos = self.to_3d_array(pos)
         self.mass = mass
-
-        self.pa_mode = parameter_mode
-        self.kernel = kernel
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

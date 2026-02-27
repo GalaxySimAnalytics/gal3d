@@ -34,8 +34,7 @@ class Particles(GlobalCalculator):
         mass: ArrayLike,
         rmax: float | None = None,
         recenter: bool = True,
-        parameter_mode: str = "Density",
-        density_estimator: str | DensityEstimatorBase | type[DensityEstimatorBase] = "DensityEstimatorKNN",
+        density_estimator: str | DensityEstimatorBase | type[DensityEstimatorBase] = "DensityEstimatorSPH",
         estimator_kwargs: dict | None = None,
     ):
         """
@@ -47,10 +46,12 @@ class Particles(GlobalCalculator):
             The positions of N particles in 3D Cartesian coordinates (x, y, z).
         mass : array_like, shape (N,)
             The properties of N particles, such as mass.
-        parameter_mode : str, optional
-            {'Density', 'Mean'}, determines how to calculate the target parameter. Default is 'Density'.
+        rmax : float, optional
+            Maximum radius to include particles. If None, include all particles. Default is None.
+        recenter : bool, optional
+            Whether to recenter the positions using the shrink-sphere method. Default is True.
         density_estimator : str | DensityEstimatorBase | type[DensityEstimatorBase], optional
-            - A plugin name registered in DensityEstimator (e.g., 'DensityEstimatorKNN'), or
+            - A plugin name registered in DensityEstimator (e.g., 'DensityEstimatorSPH'), or
             - An instance of DensityEstimatorBase, or
             - A subclass of DensityEstimatorBase to be constructed.
         estimator_kwargs : dict, optional
@@ -69,11 +70,11 @@ class Particles(GlobalCalculator):
 
         if isinstance(density_estimator, str):
             self.estimator = DensityEstimator.get_plugin(density_estimator)(
-                self.pos, self.mass, parameter_mode, **estimator_kwargs
+                self.pos, self.mass, **estimator_kwargs
             )
         elif isinstance(density_estimator, type) and issubclass(density_estimator, DensityEstimatorBase):
             self.estimator = density_estimator(
-                self.pos, self.mass, parameter_mode, **estimator_kwargs
+                self.pos, self.mass, **estimator_kwargs
             )
         elif isinstance(density_estimator,DensityEstimatorBase):
             self.estimator = density_estimator

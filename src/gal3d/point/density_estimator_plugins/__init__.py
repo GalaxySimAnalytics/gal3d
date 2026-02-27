@@ -1,6 +1,6 @@
 """
 Module for density estimator plugins, defining and manipulating 3D density estimation.
 """
-from .estimator_knn import DensityEstimatorKNN
+from .estimator_sph import DensityEstimatorSPH
 
-__all__ = ["DensityEstimatorKNN"]
+__all__ = ["DensityEstimatorSPH"]

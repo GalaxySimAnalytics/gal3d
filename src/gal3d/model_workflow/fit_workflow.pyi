@@ -1,11 +1,11 @@
+from typing import Any, Literal, overload
+
 from gal3d.analyzer import Gal3DAnalyzer as Gal3DAnalyzer
+from gal3d.model_workflow.fit_workflow_plugins.ellipsoid_fit import EllipsoidFitWorkflow
+from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid import IterateEllipsoidWorkflow
 from gal3d.optimization.result import ModelResult as ModelResult
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.point import Particles as Particles
-from typing import Any
-from typing import Literal, overload
-from gal3d.model_workflow.fit_workflow_plugins.ellipsoid_fit import EllipsoidFitWorkflow
-from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid import IterateEllipsoidWorkflow
 
 class FitWorkflowBase(PluginBase):
     '''

@@ -1,15 +1,16 @@
 import abc
-import numpy as np
 from collections.abc import Callable
 from dataclasses import dataclass
-from gal3d.plugin import PluginBase, PluginManager
+from typing import Any, Literal, overload
+
+import numpy as np
 from numpy.typing import NDArray
-from typing import Any
-from typing import Literal, overload
+
+from gal3d.plugin import PluginBase, PluginManager
 from gal3d.visualization.model_projector_plugins.projector_line_integration import ProjectorLineIntegration
 from gal3d.visualization.model_projector_plugins.projector_sph_grid import ProjectorSphGrid
 
-__all__ = ['ModelProjectorBase', 'ModelProjector']
+__all__ = ["ModelProjectorBase", "ModelProjector"]
 
 @dataclass
 class ImageData:

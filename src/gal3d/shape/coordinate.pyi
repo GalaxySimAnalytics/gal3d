@@ -1,16 +1,15 @@
-import numpy as np
-from .with_parameter import WithParameter, abstractmethod
-from gal3d.plugin import PluginBase, PluginManager
-from gal3d.util.array_operate import Auto3DShape
-from numpy.typing import NDArray
-from typing import Any
-from typing import Literal, overload
-from gal3d.shape.coordinate_plugins.euler_shift import EulerShift
-from gal3d.shape.coordinate_plugins.euler_shift import RotateOnly
-from gal3d.shape.coordinate_plugins.euler_shift import ShiftEuler
-from gal3d.shape.coordinate_plugins.euler_shift import ShiftOnly
+from typing import Any, Literal, overload
 
-__all__ = ['Coordinate', 'CoordinateBase']
+import numpy as np
+from numpy.typing import NDArray
+
+from gal3d.plugin import PluginBase, PluginManager
+from gal3d.shape.coordinate_plugins.euler_shift import EulerShift, RotateOnly, ShiftEuler, ShiftOnly
+from gal3d.util.array_operate import Auto3DShape
+
+from .with_parameter import WithParameter, abstractmethod
+
+__all__ = ["Coordinate", "CoordinateBase"]
 
 class CoordinateBase(WithParameter, PluginBase, Auto3DShape):
     """

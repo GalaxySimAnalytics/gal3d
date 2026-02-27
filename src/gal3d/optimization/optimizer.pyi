@@ -1,20 +1,21 @@
 import abc
-from _typeshed import Incomplete
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
-from gal3d.optimization.parameter import ParameterDict, Parameters
-from gal3d.plugin import PluginBase, PluginManager
+from typing import Any, Literal, overload
+
+from _typeshed import Incomplete
 from numpy.typing import ArrayLike
 from scipy._lib._util import _RichResult
 from scipy.optimize import Bounds
-from typing import Any
-from typing import Literal, overload
+
 from gal3d.optimization.optimizer_plugins.optimize_lmfit import OptimizerLMFit
 from gal3d.optimization.optimizer_plugins.optimize_nlopt import OptimizerNLopt
 from gal3d.optimization.optimizer_plugins.optimize_optimagic import OptimizerOptimagic
 from gal3d.optimization.optimizer_plugins.optimize_scipy import OptimizerScipy
+from gal3d.optimization.parameter import ParameterDict, Parameters
+from gal3d.plugin import PluginBase, PluginManager
 
-__all__ = ['Optimizer', 'OptimizerBase', 'OptimizeResult']
+__all__ = ["Optimizer", "OptimizerBase", "OptimizeResult"]
 
 class OptimizeResult(_RichResult):
     """

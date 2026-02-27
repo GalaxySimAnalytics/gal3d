@@ -1,16 +1,17 @@
 import abc
-import numpy as np
-from _typeshed import Incomplete
 from abc import abstractmethod
 from functools import cached_property
-from gal3d.plugin import PluginBase, PluginManager
-from gal3d.util.array_operate import Auto3DShape
-from numpy.typing import ArrayLike
-from typing import Any
-from typing import Literal, overload
-from gal3d.point.density_estimator_plugins.estimator_knn import DensityEstimatorKNN
+from typing import Any, Literal, overload
 
-__all__ = ['DensityEstimator', 'DensityEstimatorBase']
+import numpy as np
+from _typeshed import Incomplete
+from numpy.typing import ArrayLike
+
+from gal3d.plugin import PluginBase, PluginManager
+from gal3d.point.density_estimator_plugins.estimator_sph import DensityEstimatorSPH
+from gal3d.util.array_operate import Auto3DShape
+
+__all__ = ["DensityEstimator", "DensityEstimatorBase"]
 
 class DensityEstimatorBase(PluginBase, Auto3DShape, metaclass=abc.ABCMeta):
     """
@@ -26,10 +27,6 @@ class DensityEstimatorBase(PluginBase, Auto3DShape, metaclass=abc.ABCMeta):
         Input particle positions.
     mass : array_like, shape (n,)
         Mass associated with each particle.
-    parameter_mode : str, optional
-        Mode of the parameter to estimate. Default is 'Density'.
-    kernel : optional
-        Smoothing kernel to use. Not implemented in base class.
 
     Attributes
     ----------
@@ -40,9 +37,7 @@ class DensityEstimatorBase(PluginBase, Auto3DShape, metaclass=abc.ABCMeta):
     """
     pos: Incomplete
     mass: Incomplete
-    pa_mode: Incomplete
-    kernel: Incomplete
-    def __init__(self, pos: ArrayLike, mass: np.ndarray, parameter_mode: str = 'Density', kernel: None = None) -> None: ...
+    def __init__(self, pos: ArrayLike, mass: np.ndarray) -> None: ...
     def __init_subclass__(cls, **kwargs: Any) -> None: ...
     @cached_property
     def parameter(self) -> np.ndarray:
@@ -133,7 +128,7 @@ class DensityEstimator(PluginManager[DensityEstimatorBase]):
 
     @overload
     @classmethod
-    def get_plugin(cls, name: Literal["DensityEstimatorKNN"]) -> type[DensityEstimatorKNN]: ...
+    def get_plugin(cls, name: Literal["DensityEstimatorSPH"]) -> type[DensityEstimatorSPH]: ...
     @overload
     @classmethod
     def get_plugin(cls, name: str) -> type[DensityEstimatorBase]: ...

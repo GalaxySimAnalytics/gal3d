@@ -1,11 +1,12 @@
+from typing import Any, Literal, overload
+
 import numpy as np
 from _typeshed import Incomplete
+
+from gal3d.model_workflow.error_workflow_plugins.ellipsoid_error_estimator import EllipsoidErrorEstimator
 from gal3d.optimization.result import ModelResult as ModelResult
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.shape import StructureCore as StructureCore
-from typing import Any
-from typing import Literal, overload
-from gal3d.model_workflow.error_workflow_plugins.ellipsoid_error_estimator import EllipsoidErrorEstimator
 
 logger: Incomplete
 

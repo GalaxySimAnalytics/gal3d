@@ -1,13 +1,15 @@
 import abc
+from typing import Any, Literal, overload
+
+from _typeshed import Incomplete
+
+from gal3d.optimization.model_io_plugins.hdf_model_io import HDF5ModelIO
+from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
+from gal3d.shape import Structure3D as Structure3D, StructureCore as StructureCore
+
 from .optimizer import OptimizeResult as OptimizeResult
 from .parameter import Parameters as Parameters
 from .result import ModelResult as ModelResult
-from _typeshed import Incomplete
-from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
-from gal3d.shape import Structure3D as Structure3D, StructureCore as StructureCore
-from typing import Any, Literal
-from typing import Literal, overload
-from gal3d.optimization.model_io_plugins.hdf_model_io import HDF5ModelIO
 
 logger: Incomplete
 
@@ -69,7 +71,7 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
         Registers the subclass as a model I/O plugin.
         """
     @classmethod
-    def save(cls, model: ModelResult, filename: str, info_keys: tuple[str, ...] = ('parameter',), result_keys: tuple[str, ...] = ('cost', 'success', 'n_fun_evals', 'n_iterations'), metadata: dict[str, Any] | None = None, overwrite: bool = False, **kwargs: Any) -> None:
+    def save(cls, model: ModelResult, filename: str, info_keys: tuple[str, ...] = ("parameter",), result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"), metadata: dict[str, Any] | None = None, overwrite: bool = False, **kwargs: Any) -> None:
         """
         Save the model to a file.
 
@@ -126,7 +128,7 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
             The directory path.
         """
     @classmethod
-    def extract_data_from_model(cls, model: ModelResult, info_keys: tuple[str, ...] = ('parameter',), result_keys: tuple[str, ...] = ('cost', 'success', 'n_fun_evals', 'n_iterations')) -> dict[Literal['meta', 'parameters', 'opt_info'], dict[str, Any] | MetaDataDict]:
+    def extract_data_from_model(cls, model: ModelResult, info_keys: tuple[str, ...] = ("parameter",), result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")) -> dict[Literal["meta", "parameters", "opt_info"], dict[str, Any] | MetaDataDict]:
         """
         Extract all relevant data from a ModelResult for saving or management.
 

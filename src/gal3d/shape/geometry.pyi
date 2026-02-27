@@ -1,14 +1,16 @@
+from typing import Any, Literal, overload
+
 import numpy as np
-from .with_parameter import WithParameter, abstractmethod
-from gal3d.plugin import PluginBase, PluginManager
-from gal3d.util.array_operate import Auto3DShape
 from numpy.typing import NDArray
-from typing import Any
-from typing import Literal, overload
+
+from gal3d.plugin import PluginBase, PluginManager
 from gal3d.shape.geometry_plugins.ellipsoid import Ellipsoid
 from gal3d.shape.geometry_plugins.ellipsoid_s import Ellipsoid_S
+from gal3d.util.array_operate import Auto3DShape
 
-__all__ = ['Geometry', 'GeometryBase']
+from .with_parameter import WithParameter, abstractmethod
+
+__all__ = ["Geometry", "GeometryBase"]
 
 class GeometryBase(WithParameter, PluginBase, Auto3DShape):
     """Abstract base class for geometry models."""

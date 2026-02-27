@@ -1,15 +1,16 @@
 import abc
-from _typeshed import Incomplete
 from abc import abstractmethod
-from gal3d.optimization.result import ModelResult
-from gal3d.plugin import PluginBase, PluginManager
-from typing import Any
-from typing import Literal, overload
+from typing import Any, Literal, overload
+
+from _typeshed import Incomplete
+
 from gal3d.characterization.characterizer_plugins.galaxy_bar import Bar
 from gal3d.characterization.characterizer_plugins.galaxy_disk import Disk
 from gal3d.characterization.characterizer_plugins.segment import Segment
+from gal3d.optimization.result import ModelResult
+from gal3d.plugin import PluginBase, PluginManager
 
-__all__ = ['Characterizer', 'CharacterizerBase']
+__all__ = ["Characterizer", "CharacterizerBase"]
 
 class CharacterizerBase(PluginBase, metaclass=abc.ABCMeta):
     data: Incomplete

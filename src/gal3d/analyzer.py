@@ -108,8 +108,6 @@ class ParticleCfg:
     rmax : float, optional
         Optional maximum radius cut; particles beyond this distance
         (in 3D) may be excluded by :class:`Particles`.
-    parameter_mode : {"Density", "Mean"}, optional
-        How to interpret / compute the scalar parameter on particles.
     density_estimator : str, optional
         Name of the registered density estimator plugin
         (e.g. "DensityEstimatorKNN").
@@ -120,8 +118,7 @@ class ParticleCfg:
     recenter: bool = True
     # Additional particle configuration options can be added here
     rmax : float | None = None
-    parameter_mode: str = "Density"
-    density_estimator: str = "DensityEstimatorKNN"
+    density_estimator: str = "DensityEstimatorSPH"
     estimator_kwargs: dict = dc_field(default_factory=dict)
 
 @dataclass
@@ -569,7 +566,6 @@ class Gal3DAnalyzer:
             mass=mass,
             rmax=cfg.rmax,
             recenter=cfg.recenter,
-            parameter_mode=cfg.parameter_mode,
             density_estimator=cfg.density_estimator,
             estimator_kwargs=cfg.estimator_kwargs,
         )

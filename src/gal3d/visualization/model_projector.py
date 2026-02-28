@@ -42,7 +42,6 @@ Discover available projectors:
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from functools import wraps
 from typing import Any
 
@@ -52,53 +51,12 @@ from numpy.typing import NDArray
 from gal3d.plugin import PluginBase, PluginManager
 from gal3d.util.func_cache import CacheDict
 
+from .show import ImageData
+
 __all__ = ["ModelProjectorBase", "ModelProjector"]
 
 logger = logging.getLogger("gal3d.visualization.model_projector")
 
-
-@dataclass
-class ImageData:
-    """
-    Container for a projected image and its grid information.
-
-    Attributes
-    ----------
-    value : np.ndarray
-        Image array of shape (ny, nx).
-    xs : np.ndarray
-        X bin centers of shape (nx,).
-    ys : np.ndarray
-        Y bin centers of shape (ny,).
-    xrange : tuple[float, float]
-        (xmin, xmax)
-    yrange : tuple[float, float]
-        (ymin, ymax)
-    """
-    value: np.ndarray
-    xs: np.ndarray
-    ys: np.ndarray
-    xrange: tuple[float, float]
-    yrange: tuple[float, float]
-
-    @property
-    def extent(self) -> tuple[float, float, float, float]:
-        return (self.xrange[0], self.xrange[1], self.yrange[0], self.yrange[1])
-
-    @property
-    def nx(self) -> int:
-        return self.xs.size
-
-    @property
-    def ny(self) -> int:
-        return self.ys.size
-
-    @property
-    def pixel_area(self) -> float:
-        return (self.xrange[1] - self.xrange[0]) * (self.yrange[1] - self.yrange[0]) / (self.nx * self.ny)
-    @property
-    def total_quantity(self) -> float:
-        return np.sum(self.value) * self.pixel_area
 
 class ModelProjectorBase(PluginBase):
     """

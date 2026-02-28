@@ -52,14 +52,16 @@ from gal3d.point import Particles
 from gal3d.util.array_operate import Rotate
 
 from .hist2d import (
-    add_colorbar,
     hist_2d,
     render_2d,
-    show_contour,
-    show_image,
     which_pos_to_rotation,
 )
 from .model_projector import ModelProjectorBase
+from .show import (
+    add_colorbar,
+    show_contour,
+    show_image,
+)
 
 
 def show_data_model(

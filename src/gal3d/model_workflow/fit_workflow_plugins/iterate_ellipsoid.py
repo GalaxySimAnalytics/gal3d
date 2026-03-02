@@ -95,7 +95,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
 #Type alias
-ArrayI = NDArray[np.integer[Any]]
+ArrayF = NDArray[np.floating[Any]]
+ArrayI = NDArray[np.int_]
 
 
 def _periodic_diff(a: float, b: float, period: float = 2 * np.pi) -> float:
@@ -180,6 +181,85 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
             rbins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         return bin_edges.astype(float), rbins.astype(float)
 
+    def _select_shell_indices(
+        self,
+        r: ArrayF,
+        a: ArrayF,
+        bin_edges: ArrayF,
+        i: int,
+        is_enclosed: bool,
+    ) -> tuple[ArrayF, ArrayI]:
+        if not is_enclosed:
+            mult = bin_edges[[i, i + 1]] / np.prod(a) ** (1.0 / 3.0)
+            shell_idx = np.where((r > a[-1] * mult[0]) & (r < a[0] * mult[1]))[0]
+        else:
+            mult = bin_edges[i + 1] / np.prod(a) ** (1.0 / 3.0)
+            shell_idx = np.where(r < a[0] * mult)[0]
+        return mult, shell_idx
+
+    def _select_ellipse_indices(
+        self,
+        d_ell: ArrayF,
+        mult: ArrayF | float,
+        is_enclosed: bool,
+    ) -> ArrayI:
+        if not is_enclosed:
+            lo, hi = cast("ArrayF", mult)
+            return np.where((d_ell > lo) & (d_ell < hi))[0]
+        else:
+            hi = cast("float", mult)
+            return np.where(d_ell < hi)[0]
+
+    def _apply_weight(
+        self,
+        weight_method: Literal["r2", "rell2"] | None,
+        ellipse_mass: ArrayF,
+        r_shell: ArrayF,
+        d_ell: ArrayF,
+    ) -> ArrayF:
+        if weight_method == "r2":
+            w = 1.0 / np.maximum(r_shell, 1e-9) ** 2
+            return ellipse_mass * w
+        if weight_method == "rell2":
+            w = 1.0 / np.maximum(d_ell, 1e-9) ** 2
+            return ellipse_mass * w
+        return ellipse_mass
+
+    @staticmethod
+    def _sanitize_rotation(R: ArrayF) -> ArrayF:
+        if np.linalg.det(R) < 0:
+            R = -R
+        return R
+
+    @staticmethod
+    def _update_axes(a_old: ArrayF, a_new_raw: ArrayF) -> ArrayF:
+        a_new = np.sqrt(np.abs(a_new_raw) * 3.0)
+        scale = (np.prod(a_old) / np.prod(a_new)) ** (1.0 / 3.0)
+        return a_new * scale
+
+    @staticmethod
+    def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
+        return float(
+            0.5
+            * (
+                np.abs(a[1] / a[0] - a_prev[1] / a_prev[0])
+                + np.abs(a[2] / a[0] - a_prev[2] / a_prev[0])
+            )
+        )
+
+    @staticmethod
+    def _compute_density(
+        ellipse_mass: ArrayF, bin_edges: ArrayF, i: int, is_enclosed: bool
+    ) -> float:
+        if is_enclosed:
+            vol = 4.0 / 3.0 * np.pi * (bin_edges[i + 1] ** 3)
+        else:
+            vol = 4.0 / 3.0 * np.pi * (
+                bin_edges[i + 1] ** 3 - bin_edges[i] ** 3
+            )
+        return float(np.sum(ellipse_mass) / vol)
+
+    # --------- main iteration ----------
     def _iterate_shell(
         self,
         i: int, rbins: np.ndarray, bin_edges: np.ndarray, pos: np.ndarray, mass: np.ndarray, r: np.ndarray,
@@ -238,53 +318,46 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         R_prev : ndarray of float, shape (3, 3)
             Rotation matrix from the previous iteration.
         """
-        a = np.ones(3) * rbins[i]
-        a2 = np.zeros(3)
-        a2[0] = np.inf
-        R = np.identity(3)
-        R_prev = np.identity(3)
+        a: ArrayF = np.ones(3, dtype=float) * rbins[i]
+        a_prev: ArrayF = a.copy()
+        R: ArrayF = np.identity(3, dtype=float)
+        R_prev: ArrayF = R.copy()
         iteration_counter = 0
-        err = tol + 1
-        ellipse_mass = np.zeros(3, dtype=float)
+        err = tol + 1.0
+        ellipse_mass: ArrayF = np.zeros(3, dtype=float)
+
         while (err > tol) and (iteration_counter < max_iterations):
+            a_prev = a.copy()
             R_prev = R.copy()
-            a2 = a.copy()
-            if not is_enclosed: # shell
-                mult = bin_edges[[i, i + 1]] / np.prod(a) ** (1 / 3)
-                shell_idx = cast("ArrayI", np.where((r > a[-1] * mult[0]) & (r < a[0] * mult[1]))[0])
-            else: # enclosed
-                mult = bin_edges[i + 1] / np.prod(a) ** (1 / 3)
-                shell_idx = cast("ArrayI", np.where(r < a[0] * mult)[0])
+
+            mult, shell_idx = self._select_shell_indices(r, a, bin_edges, i, is_enclosed)
             if shell_idx.size == 0:
                 break
-            shell_pos, shell_mass = pos[shell_idx], mass[shell_idx]
+
+            shell_pos = pos[shell_idx]
+            shell_mass = mass[shell_idx]
+
             new_shape = (a[0], 1 - a[1] / a[0], 1 - a[2] / a[1])
             new_ang = stru._coordinate.mat_to_angle(R)  # type: ignore
-            d = stru.quick_f_ray_d(*new_ang, *new_shape, pos=shell_pos)[0]
-            ellipse_idx = cast("ArrayI", np.where(np.abs(d) < 0.5 * (bin_edges[i + 1] - bin_edges[i]))[0] if not is_enclosed else np.where(d < 0)[0])
+            d_ell = stru.quick_f_ray_d(*new_ang, *new_shape, pos=shell_pos)[0]
+
+            ellipse_idx = self._select_ellipse_indices(d_ell, mult, is_enclosed)
             if ellipse_idx.size == 0:
                 break
-            ellipse_pos, ellipse_mass = shell_pos[ellipse_idx], shell_mass[ellipse_idx] # type: ignore
-            if weight_method == "r2":
-                eff_mass =ellipse_mass / r[shell_idx][ellipse_idx] ** 2
-            elif weight_method == "rell2":
-                eff_mass = ellipse_mass / d[ellipse_idx] ** 2
-            else:
-                eff_mass = ellipse_mass
+
+            ellipse_pos = shell_pos[ellipse_idx]
+            ellipse_mass = shell_mass[ellipse_idx]
+
+            eff_mass = self._apply_weight(weight_method, ellipse_mass, r[shell_idx][ellipse_idx], d_ell[ellipse_idx])
+
             abc, axes = abc_vect(ellipse_pos, eff_mass)
-            R2 = np.array(axes)
-            a_new = np.sqrt(np.abs(abc) * 3)
-            div = (np.prod(a) / np.prod(a_new)) ** (1 / 3)
-            a = a_new * div
-            R = R2
-            if np.linalg.det(R) < 0:
-                R = -R
+            R = self._sanitize_rotation(np.array(axes, dtype=float))
+            a = self._update_axes(a, abc)
+
             iteration_counter += 1
-            err = (np.abs(a[1] / a[0] - a2[1] / a2[0]) + np.abs(a[-1] / a[0] - a2[2] / a2[0])) * 0.5
-        a_prev = a2 if iteration_counter > 0 else a.copy()
-        R_prev = R_prev if iteration_counter > 0 else R.copy()
-        volume = (bin_edges[i + 1] ** 3) if is_enclosed else (bin_edges[i + 1] ** 3 - bin_edges[i] ** 3)
-        ellipsoid_density = np.sum(ellipse_mass) / (4.0 / 3.0 * np.pi * volume)
+            err = self._axis_ratio_error(a, a_prev)
+
+        ellipsoid_density = self._compute_density(ellipse_mass, bin_edges, i, is_enclosed)
         return a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev
 
     def _build_model_result(

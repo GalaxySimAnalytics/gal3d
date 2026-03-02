@@ -34,6 +34,16 @@ mass when computing the inertia tensor:
 Both families and all weightings are available through the
 :class:`IterateEllipsoidWorkflow`.
 
+Notes
+-----
+This implementation is inspired by the iterative shape measurement in
+``pynbody.analysis.halo.shape``(https://github.com/pynbody/pynbody/blob/master/pynbody/analysis/halo.py#L483)
+and follows the ideas discussed in:
+
+    Zemp, M., Gnedin, O. Y., Gnedin, N. Y., & Kravtsov, A. V. (2011),
+    *On Determining the Shape of Matter Distributions*, ApJS, 197(2), 30,
+    https://doi.org/10.1088/0067-0049/197/2/30
+
 
 Examples
 --------

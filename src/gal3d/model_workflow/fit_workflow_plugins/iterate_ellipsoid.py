@@ -1,7 +1,78 @@
 """
 Iterative ellipsoidal shape estimation workflow plugin for Gal3D.
-This module provides a fitting workflow that estimates the ellipsoidal shape of a structure
-using an iterative mass moment method.
+
+This module implements an iterative mass–moment (inertia tensor) method to
+estimate the 3‑D ellipsoidal shape of a particle distribution. The basic idea
+is:
+
+1. Select particles within a radial shell or enclosed ellipsoid.
+2. Compute the (possibly weighted) inertia tensor of the selected particles.
+3. Diagonalize the tensor to obtain the principal axes and axis lengths.
+4. Update the trial ellipsoid and repeat from step 1 until convergence.
+
+Two families of methods are supported:
+
+* **Shell methods (S1–S3)** – particles are selected in an *ellipsoidal shell*.
+* **Enclosed methods (E1–E3)** – particles are selected inside an *enclosed
+  ellipsoid*.
+
+Within each family, three weighting schemes :math:`w(r)` can be used for the
+mass when computing the inertia tensor:
+
+* ``None`` / unweighted  (``w = 1``)
+* ``"r2"``     – spherical radius weighting :math:`w \\propto r^{-2}`
+* ``"rell2"``  – ellipsoidal radius weighting
+  :math:`w \\propto r_\\mathrm{ell}^{-2}`,
+  where
+
+  .. math::
+
+      r_\\mathrm{ell}^2 = x^2 +
+                         \frac{y^2}{(b/a)^2} +
+                         \frac{z^2}{(c/a)^2}.
+
+Both families and all weightings are available through the
+:class:`IterateEllipsoidWorkflow`.
+
+
+Examples
+--------
+A minimal usage example with a :class:`gal3d.point.Particles` instance
+``particles``::
+
+    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid import (
+        IterateEllipsoidWorkflow,
+    )
+
+    workflow = IterateEllipsoidWorkflow()
+
+    # S1: ellipsoidal shell, unweighted
+    result_s1 = workflow(
+        particles,
+        nbins=50,
+        bins="equal",
+        max_iterations=20,
+        tol=1e-3,
+        is_enclosed=False,        # shell
+        weight_method=None,       # w = 1
+    )
+
+    # E3: enclosed ellipsoid, w ~ r_ell^{-2}
+    result_e3 = workflow(
+        particles,
+        nbins=50,
+        bins="equal",
+        max_iterations=20,
+        tol=1e-3,
+        is_enclosed=True,         # enclosed ellipsoid
+        weight_method="rell2",    # w ~ r_ell^{-2}
+    )
+
+The returned :class:`gal3d.optimization.result.ModelResult` contains the best‑fit
+axis length ``a`` and axis ratios ``eps_ab``, ``eps_bc``, the three Euler
+angles ``ang1``, ``ang2``, ``ang3``, and an estimate of their iteration
+errors.
+
 """
 
 import logging
@@ -48,8 +119,8 @@ def _periodic_diff(a: float, b: float, period: float = 2 * np.pi) -> float:
 
 class IterateEllipsoidWorkflow(FitWorkflowBase):
     """
-    Workflow for estimating ellipsoidal shape using iterative mass moment method.
-    Accepts either Particles or Gal3DAnalyzer as input.
+    Workflow for estimating ellipsoidal shape using an iterative mass–moment
+    (inertia tensor) method.
     """
 
     @staticmethod
@@ -68,6 +139,30 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         rmax: float,
         nbins: int,
         bins: str) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Prepare radial bin edges and representative radii.
+
+        Parameters
+        ----------
+        r : ndarray of float
+            Particle radii.
+        rmin, rmax : float
+            Minimum and maximum radii for binning.
+        nbins : int
+            Number of radial bins.
+        bins : {'equal', 'log', 'lin'}
+            Binning scheme:
+            * ``'equal'`` – equal number of particles per bin
+            * ``'log'``   – logarithmically spaced in radius
+            * ``'lin'``   – linearly spaced in radius
+
+        Returns
+        -------
+        bin_edges : ndarray of float
+            Array of length ``nbins + 1`` with bin edges.
+        rbins : ndarray of float
+            Representative radius for each bin (e.g. geometric mean).
+        """
         def equal_bins(r: np.ndarray, N: int) -> np.ndarray:
             sorted_r = np.sort(r[(r >= rmin) & (r <= rmax)])
             return np.append(
@@ -94,6 +189,55 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         is_enclosed: bool = False,
         weight_method: Literal["r2", "rell2"] | None = None
     ) -> tuple[np.ndarray, np.ndarray, int, float, float, np.ndarray, np.ndarray]:
+        """
+        Perform the iterative shape estimation for a single radial bin.
+
+        Parameters
+        ----------
+        i : int
+            Bin index.
+        rbins : ndarray of float
+            Representative radius of each bin.
+        bin_edges : ndarray of float
+            Bin edges of length ``nbins + 1``.
+        pos : ndarray of float, shape (N, 3)
+            Particle positions.
+        mass : ndarray of float, shape (N,)
+            Particle masses.
+        r : ndarray of float, shape (N,)
+            Spherical radii corresponding to ``pos``.
+        stru : StructureCore
+            Structure object providing ellipsoid geometry utilities.
+        max_iterations : int
+            Maximum number of iterations per bin.
+        tol : float
+            Convergence tolerance for axis ratios.
+        is_enclosed : bool, optional
+            If ``True``, use enclosed‑ellipsoid selection (E1–E3);
+            if ``False``, use ellipsoidal shells (S1–S3).
+        weight_method : {'r2', 'rell2'}, optional
+            Weighting method when computing the inertia tensor:
+            * ``None``   – unweighted (``w = 1``)
+            * ``'r2'``   – spherical :math:`r^{-2}` weighting
+            * ``'rell2'`` – ellipsoidal :math:`r_\\mathrm{ell}^{-2}` weighting
+
+        Returns
+        -------
+        a : ndarray of float, shape (3,)
+            Final semi‑axis lengths ``(a, b, c)``.
+        R : ndarray of float, shape (3, 3)
+            Final rotation matrix from principal‑axes frame to simulation frame.
+        iteration_counter : int
+            Number of iterations performed.
+        err : float
+            Scalar convergence measure based on axis‑ratio changes.
+        ellipsoid_density : float
+            Mean mass density in the shell/ellipsoid.
+        a_prev : ndarray of float, shape (3,)
+            Semi‑axis lengths from the previous iteration.
+        R_prev : ndarray of float, shape (3, 3)
+            Rotation matrix from the previous iteration.
+        """
         a = np.ones(3) * rbins[i]
         a2 = np.zeros(3)
         a2[0] = np.inf
@@ -137,11 +281,8 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
                 R = -R
             iteration_counter += 1
             err = (np.abs(a[1] / a[0] - a2[1] / a2[0]) + np.abs(a[-1] / a[0] - a2[2] / a2[0])) * 0.5
-        if iteration_counter > 0:
-            a_prev = a2
-        else:
-            a_prev = a.copy()
-            R_prev = R.copy()
+        a_prev = a2 if iteration_counter > 0 else a.copy()
+        R_prev = R_prev if iteration_counter > 0 else R.copy()
         volume = (bin_edges[i + 1] ** 3) if is_enclosed else (bin_edges[i + 1] ** 3 - bin_edges[i] ** 3)
         ellipsoid_density = np.sum(ellipse_mass) / (4.0 / 3.0 * np.pi * volume)
         return a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev

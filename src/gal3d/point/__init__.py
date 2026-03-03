@@ -17,13 +17,15 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 from numpy.typing import ArrayLike
 
+from gal3d.density import DensitySource
+
 from .density_estimator import DensityEstimator, DensityEstimatorBase
 from .global_calculator import GlobalCalculator
 
 if TYPE_CHECKING:
     from gal3d.optimization.result import ModelResult
 
-class Particles(GlobalCalculator):
+class Particles(GlobalCalculator, DensitySource):
     """
     A particle container with density estimation and parameter gradient capabilities.
     """
@@ -83,6 +85,10 @@ class Particles(GlobalCalculator):
                 f"density_estimator must be either a string (plugin name), "
                 f"a subclass of DensityEstimatorBase, or an instance of it. Got {type(density_estimator)} instead."
             )
+
+    def _evaluate_density(self, pos):
+        """ Used internally by DensitySource to evaluate density at given positions. """
+        return self.estimator.get_parameter(pos)
 
     def __del__(self):
         """
@@ -191,6 +197,8 @@ class Particles(GlobalCalculator):
         bins: Literal["equal", "log", "lin"] = "equal",
         max_iterations: int = 10,
         tol: float = 1e-3,
+        is_enclosed: bool = False,
+        weight_method: Literal["r2", "rell2"] | None = None
     ) -> "ModelResult":
         """
         Fit ellipsoidal shape using an iterative reduced inertia tensor method.
@@ -209,6 +217,11 @@ class Particles(GlobalCalculator):
             Maximum iterations per shell (default 10).
         tol : float, optional
             Convergence tolerance (default 1e-3).
+        is_enclosed : bool, optional
+            Whether to use enclosed ellipsoids (True) or shells (False, default).
+        weight_method : {'r2', 'rell2'}, optional
+            Method to weight particles when computing inertia tensor. 'r2' weights by r^-2,
+            'rell2' weights by ellipsoidal radius^-2. If None (default), no weighting is applied.
 
         Returns
         -------
@@ -217,7 +230,8 @@ class Particles(GlobalCalculator):
         """
         from gal3d.model_workflow.fit_workflow_plugins import IterateEllipsoidWorkflow
         fit = IterateEllipsoidWorkflow()
-        return fit(self,nbins=nbins,rmin=rmin,rmax=rmax,bins=bins,max_iterations=max_iterations,tol=tol)
+        return fit(self,nbins=nbins,rmin=rmin,rmax=rmax,bins=bins,max_iterations=max_iterations,tol=tol,
+                   is_enclosed=is_enclosed, weight_method=weight_method)
 
 
     @classmethod

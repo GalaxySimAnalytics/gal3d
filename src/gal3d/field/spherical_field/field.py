@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 
+from gal3d.density import DensitySource
 from gal3d.point import Particles
 from gal3d.util.func_decorator import timer
 
@@ -23,15 +24,15 @@ class SphField:
     _iso_method: dict[str, Callable] = {}
 
     def __init__(
-        self, particles: Particles, num_ray: int = 1024, ray_method: str = "fibonacci", **kwargs: Any
+        self, density_source: DensitySource, num_ray: int = 1024, ray_method: str = "fibonacci", **kwargs: Any
     ):
         """
         Initialize the Field class for calculating parameters at various distances in a 3D galaxy model.
 
         Parameters
         ----------
-        particles : Particles
-            An instance of the Particles class used to compute parameters at specific positions.
+        density_source : DensitySource
+            Any instance of DensitySource, which provides the density estimation at arbitrary positions.(e.g. Particles or TheoreticalDensityDistribution)
 
         num_ray : int, optional
             The number of rays to generate. Default is 1024.
@@ -40,12 +41,12 @@ class SphField:
             {'fibonacci', 'muller'}, the method used to generate unit ray vectors. Default is 'fibonacci'.
         """
 
-        self._build_ray_vector(particles, num_ray, ray_method)
+        self._build_ray_vector(density_source, num_ray, ray_method)
 
     def __repr__(self):
         info = [
             f"SphField(num_ray={getattr(self.rays, 'num', 'N/A')})",
-            f"particles={len(getattr(self.particles, 'pos', [])) if hasattr(self, 'particles') else 'N/A'}",
+            f"[{repr(self.density_source)}]",
         ]
         if hasattr(self, "inner_r") and hasattr(self, "outer_r"):
             info.append(f"inner_r=[{np.min(self.inner_r):.3g}, {np.max(self.inner_r):.3g}]")
@@ -53,14 +54,26 @@ class SphField:
         return "<" + ", ".join(info) + ">"
 
     @timing
-    def _build_ray_vector(self, particles: Particles, num_ray: int, ray_method: str) -> "SphField":
+    def _build_ray_vector(self, density_source: DensitySource, num_ray: int, ray_method: str) -> "SphField":
 
         self.rays = SphVector(num_ray, ray_method)
-        self.particles = particles
+        self.density_source = density_source
         return self
 
+    def _require_particles(self) -> Particles:
+        """
+        Return density_source as Particles, or raise if the source is continuous.
+        """
+        if not isinstance(self.density_source, Particles):
+            raise TypeError(
+                "This method requires discrete particle data (Particles with pos/r). "
+                "For continuous theoretical models, use boundary mode 'value' or 'dist'."
+            )
+        return self.density_source
+
     def _assign_ray_points(self):
-        self.rays_index = self.rays.assign_points(self.particles.pos)
+        particles = self._require_particles()
+        self.rays_index = self.rays.assign_points(particles.pos)
         self.rays_points_num = np.bincount(self.rays_index)
 
         max_num_dex = np.argmax(self.rays_points_num)
@@ -143,7 +156,7 @@ class SphField:
         points_que = self.points_pos.reshape(
             self.points_pos.shape[0] * self.points_pos.shape[1], 3
         )
-        self.points_parameter = self.particles.get_parameter(points_que).reshape(
+        self.points_parameter = self.density_source(points_que).reshape(
             self.points_r.shape
         )
         return self
@@ -254,7 +267,7 @@ class SphField:
             )
             self.iso_points = np.einsum("ij,k->ikj", self.rays_vect, self.iso_pro_r)
 
-            self.iso_parameters = self.particles.get_parameter(
+            self.iso_parameters = self.density_source(
                 self.iso_points.reshape(
                     self.iso_points.shape[0] * self.iso_points.shape[1], 3
                 )
@@ -298,7 +311,8 @@ class SphField:
         """
         if not hasattr(self, "points_index"):
             self._assign_ray_points()
-        return self.particles.pos[self.points_index[n]]
+        particles = self._require_particles()
+        return particles.pos[self.points_index[n]]
 
     def r_ray_n(self, n: int) -> np.ndarray:
         """
@@ -316,7 +330,8 @@ class SphField:
         """
         if not hasattr(self, "points_index"):
             self._assign_ray_points()
-        return self.particles.r[self.points_index[n]]
+        particles = self._require_particles()
+        return particles.r[self.points_index[n]]
 
     def mass_ray_n(self, n: int) -> np.ndarray:
         """
@@ -334,7 +349,8 @@ class SphField:
         """
         if not hasattr(self, "points_index"):
             self._assign_ray_points()
-        return self.particles.mass[self.points_index[n]]
+        particles = self._require_particles()
+        return particles.mass[self.points_index[n]]
 
     def parameter_ray_n(self, n: int) -> np.ndarray:
         """
@@ -352,7 +368,8 @@ class SphField:
         """
         if not hasattr(self, "points_index"):
             self._assign_ray_points()
-        return self.particles.parameter[self.points_index[n]]
+        particles = self._require_particles()
+        return particles.parameter[self.points_index[n]]
 
     def gradient_ray_n(self, n: int) -> np.ndarray:
         """
@@ -370,8 +387,8 @@ class SphField:
         """
         if not hasattr(self, "points_index"):
             self._assign_ray_points()
-
-        return self.particles.gradient[self.points_index[n]]
+        particles = self._require_particles()
+        return particles.gradient[self.points_index[n]]
 
     def generate(self, r: Iterable[float] | float, for_fit: bool = False, **kwargs: Any) -> dict:
         """
@@ -700,8 +717,7 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
 
     # determine search direction
     is_inner = mode == "min"
-
-    r10,r90 = np.percentile(self.particles.r, [10,90])
+    r10,r90 = np.percentile(self.density_source.r, [10,90]) if hasattr(self.density_source, "r") else (1., 30.)  # fallback values if particle radii are not available
     radius_guess = r90*np.ones(len(self.rays_vect)) if is_inner else r10*np.ones(len(self.rays_vect))
     eps_radius = r10/100 if is_inner else r90/100
 
@@ -710,7 +726,7 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     # Coarse search to bracket the boundary
     for _i in range(iter_max):
         param_val = np.zeros_like(radius_guess)
-        param_val[active_mask] = self.particles.get_parameter(radius_guess[active_mask, None] * rays_vect[active_mask])
+        param_val[active_mask] = self.density_source(radius_guess[active_mask, None] * rays_vect[active_mask])
         iter_step = step_fraction * radius_guess
 
         if is_inner:
@@ -743,7 +759,7 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     for _i in range(iter_max):
         radius_mid = (radius_lower[active_mask] + radius_upper[active_mask]) / 2
         pos_mid = radius_mid[:, None] * rays_vect[active_mask]
-        param_val_mid = self.particles.get_parameter(pos_mid)
+        param_val_mid = self.density_source(pos_mid)
 
         if is_inner:
             # inner boundary: param_val > value, update lower boundary

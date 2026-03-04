@@ -15,8 +15,8 @@ import numpy as np
 from gal3d.configuration import config
 from gal3d.util.array_operate import Rotate
 
-from .model_projector import ImageData
 from .render_wrapper import PyRenderImage, PyRenderImageFloat, get_kernel, get_render_image
+from .show import ImageData
 
 
 def which_pos_to_rotation(which_pos: Sequence[int]) -> np.ndarray:

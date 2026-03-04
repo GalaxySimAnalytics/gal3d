@@ -1,6 +1,6 @@
 import numpy as np
 
-from .model_projector import ImageData
+from .show import ImageData
 
 class PyCubicSplineSmoothingKernel:
     def __call__(self, r: float) -> float: ...

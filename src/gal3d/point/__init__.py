@@ -24,6 +24,7 @@ from .global_calculator import GlobalCalculator
 
 if TYPE_CHECKING:
     from gal3d.optimization.result import ModelResult
+    from gal3d.visualization.show import ImageData
 
 class Particles(GlobalCalculator, DensitySource):
     """
@@ -240,3 +241,93 @@ class Particles(GlobalCalculator, DensitySource):
         Returns a list of available density estimator plugin names.
         """
         return DensityEstimator.available_plugins()
+
+
+    def project_2d(
+        self,
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        resolution: int = 200,
+        rotation_matrix: np.ndarray | None = None,
+        z_range: tuple[float, float] | None = None,
+        render_by: Literal["sph", "los"] | None = "sph",
+        subsample: int | None = None,
+        *args: Any,
+        **kwargs:Any,
+    ) -> "ImageData":
+        """
+        Project particles onto a 2-D surface-density image.
+
+        By default the fast SPH renderer is used.  Set ``render_by="los"`` to
+        fall back to the LOS integrator inherited from
+        :class:`~gal3d.density.DensitySource` (via
+        :meth:`~gal3d.density.DensitySource._project_2d_los`).
+
+        Parameters
+        ----------
+        x_range : (float, float)
+            Minimum and maximum extent along the *x*-axis of the output
+            image, in the same physical units as the positions.
+        y_range : (float, float)
+            Minimum and maximum extent along the *y*-axis of the output
+            image.
+        resolution : int, optional
+            Number of pixels along each axis.  Default ``200``.
+        rotation_matrix : ndarray, shape (3, 3), optional
+            Rotation applied to query positions before evaluating the
+            density.  ``None`` (default) means no rotation.
+        z_range : (float, float), optional
+            Integration limits along the line of sight.  If ``None`` a
+            symmetric range ``[-max(Δx, Δy), +max(Δx, Δy)]`` is used.
+        render_by : {'sph', 'los'}, optional
+            Method to use for rendering.  'sph' (default) uses the fast SPH renderer;
+            'los' uses the LOS integrator fallback. None uses directly hist2d
+
+        Returns
+        -------
+        ImageData
+            2-D surface-density map with pixel-centre coordinates and
+            axis extents.
+
+        See Also
+        --------
+        gal3d.visualization.hist2d.render_2d :
+            The underlying SPH renderer.
+        gal3d.density.DensitySource._project_2d_los :
+            The always-available LOS integration fallback.
+        """
+        from gal3d.visualization.hist2d import Rotate, hist_2d, render_2d
+        if render_by is None:
+            if rotation_matrix is not None:
+                rot = rotation_matrix.T
+                pos = Rotate(self.pos, rot)
+            return hist_2d(pos[:,0],pos[:,1],
+                           weights=self.mass,
+                           nbins=resolution,
+                           x_range=x_range,
+                            y_range=y_range)
+        elif render_by == "sph":
+            return render_2d(
+                pos=self.pos,
+                mass=self.mass,
+                hsm=self.hsm,
+                rotation_matrix=rotation_matrix,
+                x_range=x_range,
+                y_range=y_range,
+                nbins=resolution,
+                subsample=subsample,
+                ret_image=True,
+            )
+        elif render_by == "los":
+            return super().project_2d(
+                x_range,
+                y_range,
+                resolution,
+                rotation_matrix,
+                z_range,
+                *args,
+                **kwargs,
+            )
+        else:
+            raise ValueError(f"Invalid render_by value: {render_by}. Must be one of 'sph', 'los', or None.")
+

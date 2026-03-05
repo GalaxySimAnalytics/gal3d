@@ -161,7 +161,6 @@ class DensitySource(Auto3DShape):
         resolution: int = 200,
         rotation_matrix: np.ndarray | None = None,
         z_range: tuple[float, float] | None = None,
-        *args: Any,
         **kwargs: Any,
     ) -> "ImageData":
         """

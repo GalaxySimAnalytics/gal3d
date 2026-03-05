@@ -252,7 +252,6 @@ class Particles(GlobalCalculator, DensitySource):
         z_range: tuple[float, float] | None = None,
         render_by: Literal["sph", "los"] | None = "sph",
         subsample: int | None = None,
-        *args: Any,
         **kwargs:Any,
     ) -> "ImageData":
         """
@@ -320,12 +319,11 @@ class Particles(GlobalCalculator, DensitySource):
             )
         elif render_by == "los":
             return super().project_2d(
-                x_range,
-                y_range,
-                resolution,
-                rotation_matrix,
-                z_range,
-                *args,
+                x_range=x_range,
+                y_range=y_range,
+                resolution=resolution,
+                rotation_matrix=rotation_matrix,
+                z_range=z_range,
                 **kwargs,
             )
         else:

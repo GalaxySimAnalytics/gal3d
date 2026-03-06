@@ -35,6 +35,7 @@ class DensityEstimatorBase(PluginBase, Auto3DShape, metaclass=abc.ABCMeta):
     gradient : tuple
         Cached estimated gradient of the parameter.
     """
+
     pos: Incomplete
     mass: Incomplete
     def __init__(self, pos: ArrayLike, mass: np.ndarray) -> None: ...

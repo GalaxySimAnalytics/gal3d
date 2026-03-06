@@ -2,13 +2,14 @@ from typing import Any, Literal, overload
 
 from gal3d.analyzer import Gal3DAnalyzer as Gal3DAnalyzer
 from gal3d.model_workflow.fit_workflow_plugins.ellipsoid_fit import EllipsoidFitWorkflow
-from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid import IterateEllipsoidWorkflow
+from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_continuous import IterateEllipsoidDensity
+from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import IterateEllipsoidParticles
 from gal3d.optimization.result import ModelResult as ModelResult
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.point import Particles as Particles
 
 class FitWorkflowBase(PluginBase):
-    '''
+    """
     Base class for all fitting workflows.
 
     Subclasses must implement:
@@ -19,7 +20,7 @@ class FitWorkflowBase(PluginBase):
 
     Registration:
     Subclasses are automatically registered as plugins via __init_subclass__.
-    '''
+    """
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as a fitting workflow plugin.
@@ -103,7 +104,10 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     def get_plugin(cls, name: Literal["EllipsoidFitWorkflow"]) -> type[EllipsoidFitWorkflow]: ...
     @overload
     @classmethod
-    def get_plugin(cls, name: Literal["IterateEllipsoidWorkflow"]) -> type[IterateEllipsoidWorkflow]: ...
+    def get_plugin(cls, name: Literal["IterateEllipsoidDensity"]) -> type[IterateEllipsoidDensity]: ...
+    @overload
+    @classmethod
+    def get_plugin(cls, name: Literal["IterateEllipsoidParticles"]) -> type[IterateEllipsoidParticles]: ...
     @overload
     @classmethod
     def get_plugin(cls, name: str) -> type[FitWorkflowBase]: ...

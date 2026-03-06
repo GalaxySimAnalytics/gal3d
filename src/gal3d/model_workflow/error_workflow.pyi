@@ -40,8 +40,10 @@ class ErrorWorkflowBase(PluginBase):
             True if this workflow can handle the result, False otherwise.
         """
     @classmethod
-    def estimate_error(cls, result: StructureCore | ModelResult, param_name: list[str] | None = None, **kwargs: Any) -> dict[str, Any]:
-        """ Estimate errors"""
+    def estimate_error(
+        cls, result: StructureCore | ModelResult, param_name: list[str] | None = None, **kwargs: Any
+    ) -> dict[str, Any]:
+        """Estimate errors"""
     @classmethod
     def estimate_structure_update(cls, result: StructureCore, pos: np.ndarray, **kwargs: Any) -> dict[str, Any]:
         """
@@ -108,7 +110,9 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
         The base class for all error estimator workflow plugins
     """
     @classmethod
-    def get_error_estimator(cls, result: StructureCore | ModelResult | None = None, name: str | None = None) -> ErrorWorkflowBase:
+    def get_error_estimator(
+        cls, result: StructureCore | ModelResult | None = None, name: str | None = None
+    ) -> ErrorWorkflowBase:
         """
         Get the default error estimator workflow.
 
@@ -123,8 +127,10 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
             If no error estimator workflows are available
         """
     @classmethod
-    def estimate_error(cls, result: StructureCore | ModelResult, param_name: list[str] | None = None, **kwargs: Any) -> dict[str, np.ndarray]:
-        '''
+    def estimate_error(
+        cls, result: StructureCore | ModelResult, param_name: list[str] | None = None, **kwargs: Any
+    ) -> dict[str, np.ndarray]:
+        """
         Estimate errors for the given result.
 
         Parameters
@@ -138,7 +144,7 @@ class ErrorWorkflow(PluginManager[ErrorWorkflowBase]):
         -------
         dict
             A dictionary containing the estimated errors.
-        '''
+        """
 
     @overload
     @classmethod

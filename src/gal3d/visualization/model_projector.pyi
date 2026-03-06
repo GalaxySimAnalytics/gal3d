@@ -1,6 +1,5 @@
 import abc
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, Literal, overload
 
 import numpy as np
@@ -10,41 +9,9 @@ from gal3d.plugin import PluginBase, PluginManager
 from gal3d.visualization.model_projector_plugins.projector_line_integration import ProjectorLineIntegration
 from gal3d.visualization.model_projector_plugins.projector_sph_grid import ProjectorSphGrid
 
+from .show import ImageData
+
 __all__ = ["ModelProjectorBase", "ModelProjector"]
-
-@dataclass
-class ImageData:
-    """
-    Container for a projected image and its grid information.
-
-    Attributes
-    ----------
-    value : np.ndarray
-        Image array of shape (ny, nx).
-    xs : np.ndarray
-        X bin centers of shape (nx,).
-    ys : np.ndarray
-        Y bin centers of shape (ny,).
-    xrange : tuple[float, float]
-        (xmin, xmax)
-    yrange : tuple[float, float]
-        (ymin, ymax)
-    """
-    value: np.ndarray
-    xs: np.ndarray
-    ys: np.ndarray
-    xrange: tuple[float, float]
-    yrange: tuple[float, float]
-    @property
-    def extent(self) -> tuple[float, float, float, float]: ...
-    @property
-    def nx(self) -> int: ...
-    @property
-    def ny(self) -> int: ...
-    @property
-    def pixel_area(self) -> float: ...
-    @property
-    def total_quantity(self) -> float: ...
 
 class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
     """
@@ -84,7 +51,15 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
             Wrapped function that includes caching behavior.
         """
     @ImageCache
-    def image(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20), rotation: NDArray[np.float64] | None = None, **kwargs: Any) -> ImageData:
+    def image(
+        self,
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        nbins: int = 100,
+        z_range: tuple[float, float] = (-20, 20),
+        rotation: NDArray[np.float64] | None = None,
+        **kwargs: Any,
+    ) -> ImageData:
         """Generate a projected image of the model with caching.
 
         Parameters
@@ -113,7 +88,13 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         ValueError
             If provided ranges are invalid or inconsistent.
         """
-    def image_xz(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20)) -> ImageData:
+    def image_xz(
+        self,
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        nbins: int = 100,
+        z_range: tuple[float, float] = (-20, 20),
+    ) -> ImageData:
         """Generate a projection in the x-z plane (viewing along +y).
 
         This is a convenience method that applies the appropriate
@@ -135,7 +116,13 @@ class ModelProjectorBase(PluginBase, metaclass=abc.ABCMeta):
         ImageData
             The projected image in the x-z plane.
         """
-    def image_yz(self, x_range: tuple[float, float], y_range: tuple[float, float], nbins: int = 100, z_range: tuple[float, float] = (-20, 20)) -> ImageData:
+    def image_yz(
+        self,
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        nbins: int = 100,
+        z_range: tuple[float, float] = (-20, 20),
+    ) -> ImageData:
         """Generate a projection in the y-z plane (viewing along +x).
 
         This is a convenience method that applies the appropriate

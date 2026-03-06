@@ -81,6 +81,7 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
     kwargs (dict):
         Additional keyword arguments.
     """
+
     algo_name: Incomplete
     algo_options: Incomplete
     kwargs: dict
@@ -103,7 +104,14 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         """
         Register the subclass as an optimizer plugin.
         """
-    def fit(self, fun: Callable, params: Parameters, func_args: tuple | None = None, func_kwargs: dict | None = None, **kwargs: Any) -> OptimizeResult:
+    def fit(
+        self,
+        fun: Callable,
+        params: Parameters,
+        func_args: tuple | None = None,
+        func_kwargs: dict | None = None,
+        **kwargs: Any,
+    ) -> OptimizeResult:
         """
         Fit the model to the data.
 
@@ -126,7 +134,16 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
             The result of the fitting.
         """
     @abstractmethod
-    def fitting(self, fun: Callable, x0: ArrayLike, bounds: Bounds, func_args: tuple | None = None, func_kwargs: dict | None = None, param_names: list[str] | None = None, **kwargs: Any) -> OptimizeResult:
+    def fitting(
+        self,
+        fun: Callable,
+        x0: ArrayLike,
+        bounds: Bounds,
+        func_args: tuple | None = None,
+        func_kwargs: dict | None = None,
+        param_names: list[str] | None = None,
+        **kwargs: Any,
+    ) -> OptimizeResult:
         """
         Perform the fitting process for input functions (minimization).
 
@@ -152,7 +169,14 @@ class OptimizerBase(PluginBase, metaclass=abc.ABCMeta):
         result : OptimizeResult
             The result of the fitting.
         """
-    def create_params(self, param_values: Sequence[float], param_names: list[str] | None = None, param_lbs: Sequence[float | None] | None = None, param_ubs: Sequence[float | None] | None = None, param_errors: Sequence[float | None] | None = None) -> ParameterDict:
+    def create_params(
+        self,
+        param_values: Sequence[float],
+        param_names: list[str] | None = None,
+        param_lbs: Sequence[float | None] | None = None,
+        param_ubs: Sequence[float | None] | None = None,
+        param_errors: Sequence[float | None] | None = None,
+    ) -> ParameterDict:
         """
         Create a ParameterDict from the given parameter information.
 

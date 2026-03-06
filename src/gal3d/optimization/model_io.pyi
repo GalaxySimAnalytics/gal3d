@@ -30,6 +30,7 @@ class MetaDataDict(dict[str, Any]):
     model_count : int
         Number of models stored.
     """
+
     coordinate_name: str
     geometry_name: str
     error_method_name: str | None
@@ -71,7 +72,16 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
         Registers the subclass as a model I/O plugin.
         """
     @classmethod
-    def save(cls, model: ModelResult, filename: str, info_keys: tuple[str, ...] = ("parameter",), result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"), metadata: dict[str, Any] | None = None, overwrite: bool = False, **kwargs: Any) -> None:
+    def save(
+        cls,
+        model: ModelResult,
+        filename: str,
+        info_keys: tuple[str, ...] = ("parameter",),
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
+        metadata: dict[str, Any] | None = None,
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """
         Save the model to a file.
 
@@ -128,7 +138,12 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
             The directory path.
         """
     @classmethod
-    def extract_data_from_model(cls, model: ModelResult, info_keys: tuple[str, ...] = ("parameter",), result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")) -> dict[Literal["meta", "parameters", "opt_info"], dict[str, Any] | MetaDataDict]:
+    def extract_data_from_model(
+        cls,
+        model: ModelResult,
+        info_keys: tuple[str, ...] = ("parameter",),
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
+    ) -> dict[Literal["meta", "parameters", "opt_info"], dict[str, Any] | MetaDataDict]:
         """
         Extract all relevant data from a ModelResult for saving or management.
 

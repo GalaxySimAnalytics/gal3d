@@ -20,33 +20,53 @@ def _find_package_root(file_path: Path, top_pkg: str) -> Path:
     # Fallback: place into the directory of the module file (no package tree rebuild)
     return file_path.parent
 
+def _ruff_fix(pyi_path: Path) -> None:
+    """Run ruff check --fix and ruff format on the given .pyi file to normalize imports."""
+    for cmd in (
+        ["ruff", "check", "--fix", "--select", "I", str(pyi_path)],  # isort only
+        ["ruff", "format", str(pyi_path)],
+    ):
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass  # ruff not available or failed, skip silently
 
 def _ensure_typing_imports(lines: list[str]) -> None:
-    """Ensure 'from typing import Literal, overload' exists."""
-    needed = "from typing import Literal, overload\n"
-    if any(l.startswith("from typing import") and "Literal" in l and "overload" in l for l in lines):
-        return
-    # insert after the last import block
-    insert_at = 0
-    for i, l in enumerate(lines):
-        if l.startswith(("from ", "import ")):
-            insert_at = i + 1
-    lines.insert(insert_at, needed)
+    """Ensure Literal and overload are importable from typing.
+
+    Rather than precisely merging existing typing imports, we add individual
+    import lines for any missing names. ruff --fix will merge and sort them.
+    """
+    existing = "".join(lines)
+    for name in ("Literal", "overload"):
+        # Check if 'name' is already imported from typing
+        if f"from typing import" in existing and name in existing:
+            continue
+        # Append a bare import line; ruff will merge it later
+        insert_at = 0
+        for i, l in enumerate(lines):
+            if l.startswith(("from ", "import ")):
+                insert_at = i + 1
+        lines.insert(insert_at, f"from typing import {name}\n")
 
 
 def _ensure_plugin_imports(lines: list[str], imports: list[str]) -> None:
-    """Insert plugin class imports if not already present."""
-    add = [imp for imp in sorted(set(imports)) if all(imp not in l for l in lines)]
-    if not add:
-        return
-    # insert after the last import block
+    """Insert plugin class imports if not already present.
+
+    Import order does NOT matter here — ruff will sort everything after.
+    """
+    existing = "".join(lines)
     insert_at = 0
     for i, l in enumerate(lines):
         if l.startswith(("from ", "import ")):
             insert_at = i + 1
-    for imp in add:
-        lines.insert(insert_at, imp + "\n")
-        insert_at += 1
+
+    for imp in imports:
+        # Extract 'ClassName' from 'from x.y import ClassName'
+        cls_name = imp.rsplit(" ", 1)[-1]
+        if cls_name not in existing:
+            lines.insert(insert_at, imp + "\n")
+            insert_at += 1
 
 
 def _class_block_range(lines: list[str], cls_name: str) -> tuple[int, int, int]:
@@ -56,11 +76,9 @@ def _class_block_range(lines: list[str], cls_name: str) -> tuple[int, int, int]:
     """
     start = -1
     for i, l in enumerate(lines):
-        # Only match top-level classes
         if not l.startswith("class "):
             continue
         rest = l[len("class "):]
-        # class Name(...): or class Name:
         name = rest.split("(", 1)[0].split(":", 1)[0].strip()
         if name == cls_name:
             start = i
@@ -83,8 +101,7 @@ def _class_block_range(lines: list[str], cls_name: str) -> tuple[int, int, int]:
             if indent < body_indent:
                 break
         k += 1
-    end = k
-    return start, end, body_indent
+    return start, k, body_indent
 
 
 def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> None:
@@ -93,34 +110,22 @@ def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> 
         return
     start, end, body_indent = _class_block_range(lines, mgr_name)
     if start < 0:
-        # No manager class in stub? Append a partial class stub.
-        lines += [
-            f"\nclass {mgr_name}:\n",
-        ] + [ol for ol in overloads]
+        lines += [f"\nclass {mgr_name}:\n"] + overloads
         return
 
-    # If the class is a single-line stub: "class X(...): ...", expand it to a block
+    # If the class is a single-line stub: "class X(...): ...", expand it
     header_line = lines[start]
     after_colon = header_line.split(":", 1)[1] if ":" in header_line else ""
     if after_colon.strip() in ("...", "pass"):
-        # Turn into:
-        # class X(...):
-        #     ...
         prefix = header_line.split(":", 1)[0]
         lines[start] = prefix + ":\n"
-        # Prefer a 4-space indent for class body
-        placeholder = " " * 4 + "...\n"
-        lines.insert(start + 1, placeholder)
-        # Recompute class block after expansion
+        lines.insert(start + 1, " " * 4 + "...\n")
         start, end, body_indent = _class_block_range(lines, mgr_name)
 
-    # Filter out overloads already present (by plugin Literal[...] marker)
+    # Filter out overloads already present by matching Literal["plugin_name"]
     class_block = "".join(lines[start:end])
     todo = []
     for chunk in overloads:
-        # Each chunk contains 'Literal["{pname}"]'
-        if "Literal[" in chunk and chunk in class_block:
-            continue
         if "Literal[" in chunk:
             lit = chunk.split("Literal[", 1)[1].split("]", 1)[0]
             if lit in class_block:
@@ -129,15 +134,14 @@ def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> 
     if not todo:
         return
 
-    # If the class body only contains a placeholder "...", remove it before inserting methods
+    # Remove placeholder "..." body line before inserting methods
     body_start = start + 1
     if body_start < len(lines) and lines[body_start].strip() == "...":
         del lines[body_start]
-        # Adjust end because we removed one line
         end -= 1
 
     # Ensure a blank line before injected methods if body not empty
-    insert_lines = []
+    insert_lines: list[str] = []
     if any(lines[i].strip() for i in range(start + 1, end)):
         insert_lines.append("\n")
     insert_lines += todo
@@ -148,14 +152,12 @@ def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> 
 def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
     """
     Run stubgen for a module and return the path to the generated .pyi.
-    Try 'stubgen' CLI first, then in-process API, then 'python -m mypy.stubgen'.
     """
     out_root.mkdir(parents=True, exist_ok=True)
 
-    # 1) Try console script 'stubgen'
     tried: list[list[str]] = []
     for cmd in (
-        ["stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"], #  "--include-private"
+        ["stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
         [sys.executable, "-m", "mypy.stubgen", "-m", module_name, "-o", str(out_root), "--include-docstrings"],
     ):
         tried.append(cmd)
@@ -165,7 +167,6 @@ def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
         except (FileNotFoundError, subprocess.CalledProcessError):
             continue
     else:
-        # 2) Try in-process API as last robust option
         try:
             import mypy.stubgen as _stubgen  # type: ignore
             try:
@@ -181,12 +182,10 @@ def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
                 f"Hint: pip install -U mypy"
             ) from e
 
-    # Resolve output file path
     parts = module_name.split(".")
     rel_dir = out_root.joinpath(*parts[:-1]) if len(parts) > 1 else out_root
     pyi_path = rel_dir / (parts[-1] + ".pyi")
     if not pyi_path.exists():
-        # If stubgen emitted package stub, expect __init__.pyi
         pkg_init = rel_dir / "__init__.pyi"
         if pkg_init.exists():
             pyi_path = pkg_init
@@ -196,10 +195,9 @@ def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
 
 
 def gen_manager_pyi(manager: Type[PluginManager]) -> None:
-    # Discover plugins first
-    plugins = manager.available_plugins()
+    # Discover plugins — sorted for deterministic overload order
+    plugins = sorted(manager.available_plugins())
 
-    # Locate source module and output root
     module_name = manager.__module__
     src_file = inspect.getsourcefile(manager)
     if not src_file:
@@ -208,10 +206,9 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
     top_pkg = module_name.split(".")[0]
     out_root = _find_package_root(src_path, top_pkg)
 
-    # Generate base .pyi via stubgen
     pyi_path = _run_stubgen_for_module(module_name, out_root)
 
-    # Build plugin import lines and overloads
+    # Build plugin import lines and overloads (sorted = deterministic)
     imports: list[str] = []
     overloads_get: list[str] = []
     for pname in plugins:
@@ -223,25 +220,26 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
             "    @classmethod\n"
             f"    def get_plugin(cls, name: Literal[\"{pname}\"]) -> type[{cls_name}]: ...\n"
         )
+    # Fallback overload always last
     overloads_get.append(
         "    @overload\n"
         "    @classmethod\n"
         f"    def get_plugin(cls, name: str) -> type[{manager._base_class.__name__}]: ...\n"
     )
 
-    # Read, patch, write
     text = pyi_path.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
 
-    # Ensure typing imports (Literal, overload)
     _ensure_typing_imports(lines)
-    # Ensure plugin imports
     _ensure_plugin_imports(lines, imports)
-    # Inject overloads in the manager class
-    mgr_name = manager.__name__
-    _inject_overloads(lines, mgr_name, overloads_get)
+    _inject_overloads(lines, manager.__name__, overloads_get)
 
     pyi_path.write_text("".join(lines), encoding="utf-8")
+
+    # Delegate import sorting/formatting to ruff — this makes the output
+    # identical to what pre-commit ruff would produce, so git sees no diff.
+    _ruff_fix(pyi_path)
+
     print(f"Patched {pyi_path}")
 
 

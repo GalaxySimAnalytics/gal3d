@@ -98,6 +98,12 @@ from gal3d.optimization.result import EmptyModelResult, ModelResult
 from gal3d.point.util import abc_vect
 from gal3d.shape import StructureCore
 
+from .util import (
+    _axis_ratio_error,
+    _periodic_diff,
+    _prepare_bins,
+)
+
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
     from gal3d.point import Particles
@@ -108,27 +114,7 @@ logger = logging.getLogger("gal3d.fit_workflow_plugins")
 ArrayF = NDArray[np.floating[Any]]
 ArrayI = NDArray[np.int_]
 
-
-def _periodic_diff(a: float, b: float, period: float = 2 * np.pi) -> float:
-    """
-    Minimal absolute difference between two angles on a circle.
-
-    Parameters
-    ----------
-    a, b : float
-        Angles in radians.
-    period : float, optional
-        Period of the angles (default is 2π).
-
-    Returns
-    -------
-    float
-        Minimal absolute difference between a and b, accounting for periodicity.
-    """
-    d = (a - b + 0.5 * period) % period - 0.5 * period
-    return float(np.abs(d))
-
-class IterateEllipsoidWorkflow(FitWorkflowBase):
+class IterateEllipsoidParticles(FitWorkflowBase):
     """
     Workflow for estimating ellipsoidal shape using an iterative mass–moment
     (inertia tensor) method.
@@ -142,54 +128,6 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
             return True
         else:
             raise TypeError("Unsupported object type")
-
-    def _prepare_bins(
-        self,
-        r: np.ndarray,
-        rmin: float,
-        rmax: float,
-        nbins: int,
-        bins: str) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Prepare radial bin edges and representative radii.
-
-        Parameters
-        ----------
-        r : ndarray of float
-            Particle radii.
-        rmin, rmax : float
-            Minimum and maximum radii for binning.
-        nbins : int
-            Number of radial bins.
-        bins : {'equal', 'log', 'lin'}
-            Binning scheme:
-            * ``'equal'`` – equal number of particles per bin
-            * ``'log'``   – logarithmically spaced in radius
-            * ``'lin'``   – linearly spaced in radius
-
-        Returns
-        -------
-        bin_edges : ndarray of float
-            Array of length ``nbins + 1`` with bin edges.
-        rbins : ndarray of float
-            Representative radius for each bin (e.g. geometric mean).
-        """
-        def equal_bins(r: np.ndarray, N: int) -> np.ndarray:
-            sorted_r = np.sort(r[(r >= rmin) & (r <= rmax)])
-            return np.append(
-                [sorted_r[i * int(len(sorted_r) / N):(1 + i) * int(len(sorted_r) / N)][0] for i in range(N)],
-                sorted_r[-1])
-        if bins == "equal":
-            full_bins = equal_bins(r, nbins * 2)
-            bin_edges = full_bins[0:nbins * 2 + 1:2]
-            rbins = full_bins[1:nbins * 2 + 1:2]
-        elif bins == "log":
-            bin_edges = np.geomspace(rmin, rmax, nbins + 1)
-            rbins = np.sqrt(bin_edges[:-1] * bin_edges[1:])
-        elif bins == "lin":
-            bin_edges = np.linspace(rmin, rmax, nbins + 1)
-            rbins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-        return bin_edges.astype(float), rbins.astype(float)
 
     def _select_shell_indices(
         self,
@@ -247,15 +185,6 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         scale = (np.prod(a_old) / np.prod(a_new)) ** (1.0 / 3.0)
         return a_new * scale
 
-    @staticmethod
-    def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
-        return float(
-            0.5
-            * (
-                np.abs(a[1] / a[0] - a_prev[1] / a_prev[0])
-                + np.abs(a[2] / a[0] - a_prev[2] / a_prev[0])
-            )
-        )
 
     @staticmethod
     def _compute_density(
@@ -365,7 +294,7 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
             a = self._update_axes(a, abc)
 
             iteration_counter += 1
-            err = self._axis_ratio_error(a, a_prev)
+            err = _axis_ratio_error(a, a_prev)
 
         ellipsoid_density = self._compute_density(ellipse_mass, bin_edges, i, is_enclosed)
         return a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev
@@ -479,7 +408,7 @@ class IterateEllipsoidWorkflow(FitWorkflowBase):
         pos = particles.pos
         mass = particles.mass
 
-        bin_edges, rbins = self._prepare_bins(r, rmin, rmax, nbins, bins)
+        bin_edges, rbins = _prepare_bins(r, rmin, rmax, nbins, bins)
         model_results: list[ModelResult] = []
         stru = StructureCore("RotateOnly", "Ellipsoid")
 

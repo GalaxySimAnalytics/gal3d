@@ -304,7 +304,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         rmin: float | None = None,
         rmax: float | None = None,
         bins: Literal["equal", "log", "lin"] = "equal",
-        max_iterations: int = 10,
+        max_iterations: int = 20,
         tol: float = 1e-3,
         is_enclosed: bool = False,
         weight_method: Literal["r2", "rell2"] | None = None,
@@ -330,7 +330,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             * ``'log'``   – logarithmically spaced in radius
             * ``'lin'``   – linearly spaced in radius
         max_iterations : int, optional
-            Maximum number of iterations per radial bin (default is 10).
+            Maximum number of iterations per radial bin (default is 20).
         tol : float, optional
             Convergence tolerance on axis‑ratio changes, by default ``1e-3``.
         is_enclosed : bool, optional

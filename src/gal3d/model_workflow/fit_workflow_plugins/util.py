@@ -119,13 +119,10 @@ class EllipsoidResultBuilder:
 
     @staticmethod
     def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
-        return float(
-            0.5
-            * (
-                np.abs(a[1] / a[0] - a_prev[1] / a_prev[0])
-                + np.abs(a[2] / a[0] - a_prev[2] / a_prev[0])
-            )
+        return float(np.abs(a[2]*a_prev[0]/ (a[0]*a_prev[2]) - 1.0)
+                    + np.abs(a[1]*a_prev[0]/ (a[0]*a_prev[1]) - 1.0)
         )
+
 
     @staticmethod
     def _build_model_result(

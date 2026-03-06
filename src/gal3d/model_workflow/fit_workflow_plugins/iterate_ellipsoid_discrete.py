@@ -93,14 +93,12 @@ from numpy.typing import NDArray
 from tqdm import tqdm
 
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
-from gal3d.optimization.optimizer import OptimizeResult
 from gal3d.optimization.result import EmptyModelResult, ModelResult
 from gal3d.point.util import abc_vect
 from gal3d.shape import StructureCore
 
 from .util import (
-    _axis_ratio_error,
-    _periodic_diff,
+    EllipsoidResultBuilder,
     _prepare_bins,
 )
 
@@ -114,7 +112,7 @@ logger = logging.getLogger("gal3d.fit_workflow_plugins")
 ArrayF = NDArray[np.floating[Any]]
 ArrayI = NDArray[np.int_]
 
-class IterateEllipsoidParticles(FitWorkflowBase):
+class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
     """
     Workflow for estimating ellipsoidal shape using an iterative mass–moment
     (inertia tensor) method.
@@ -294,42 +292,10 @@ class IterateEllipsoidParticles(FitWorkflowBase):
             a = self._update_axes(a, abc)
 
             iteration_counter += 1
-            err = _axis_ratio_error(a, a_prev)
+            err = self._axis_ratio_error(a, a_prev)
 
         ellipsoid_density = self._compute_density(ellipse_mass, bin_edges, i, is_enclosed)
         return a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev
-
-    def _build_model_result(
-        self,
-        stru: StructureCore,
-        a: np.ndarray,
-        R: np.ndarray,
-        a_prev: np.ndarray,
-        R_prev: np.ndarray,
-        iteration_counter: int,
-        err: float,
-        ellipsoid_density: float
-        ) -> ModelResult:
-        """Build ModelResult from the final iteration of the ellipsoid fitting."""
-        stru.parameters["a"] = a[0]
-        stru.parameters.get_parameter("a").err = np.abs(a[0] - a_prev[0])
-        stru.parameters["eps_ab"] = 1 - a[1] / a[0]
-        stru.parameters.get_parameter("eps_ab").err = np.abs((a[1] / a[0]) - (a_prev[1] / a_prev[0]))
-        stru.parameters["eps_bc"] = 1 - a[2] / a[1]
-        stru.parameters.get_parameter("eps_bc").err = np.abs((a[2] / a[1]) - (a_prev[2] / a_prev[1]))
-
-        ang = stru._coordinate.mat_to_angle(R)  # type: ignore
-        stru.parameters["ang1"], stru.parameters["ang2"], stru.parameters["ang3"] = ang
-        ang_prev = stru._coordinate.mat_to_angle(R_prev)  # type: ignore
-        stru.parameters.get_parameter("ang1").err = _periodic_diff(ang[0], ang_prev[0])
-        stru.parameters.get_parameter("ang2").err = _periodic_diff(ang[1], ang_prev[1])
-        stru.parameters.get_parameter("ang3").err = _periodic_diff(ang[2], ang_prev[2])
-
-        params = stru.parameters.deepcopy()
-        params.add_info(parameter=ellipsoid_density)
-        optimize_result = OptimizeResult(params=params, fun=None, start_fun=None, start_params=None,
-                                         n_iterations=iteration_counter, cost=err)
-        return ModelResult(stru, optimize_result, params)
 
     def __call__(
         self,

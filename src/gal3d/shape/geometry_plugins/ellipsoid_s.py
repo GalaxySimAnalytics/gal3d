@@ -32,8 +32,8 @@ class Ellipsoid_S(GeometryBase):
 
     # Using a tuple instead of a set to maintain order and allow duplicates if needed.
     PN = ("a", "eps_ab", "eps_bc", "sa", "sb", "sc")
-    LB = {"a": 0.1, "eps_ab": 0.01, "eps_bc": 0.01, "sa": 0.2, "sb": 0.2, "sc": 0.2}
-    UB = {"a": np.inf, "eps_ab": 0.99, "eps_bc": 0.99, "sa": 2, "sb": 2, "sc": 2}
+    LB = {"a": 0.1, "eps_ab": 0.001, "eps_bc": 0.001, "sa": 0.2, "sb": 0.2, "sc": 0.2}
+    UB = {"a": np.inf, "eps_ab": 0.999, "eps_bc": 0.999, "sa": 2, "sb": 2, "sc": 2}
 
     def __init__(self, *args, **kwargs):
         """

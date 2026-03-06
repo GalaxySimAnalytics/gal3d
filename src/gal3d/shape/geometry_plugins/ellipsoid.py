@@ -32,8 +32,8 @@ class Ellipsoid(GeometryBase):
 
     # Parameter names for the ellipsoid, representing the semi-major axis and ellipticities.
     PN = ("a", "eps_ab", "eps_bc")  ### not use set !!!
-    LB = {"a": 0.1, "eps_ab": 0.01, "eps_bc": 0.01}
-    UB = {"a": np.inf, "eps_ab": 0.99, "eps_bc": 0.99}
+    LB = {"a": 0.1, "eps_ab": 0.001, "eps_bc": 0.001}
+    UB = {"a": np.inf, "eps_ab": 0.999, "eps_bc": 0.999}
 
     def __init__(self, *args: Any, **kwargs: float):
         """

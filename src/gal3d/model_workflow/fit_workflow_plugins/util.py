@@ -187,7 +187,8 @@ class EllipsoidResultBuilder:
         ang_prev = stru._coordinate.mat_to_angle(rot_prev)  # type: ignore
         stru.parameters["ang1"], stru.parameters["ang2"], stru.parameters["ang3"] = ang
         for k, (aa, bb) in enumerate(zip(ang, ang_prev, strict=False), start=1):
-            stru.parameters.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb)
+            # for ellipsoid, angles are periodic with period π/2 (not 2π) because of the symmetry
+            stru.parameters.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb, period = np.pi/2)
 
         # ---- pack result ----
         params = stru.parameters.deepcopy()

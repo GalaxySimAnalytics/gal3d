@@ -55,17 +55,23 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         return is_supported
 
-    def __call__(self, obj: Union["Gal3DAnalyzer", "Particles"], a: float, **kwargs: Any) -> ModelResult:
+    def _fit_single(
+        self,
+        obj: Union["Gal3DAnalyzer", "Particles"],
+        r: float,
+        **kwargs: Any,
+    ) -> ModelResult:
         """
-        Fit an ellipsoidal or generalized ellipsoidal structure at a given semi-major axis `a`.
+        Fit an ellipsoidal or generalized ellipsoidal structure at semi-major
+        axis ``r``.
 
         Parameters
         ----------
-        analyzer : Gal3DAnalyzer
+        obj : Gal3DAnalyzer
             The analyzer instance.
-        a : float
+        r : float
             The semi-major axis at which the structure is fitted.
-        **kwargs : dict
+        **kwargs
             Optional arguments for the fitting process.
 
         Returns
@@ -76,58 +82,61 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         # Fast path: check for supported geometry before generating data
         if not self.condition(obj):
             raise ValueError("Unsupported object type for ellipsoid fitting.")
-        else:
-            obj = cast("Gal3DAnalyzer", obj)
+        obj = cast("Gal3DAnalyzer", obj)
 
         geometry_name = obj.structure._geometry_name
         if geometry_name not in ["Ellipsoid", "Ellipsoid_S"]:
             raise ValueError(f"Unsupported geometry type: {geometry_name}")
 
-        # Process input parameters efficiently
-        var_a = min(max(kwargs.get("var_a", 0.3), 0), 0.99)
-        var_cen = kwargs.get("var_cen",0.1)
-        single_fit = kwargs.get("single_fit", False)
-        fix_eps = kwargs.get("fix_eps", True)
+        # Process input parameters
+        a = r
+        var_a        = min(max(kwargs.get("var_a", 0.3), 0), 0.99)
+        var_cen      = kwargs.get("var_cen", 0.1)
+        single_fit   = kwargs.get("single_fit", False)
+        fix_eps      = kwargs.get("fix_eps", True)
         init_parameters = kwargs.get("init_parameters", {})
         upper_bounds = kwargs.get("upper_bounds", {})
         lower_bounds = kwargs.get("lower_bounds", {})
-        min_uniform = kwargs.get("min_uniform", 0.9)
+        min_uniform  = kwargs.get("min_uniform", 0.9)
 
-        # Generate data only once
+        # Generate data for fitting
         data = obj.field.generate(a, for_fit=True)
-
-        # Extract info once if present
         info = data.pop("info", {})
         info["data"] = data["pos"]
 
-        # Validate data points efficiently
+        # Validate data points before fitting
         N_p = len(data["pos"])
         if N_p < 12:
             raise InsufficientPointsError("Insufficient points for fitting: < 12")
         if N_p < obj.field.rays.num:
             uni = SphVector.cal_uniformity(data["pos"])
             if uni < min_uniform:
-                raise PoorUniformityError(f"Poor point distribution uniformity detected: < {min_uniform}")
+                raise PoorUniformityError(
+                    f"Poor point distribution uniformity detected: < {min_uniform}"
+                )
 
         if var_cen is not None:
-            if ("x" in init_parameters and "y" in init_parameters and "z" in init_parameters):
-                curr_cen = np.mean(data["pos"],axis=0)
-                if abs(curr_cen[0] - init_parameters["x"])>var_cen*a:
-                    del init_parameters["x"]
-                if abs(curr_cen[1] - init_parameters["y"])>var_cen*a:
-                    del init_parameters["y"]
-                if abs(curr_cen[2] - init_parameters["z"])>var_cen*a:
-                    del init_parameters["z"]
+            if ("x" in init_parameters and "y" in init_parameters
+                    and "z" in init_parameters):
+                curr_cen = np.mean(data["pos"], axis=0)
+                for ax, idx in zip(["x", "y", "z"], [0, 1, 2], strict=False):
+                    if abs(curr_cen[idx] - init_parameters[ax]) > var_cen * a:
+                        del init_parameters[ax]
 
+        is_standard = (geometry_name == "Ellipsoid") or (
+            geometry_name == "Ellipsoid_S" and single_fit
+        )
 
-        is_standard_ellipsoid = (geometry_name == "Ellipsoid") or (geometry_name == "Ellipsoid_S" and single_fit)
-
-        if is_standard_ellipsoid:
-            # Simple case: standard ellipsoid fitting
-            return self._fit_standard_ellipsoid(obj, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info)
-        else:
-            # Complex case: two-step generalized ellipsoid fitting
-            return self._fit_generalized_ellipsoid(obj, data, a, var_a, var_cen, fix_eps, init_parameters, upper_bounds, lower_bounds, info)
+        if is_standard: # Simple case: standard ellipsoid fitting
+            return self._fit_standard_ellipsoid(
+                obj, data, a, var_a, var_cen,
+                init_parameters, upper_bounds, lower_bounds, info,
+            )
+        else:           # Complex case: two-step generalized ellipsoid fitting
+            return self._fit_generalized_ellipsoid(
+                obj, data, a, var_a, var_cen, fix_eps,
+                init_parameters, upper_bounds, lower_bounds, info,
+            )
 
     def _fit_standard_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float | None, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
         """

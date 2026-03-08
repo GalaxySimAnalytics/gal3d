@@ -116,6 +116,7 @@ class EllipsoidResultBuilder:
         Mean volumetric density inside the shell,
         :math:`\\bar{\\rho} = M_\\mathrm{shell} / V_\\mathrm{shell}`.
     """
+    _default_structure = StructureCore("RotateOnly", "Ellipsoid")
 
     @staticmethod
     def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
@@ -123,13 +124,25 @@ class EllipsoidResultBuilder:
                     + np.abs(a[1]*a_prev[0]/ (a[0]*a_prev[1]) - 1.0)
         )
 
-
     @staticmethod
+    def _to_new_ellipsoid(a_old: ArrayF, a_new: ArrayF, volume_conservation: bool = True) -> ArrayF:
+        if volume_conservation:
+            # Rescale the new axes to preserve the volume of the ellipsoid,
+            # which can help stabilize the iteration when the axis ratios are far from unity.
+            old_vol = np.prod(a_old)
+            new_vol = np.prod(a_new)
+            scale = (old_vol / new_vol) ** (1/3)
+            return a_new * scale
+        else:
+            # fix the major axis and only update the axis ratios
+            return np.array([a_new[0], a_old[1]/a_old[0]*a_new[0], a_old[2]/a_old[0]*a_new[0]],dtype=float)
+
+    @classmethod
     def _build_model_result(
-        stru: StructureCore,
-        a: np.ndarray,
+        cls,
+        abc: np.ndarray,
         rot: np.ndarray,
-        a_prev: np.ndarray,
+        abc_prev: np.ndarray,
         rot_prev: np.ndarray,
         n_iter_done: int,
         err: float,
@@ -140,14 +153,12 @@ class EllipsoidResultBuilder:
 
         Parameters
         ----------
-        stru : StructureCore
-            Shared structure object (mutated in-place and then deep-copied).
-        a : ndarray of shape (3,)
+        abc : ndarray of shape (3,)
             Converged semi-axes :math:`(a \\geq b \\geq c)`.
         rot : ndarray of shape (3, 3)
             Converged rotation matrix; columns are principal axes in the
             lab frame.
-        a_prev : ndarray of shape (3,)
+        abc_prev : ndarray of shape (3,)
             Semi-axes from the **penultimate** iteration, used to estimate
             parameter uncertainties.
         rot_prev : ndarray of shape (3, 3)
@@ -168,30 +179,30 @@ class EllipsoidResultBuilder:
         ModelResult
         """
         # ---- axis length ----
-        stru.parameters["a"] = a[0]
-        stru.parameters.get_parameter("a").err = float(np.abs(a[0] - a_prev[0]))
+        params = cls._default_structure.parameters.deepcopy()
+        params["a"] = abc[0]
+        params.get_parameter("a").err = float(np.abs(abc[0] - abc_prev[0]))
 
         # ---- ellipticities ----
-        stru.parameters["eps_ab"] = 1.0 - a[1] / a[0]
-        stru.parameters.get_parameter("eps_ab").err = float(
-            np.abs(a[1] / a[0] - a_prev[1] / a_prev[0])
+        params["eps_ab"] = 1.0 - abc[1] / abc[0]
+        params.get_parameter("eps_ab").err = float(
+            np.abs(abc[1] / abc[0] - abc_prev[1] / abc_prev[0])
         )
 
-        stru.parameters["eps_bc"] = 1.0 - a[2] / a[1]
-        stru.parameters.get_parameter("eps_bc").err = float(
-            np.abs(a[2] / a[1] - a_prev[2] / a_prev[1])
+        params["eps_bc"] = 1.0 - abc[2] / abc[1]
+        params.get_parameter("eps_bc").err = float(
+            np.abs(abc[2] / abc[1] - abc_prev[2] / abc_prev[1])
         )
 
         # ---- orientation angles ----
-        ang      = stru._coordinate.mat_to_angle(rot)       # type: ignore
-        ang_prev = stru._coordinate.mat_to_angle(rot_prev)  # type: ignore
-        stru.parameters["ang1"], stru.parameters["ang2"], stru.parameters["ang3"] = ang
+        ang      = cls._default_structure._coordinate.mat_to_angle(rot)       # type: ignore
+        ang_prev = cls._default_structure._coordinate.mat_to_angle(rot_prev)  # type: ignore
+        params["ang1"], params["ang2"], params["ang3"] = ang
         for k, (aa, bb) in enumerate(zip(ang, ang_prev, strict=False), start=1):
             # for ellipsoid, angles are periodic with period π/2 (not 2π) because of the symmetry
-            stru.parameters.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb, period = np.pi/2)
+            params.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb, period = np.pi/2)
 
         # ---- pack result ----
-        params = stru.parameters.deepcopy()
         params.add_info(parameter=shell_density)
 
         opt = OptimizeResult(
@@ -202,4 +213,4 @@ class EllipsoidResultBuilder:
             n_iterations=n_iter_done,
             cost=err,
         )
-        return ModelResult(stru, opt, params)
+        return ModelResult(cls._default_structure, opt, params)

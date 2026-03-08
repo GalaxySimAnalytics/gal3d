@@ -132,19 +132,16 @@ iteration uncertainties.
 
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 from numpy.polynomial.legendre import leggauss
-from tqdm import tqdm
 
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
-from gal3d.optimization.result import EmptyModelResult, ModelResult
-from gal3d.shape import StructureCore
+from gal3d.optimization.result import ModelResult
 
 from .util import (
     EllipsoidResultBuilder,
-    _prepare_bins,
 )
 
 if TYPE_CHECKING:
@@ -356,8 +353,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
     def _iterate_shell(
         self,
         source: "DensitySource",
-        radius: float,
-        a_init: np.ndarray,
+        abc_init: np.ndarray,
         *,
         max_iterations: int,
         tol: float,
@@ -372,15 +368,15 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         Parameters
         ----------
         source : DensitySource
-        radius : float
-            Equivalent radius :math:`r = (abc)^{1/3}` for this shell.
-        a_init : ndarray of shape (3,)
+            Object with a ``_evaluate_density(pos)`` method, used to evaluate the density on each trial ellipsoid surface.
+        abc_init : ndarray of shape (3,)
             Initial semi-axes.
         max_iterations : int
             Maximum number of iterations.
         tol : float
             Convergence tolerance.
         volume_conserve : bool
+            Whether to conserve volume during iteration. If false, the major axis is fixed.
         damping : float
             Damping coefficient :math:`\\alpha \\in (0, 1]`.
         ntheta, nphi : int
@@ -405,176 +401,61 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             on the converged ellipsoid surface.  Directly usable as the
             isodensity value — no further conversion needed.
         """
-        a        = a_init.copy()
+        abc        = abc_init.copy()
         rot      = np.eye(3)
-        a_prev   = a_init.copy()
+        abc_prev   = abc_init.copy()
         rot_prev = rot.copy()
         err      = tol + 1.0
         mean_rho = 0.0
         iteration_counter = 0
 
         while (err > tol) and (iteration_counter < max_iterations):
-            a_prev   = a.copy()
+            abc_prev   = abc.copy()
             rot_prev = rot.copy()
 
             S, mean_rho = _ellipsoid_shell_shape_tensor(
-                source, float(a[0]), float(a[1]), float(a[2]),
+                source, float(abc[0]), float(abc[1]), float(abc[2]),
                 rotation_matrix=rot,
                 ntheta=ntheta, nphi=nphi,
             )
-            a_new, rot_new = _shape_tensor_to_axes(S, a, volume_conserve)
+            abc_new, rot_new = _shape_tensor_to_axes(S, abc, volume_conserve)
 
-            err = self._axis_ratio_error(a_new, a)
-            a_damped = (1.0 - damping) * a + damping * a_new
-            if volume_conserve:
-                a_damped *= (radius**3 / np.prod(a_damped)) ** (1.0 / 3.0)
+            err = self._axis_ratio_error(abc_new, abc)
+            abc_damped = (1.0 - damping) * abc + damping * abc_new
 
-            a = a_damped
+            abc = self._to_new_ellipsoid(abc, abc_damped, volume_conservation=volume_conserve)
             rot = rot_new
 
             iteration_counter += 1
 
-        return a, rot, a_prev, rot_prev, iteration_counter, err, mean_rho
+        return abc, rot, abc_prev, rot_prev, iteration_counter, err, mean_rho
 
-    # ------------------------------------------------------------------
-    # Public interface
-    # ------------------------------------------------------------------
 
-    def __call__(
-        self,
-        obj: Union["Gal3DAnalyzer", "DensitySource"],
-        r: np.ndarray | None = None,
-        rmin: float | None = None,
-        rmax: float | None = None,
-        nbins: int = 100,
-        bins: Literal["equal", "log", "lin"] = "log",
-        tol: float = 1e-3,
-        max_iterations: int = 20,
-        volume_conserve: bool = True,
-        damping: float = 0.8,
-        ntheta: int = 32,
-        nphi: int = 64,
-        *args: Any,
-        **kwargs: Any,
-    ) -> ModelResult:
-        """
-        Fit isodensity ellipsoid shells to a continuous density source.
+    def _fit_single(self, obj: Union["Gal3DAnalyzer", "DensitySource"], r: float, **kwargs: Any) -> ModelResult:
+        from gal3d.density import DensitySource
 
-        Parameters
-        ----------
-        obj : DensitySource or Gal3DAnalyzer
-            The density field to analyse.  If a ``Gal3DAnalyzer`` is
-            passed, ``obj.model`` must be a ``DensitySource``.
-        r : array_like of float, optional
-            Explicit sequence of equivalent radii
-            :math:`r = (abc)^{1/3}` [same units as ``pos``].
-            When provided, ``rmin``, ``rmax``, ``nbins``, and ``bins``
-            are ignored.
-        rmin : float, optional
-            Minimum equivalent radius.  Required when ``r`` is ``None``.
-        rmax : float, optional
-            Maximum equivalent radius.  Required when ``r`` is ``None``.
-        nbins : int, optional
-            Number of radial shells.  Used only when ``r`` is ``None``.
-            Default is ``100``.
-        bins : {'log', 'lin', 'equal'}, optional
-            Radial spacing.  Used only when ``r`` is ``None``.
+        sd = obj if isinstance(obj, DensitySource) else obj.density_source # type: ignore
 
-            * ``'log'``   – logarithmically spaced (default).
-            * ``'lin'``   – linearly spaced.
-            * ``'equal'`` – equal spacing in a reference particle sample.
-        tol : float, optional
-            Convergence tolerance :math:`\\epsilon` on the axis-ratio
-            change.  Default is ``1e-3``.
-        max_iterations : int, optional
-            Maximum iterations per shell.  Default is ``20``.
-        volume_conserve : bool, optional
-            If ``True`` (default), keep :math:`(abc)^{1/3} = r` fixed
-            throughout the iteration.
-        damping : float, optional
-            Step-damping coefficient :math:`\\alpha \\in (0, 1]`.
-            ``1.0`` gives full Newton steps; ``0.8`` (default) improves
-            stability for strongly non-spherical systems.
-        ntheta : int, optional
-            Gauss-Legendre nodes in :math:`\\cos\\theta`. Default ``32``.
-        nphi : int, optional
-            Gauss-Legendre nodes in :math:`\\phi`. Default ``64``.
+        init_parameters = kwargs.get("init_parameters",{}) # initial guess for a,b,c.  Default is spherical.
 
-        Returns
-        -------
-        ModelResult
-            Summed result over all shells.  Each shell contributes the
-            parameters ``a``, ``eps_ab``, ``eps_bc``, ``ang1``, ``ang2``,
-            ``ang3`` with associated iteration uncertainties.  Returns
-            :class:`~gal3d.optimization.result.EmptyModelResult` if no
-            shell converges.
+        max_iterations = kwargs.get("max_iterations", 20)
+        tol = kwargs.get("tol", 1e-3)
+        volume_conserve = kwargs.get("volume_conserve", True)
+        damping = kwargs.get("damping", 0.8)
+        ntheta = kwargs.get("ntheta", 32)
+        nphi = kwargs.get("nphi", 64)
 
-        Raises
-        ------
-        ValueError
-            If neither ``r`` nor both ``rmin`` and ``rmax`` are supplied.
+        # a, b, c
+        abc = np.ones(3, dtype=float)*r
+        abc_init = np.ones(3,dtype=float)
+        if init_parameters:
+            abc_init[1] = (1-init_parameters.get("eps_ab",0.)) * abc_init[0]
+            abc_init[2] = (1-init_parameters.get("eps_bc",0.)) * abc_init[1]
 
-        Examples
-        --------
-        Logarithmically spaced shells between 0.5 and 20 kpc::
+        abc = self._to_new_ellipsoid(abc, abc_init, volume_conservation=volume_conserve) # type: ignore
 
-            result = workflow(source, rmin=0.5, rmax=20.0, nbins=40,
-                              bins="log", tol=1e-3, max_iterations=20)
-
-        Explicit radius array::
-
-            import numpy as np
-            result = workflow(source, r=np.geomspace(0.5, 20.0, 40))
-
-        Access fitted axis ratio at each shell::
-
-            import numpy as np
-            eps_ab = 1.0 - np.array(result["b"]) / np.array(result["a"])
-        """
-        source: DensitySource = obj.model if hasattr(obj, "model") else obj  # type: ignore
-
-        # --- build radius array ---
-        if r is not None:
-            radii = np.asarray(r, dtype=float)
-        else:
-            if rmin is None or rmax is None:
-                raise ValueError("Provide either `r` or both `rmin` and `rmax`.")
-            _, radii = _prepare_bins(np.zeros(0), rmin, rmax, nbins, bins)
-
-        stru          = StructureCore("RotateOnly", "Ellipsoid")
-        model_results : list[ModelResult] = []
-
-        for i in tqdm(range(len(radii)), desc="Iterative ellipsoid (density)"):
-            radius = float(radii[i])
-
-            # --- initial guess: sphere, or rescaled previous shell ---
-            if i == 0:
-                a_init = np.ones(3) * radius
-            else:
-                prev       = model_results[-1]
-                a_p        = float(prev["a"])
-                eps_ab     = float(prev["eps_ab"])
-                eps_bc     = float(prev["eps_bc"])
-                a_prev_arr = np.array([
-                    a_p,
-                    a_p * (1.0 - eps_ab),
-                    a_p * (1.0 - eps_ab) * (1.0 - eps_bc),
-                ], dtype=float)
-                scale  = (radius**3 / np.prod(a_prev_arr)) ** (1.0 / 3.0)
-                a_init = a_prev_arr * scale
-
-            a, rot, a_prev_axes, rot_prev, n_done, err, mean_rho = self._iterate_shell(
-                source, radius, a_init,
-                max_iterations=max_iterations, tol=tol,
-                volume_conserve=volume_conserve,
-                damping=damping,
-                ntheta=ntheta, nphi=nphi,
-            )
-            model_results.append(
-                self._build_model_result(stru, a, rot, a_prev_axes, rot_prev, n_done, err, mean_rho)
-            )
-
-        if model_results:
-            return sum(model_results[1:], model_results[0])
-        logger.warning("No valid model results found.")
-        return EmptyModelResult()
+        abc, rot, abc_prev, rot_prev, n_done, err, mean_rho = self._iterate_shell(
+            sd, abc_init=abc, max_iterations=max_iterations, tol=tol,
+            volume_conserve=volume_conserve, damping=damping,
+            ntheta=ntheta, nphi=nphi)
+        return self._build_model_result(abc, rot, abc_prev, rot_prev, n_done, err, mean_rho)

@@ -132,11 +132,12 @@ iteration uncertainties.
 
 
 import logging
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
+from gal3d.field.spherical_field.spherical_vector import SphVector
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 
@@ -187,16 +188,7 @@ def _shape_tensor_to_axes(
 # Continuous density: shape tensor on ellipsoid surface
 # ===========================================================================
 
-def _ellipsoid_shell_shape_tensor(
-    source: "DensitySource",
-    a: float,
-    b: float,
-    c: float,
-    rotation_matrix: np.ndarray | None = None,
-    *,
-    ntheta: int = 64,
-    nphi: int = 128,
-) -> tuple[np.ndarray, float]:
+class EllipsoidShellShapeTensor:
     """
     Density-weighted angular shape tensor on an ellipsoid surface.
 
@@ -207,87 +199,154 @@ def _ellipsoid_shell_shape_tensor(
         S_{ij} = \\frac{\\oint \\rho(\\mathbf{r})\\, x_i x_j\\, d\\Omega}
                        {\\oint \\rho(\\mathbf{r})\\, d\\Omega}
 
-    using a tensor-product Gauss-Legendre grid in
-    :math:`(\\cos\\theta, \\phi)` – the angular solid-angle measure
-    :math:`d\\Omega = d(\\cos\\theta)\\,d\\phi` (see module docstring for
-    the derivation of why this equals :math:`dA/|\\nabla m|`).
+    Two sampling backends share a uniform ``n_sample`` API:
+
+    ``"gauss_legendre"``
+        Tensor-product Gauss-Legendre quadrature in
+        :math:`(\\cos\\theta, \\phi)`.  ``n_sample`` is converted to
+        ``ntheta × nphi`` with ``ntheta = max(8, int(sqrt(n_sample/2)))``
+        and ``nphi = 2 * ntheta``, giving ``≈ n_sample`` total nodes.
+        GL quadrature nodes and weights are precomputed in ``__init__``.
+
+    ``"fibonacci"``
+        Quasi-uniform sphere sampling via :class:`~gal3d.field.spherical_field.spherical_vector.SphVector`.
+        ``n_sample`` points are placed on the unit sphere; the Voronoi cell
+        areas serve as the :math:`d\\Omega` weights.  The ``SphVector``
+        instance is cached (singleton) across calls.
 
     Parameters
     ----------
-    source : DensitySource
-        Object with a ``_evaluate_density(pos)`` method.
-    a, b, c : float
-        Current semi-axes of the trial ellipsoid.
-    rotation_matrix : ndarray of shape (3, 3), optional
-        Rotation from ellipsoid frame to lab frame.  Defaults to
-        :math:`I_3`.
-    ntheta : int, optional
-        Number of Gauss-Legendre nodes in :math:`\\cos\\theta`.
-    nphi : int, optional
-        Number of Gauss-Legendre nodes in :math:`\\phi`.
-
-    Returns
-    -------
-    S : ndarray of shape (3, 3)
-        Angular-weighted shape tensor in the **lab** frame.
-    mean_rho : float
-        Angular-averaged density on the ellipsoid surface:
-
-        .. math::
-
-            \\bar{\\rho} = \\frac{\\oint \\rho(\\mathbf{r})\\, d\\Omega}
-                                  {\\oint d\\Omega}
-
-        For a true isodensity ellipsoid this equals the constant density
-        value :math:`\\rho_0` on that surface.  For a non-isodensity
-        surface it is the solid-angle-weighted mean of the local
-        **volumetric** density :math:`\\rho` evaluated on the surface —
-        i.e. it already has units of :math:`[\\mathrm{mass/volume}]` and
-        requires no further conversion.
+    n_sample : int, optional, default 512
+        Target number of sample points.
+    method : {"fibonacci", "gauss_legendre"}, optional
+        Sampling method.  Default is ``"fibonacci"``.
     """
-    R = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
 
-    ct_nodes, w_ct = leggauss(ntheta)
-    t_phi,   w_phi = leggauss(nphi)
-    phi_nodes = np.pi * (t_phi + 1.0)
-    w_phi     = np.pi * w_phi           #type: ignore[assignment]
+    def __init__(
+        self,
+        n_sample: int = 512,
+        method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
+    ) -> None:
+        self.n_sample = n_sample
+        self.method   = method
 
-    # Full (ntheta, nphi) broadcast
-    ct  = ct_nodes[:, None]  * np.ones((ntheta, nphi))
-    phi = phi_nodes[None, :] * np.ones((ntheta, nphi))
-    st  = np.sqrt(np.clip(1.0 - ct**2, 0, None))
+        if method == "gauss_legendre":
+            ntheta = max(4, int(np.sqrt(n_sample / 2)))
+            nphi   = max(8, 2 * ntheta)
+            self._ntheta = ntheta
+            self._nphi   = nphi
+            # Precompute GL (Gauss-Legendre) nodes (fixed for this instance)
+            ct_nodes, w_ct = leggauss(ntheta)
+            t_phi,   w_phi = leggauss(nphi)
+            self._ct_nodes   = ct_nodes
+            self._w_ct       = w_ct
+            self._phi_nodes  = np.pi * (t_phi + 1.0)
+            self._w_phi      = np.pi * w_phi
+        else:
+            self._sv = SphVector(n_sample=n_sample, method=method, verbose=False)
 
-    xe = a * st * np.cos(phi)
-    ye = b * st * np.sin(phi)
-    ze = c * ct
+    # ------------------------------------------------------------------
+    # Shared helpers
+    # ------------------------------------------------------------------
 
-    # dA/|∇m| ∝ d(cosθ)dφ  — pure angular weight (no area Jacobian)
-    W = w_ct[:, None] * w_phi[None, :]          # (ntheta, nphi)
+    @staticmethod
+    def _ellipsoid_points(
+        unit_pos: np.ndarray,           # (N, 3) on unit sphere
+        a: float, b: float, c: float,
+        R: np.ndarray,                  # (3, 3)
+    ) -> np.ndarray:
+        """Scale unit-sphere points to the ellipsoid surface and rotate to lab frame."""
+        return (unit_pos * np.array([a, b, c])) @ R.T
 
-    xyz_flat = np.stack([xe.ravel(), ye.ravel(), ze.ravel()], axis=-1)
-    pos_lab  = xyz_flat @ R.T
+    @staticmethod
+    def _shape_tensor_from_samples(
+        pos_lab: np.ndarray,    # (N, 3)
+        rho: np.ndarray,        # (N,)
+        W: np.ndarray,          # (N,)
+    ) -> tuple[np.ndarray, float]:
+        """Compute angular-weighted shape tensor and mean density from flat samples."""
+        rho_W        = rho * W
+        total_weight = rho_W.sum()
 
-    rho_flat = source._evaluate_density(pos_lab)
-    rho      = rho_flat.reshape(ntheta, nphi)
+        S = np.zeros((3, 3))
+        for i in range(3):
+            for j in range(i, 3):
+                val     = (rho_W * pos_lab[:, i] * pos_lab[:, j]).sum() / total_weight
+                S[i, j] = val
+                S[j, i] = val
 
-    rho_W        = rho * W
-    total_weight = rho_W.sum()
+        mean_rho = float(rho_W.sum() / W.sum()) if W.sum() > 0 else 0.0
+        return S, mean_rho
 
-    x_lab = pos_lab[:, 0].reshape(ntheta, nphi)
-    y_lab = pos_lab[:, 1].reshape(ntheta, nphi)
-    z_lab = pos_lab[:, 2].reshape(ntheta, nphi)
+    # ------------------------------------------------------------------
 
-    S        = np.zeros((3, 3))
-    xyz_list = [x_lab, y_lab, z_lab]
-    for i in range(3):
-        for j in range(i, 3):
-            val      = (rho_W * xyz_list[i] * xyz_list[j]).sum() / total_weight
-            S[i, j]  = val
-            S[j, i]  = val
+    def __call__(
+        self,
+        source: "DensitySource",
+        a: float,
+        b: float,
+        c: float,
+        rotation_matrix: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, float]:
+        """
+        Compute the shape tensor on the ellipsoid surface.
 
-    area_total = W.sum()
-    mean_rho   = float(rho_W.sum() / area_total) if area_total > 0 else 0.0
-    return S, mean_rho
+        Parameters
+        ----------
+        source : DensitySource
+            Object with a ``_evaluate_density(pos)`` method.
+        a, b, c : float
+            Current semi-axes of the trial ellipsoid.
+        rotation_matrix : ndarray of shape (3, 3), optional
+            Rotation from ellipsoid frame to lab frame.  Defaults to :math:`I_3`.
+
+        Returns
+        -------
+        S : ndarray of shape (3, 3)
+            Angular-weighted shape tensor in the **lab** frame.
+        mean_rho : float
+            Angular-averaged volumetric density on the ellipsoid surface.
+        """
+        if self.method == "gauss_legendre":
+            return self._compute_gauss_legendre(source, a, b, c, rotation_matrix)
+        else:
+            return self._compute_fibonacci_voronoi(source, a, b, c, rotation_matrix)
+
+    # ------------------------------------------------------------------
+
+    def _compute_gauss_legendre(
+        self,
+        source: "DensitySource",
+        a: float, b: float, c: float,
+        rotation_matrix: np.ndarray | None = None
+        ) -> tuple[np.ndarray, float]:
+        """ Gauss-Legendre quadrature backend for shape tensor evaluation. """
+        R = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
+        ntheta, nphi = self._ntheta, self._nphi
+
+        ct  = self._ct_nodes[:, None] * np.ones((ntheta, nphi))
+        phi = self._phi_nodes[None, :] * np.ones((ntheta, nphi))
+        st  = np.sqrt(np.clip(1.0 - ct**2, 0, None))
+
+        unit_flat = np.stack(
+            [(st * np.cos(phi)).ravel(), (st * np.sin(phi)).ravel(), ct.ravel()], axis=-1
+        )
+        W_flat  = (self._w_ct[:, None] * self._w_phi[None, :]).ravel()
+        pos_lab = self._ellipsoid_points(unit_flat, a, b, c, R)
+        rho     = source._evaluate_density(pos_lab)
+        return self._shape_tensor_from_samples(pos_lab, rho, W_flat)
+
+    def _compute_fibonacci_voronoi(
+        self,
+        source: "DensitySource",
+        a: float, b: float, c: float,
+        rotation_matrix: np.ndarray | None = None
+        ) -> tuple[np.ndarray, float]:
+        """ Fibonacci sphere sampling backend for shape tensor evaluation. """
+        R       = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
+        pos_lab = self._ellipsoid_points(self._sv.pos, a, b, c, R)
+        rho     = source._evaluate_density(pos_lab)
+        return self._shape_tensor_from_samples(pos_lab, rho, self._sv.area)
 
 class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
     """
@@ -359,8 +418,8 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         tol: float,
         volume_conserve: bool,
         damping: float,
-        ntheta: int,
-        nphi: int,
+        n_sample: int = 512,
+        method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, float, float]:
         """
         Iterate one radial shell to convergence.
@@ -379,8 +438,10 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             Whether to conserve volume during iteration. If false, the major axis is fixed.
         damping : float
             Damping coefficient :math:`\\alpha \\in (0, 1]`.
-        ntheta, nphi : int
-            Quadrature resolution.
+        n_sample : int
+            Number of sample points on the ellipsoid surface.
+        method : {"fibonacci", "gauss_legendre"}
+            Sampling method for shape tensor evaluation.
 
         Returns
         -------
@@ -409,14 +470,15 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         mean_rho = 0.0
         iteration_counter = 0
 
+        shape_tensor = EllipsoidShellShapeTensor(n_sample=n_sample, method=method)
+
         while (err > tol) and (iteration_counter < max_iterations):
             abc_prev   = abc.copy()
             rot_prev = rot.copy()
 
-            S, mean_rho = _ellipsoid_shell_shape_tensor(
+            S, mean_rho = shape_tensor(
                 source, float(abc[0]), float(abc[1]), float(abc[2]),
                 rotation_matrix=rot,
-                ntheta=ntheta, nphi=nphi,
             )
             abc_new, rot_new = _shape_tensor_to_axes(S, abc, volume_conserve)
 
@@ -442,8 +504,8 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         tol = kwargs.get("tol", 1e-3)
         volume_conserve = kwargs.get("volume_conserve", True)
         damping = kwargs.get("damping", 0.8)
-        ntheta = kwargs.get("ntheta", 32)
-        nphi = kwargs.get("nphi", 64)
+        n_sample = kwargs.get("n_sample", 512)
+        method = kwargs.get("method", "fibonacci") # sampling method for shape tensor evaluation; default is fibonacci sampling on the sphere
 
         # a, b, c
         abc = np.ones(3, dtype=float)*r
@@ -457,5 +519,5 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         abc, rot, abc_prev, rot_prev, n_done, err, mean_rho = self._iterate_shell(
             sd, abc_init=abc, max_iterations=max_iterations, tol=tol,
             volume_conserve=volume_conserve, damping=damping,
-            ntheta=ntheta, nphi=nphi)
+            n_sample=n_sample, method=method)
         return self._build_model_result(abc, rot, abc_prev, rot_prev, n_done, err, mean_rho)

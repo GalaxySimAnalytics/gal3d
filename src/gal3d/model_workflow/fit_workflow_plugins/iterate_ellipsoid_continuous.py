@@ -502,7 +502,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
 
         max_iterations = kwargs.get("max_iterations", 20)
         tol = kwargs.get("tol", 1e-3)
-        volume_conserve = kwargs.get("volume_conserve", True)
+        volume_conserve = kwargs.get("volume_conserve", False)
         damping = kwargs.get("damping", 0.8)
         n_sample = kwargs.get("n_sample", 512)
         method = kwargs.get("method", "fibonacci") # sampling method for shape tensor evaluation; default is fibonacci sampling on the sphere

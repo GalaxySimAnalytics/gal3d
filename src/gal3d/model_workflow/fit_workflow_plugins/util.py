@@ -134,8 +134,9 @@ class EllipsoidResultBuilder:
             scale = (old_vol / new_vol) ** (1/3)
             return a_new * scale
         else:
-            # fix the major axis and only update the axis ratios
-            return np.array([a_new[0], a_old[1]/a_old[0]*a_new[0], a_old[2]/a_old[0]*a_new[0]],dtype=float)
+            # fix major axis (a_old[0]), update b/a and c/a from a_new
+            a0 = abs(float(a_old[0]))
+            return np.array([a0, a_new[1]/a_new[0]*a0, a_new[2]/a_new[0]*a0],dtype=float)
 
     @classmethod
     def _build_model_result(

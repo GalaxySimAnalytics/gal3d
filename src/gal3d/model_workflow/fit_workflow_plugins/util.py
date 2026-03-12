@@ -117,6 +117,7 @@ class EllipsoidResultBuilder:
         :math:`\\bar{\\rho} = M_\\mathrm{shell} / V_\\mathrm{shell}`.
     """
     _default_structure = StructureCore("RotateOnly", "Ellipsoid")
+    _min_axis_ratio = 0.001 # avoid unphysical axis ratios and numerical instability
 
     @staticmethod
     def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
@@ -124,8 +125,8 @@ class EllipsoidResultBuilder:
                     + np.abs(a[1]*a_prev[0]/ (a[0]*a_prev[1]) - 1.0)
         )
 
-    @staticmethod
-    def _to_new_ellipsoid(a_old: ArrayF, a_new: ArrayF, volume_conservation: bool = True) -> ArrayF:
+    @classmethod
+    def _to_new_ellipsoid(cls, a_old: ArrayF, a_new: ArrayF, volume_conservation: bool = True) -> ArrayF:
         if volume_conservation:
             # Rescale the new axes to preserve the volume of the ellipsoid,
             # which can help stabilize the iteration when the axis ratios are far from unity.
@@ -136,7 +137,9 @@ class EllipsoidResultBuilder:
         else:
             # fix major axis (a_old[0]), update b/a and c/a from a_new
             a0 = abs(float(a_old[0]))
-            return np.array([a0, a_new[1]/a_new[0]*a0, a_new[2]/a_new[0]*a0],dtype=float)
+            b_a = np.clip(float(a_new[1]/a_new[0]), cls._min_axis_ratio, 1.0)
+            c_a = np.clip(float(a_new[2]/a_new[0]), cls._min_axis_ratio, 1.0)
+            return np.array([a0, b_a*a0, c_a*a0], dtype=float)
 
     @classmethod
     def _build_model_result(

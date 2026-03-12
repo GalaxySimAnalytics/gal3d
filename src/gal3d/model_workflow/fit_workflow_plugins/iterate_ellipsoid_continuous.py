@@ -312,6 +312,63 @@ class EllipsoidShellShapeTensor:
         else:
             return self._compute_fibonacci_voronoi(source, a, b, c, rotation_matrix)
 
+    def spherical_harmonics_expansion(
+        self,
+        source: "DensitySource",
+        a: float,
+        b: float,
+        c: float,
+        lmax: int = 4,
+        rotation_matrix: np.ndarray | None = None,
+    ) -> dict[int, np.ndarray]:
+        """
+        Real spherical harmonics expansion of density on the ellipsoid shell.
+
+        c_lm = ∫ ρ(n̂) Y_l^m(n̂) dΩ  ≈  Σ_i  ρ(r_i) · Y_l^m(θ_i, φ_i) · A_i
+
+        where r_i = ellipsoid point along direction n̂_i, and A_i is the
+        Voronoi area (dΩ weight) from the fibonacci sampling.
+
+        Parameters
+        ----------
+        source : DensitySource
+        a, b, c : float
+            Semi-axes of the current trial ellipsoid.
+        lmax : int
+            Maximum harmonic degree.
+        rotation_matrix : (3,3) ndarray, optional
+            Ellipsoid-frame → lab-frame rotation.
+
+        Returns
+        -------
+        coef : dict[int, ndarray]
+            coef[l] has shape (2l+1,), ordered m = l, l-1, ..., -l.
+        """
+        from gal3d.field.spherical_field.spherical_harmonic import spherical_harmonics_in_real
+
+        if self.method != "fibonacci":
+            raise ValueError("spherical_harmonics_expansion requires method='fibonacci'")
+
+        R = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
+
+        # Evaluate density on the ellipsoid surface (lab frame)
+        pos_lab = self._ellipsoid_points(self._sv.pos, a, b, c, R)
+        rho = source._evaluate_density(pos_lab)   # shape (N,)
+
+        # Angular coordinates come from the unit-sphere parameterization
+        # _sv.sph columns: (r, phi, theta)  — phi ∈ [0,2π], theta ∈ [0,π]
+        phi   = self._sv.sph[:, 1]   # azimuthal
+        theta = self._sv.sph[:, 2]   # polar (colatitude)
+        W     = self._sv.area        # Voronoi dΩ weights, sum = 4π
+
+        coef: dict[int, np.ndarray] = {}
+        for l in range(lmax + 1):
+            coef[l] = np.array([
+                np.sum(rho * spherical_harmonics_in_real(phi, theta, m, l) * W)
+                for m in range(l, -l - 1, -1)   # m = l, l-1, ..., -l
+            ])
+        return coef
+
     # ------------------------------------------------------------------
 
     def _compute_gauss_legendre(

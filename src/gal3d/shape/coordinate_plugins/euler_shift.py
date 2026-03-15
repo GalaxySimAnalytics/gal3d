@@ -565,6 +565,16 @@ def angle(params):
 @RotateOnly.derived
 @EulerShift.derived
 @ShiftEuler.derived
+def rot_matrix(params):
+    Rt = EulerAngles.from_euler(
+        seq=EulerShift.EulerSeq,
+        angles=[params["ang1"], params["ang2"], params["ang3"]],
+    )
+    return Rt.as_matrix()
+
+@RotateOnly.derived
+@EulerShift.derived
+@ShiftEuler.derived
 def x_axis_angle(params):
     """
     Angle between rotated x-axis and original x-axis (radians).

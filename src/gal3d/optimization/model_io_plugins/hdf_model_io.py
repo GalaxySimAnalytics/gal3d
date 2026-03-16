@@ -4,6 +4,7 @@ HDF5-based Model I/O plugin for saving and loading model optimization results.
 """
 import logging
 import os
+import time
 from typing import Any, Literal
 
 import h5py
@@ -12,6 +13,8 @@ import numpy as np
 from gal3d.optimization.model_io import MetaDataDict, ModelIOBase
 from gal3d.optimization.optimizer import OptimizeResult
 from gal3d.optimization.parameter import Parameter, Parameters
+from gal3d.optimization.result import ModelResult
+from gal3d.shape import Structure3D, StructureCore
 
 logger = logging.getLogger("gal3d.optimization.model_io")
 
@@ -80,7 +83,7 @@ class HDF5ModelIO(ModelIOBase):
         filename: str,
         overwrite: bool = False,
         group_path: str = "/",
-        compression: str | None = "gzip",
+        compression: str | None = "lzf",
         **kwargs: Any)-> None:
         """Save the data to an HDF5 file.
 
@@ -95,7 +98,8 @@ class HDF5ModelIO(ModelIOBase):
         group_path : str, optional
             Path within the HDF5 file where data should be stored, default is "/"
         compression : str, optional
-            Compression type for datasets, default is "gzip"
+            Compression type for datasets, default is ``"lzf"`` (fast read/write
+            bundled with h5py). Use ``"gzip"`` for a better compression ratio.
         **kwargs : Any
             Additional keyword arguments to pass to the save function.
         """
@@ -190,56 +194,17 @@ class HDF5ModelIO(ModelIOBase):
     @classmethod
     def _load_parameters_from_file(cls, filename: str, group_path: str = "/", **kwargs: Any) -> list[Parameters]:
         """ Load model parameters from the HDF5 file. """
+        group_path = cls.standardize_group_path(group_path)
         with h5py.File(filename, "r") as f:
             if group_path not in f:
                 raise ValueError(
                     f"Group '{group_path}' not found in file '{filename}'. "
                     "Check the group path or file integrity."
                 )
-            group = f[group_path]
-            params_group = group[cls.parameter_group]
-
-            # Load parameter names from attrs
-            param_names = list(params_group.attrs["param_names"])
-            info_names = list(params_group.attrs["info_names"])
-
-            # Extract parameter data as arrays
-            param_values = {name: params_group[name][()] for name in param_names}
-            param_lbs = {name: params_group[f"{name}_lb"][()] for name in param_names}
-            param_ubs = {name: params_group[f"{name}_ub"][()] for name in param_names}
-            param_errs = {name: params_group[f"{name}_err"][()] for name in param_names}
-            info_values = {name: params_group[name][()] for name in info_names}
-
-            # Create parameter sets
-            param_sets = []
-            n_sets = len(next(iter(param_values.values())))
-            for i in range(n_sets):
-                param_set = Parameters()
-                # First create parameters with their bounds and errors
-                for name in param_names:
-                    value = float(param_values[name][i])
-                    lb = float(param_lbs[name][i])
-                    ub = float(param_ubs[name][i])
-                    err = float(param_errs[name][i])
-                    param_set[name] = Parameter(value, lb=lb, ub=ub, err=err)
-                # Then add info data
-                for key, values in info_values.items():
-                    try:
-                        if i < len(values):
-                            value = values[i]
-                            if isinstance(value, str) and value.lower() == "none":
-                                continue
-                            param_set.add_info(**{key: value})
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to add info key '%s' for parameter set %d in file '%s': %s",
-                            key, i, filename, e
-                        )
-                param_sets.append(param_set)
-        return param_sets
+            return cls._load_params_from_group(f[group_path][cls.parameter_group])
 
     @classmethod
-    def _load_opt_from_file(cls, filename:str, group_path: str = "/", **kwargs: Any)-> list[OptimizeResult]:
+    def _load_opt_from_file(cls, filename: str, group_path: str = "/", **kwargs: Any) -> list[OptimizeResult]:
         """ Load optimization results from the HDF5 file. """
         group_path = cls.standardize_group_path(group_path)
         with h5py.File(filename, "r") as f:
@@ -248,18 +213,212 @@ class HDF5ModelIO(ModelIOBase):
                     f"Group '{group_path}' not found in file '{filename}'. "
                     "Check the group path or file integrity."
                 )
-            group = f[group_path]
-            opt_group = group[cls.opt_group]
+            return cls._load_opt_from_group(f[group_path][cls.opt_group])
 
-            opt_results = []
-            for opt_result_name in sorted(opt_group.keys()):
-                opt_data = opt_group[opt_result_name]
-                result_dict: dict[str, Any] = {}
-                # Load all keys from attrs and datasets
-                for key in list(opt_data.attrs.keys()) + list(opt_data.keys()):
-                    result_dict[key] = _load_hdf_value(opt_data, key)
-                opt_results.append(OptimizeResult(**result_dict))
+    # ------------------------------------------------------------------
+    # Internal group-based helpers (no file I/O; reused by load() override)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _load_params_from_group(cls, params_group: h5py.Group) -> list[Parameters]:
+        """Build a Parameters list from an already-open HDF5 group."""
+        param_names: list[str] = list(params_group.attrs["param_names"])
+        info_names: list[str]  = list(params_group.attrs["info_names"])
+
+        # Read every column in one shot — single HDF5 read per dataset
+        param_values = {name: params_group[name][()]          for name in param_names}
+        param_lbs    = {name: params_group[f"{name}_lb"][()]  for name in param_names}
+        param_ubs    = {name: params_group[f"{name}_ub"][()]  for name in param_names}
+        param_errs   = {name: params_group[f"{name}_err"][()] for name in param_names}
+        info_values  = {name: params_group[name][()]          for name in info_names}
+
+        n_sets = len(next(iter(param_values.values()))) if param_values else 0
+        param_sets: list[Parameters] = []
+        for i in range(n_sets):
+            param_set = Parameters()
+            for name in param_names:
+                param_set[name] = Parameter(
+                    float(param_values[name][i]),
+                    lb=float(param_lbs[name][i]),
+                    ub=float(param_ubs[name][i]),
+                    err=float(param_errs[name][i]),
+                )
+            for key, values in info_values.items():
+                try:
+                    if i < len(values):
+                        value = values[i]
+                        if isinstance(value, str) and value.lower() == "none":
+                            continue
+                        param_set.add_info(**{key: value})
+                except Exception as e:
+                    logger.warning(
+                        "Failed to add info key '%s' for parameter set %d: %s", key, i, e
+                    )
+            param_sets.append(param_set)
+        return param_sets
+
+    @classmethod
+    def _load_opt_from_group(cls, opt_group: h5py.Group) -> list[OptimizeResult]:
+        """Build an OptimizeResult list from an already-open HDF5 group."""
+        opt_results: list[OptimizeResult] = []
+        for opt_result_name in sorted(opt_group.keys()):
+            opt_data = opt_group[opt_result_name]
+            result_dict: dict[str, Any] = {}
+            for key in list(opt_data.attrs.keys()) + list(opt_data.keys()):
+                result_dict[key] = _load_hdf_value(opt_data, key)
+            opt_results.append(OptimizeResult(**result_dict))
         return opt_results
+
+    # ------------------------------------------------------------------
+    # Single-open load() override
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def load(
+        cls,
+        filename: str,
+        structure: Structure3D | StructureCore | None = None,
+        group_path: str = "/",
+        **kwargs: Any,
+    ) -> ModelResult:
+        """
+        Load the model from an HDF5 file using a single file open.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load the model from.
+        structure : Structure3D | StructureCore | None, optional
+            Structure object to associate with the loaded model. If None, a
+            structure is reconstructed from the metadata stored in the file.
+        group_path : str, optional
+            Path within the HDF5 file where data is stored, default is "/".
+        **kwargs : Any
+            Unused; kept for API compatibility.
+
+        Returns
+        -------
+        ModelResult
+            The loaded model result.
+        """
+        start_time = time.time()
+        group_path = cls.standardize_group_path(group_path)
+
+        with h5py.File(filename, "r") as f:
+            if group_path not in f:
+                raise ValueError(
+                    f"Group '{group_path}' not found in file '{filename}'. "
+                    "Check the group path or file integrity."
+                )
+            group = f[group_path]
+
+            # Reconstruct structure from stored metadata if not provided
+            if structure is None:
+                meta_group = group[cls.meta_group]
+                meta_keys = ["coordinate_name", "geometry_name",
+                             "error_method_name", "error_func_name"]
+                metadata = MetaDataDict(
+                    {k: _load_hdf_value(meta_group, k) for k in meta_keys}
+                )
+                if (metadata.get("error_method_name") is None
+                        or metadata.get("error_func_name") is None):
+                    structure = StructureCore(
+                        coordinate=metadata["coordinate_name"],
+                        geometry=metadata["geometry_name"],
+                    )
+                else:
+                    structure = Structure3D(
+                        coordinate=metadata["coordinate_name"],
+                        geometry=metadata["geometry_name"],
+                        error_func=metadata["error_func_name"],
+                        error_method=metadata["error_method_name"],
+                    )
+
+            param_sets  = cls._load_params_from_group(group[cls.parameter_group])
+            opt_results = cls._load_opt_from_group(group[cls.opt_group])
+
+        # add_derived is cheap (no I/O) and must happen after file closes
+        derived_funcs = structure.derived_param_funcs()
+        for param_set in param_sets:
+            param_set.add_derived(derived_funcs)
+
+        result = ModelResult(
+            structure=structure,
+            optimize_result=opt_results[0],
+            parameters=param_sets[0],
+        )
+        result._param_sets  = param_sets
+        result._opt_results = opt_results
+
+        elapsed = time.time() - start_time
+        logger.debug(
+            "Model loaded from %s in %.2f seconds (n: %d)",
+            filename, elapsed, len(param_sets),
+        )
+        return result
+
+    # ------------------------------------------------------------------
+    # Selective column loader  (fast path — no Parameters construction)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _load_columns_from_file(
+        cls,
+        filename: str,
+        param_keys: list[str] | None = None,
+        group_path: str = "/",
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """
+        Load specific parameter columns as raw numpy arrays without constructing
+        Parameters objects.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load from.
+        param_keys : list[str] | None, optional
+            Column names to load. If None, all parameter value columns and info
+            columns are returned (bounds/errors excluded from the default set).
+            To load bounds or errors, include the suffixed names explicitly,
+            e.g. ``"a_lb"``, ``"a_err"``.
+        group_path : str, optional
+            Path within the HDF5 file, default is "/".
+        **kwargs : Any
+            Unused; kept for API compatibility.
+
+        Returns
+        -------
+        dict[str, Any]
+            Mapping of column name to numpy array of shape ``(n_models,)``.
+        """
+        group_path = cls.standardize_group_path(group_path)
+        with h5py.File(filename, "r") as f:
+            if group_path not in f:
+                raise ValueError(
+                    f"Group '{group_path}' not found in file '{filename}'. "
+                    "Check the group path or file integrity."
+                )
+            params_group = f[group_path][cls.parameter_group]
+            all_param_names: list[str] = list(params_group.attrs["param_names"])
+            all_info_names:  list[str] = list(params_group.attrs["info_names"])
+
+            keys_to_load: list[str] = (
+                all_param_names + all_info_names
+                if param_keys is None
+                else list(param_keys)
+            )
+
+            result: dict[str, Any] = {}
+            for key in keys_to_load:
+                if key in params_group:
+                    result[key] = params_group[key][()]
+                else:
+                    logger.warning(
+                        "Column '%s' not found in parameters group of '%s'.",
+                        key, filename,
+                    )
+        return result
 
     @classmethod
     def standardize_group_path(cls, group_path: str) -> str:

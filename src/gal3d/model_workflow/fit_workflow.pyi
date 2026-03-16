@@ -1,4 +1,5 @@
-from typing import Any, Iterable, Literal, overload
+from collections.abc import Iterable
+from typing import Any, Literal, overload
 
 from _typeshed import Incomplete
 

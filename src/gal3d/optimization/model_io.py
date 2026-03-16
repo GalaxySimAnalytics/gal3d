@@ -208,6 +208,42 @@ class ModelIOBase(PluginBase):
         return result
 
     @classmethod
+    def load_columns(
+        cls,
+        filename: str,
+        param_keys: list[str] | None = None,
+        **kwargs: Any
+    ) -> dict[str, Any]:
+        """
+        Fast path: load only specific parameter columns as numpy arrays,
+        skipping Parameters object construction entirely.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load from.
+        param_keys : list[str] | None, optional
+            Column names to load. If None, all parameter value columns and info
+            columns are returned. Append ``"_lb"``, ``"_ub"``, ``"_err"`` to a
+            name to request bounds/errors (e.g. ``"a_err"``).
+        **kwargs : Any
+            Additional keyword arguments forwarded to the underlying
+            implementation (e.g. ``group_path`` for HDF5).
+
+        Returns
+        -------
+        dict[str, Any]
+            Mapping of column name to 1-D array of length ``n_models``.
+
+        Examples
+        --------
+        >>> cols = HDF5ModelIO.load_columns("result.h5", param_keys=["a", "eps_ab"])
+        >>> a   = cols["a"]       # numpy array, shape (n_models,)
+        >>> eps = cols["eps_ab"]
+        """
+        return cls._load_columns_from_file(filename, param_keys=param_keys, **kwargs)
+
+    @classmethod
     @abstractmethod
     def _load_metadata_from_file(
         cls, filename: str, keys: list[str] | None = None, **kwargs: Any
@@ -266,6 +302,33 @@ class ModelIOBase(PluginBase):
         -------
         list[OptimizeResult]
             The loaded optimization results.
+        """
+
+    @classmethod
+    @abstractmethod
+    def _load_columns_from_file(
+        cls,
+        filename: str,
+        param_keys: list[str] | None = None,
+        **kwargs: Any
+    ) -> dict[str, Any]:
+        """
+        Abstract method to load specific parameter columns as raw arrays,
+        without constructing Parameters objects.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load from.
+        param_keys : list[str] | None, optional
+            Column names to load. If None, load all parameter and info columns.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict[str, Any]
+            Mapping of column name to array of shape ``(n_models,)``.
         """
 
     @classmethod

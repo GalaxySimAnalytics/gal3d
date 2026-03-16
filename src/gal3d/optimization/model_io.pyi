@@ -3,7 +3,6 @@ from typing import Any, Literal, overload
 
 from _typeshed import Incomplete
 
-from gal3d.optimization.model_io_plugins.hdf_model_io import HDF5ModelIO
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.shape import Structure3D as Structure3D, StructureCore as StructureCore
 
@@ -121,6 +120,35 @@ class ModelIOBase(PluginBase, metaclass=abc.ABCMeta):
         -------
         ModelResult
             The loaded model result.
+        """
+    @classmethod
+    def load_columns(cls, filename: str, param_keys: list[str] | None = None, **kwargs: Any) -> dict[str, Any]:
+        """
+        Fast path: load only specific parameter columns as numpy arrays,
+        skipping Parameters object construction entirely.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to load from.
+        param_keys : list[str] | None, optional
+            Column names to load. If None, all parameter value columns and info
+            columns are returned. Append ``"_lb"``, ``"_ub"``, ``"_err"`` to a
+            name to request bounds/errors (e.g. ``"a_err"``).
+        **kwargs : Any
+            Additional keyword arguments forwarded to the underlying
+            implementation (e.g. ``group_path`` for HDF5).
+
+        Returns
+        -------
+        dict[str, Any]
+            Mapping of column name to 1-D array of length ``n_models``.
+
+        Examples
+        --------
+        >>> cols = HDF5ModelIO.load_columns("result.h5", param_keys=["a", "eps_ab"])
+        >>> a = cols["a"]  # numpy array, shape (n_models,)
+        >>> eps = cols["eps_ab"]
         """
     @classmethod
     def check_file_path(cls, filename: str) -> str:

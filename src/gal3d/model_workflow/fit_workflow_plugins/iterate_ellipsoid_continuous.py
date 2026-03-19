@@ -220,15 +220,21 @@ class EllipsoidShellShapeTensor:
         Target number of sample points.
     method : {"fibonacci", "gauss_legendre"}, optional
         Sampling method.  Default is ``"fibonacci"``.
+    sigma_clip : float | None, optional, default 3.0
+        If not ``None``, winsorise density samples that deviate more than
+        ``sigma_clip`` weighted standard deviations from the weighted mean.
+
     """
 
     def __init__(
         self,
         n_sample: int = 512,
         method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
+        sigma_clip: float | None = 3.0,
     ) -> None:
         self.n_sample = n_sample
         self.method   = method
+        self.sigma_clip = sigma_clip
 
         if method == "gauss_legendre":
             ntheta = max(4, int(np.sqrt(n_sample / 2)))
@@ -257,6 +263,55 @@ class EllipsoidShellShapeTensor:
     ) -> np.ndarray:
         """Scale unit-sphere points to the ellipsoid surface and rotate to lab frame."""
         return (unit_pos * np.array([a, b, c])) @ R.T
+
+    @staticmethod
+    def _sigma_clip_rho(
+        rho: np.ndarray,
+        W: np.ndarray,
+        sigma: float,
+    ) -> np.ndarray:
+        """
+        Winsorise outlier density samples by replacing them with the inlier
+        weighted mean, preserving full angular (dΩ) coverage.
+
+        Outliers are samples whose density deviates more than ``sigma``
+        weighted standard deviations from the weighted mean.  Their density
+        is replaced by the weighted mean of the inliers so that the angular
+        measure W remains intact and the shape tensor is not angularly biased.
+
+        Parameters
+        ----------
+        rho : ndarray of shape (N,)
+            Sampled density values.
+        W : ndarray of shape (N,)
+            Angular quadrature weights (dΩ).  Not modified.
+        sigma : float
+            Clip threshold in units of weighted standard deviation.
+
+        Returns
+        -------
+        rho_clipped : ndarray of shape (N,)
+            Density array with outlier values replaced by the inlier
+            weighted mean.
+        """
+        wsum = W.sum()
+        if wsum <= 0:
+            return rho
+        mu  = (rho * W).sum() / wsum
+        var = ((rho - mu) ** 2 * W).sum() / wsum
+        std = np.sqrt(var)
+        if std == 0.0:
+            return rho
+
+        inlier = np.abs(rho - mu) <= sigma * std
+        inlier_wsum = W[inlier].sum()
+        if inlier_wsum <= 0:
+            return rho
+        mu_inlier = (rho[inlier] * W[inlier]).sum() / inlier_wsum
+
+        rho_clipped = rho.copy()
+        rho_clipped[~inlier] = mu_inlier
+        return rho_clipped
 
     @staticmethod
     def _shape_tensor_from_samples(
@@ -391,6 +446,8 @@ class EllipsoidShellShapeTensor:
         W_flat  = (self._w_ct[:, None] * self._w_phi[None, :]).ravel()
         pos_lab = self._ellipsoid_points(unit_flat, a, b, c, R)
         rho     = source._evaluate_density(pos_lab)
+        if self.sigma_clip is not None:
+            rho = self._sigma_clip_rho(rho, W_flat, sigma=self.sigma_clip)
         return self._shape_tensor_from_samples(pos_lab, rho, W_flat)
 
     def _compute_fibonacci_voronoi(
@@ -403,6 +460,8 @@ class EllipsoidShellShapeTensor:
         R       = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
         pos_lab = self._ellipsoid_points(self._sv.pos, a, b, c, R)
         rho     = source._evaluate_density(pos_lab)
+        if self.sigma_clip is not None:
+            rho = self._sigma_clip_rho(rho, self._sv.area, sigma=self.sigma_clip)
         return self._shape_tensor_from_samples(pos_lab, rho, self._sv.area)
 
 class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
@@ -477,6 +536,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         damping: float,
         n_sample: int = 512,
         method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
+        sigma_clip: float | None = 3.0,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, float, float]:
         """
         Iterate one radial shell to convergence.
@@ -499,6 +559,9 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             Number of sample points on the ellipsoid surface.
         method : {"fibonacci", "gauss_legendre"}
             Sampling method for shape tensor evaluation.
+        sigma_clip : float | None
+            If not ``None``, winsorise density samples that deviate more than
+            ``sigma_clip`` weighted standard deviations from the weighted mean.
 
         Returns
         -------
@@ -527,7 +590,9 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         mean_rho = 0.0
         iteration_counter = 0
 
-        shape_tensor = EllipsoidShellShapeTensor(n_sample=n_sample, method=method)
+        shape_tensor = EllipsoidShellShapeTensor(
+            n_sample=n_sample, method=method, sigma_clip=sigma_clip
+        )
 
         while (err > tol) and (iteration_counter < max_iterations):
             abc_prev   = abc.copy()

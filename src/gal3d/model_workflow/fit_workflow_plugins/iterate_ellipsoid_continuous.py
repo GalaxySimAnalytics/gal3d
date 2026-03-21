@@ -534,6 +534,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         tol: float,
         volume_conserve: bool,
         damping: float,
+        rot_init: np.ndarray | None = None,
         n_sample: int = 512,
         method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
         sigma_clip: float | None = 3.0,
@@ -555,6 +556,8 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             Whether to conserve volume during iteration. If false, the major axis is fixed.
         damping : float
             Damping coefficient :math:`\\alpha \\in (0, 1]`.
+        rot_init : ndarray of shape (3, 3) or None
+            Initial rotation matrix; if None, defaults to identity.
         n_sample : int
             Number of sample points on the ellipsoid surface.
         method : {"fibonacci", "gauss_legendre"}
@@ -583,7 +586,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             isodensity value — no further conversion needed.
         """
         abc        = abc_init.copy()
-        rot      = np.eye(3)
+        rot      = np.eye(3) if rot_init is None else np.asarray(rot_init, dtype=float)
         abc_prev   = abc_init.copy()
         rot_prev = rot.copy()
         err      = tol + 1.0
@@ -628,18 +631,28 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         damping = kwargs.get("damping", 0.8)
         n_sample = kwargs.get("n_sample", 512)
         method = kwargs.get("method", "fibonacci") # sampling method for shape tensor evaluation; default is fibonacci sampling on the sphere
+        sigma_clip = kwargs.get("sigma_clip", None)
 
         # a, b, c
         abc = np.ones(3, dtype=float)*r
         abc_init = np.ones(3,dtype=float)
+        rot_init = None
         if init_parameters:
             abc_init[1] = (1-init_parameters.get("eps_ab",0.)) * abc_init[0]
             abc_init[2] = (1-init_parameters.get("eps_bc",0.)) * abc_init[1]
+            ang1 = float(init_parameters.get("ang1", 0.0))
+            ang2 = float(init_parameters.get("ang2", 0.0))
+            ang3 = float(init_parameters.get("ang3", 0.0))
+            from scipy.spatial.transform import Rotation as _R
+            rot_init = _R.from_euler("zyx", [ang1, ang2, ang3]).as_matrix()
 
         abc = self._to_new_ellipsoid(abc, abc_init, volume_conservation=volume_conserve) # type: ignore
 
         abc, rot, abc_prev, rot_prev, n_done, err, mean_rho = self._iterate_shell(
             sd, abc_init=abc, max_iterations=max_iterations, tol=tol,
             volume_conserve=volume_conserve, damping=damping,
-            n_sample=n_sample, method=method)
+            rot_init=rot_init,
+            n_sample=n_sample, method=method,
+            sigma_clip=sigma_clip
+            )
         return self._build_model_result(abc, rot, abc_prev, rot_prev, n_done, err, mean_rho)

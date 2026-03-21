@@ -50,28 +50,27 @@ Examples
 A minimal usage example with a :class:`gal3d.point.Particles` instance
 ``particles``::
 
-    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid import (
-        IterateEllipsoidWorkflow,
+    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import (
+        IterateEllipsoidParticles,
     )
 
-    workflow = IterateEllipsoidWorkflow()
+    workflow = IterateEllipsoidParticles()
 
     # S1: ellipsoidal shell, unweighted
     result_s1 = workflow(
         particles,
-        nbins=50,
-        bins="equal",
+        r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
         is_enclosed=False,        # shell
+        shell_frac=0.1,
         weight_method=None,       # w = 1
     )
 
     # E3: enclosed ellipsoid, w ~ r_ell^{-2}
     result_e3 = workflow(
         particles,
-        nbins=50,
-        bins="equal",
+        r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
         is_enclosed=True,         # enclosed ellipsoid
@@ -86,21 +85,18 @@ errors.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from numpy.typing import NDArray
-from tqdm import tqdm
+from scipy.spatial.transform import Rotation as _ScipyRotation
 
 from gal3d.model_workflow.fit_workflow import FitWorkflowBase
-from gal3d.optimization.result import EmptyModelResult, ModelResult
+from gal3d.optimization.result import ModelResult
 from gal3d.point.util import abc_vect
-from gal3d.shape import StructureCore
+from gal3d.util.errors import InsufficientPointsError
 
-from .util import (
-    EllipsoidResultBuilder,
-    _prepare_bins,
-)
+from .util import EllipsoidResultBuilder
 
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
@@ -108,68 +104,54 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
-#Type alias
+# Type aliases
 ArrayF = NDArray[np.floating[Any]]
 ArrayI = NDArray[np.int_]
+
 
 class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
     """
     Workflow for estimating ellipsoidal shape using an iterative mass–moment
     (inertia tensor) method.
+
+    At each target radius ``r`` (the equivalent radius :math:`(abc)^{1/3}`),
+    the algorithm:
+
+    1. Initialises a trial ellipsoid :math:`(a, b, c) = (r, r, r)`.
+    2. Evaluates the ellipsoid function :math:`f = x^2/a^2 + y^2/b^2 + z^2/c^2`
+       via ``quick_call``.
+    3. Derives the ellipsoidal radius
+       :math:`r_\\mathrm{ell} = a\\sqrt{f}`.
+    4. Selects particles in the ellipsoidal shell
+       :math:`(1-\\delta)a \\le r_\\mathrm{ell} \\le (1+\\delta)a`
+       (or enclosed ellipsoid :math:`f < 1`).
+    5. Computes the weighted inertia tensor, diagonalises, and updates axes.
+    6. Repeats until axis-ratio convergence or ``max_iterations`` reached.
     """
 
     @staticmethod
     def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
-
         if type(obj).__name__ == "Particles":
-            logger.debug("Select IterateEllipsoidWorkflow for Particles")
+            logger.debug("Select IterateEllipsoidParticles for Particles")
             return True
-        else:
-            raise TypeError("Unsupported object type")
+        raise TypeError("Unsupported object type")
 
-    def _select_shell_indices(
-        self,
-        r: ArrayF,
-        a: ArrayF,
-        bin_edges: ArrayF,
-        i: int,
-        is_enclosed: bool,
-    ) -> tuple[ArrayF, ArrayI]:
-        if not is_enclosed:
-            mult = bin_edges[[i, i + 1]] / np.prod(a) ** (1.0 / 3.0)
-            shell_idx = np.where((r > a[-1] * mult[0]) & (r < a[0] * mult[1]))[0]
-        else:
-            mult = bin_edges[i + 1] / np.prod(a) ** (1.0 / 3.0)
-            shell_idx = np.where(r < a[0] * mult)[0]
-        return mult, shell_idx
-
-    def _select_ellipse_indices(
-        self,
-        d_ell: ArrayF,
-        mult: ArrayF | float,
-        is_enclosed: bool,
-    ) -> ArrayI:
-        if not is_enclosed:
-            lo, hi = cast("ArrayF", mult)
-            return np.where((d_ell > lo) & (d_ell < hi))[0]
-        else:
-            hi = cast("float", mult)
-            return np.where(d_ell < hi)[0]
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
     def _apply_weight(
         self,
         weight_method: Literal["r2", "rell2"] | None,
-        ellipse_mass: ArrayF,
-        r_shell: ArrayF,
-        d_ell: ArrayF,
+        mass: ArrayF,
+        r_sph: ArrayF,
+        r_ell: ArrayF,
     ) -> ArrayF:
         if weight_method == "r2":
-            w = 1.0 / np.maximum(r_shell, 1e-9) ** 2
-            return ellipse_mass * w
+            return mass / np.maximum(r_sph, 1e-9) ** 2
         if weight_method == "rell2":
-            w = 1.0 / np.maximum(d_ell, 1e-9) ** 2
-            return ellipse_mass * w
-        return ellipse_mass
+            return mass / np.maximum(r_ell, 1e-9) ** 2
+        return mass
 
     @staticmethod
     def _sanitize_rotation(R: ArrayF) -> ArrayF:
@@ -183,210 +165,171 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         scale = (np.prod(a_old) / np.prod(a_new)) ** (1.0 / 3.0)
         return a_new * scale
 
-
     @staticmethod
-    def _compute_density(
-        ellipse_mass: ArrayF, bin_edges: ArrayF, i: int, is_enclosed: bool
+    def _compute_shell_density(
+        sel_mass: ArrayF,
+        abc: ArrayF,
+        shell_frac: float,
+        is_enclosed: bool,
     ) -> float:
+        """Mean volumetric density in the selected region."""
+        vol_unit = (4.0 / 3.0) * np.pi * np.prod(abc)
         if is_enclosed:
-            vol = 4.0 / 3.0 * np.pi * (bin_edges[i + 1] ** 3)
+            vol = vol_unit
         else:
-            vol = 4.0 / 3.0 * np.pi * (
-                bin_edges[i + 1] ** 3 - bin_edges[i] ** 3
-            )
-        return float(np.sum(ellipse_mass) / vol)
+            vol = vol_unit * ((1.0 + shell_frac) ** 3 - (1.0 - shell_frac) ** 3)
+        return float(np.sum(sel_mass) / vol) if vol > 0 else 0.0
 
-    # --------- main iteration ----------
-    def _iterate_shell(
+
+    def _extract_particle_data(self, obj: "Particles") -> tuple[ArrayF, ArrayF, ArrayF]:
+        """Extract pos, mass, r from a Particles."""
+        return (
+            np.asarray(obj.pos, dtype=float),
+            np.asarray(obj.mass, dtype=float),
+            np.asarray(obj.r, dtype=float),)
+
+    def _init_trial_ellipsoid(
+        self, r: float, init_parameters: dict | None, volume_conserve: bool
+    ) -> tuple[ArrayF, ArrayF]:
+        """Build initial axes a and rotation matrix R from warm-start params."""
+        abc = np.ones(3, dtype=float) * r
+        abc_init = np.ones(3, dtype=float)
+        R: ArrayF = np.eye(3, dtype=float)
+        if init_parameters:
+            abc_init[1] = (1.0 - init_parameters.get("eps_ab", 0.0)) * abc_init[0]
+            abc_init[2] = (1.0 - init_parameters.get("eps_bc", 0.0)) * abc_init[1]
+            ang1 = float(init_parameters.get("ang1", 0.0))
+            ang2 = float(init_parameters.get("ang2", 0.0))
+            ang3 = float(init_parameters.get("ang3", 0.0))
+            R = np.array(_ScipyRotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix(),dtype=float,)
+        a: ArrayF = self._to_new_ellipsoid(abc, abc_init, volume_conservation=volume_conserve)
+        return a, R
+
+    # ------------------------------------------------------------------
+    # Core fit at a single radius
+    # ------------------------------------------------------------------
+
+    def _fit_single(
         self,
-        i: int, rbins: np.ndarray, bin_edges: np.ndarray, pos: np.ndarray, mass: np.ndarray, r: np.ndarray,
-        stru: StructureCore,
-        max_iterations: int,
-        tol: float,
-        is_enclosed: bool = False,
-        weight_method: Literal["r2", "rell2"] | None = None
-    ) -> tuple[np.ndarray, np.ndarray, int, float, float, np.ndarray, np.ndarray]:
-        """
-        Perform the iterative shape estimation for a single radial bin.
-
-        Parameters
-        ----------
-        i : int
-            Bin index.
-        rbins : ndarray of float
-            Representative radius of each bin.
-        bin_edges : ndarray of float
-            Bin edges of length ``nbins + 1``.
-        pos : ndarray of float, shape (N, 3)
-            Particle positions.
-        mass : ndarray of float, shape (N,)
-            Particle masses.
-        r : ndarray of float, shape (N,)
-            Spherical radii corresponding to ``pos``.
-        stru : StructureCore
-            Structure object providing ellipsoid geometry utilities.
-        max_iterations : int
-            Maximum number of iterations per bin.
-        tol : float
-            Convergence tolerance for axis ratios.
-        is_enclosed : bool, optional
-            If ``True``, use enclosed‑ellipsoid selection (E1–E3);
-            if ``False``, use ellipsoidal shells (S1–S3).
-        weight_method : {'r2', 'rell2'}, optional
-            Weighting method when computing the inertia tensor:
-            * ``None``   – unweighted (``w = 1``)
-            * ``'r2'``   – spherical :math:`r^{-2}` weighting
-            * ``'rell2'`` – ellipsoidal :math:`r_\\mathrm{ell}^{-2}` weighting
-
-        Returns
-        -------
-        a : ndarray of float, shape (3,)
-            Final semi‑axis lengths ``(a, b, c)``.
-        R : ndarray of float, shape (3, 3)
-            Final rotation matrix from principal‑axes frame to simulation frame.
-        iteration_counter : int
-            Number of iterations performed.
-        err : float
-            Scalar convergence measure based on axis‑ratio changes.
-        ellipsoid_density : float
-            Mean mass density in the shell/ellipsoid.
-        a_prev : ndarray of float, shape (3,)
-            Semi‑axis lengths from the previous iteration.
-        R_prev : ndarray of float, shape (3, 3)
-            Rotation matrix from the previous iteration.
-        """
-        a: ArrayF = np.ones(3, dtype=float) * rbins[i]
-        a_prev: ArrayF = a.copy()
-        R: ArrayF = np.identity(3, dtype=float)
-        R_prev: ArrayF = R.copy()
-        iteration_counter = 0
-        err = tol + 1.0
-        ellipse_mass: ArrayF = np.zeros(3, dtype=float)
-
-        while (err > tol) and (iteration_counter < max_iterations):
-            a_prev = a.copy()
-            R_prev = R.copy()
-
-            mult, shell_idx = self._select_shell_indices(r, a, bin_edges, i, is_enclosed)
-            if shell_idx.size == 0:
-                break
-
-            shell_pos = pos[shell_idx]
-            shell_mass = mass[shell_idx]
-
-            new_shape = (a[0], 1 - a[1] / a[0], 1 - a[2] / a[1])
-            new_ang = stru._coordinate.mat_to_angle(R)  # type: ignore
-            d_ell = stru.quick_f_ray_d(*new_ang, *new_shape, pos=shell_pos)[0]
-
-            ellipse_idx = self._select_ellipse_indices(d_ell, mult, is_enclosed)
-            if ellipse_idx.size == 0:
-                break
-
-            ellipse_pos = shell_pos[ellipse_idx]
-            ellipse_mass = shell_mass[ellipse_idx]
-
-            eff_mass = self._apply_weight(weight_method, ellipse_mass, r[shell_idx][ellipse_idx], d_ell[ellipse_idx])
-
-            abc, axes = abc_vect(ellipse_pos, eff_mass)
-            R = self._sanitize_rotation(np.array(axes, dtype=float))
-            a = self._update_axes(a, abc)
-
-            iteration_counter += 1
-            err = self._axis_ratio_error(a, a_prev)
-
-        ellipsoid_density = self._compute_density(ellipse_mass, bin_edges, i, is_enclosed)
-        return a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev
-
-    def __call__(
-        self,
-        obj: Union["Gal3DAnalyzer", "Particles"],
-        nbins: int = 100,
-        rmin: float | None = None,
-        rmax: float | None = None,
-        bins: Literal["equal", "log", "lin"] = "equal",
+        obj: "Particles",
+        r: float,
+        *,
         max_iterations: int = 20,
         tol: float = 1e-3,
         is_enclosed: bool = False,
         weight_method: Literal["r2", "rell2"] | None = None,
-        *args: Any,
-        **kwargs: Any
+        shell_frac: float = 0.1,
+        min_particles: int = 12,
+        volume_conserve: bool = False,
+        init_parameters: dict | None = None,
+        **kwargs: Any,
     ) -> ModelResult:
         """
-        Fit ellipsoidal shape using iterative mass moment method.
+        Fit the ellipsoidal shape at a single target radius ``r``.
 
         Parameters
         ----------
         obj : Gal3DAnalyzer or Particles
             Input object containing particle data.
-        nbins : int, optional
-            Number of radial bins to use (default is 100).
-        rmin : float, optional
-            Minimum radius for binning. If None, set to rmax / 1E3.
-        rmax : float, optional
-            Maximum radius for binning. If None, set to maximum particle radius.
-        bins : {'equal', 'log', 'lin'}, optional
-            Radial binning scheme, by default ``'equal'``:
-            * ``'equal'`` – equal number of particles per bin
-            * ``'log'``   – logarithmically spaced in radius
-            * ``'lin'``   – linearly spaced in radius
+        r : float
+            Target equivalent radius :math:`(abc)^{1/3}`.
         max_iterations : int, optional
-            Maximum number of iterations per radial bin (default is 20).
+            Maximum iterations per radius (default 20).
         tol : float, optional
-            Convergence tolerance on axis‑ratio changes, by default ``1e-3``.
+            Convergence tolerance on axis-ratio changes (default 1e-3).
         is_enclosed : bool, optional
-            If ``False`` (default) use ellipsoidal shells (S1–S3). If
-            ``True`` use enclosed ellipsoids (E1–E3).
-        weight_method : {'r2', 'rell2'}, optional
-            Weighting method :math:`w(r)` applied to particle masses when
-            computing the inertia tensor:
-            * ``None``   – unweighted (``w = 1``; S1 or E1)
-            * ``'r2'``   – spherical :math:`r^{-2}` (S2 or E2)
-            * ``'rell2'`` – ellipsoidal :math:`r_\\mathrm{ell}^{-2}` (S3 or E3)
-        *args, **kwargs :
-            Additional positional and keyword arguments (currently unused).
+            If ``False`` (default) select an ellipsoidal *shell*; if
+            ``True`` select the enclosed ellipsoid (:math:`f < 1`).
+        weight_method : {None, 'r2', 'rell2'}, optional
+            Weighting applied to particle masses:
+            * ``None``    – uniform (S1 / E1)
+            * ``'r2'``    – spherical :math:`r^{-2}` (S2 / E2)
+            * ``'rell2'`` – ellipsoidal :math:`r_\\mathrm{ell}^{-2}` (S3 / E3)
+        shell_frac : float, optional
+            Half-width of the ellipsoidal shell as a fraction of ``a``
+            (default 0.1, i.e. the shell spans
+            :math:`[0.9a,\\,1.1a]` in :math:`r_\\mathrm{ell}`).
+        min_particles : int, optional
+            Minimum selected particles required; raises
+            :exc:`~gal3d.util.errors.InsufficientPointsError` if fewer
+            are found (default 12).
+        volume_conserve : bool, optional
+            If ``True``, rescale axes each iteration so that
+            :math:`(abc)^{1/3} = r` is preserved.  If ``False`` (default), the
+            major axis ``a`` is held fixed (following the warm-start value).
+        init_parameters : dict, optional
+            Warm-start: supplies the axis *ratios* and *orientation* from the
+            previous radius.  The size is always reset so that
+            :math:`(abc)^{1/3} = r`.  Recognised keys: ``eps_ab``,
+            ``eps_bc``, ``ang1``, ``ang2``, ``ang3``.
 
         Returns
         -------
         ModelResult
-            Summed model result over all radial bins, or EmptyModelResult if no valid results.
+
+        Raises
+        ------
+        InsufficientPointsError
+            If fewer than ``min_particles`` particles are selected.
         """
-        if hasattr(obj, "particles"):
-            particles = obj.particles
-        else:
-            particles = obj
-
-        if rmax is None:
-            rmax = particles.r.max()
-        if rmin is None:
-            rmin = rmax / 1E3
-
-        assert max_iterations > 0
-        assert tol > 0
-        assert rmin >= 0
-        assert rmax > rmin
-        assert nbins > 0
-        assert np.sum((particles.r >= rmin) & (particles.r < rmax)) > nbins * 2, "Not enough particles per bin. Consider reducing nbins or adjusting rmin/rmax."
-        if bins not in ["equal", "log", "lin"]:
-            logger.warning("Unknown binning method '%s', defaulting to 'equal'", bins)
-            bins = "equal"
-
-        r = particles.r
-        pos = particles.pos
-        mass = particles.mass
-
-        bin_edges, rbins = _prepare_bins(r, rmin, rmax, nbins, bins)
-        model_results: list[ModelResult] = []
-        stru = StructureCore("RotateOnly", "Ellipsoid")
-
-        for i in tqdm(range(nbins), desc="Iterative ellipsoid shape"):
-            a, R, iteration_counter, err, ellipsoid_density, a_prev, R_prev = self._iterate_shell(
-                i, rbins, bin_edges, pos, mass, r, stru, max_iterations, tol, is_enclosed, weight_method
+        # --- extract particles ---
+        pos, mass, p_r = self._extract_particle_data(obj)
+        # --- initialise axes & rotation ---
+        a, R = self._init_trial_ellipsoid(r, init_parameters, volume_conserve)
+        # --- iteration loop ---
+        a_prev: ArrayF = a.copy()
+        R_prev: ArrayF = R.copy()
+        iteration_counter = 0
+        err = tol + 1.0
+        sel_mass: ArrayF = np.empty(0, dtype=float)
+        while err > tol and iteration_counter < max_iterations:
+            a_prev = a.copy()
+            R_prev = R.copy()
+            # --- spherical pre-filter: generous conservative cut ---
+            if is_enclosed:
+                pre_mask = p_r < a[0] * (1.0 + shell_frac)
+            else:
+                pre_mask = ((p_r > a[2] * (1.0 - shell_frac))& (p_r < a[0] * (1.0 + shell_frac)))
+            if not np.any(pre_mask):
+                break
+            pre_pos = pos[pre_mask]
+            pre_mass = mass[pre_mask]
+            pre_r = p_r[pre_mask]
+            # --- ellipsoid function via quick_call ---
+            # returns (f, r_transformed), where f = x²/a² + y²/b² + z²/c²
+            ang = self._default_structure._coordinate.mat_to_angle(R)  # type: ignore[attr-defined]
+            eps_ab = 1.0 - a[1] / a[0]
+            eps_bc = 1.0 - a[2] / a[1]
+            f, _ = self._default_structure.quick_call(
+                *ang, a[0], eps_ab, eps_bc, pos=pre_pos
             )
-            model_result = self._build_model_result(stru, a, R, a_prev, R_prev, iteration_counter, err, ellipsoid_density)
-            model_results.append(model_result)
-
-        if model_results:
-            return sum(model_results[1:], model_results[0])
-        else:
-            logger.warning("No valid model results found.")
-            return EmptyModelResult()
+            # r_ell = a * sqrt(f)  <==>  sqrt(x² + y²/(b/a)² + z²/(c/a)²)
+            r_ell = a[0] * np.sqrt(np.clip(f, 0.0, None))
+            # --- particle selection ---
+            if is_enclosed:
+                sel_mask = f < 1.0
+            else:
+                lo = (1.0 - shell_frac) * a[0]
+                hi = (1.0 + shell_frac) * a[0]
+                sel_mask = (r_ell >= lo) & (r_ell <= hi)
+            n_sel = int(np.sum(sel_mask))
+            if n_sel < min_particles:
+                raise InsufficientPointsError(f"Only {n_sel} particles selected at r={r:.4g} "
+                    f"(minimum {min_particles}). shell_frac={shell_frac}, is_enclosed={is_enclosed}.")
+            sel_pos = pre_pos[sel_mask]
+            sel_mass = pre_mass[sel_mask]
+            sel_r = pre_r[sel_mask]
+            sel_r_ell = r_ell[sel_mask]
+            # --- weighted inertia tensor ---
+            eff_mass = self._apply_weight(weight_method, sel_mass, sel_r, sel_r_ell)
+            abc_new, axes = abc_vect(sel_pos, eff_mass)
+            R = self._sanitize_rotation(np.array(axes, dtype=float))
+            # convert eigenvalues to axis lengths, then rescale per volume_conserve
+            a_new = np.sqrt(np.abs(abc_new) * 3.0)
+            a = self._to_new_ellipsoid(a, a_new, volume_conservation=volume_conserve)
+            iteration_counter += 1
+            err = self._axis_ratio_error(a, a_prev)
+        shell_density = self._compute_shell_density(sel_mass, a, shell_frac, is_enclosed)
+        return self._build_model_result(
+            a, R, a_prev, R_prev, iteration_counter, err, shell_density
+        )

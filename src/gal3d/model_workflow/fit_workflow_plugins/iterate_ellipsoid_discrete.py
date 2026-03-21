@@ -28,8 +28,8 @@ mass when computing the inertia tensor:
   .. math::
 
       r_\\mathrm{ell}^2 = x^2 +
-                         \frac{y^2}{(b/a)^2} +
-                         \frac{z^2}{(c/a)^2}.
+                         \\frac{y^2}{(b/a)^2} +
+                         \\frac{z^2}{(c/a)^2}.
 
 Both families and all weightings are available through the
 :class:`IterateEllipsoidWorkflow`.
@@ -160,12 +160,6 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         return R
 
     @staticmethod
-    def _update_axes(a_old: ArrayF, a_new_raw: ArrayF) -> ArrayF:
-        a_new = np.sqrt(np.abs(a_new_raw) * 3.0)
-        scale = (np.prod(a_old) / np.prod(a_new)) ** (1.0 / 3.0)
-        return a_new * scale
-
-    @staticmethod
     def _compute_shell_density(
         sel_mass: ArrayF,
         abc: ArrayF,
@@ -180,18 +174,24 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             vol = vol_unit * ((1.0 + shell_frac) ** 3 - (1.0 - shell_frac) ** 3)
         return float(np.sum(sel_mass) / vol) if vol > 0 else 0.0
 
-
-    def _extract_particle_data(self, obj: "Particles") -> tuple[ArrayF, ArrayF, ArrayF]:
-        """Extract pos, mass, r from a Particles."""
+    def _extract_particle_data(
+        self, obj: "Particles"
+    ) -> tuple[ArrayF, ArrayF, ArrayF]:
+        """Extract pos, mass, r from a Particles instance."""
+        particles = obj.particles if hasattr(obj, "particles") else obj
         return (
-            np.asarray(obj.pos, dtype=float),
-            np.asarray(obj.mass, dtype=float),
-            np.asarray(obj.r, dtype=float),)
+            np.asarray(particles.pos, dtype=float),
+            np.asarray(particles.mass, dtype=float),
+            np.asarray(particles.r, dtype=float),
+        )
 
     def _init_trial_ellipsoid(
-        self, r: float, init_parameters: dict | None, volume_conserve: bool
+        self,
+        r: float,
+        init_parameters: dict | None,
+        volume_conserve: bool,
     ) -> tuple[ArrayF, ArrayF]:
-        """Build initial axes a and rotation matrix R from warm-start params."""
+        """Build initial axes ``a`` and rotation matrix ``R`` from warm-start params."""
         abc = np.ones(3, dtype=float) * r
         abc_init = np.ones(3, dtype=float)
         R: ArrayF = np.eye(3, dtype=float)
@@ -201,9 +201,124 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             ang1 = float(init_parameters.get("ang1", 0.0))
             ang2 = float(init_parameters.get("ang2", 0.0))
             ang3 = float(init_parameters.get("ang3", 0.0))
-            R = np.array(_ScipyRotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix(),dtype=float,)
+            R = np.array(
+                _ScipyRotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix(),
+                dtype=float,
+            )
         a: ArrayF = self._to_new_ellipsoid(abc, abc_init, volume_conservation=volume_conserve)
         return a, R
+
+    def _prefilter_spherical(
+        self,
+        pos: ArrayF,
+        mass: ArrayF,
+        r_p: ArrayF,
+        a: ArrayF,
+        shell_frac: float,
+        is_enclosed: bool,
+    ) -> tuple[ArrayF, ArrayF, ArrayF]:
+        """Conservative spherical cut to reduce work before the ellipsoid call."""
+        if is_enclosed:
+            mask = r_p < a[0] * (1.0 + shell_frac)
+        else:
+            mask = (
+                (r_p > a[2] * (1.0 - shell_frac))
+                & (r_p < a[0] * (1.0 + shell_frac))
+            )
+        return pos[mask], mass[mask], r_p[mask]
+
+    def _select_ellipsoidal(
+        self,
+        f: ArrayF,
+        r_ell: ArrayF,
+        a: ArrayF,
+        shell_frac: float,
+        is_enclosed: bool,
+        min_particles: int,
+        r: float,
+    ) -> NDArray[np.bool_]:
+        """Return the boolean selection mask and validate the particle count."""
+        if is_enclosed:
+            sel_mask = f < 1.0
+        else:
+            lo = (1.0 - shell_frac) * a[0]
+            hi = (1.0 + shell_frac) * a[0]
+            sel_mask = (r_ell >= lo) & (r_ell <= hi)
+
+        n_sel = int(np.sum(sel_mask))
+        if n_sel < min_particles:
+            raise InsufficientPointsError(
+                f"Only {n_sel} particles selected at r={r:.4g} "
+                f"(minimum {min_particles}). "
+                f"shell_frac={shell_frac}, is_enclosed={is_enclosed}."
+            )
+        return sel_mask
+
+    def _iterate_once(
+        self,
+        pos: ArrayF,
+        mass: ArrayF,
+        r_p: ArrayF,
+        a: ArrayF,
+        R: ArrayF,
+        *,
+        shell_frac: float,
+        is_enclosed: bool,
+        weight_method: Literal["r2", "rell2"] | None,
+        min_particles: int,
+        volume_conserve: bool,
+        r: float,
+    ) -> tuple[ArrayF, ArrayF, ArrayF]:
+        """
+        One full iteration: pre-filter → quick_call → select → inertia tensor
+        → axis update.
+
+        Returns
+        -------
+        a_new : ArrayF
+            Updated semi-axes.
+        R_new : ArrayF
+            Updated rotation matrix.
+        sel_mass : ArrayF
+            Masses of the selected particles (needed for shell density).
+        """
+        # --- spherical pre-filter ---
+        pre_pos, pre_mass, pre_r_p = self._prefilter_spherical(
+            pos, mass, r_p, a, shell_frac, is_enclosed
+        )
+        if pre_pos.size == 0:
+            raise InsufficientPointsError(
+                f"No particles survived spherical pre-filter at r={r:.4g}."
+            )
+
+        # --- ellipsoid function: f = x²/a² + y²/b² + z²/c² ---
+        ang = self._default_structure._coordinate.mat_to_angle(R)  # type: ignore[attr-defined]
+        eps_ab = 1.0 - a[1] / a[0]
+        eps_bc = 1.0 - a[2] / a[1]
+        f, _ = self._default_structure.quick_call(
+            *ang, a[0], eps_ab, eps_bc, pos=pre_pos
+        )
+
+        # r_ell = a * sqrt(f)  <==>  sqrt(x² + y²/(b/a)² + z²/(c/a)²)
+        r_ell = a[0] * np.sqrt(np.clip(f, 0.0, None))
+
+        # --- particle selection ---
+        sel_mask = self._select_ellipsoidal(
+            f, r_ell, a, shell_frac, is_enclosed, min_particles, r
+        )
+        sel_pos = pre_pos[sel_mask]
+        sel_mass = pre_mass[sel_mask]
+        sel_r_p = pre_r_p[sel_mask]
+        sel_r_ell = r_ell[sel_mask]
+
+        # --- weighted inertia tensor → new axes ---
+        eff_mass = self._apply_weight(weight_method, sel_mass, sel_r_p, sel_r_ell)
+        abc_new, axes = abc_vect(sel_pos, eff_mass)
+        R_new = self._sanitize_rotation(np.array(axes, dtype=float))
+        a_new_raw = np.sqrt(np.abs(abc_new) * 3.0)
+        a_new = self._to_new_ellipsoid(a, a_new_raw, volume_conservation=volume_conserve)
+
+        return a_new, R_new, sel_mass
 
     # ------------------------------------------------------------------
     # Core fit at a single radius
@@ -242,6 +357,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             ``True`` select the enclosed ellipsoid (:math:`f < 1`).
         weight_method : {None, 'r2', 'rell2'}, optional
             Weighting applied to particle masses:
+
             * ``None``    – uniform (S1 / E1)
             * ``'r2'``    – spherical :math:`r^{-2}` (S2 / E2)
             * ``'rell2'`` – ellipsoidal :math:`r_\\mathrm{ell}^{-2}` (S3 / E3)
@@ -256,7 +372,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         volume_conserve : bool, optional
             If ``True``, rescale axes each iteration so that
             :math:`(abc)^{1/3} = r` is preserved.  If ``False`` (default), the
-            major axis ``a`` is held fixed (following the warm-start value).
+            major axis ``a`` is held fixed.
         init_parameters : dict, optional
             Warm-start: supplies the axis *ratios* and *orientation* from the
             previous radius.  The size is always reset so that
@@ -272,64 +388,28 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         InsufficientPointsError
             If fewer than ``min_particles`` particles are selected.
         """
-        # --- extract particles ---
-        pos, mass, p_r = self._extract_particle_data(obj)
-        # --- initialise axes & rotation ---
+        pos, mass, r_p = self._extract_particle_data(obj)
         a, R = self._init_trial_ellipsoid(r, init_parameters, volume_conserve)
-        # --- iteration loop ---
+
         a_prev: ArrayF = a.copy()
         R_prev: ArrayF = R.copy()
-        iteration_counter = 0
-        err = tol + 1.0
         sel_mass: ArrayF = np.empty(0, dtype=float)
-        while err > tol and iteration_counter < max_iterations:
-            a_prev = a.copy()
-            R_prev = R.copy()
-            # --- spherical pre-filter: generous conservative cut ---
-            if is_enclosed:
-                pre_mask = p_r < a[0] * (1.0 + shell_frac)
-            else:
-                pre_mask = ((p_r > a[2] * (1.0 - shell_frac))& (p_r < a[0] * (1.0 + shell_frac)))
-            if not np.any(pre_mask):
-                break
-            pre_pos = pos[pre_mask]
-            pre_mass = mass[pre_mask]
-            pre_r = p_r[pre_mask]
-            # --- ellipsoid function via quick_call ---
-            # returns (f, r_transformed), where f = x²/a² + y²/b² + z²/c²
-            ang = self._default_structure._coordinate.mat_to_angle(R)  # type: ignore[attr-defined]
-            eps_ab = 1.0 - a[1] / a[0]
-            eps_bc = 1.0 - a[2] / a[1]
-            f, _ = self._default_structure.quick_call(
-                *ang, a[0], eps_ab, eps_bc, pos=pre_pos
+
+        for _n_iter in range(max_iterations):
+            a_prev, R_prev = a.copy(), R.copy()
+            a, R, sel_mass = self._iterate_once(pos, mass, r_p, a, R,
+                shell_frac=shell_frac,
+                is_enclosed=is_enclosed,
+                weight_method=weight_method,
+                min_particles=min_particles,
+                volume_conserve=volume_conserve,
+                r=r,
             )
-            # r_ell = a * sqrt(f)  <==>  sqrt(x² + y²/(b/a)² + z²/(c/a)²)
-            r_ell = a[0] * np.sqrt(np.clip(f, 0.0, None))
-            # --- particle selection ---
-            if is_enclosed:
-                sel_mask = f < 1.0
-            else:
-                lo = (1.0 - shell_frac) * a[0]
-                hi = (1.0 + shell_frac) * a[0]
-                sel_mask = (r_ell >= lo) & (r_ell <= hi)
-            n_sel = int(np.sum(sel_mask))
-            if n_sel < min_particles:
-                raise InsufficientPointsError(f"Only {n_sel} particles selected at r={r:.4g} "
-                    f"(minimum {min_particles}). shell_frac={shell_frac}, is_enclosed={is_enclosed}.")
-            sel_pos = pre_pos[sel_mask]
-            sel_mass = pre_mass[sel_mask]
-            sel_r = pre_r[sel_mask]
-            sel_r_ell = r_ell[sel_mask]
-            # --- weighted inertia tensor ---
-            eff_mass = self._apply_weight(weight_method, sel_mass, sel_r, sel_r_ell)
-            abc_new, axes = abc_vect(sel_pos, eff_mass)
-            R = self._sanitize_rotation(np.array(axes, dtype=float))
-            # convert eigenvalues to axis lengths, then rescale per volume_conserve
-            a_new = np.sqrt(np.abs(abc_new) * 3.0)
-            a = self._to_new_ellipsoid(a, a_new, volume_conservation=volume_conserve)
-            iteration_counter += 1
-            err = self._axis_ratio_error(a, a_prev)
+            if self._axis_ratio_error(a, a_prev) <= tol:
+                break
+
+        err = self._axis_ratio_error(a, a_prev)
         shell_density = self._compute_shell_density(sel_mass, a, shell_frac, is_enclosed)
         return self._build_model_result(
-            a, R, a_prev, R_prev, iteration_counter, err, shell_density
+            a, R, a_prev, R_prev, _n_iter + 1, err, shell_density
         )

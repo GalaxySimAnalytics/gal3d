@@ -1,4 +1,5 @@
 import inspect
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,10 +38,9 @@ def _ensure_typing_imports(lines: list[str]) -> None:
     Rather than precisely merging existing typing imports, we add individual
     import lines for any missing names. ruff --fix will merge and sort them.
     """
-    existing = "".join(lines)
     for name in ("Literal", "overload"):
         # Check if 'name' is already imported from typing
-        if f"from typing import" in existing and name in existing:
+        if any(re.search(rf"\bimport\b.*\b{name}\b", lne) for lne in lines):
             continue
         # Append a bare import line; ruff will merge it later
         insert_at = 0
@@ -68,6 +68,63 @@ def _ensure_plugin_imports(lines: list[str], imports: list[str]) -> None:
             lines.insert(insert_at, imp + "\n")
             insert_at += 1
 
+_TYPING_NAMES = frozenset({
+    "Union", "Optional", "Tuple", "List", "Dict", "Set", "FrozenSet",
+    "Callable", "Iterator", "Generator", "Type", "ClassVar", "Final",
+    "Annotated", "Concatenate",
+})
+
+
+def _fix_type_aliases(lines: list[str], src_path: Path) -> None:
+    """Fix bare ``Name: TypeAlias`` declarations in the ``.pyi``.
+
+    ``stubgen`` drops the RHS when all referenced types are forward-reference
+    strings; this function restores those values by reading the source ``.py``.
+
+    Only single-line ``TypeAlias`` assignments are supported.
+    """
+    src_text = src_path.read_text(encoding="utf-8")
+
+    # Collect all  NAME: TypeAlias = <expr>  assignments from the source
+    alias_re = re.compile(
+        r'^([A-Za-z_]\w*)\s*:\s*TypeAlias\s*=\s*(.+)$',
+        re.MULTILINE,
+    )
+    aliases: dict[str, str] = {}
+    for m in alias_re.finditer(src_text):
+        name, rhs = m.group(1), m.group(2).strip()
+        # Strip forward-reference quotes: "ClassName" → ClassName
+        rhs = re.sub(r'"([A-Za-z_]\w*)"', r'\1', rhs)
+        rhs = re.sub(r"'([A-Za-z_]\w*)'", r'\1', rhs)
+        aliases[name] = rhs
+
+    if not aliases:
+        return
+
+    # Patch bare 'NAME: TypeAlias' lines (no RHS) in the .pyi
+    bare_re = re.compile(r'^(\s*)([A-Za-z_]\w*)\s*:\s*TypeAlias\s*$')
+    for i, line in enumerate(lines):
+        m = bare_re.match(line)
+        if m and m.group(2) in aliases:
+            name = m.group(2)
+            lines[i] = f'{m.group(1)}{name}: TypeAlias = {aliases[name]}\n'
+
+    # Ensure any typing-module names used in the injected RHS are imported
+    all_rhs = " ".join(aliases.values())
+    needed = {n for n in _TYPING_NAMES if re.search(rf'\b{n}\b', all_rhs)}
+    if not needed:
+        return
+
+    existing = "".join(lines)
+    insert_at = 0
+    for idx, lne in enumerate(lines):
+        if lne.startswith(("from ", "import ")):
+            insert_at = idx + 1
+    for name in sorted(needed):
+        if any(re.search(rf"\bimport\b.*\b{name}\b", lne) for lne in lines):
+            continue
+        lines.insert(insert_at, f"from typing import {name}\n")
+        insert_at += 1
 
 def _class_block_range(lines: list[str], cls_name: str) -> tuple[int, int, int]:
     """
@@ -231,6 +288,7 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
     lines = text.splitlines(keepends=True)
 
     _ensure_typing_imports(lines)
+    _fix_type_aliases(lines, src_path)
     _ensure_plugin_imports(lines, imports)
     _inject_overloads(lines, manager.__name__, overloads_get)
 

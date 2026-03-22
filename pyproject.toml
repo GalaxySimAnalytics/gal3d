@@ -16,6 +16,7 @@ dependencies = [
     "tqdm",
     "matplotlib",
     "h5py",
+    "typing_extensions>=4.3; python_version < '3.11'", # for Self
 ]
 classifiers = [
     "Operating System :: OS Independent",

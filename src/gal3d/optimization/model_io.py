@@ -6,14 +6,17 @@ import logging
 import os
 import time
 from abc import abstractmethod
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 from gal3d.plugin import PluginBase, PluginManager
-from gal3d.shape import Structure3D, StructureCore
 
 from .optimizer import OptimizeResult
 from .parameter import Parameters
 from .result import ModelResult
+
+if TYPE_CHECKING:
+    from gal3d.shape import Structure3D, StructureCore
+
 
 logger = logging.getLogger("gal3d.optimization.model_io")
 
@@ -149,7 +152,7 @@ class ModelIOBase(PluginBase):
     @classmethod
     def load(cls,
         filename: str,
-        structure: Structure3D | StructureCore | None = None,
+        structure: Union["Structure3D", "StructureCore", None] = None,
         **kwargs: Any
     ) -> ModelResult:
         """
@@ -170,6 +173,8 @@ class ModelIOBase(PluginBase):
         ModelResult
             The loaded model result.
         """
+        from gal3d.shape import Structure3D, StructureCore
+
         start_time = time.time()
 
         if structure is None:

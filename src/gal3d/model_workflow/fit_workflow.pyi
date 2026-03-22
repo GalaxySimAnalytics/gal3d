@@ -1,9 +1,10 @@
 from collections.abc import Iterable
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypeAlias, Union, overload
 
 from _typeshed import Incomplete
 
 from gal3d.analyzer import Gal3DAnalyzer as Gal3DAnalyzer
+from gal3d.density import DensitySource as DensitySource
 from gal3d.model_workflow.fit_workflow_plugins.ellipsoid_fit import EllipsoidFitWorkflow
 from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_continuous import IterateEllipsoidDensity
 from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import IterateEllipsoidParticles
@@ -13,6 +14,7 @@ from gal3d.point import Particles as Particles
 from gal3d.util.errors import FitDataError as FitDataError
 
 logger: Incomplete
+FitInput: TypeAlias = Union[Gal3DAnalyzer, Particles, DensitySource]
 
 class FitWorkflowBase(PluginBase):
     """
@@ -32,14 +34,14 @@ class FitWorkflowBase(PluginBase):
         Register the subclass as a fitting workflow plugin.
         """
     @staticmethod
-    def condition(obj: Gal3DAnalyzer | Particles) -> bool:
+    def condition(obj: FitInput) -> bool:
         """
         Condition for selecting the fitting workflow.
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer | Particles
-            The analyzer or particle instance.
+        obj : FitInput
+            The analyzer, particle, or density source instance.
 
         Returns
         -------
@@ -48,7 +50,7 @@ class FitWorkflowBase(PluginBase):
         """
     def __call__(
         self,
-        obj: Gal3DAnalyzer | Particles,
+        obj: FitInput,
         r: float | Iterable[float],
         *,
         progress: bool = True,
@@ -64,8 +66,8 @@ class FitWorkflowBase(PluginBase):
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer | Particles
-            The analyzer or particle instance.
+        obj : FitInput
+            The analyzer, particle, or density source instance.
         r : float or iterable of float
             Radius or sequence of radii at which to perform the fit.
         progress : bool, optional
@@ -105,14 +107,14 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
         The base class for all workflow plugins.
     """
     @classmethod
-    def get_workflow(cls, obj: Gal3DAnalyzer | Particles | str) -> FitWorkflowBase:
+    def get_workflow(cls, obj: FitInput | str) -> FitWorkflowBase:
         """
         Select and instantiate the appropriate fitting workflow for the input object.
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer | Particles | str
-            The analyzer, particle instance, or workflow name.
+        obj : FitInput | str
+            The analyzer, particle, or density source instance, or workflow name.
 
         Returns
         -------

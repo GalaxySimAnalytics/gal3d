@@ -132,13 +132,13 @@ iteration uncertainties.
 
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from gal3d.field.spherical_field.spherical_vector import SphVector
-from gal3d.model_workflow.fit_workflow import FitWorkflowBase
+from gal3d.model_workflow.fit_workflow import FitInput, FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 
 from .util import (
@@ -146,9 +146,7 @@ from .util import (
 )
 
 if TYPE_CHECKING:
-    from gal3d.analyzer import Gal3DAnalyzer
     from gal3d.density import DensitySource
-    from gal3d.point import Particles
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
@@ -506,7 +504,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
     """
 
     @staticmethod
-    def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
+    def condition(obj: FitInput) -> bool:
         """
         Return ``True`` if *obj* is a ``DensitySource`` or an analyser
         wrapping one.
@@ -618,10 +616,10 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         return abc, rot, abc_prev, rot_prev, iteration_counter, err, mean_rho
 
 
-    def _fit_single(self, obj: Union["Gal3DAnalyzer", "DensitySource"], r: float, **kwargs: Any) -> ModelResult:
+    def _fit_single(self, obj: FitInput, r: float, **kwargs: Any) -> ModelResult:
         from gal3d.density import DensitySource
 
-        sd = obj if isinstance(obj, DensitySource) else obj.density_source # type: ignore
+        sd = obj if isinstance(obj, DensitySource) else obj.density_source
 
         init_parameters = kwargs.get("init_parameters",{}) # initial guess for a,b,c.  Default is spherical.
 

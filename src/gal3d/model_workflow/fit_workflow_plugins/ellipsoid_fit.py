@@ -4,12 +4,12 @@ This module provides a fitting workflow for ellipsoidal and generalized ellipsoi
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
 from gal3d.field import SphVector
-from gal3d.model_workflow.fit_workflow import FitWorkflowBase
+from gal3d.model_workflow.fit_workflow import FitInput, FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.shape import Structure3D
 from gal3d.util.errors import InsufficientPointsError, PoorUniformityError
@@ -17,7 +17,6 @@ from gal3d.util.errors import InsufficientPointsError, PoorUniformityError
 if TYPE_CHECKING:
     from gal3d.analyzer import Gal3DAnalyzer
     from gal3d.optimization.parameter import Parameters
-    from gal3d.point import Particles
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
@@ -27,7 +26,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
     """
 
     @staticmethod
-    def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
+    def condition(obj: FitInput) -> bool:
         """
         Condition for selecting the ellipsoidal fitting workflow.
 
@@ -36,7 +35,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer or Particles
+        obj : FitInput
             The target instance to check.
 
         Returns
@@ -57,7 +56,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
     def _fit_single(
         self,
-        obj: Union["Gal3DAnalyzer", "Particles"],
+        obj: FitInput,
         r: float,
         **kwargs: Any,
     ) -> ModelResult:
@@ -67,7 +66,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer
+        obj : FitInput
             The analyzer instance.
         r : float
             The semi-major axis at which the structure is fitted.

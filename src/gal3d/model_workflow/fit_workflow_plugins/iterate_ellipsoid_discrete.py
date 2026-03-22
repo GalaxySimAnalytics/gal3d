@@ -85,22 +85,18 @@ errors.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation as _ScipyRotation
 
-from gal3d.model_workflow.fit_workflow import FitWorkflowBase
+from gal3d.model_workflow.fit_workflow import FitInput, FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.point.util import abc_vect
 from gal3d.util.errors import InsufficientPointsError
 
 from .util import EllipsoidResultBuilder
-
-if TYPE_CHECKING:
-    from gal3d.analyzer import Gal3DAnalyzer
-    from gal3d.point import Particles
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
@@ -130,7 +126,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
     """
 
     @staticmethod
-    def condition(obj: Union["Gal3DAnalyzer", "Particles"]) -> bool:
+    def condition(obj: FitInput) -> bool:
         if type(obj).__name__ == "Particles":
             logger.debug("Select IterateEllipsoidParticles for Particles")
             return True
@@ -175,15 +171,14 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         return float(np.sum(sel_mass) / vol) if vol > 0 else 0.0
 
     def _extract_particle_data(
-        self, obj: "Particles"
+        self, obj: FitInput
     ) -> tuple[ArrayF, ArrayF, ArrayF]:
         """Extract pos, mass, r from a Particles instance."""
-        particles = obj.particles if hasattr(obj, "particles") else obj
-        return (
-            np.asarray(particles.pos, dtype=float),
-            np.asarray(particles.mass, dtype=float),
-            np.asarray(particles.r, dtype=float),
-        )
+        particles = obj.density_source if hasattr(obj, "density_source") else obj
+        try:
+            return (particles.pos, particles.mass, particles.r) # type: ignore
+        except AttributeError as e:
+            raise TypeError("Expected a Particles input with pos, mass, r attributes") from e
 
     def _init_trial_ellipsoid(
         self,
@@ -326,7 +321,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
 
     def _fit_single(
         self,
-        obj: "Particles",
+        obj: FitInput,
         r: float,
         *,
         max_iterations: int = 20,
@@ -344,7 +339,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
 
         Parameters
         ----------
-        obj : Gal3DAnalyzer or Particles
+        obj : FitInput
             Input object containing particle data.
         r : float
             Target equivalent radius :math:`(abc)^{1/3}`.

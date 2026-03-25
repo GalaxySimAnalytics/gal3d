@@ -478,10 +478,10 @@ class ParameterDict(dict):
         """
         keys = set(kwargs) & set(self.keys())
         for key in keys:
-            if only_infs and np.isfinite(self[key].lb):
+            if only_infs and math.isfinite(self[key].lb):
                 continue
             value = kwargs[key]
-            self[key].lb = value if np.isfinite(value) else -np.inf
+            self[key].lb = value if math.isfinite(value) else -math.inf
         return self
 
     def set_ub(self, *, only_infs: bool = False, **kwargs: float) -> "ParameterDict":
@@ -507,10 +507,10 @@ class ParameterDict(dict):
         """
         keys = set(kwargs) & set(self.keys())
         for key in keys:
-            if only_infs and np.isfinite(self[key].ub):
+            if only_infs and math.isfinite(self[key].ub):
                 continue
             value = kwargs[key]
-            self[key].ub = value if np.isfinite(value) else np.inf
+            self[key].ub = value if math.isfinite(value) else math.inf
         return self
 
     @property

@@ -288,7 +288,7 @@ class ModelResult:
         """
         if name.startswith("__") and name.endswith("__"):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        if not hasattr(self, "_optimize_result_attrs"):
+        if "_optimize_result_attrs" not in self.__dict__:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         if name in self._optimize_result_attrs:
             # Get attribute from all optimization results

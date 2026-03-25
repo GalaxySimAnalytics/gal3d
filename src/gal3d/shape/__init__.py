@@ -105,12 +105,15 @@ class StructureCore:
         str
             Human-readable string of the coordinate and geometry.
         """
-        coor_repr = repr(self._coordinate(**self.parameters))
-        geometry_repr = repr(self._geometry(**self.parameters))
-        lin1 = [f"<{self.__class__.__name__}|: ", "\n"]
-        lin2 = ["   ", coor_repr, "\n"]
-        lin3 = ["   ", geometry_repr]
-        return "".join(lin1 + lin2 + lin3)
+        indent = "      "
+        coor_repr = repr(self._coordinate(**self.parameters)).replace("\n", "\n" + indent)
+        geom_repr = repr(self._geometry(**self.parameters)).replace("\n", "\n" + indent)
+        return (
+            f"<{self.__class__.__name__}|\n"
+            f"   Coord : {coor_repr}\n"
+            f"   Geom  : {geom_repr}\n"
+            f"|>"
+        )
 
 
     def _latex_str_(self):
@@ -119,14 +122,16 @@ class StructureCore:
         coord_obj = self._coordinate(**coord_pa)
         geom_obj  = self._geometry(**geoty_pa)
 
+        header_coord = r"& \textbf{\text{Coordinate}} & \\"
+        header_geom  = r"& \textbf{\text{Geometry}} & \\"
+
         lines = [
-            r"& \text{Coordinate} & \\",
-            coord_obj._latex_str_(derived=""),
-            r"& \text{Geometry} & \\",
-            geom_obj._latex_str_(derived=""),
+            header_coord,
+            coord_obj._latex_str_(),       # include derived/latex_other
+            header_geom,
+            geom_obj._latex_str_(),
         ]
-        body = "\n".join(lines)
-        return body
+        return "\n".join(lines)
 
     def _repr_latex_(self):
         """
@@ -776,6 +781,8 @@ class StructureCore:
             u = np.asarray(phi_bins)
             v = np.asarray(theta_bins)
 
+        nu, nv = len(u), len(v)
+
         x = np.outer(np.cos(u), np.sin(v))
         y = np.outer(np.sin(u), np.sin(v))
         z = np.outer(np.ones_like(u), np.cos(v))
@@ -785,9 +792,9 @@ class StructureCore:
 
         pos_plot,_ =self.ray_intersect(pos)
 
-        X = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,0]
-        Y = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,1]
-        Z = pos_plot.reshape(n_phi_bins*4+1,n_theta_bins*2+1,3)[:,:,2]
+        X = pos_plot.reshape(nu,nv,3)[:,:,0]
+        Y = pos_plot.reshape(nu,nv,3)[:,:,1]
+        Z = pos_plot.reshape(nu,nv,3)[:,:,2]
         return X,Y,Z
 
 class StructureError:
@@ -897,14 +904,14 @@ class StructureError:
         Return LaTeX rows for error configuration.
         Keep the same 3-column layout: label & : & value, and a centered title row.
         """
-        def _escape_ident(s: str) -> str:
-            import re
+        import re
+        def _esc(s):
             return re.sub(r"(?<!\\)_", r"\_", s)
 
-        func_name   = _escape_ident(self._error_func_name)
-        method_name = _escape_ident(self._error_method_name)
-        title = r"{} & \text{Error} & {} \\"
-        line1 = rf"\text{{Err func}} & : & \text{{{func_name}}} \\"
+        func_name   = _esc(self._error_func_name)
+        method_name = _esc(self._error_method_name)
+        title = r"& \textbf{\text{Error}} & \\"
+        line1 = rf"\text{{Err func}}   & : & \text{{{func_name}}} \\"
         line2 = rf"\text{{Err method}} & : & \text{{{method_name}}} \\"
         return "\n".join([title, line1, line2])
 
@@ -1049,11 +1056,18 @@ class Structure3D(StructureCore, StructureError):
             Human-readable string of the coordinate and geometry.
         """
         coor_repr = repr(self._coordinate(**self.parameters))
-        geometry_repr = repr(self._geometry(**self.parameters))
-        lin1 = [f"<{self.__class__.__name__}|: ", "\n"]
-        lin2 = ["   ", coor_repr, "\n"]
-        lin3 = ["   ", geometry_repr]
-        return "".join(lin1 + lin2 + lin3)
+        geom_repr = repr(self._geometry(**self.parameters))
+        # indent continuation lines of nested reprs
+        indent = "      "
+        coor_repr_indented = coor_repr.replace("\n", "\n" + indent)
+        geom_repr_indented = geom_repr.replace("\n", "\n" + indent)
+        return (
+            f"<{self.__class__.__name__}|\n"
+            f"   Coord : {coor_repr_indented}\n"
+            f"   Geom  : {geom_repr_indented}\n"
+            f"   Error : {self._error_func_name} / {self._error_method_name}\n"
+            f"|>"
+        )
 
     def _latex_str_(self):
         """

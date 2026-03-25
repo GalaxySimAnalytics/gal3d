@@ -340,7 +340,7 @@ class WithParameter(ABC):
         return (
             "$\n"
             "\\large\n"
-            "\\begin{array}{r c c}\n" +
+            "\\begin{array}{r c l}\n" +
             body +
             "\n\\end{array}\n"
             "$"

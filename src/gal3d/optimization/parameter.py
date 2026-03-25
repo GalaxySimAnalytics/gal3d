@@ -67,12 +67,12 @@ def _latex_param_line(param: "Parameter", nd: int = 3, hide_zero_err: bool = Tru
     \\lgroup value±err, [lb, ub] \rgroup
     """
     val = _fmt_num(float(param), nd, latex=True)
-    err = _fmt_num(param.err, nd, latex=True)
     bounds = _fmt_bounds(param.lb, param.ub, nd, latex=True)
-    if hide_zero_err and (math.isnan(param.err) or param.err == 0):
-        return rf"\lgroup {val},\ {bounds} \rgroup"
+    if hide_zero_err and (math.isnan(param.err) or param.err == 0.0):
+        return rf"{val} \in {bounds}"
     else:
-        return rf"\lgroup {val}\pm {err},\ {bounds} \rgroup"
+        err = _fmt_num(param.err, nd, latex=True)
+        return rf"{val} \pm {err} \in {bounds}"
 
 class Parameter(float):
     """
@@ -197,8 +197,12 @@ class Parameter(float):
 
     def __repr__(self) -> str:
         """Return the verbose diagnostic form (old repr style)."""
-        return (f"Parameter(value={float(self):.6g}, lb={self.lb:.6g}, "
-                f"ub={self.ub:.6g}, err={self.err:.6g})")
+        val = _fmt_num(float(self))
+        lb  = _fmt_num(self.lb)
+        ub  = _fmt_num(self.ub)
+        if math.isnan(self.err) or self.err == 0.0:
+            return f"Parameter({val} ∈ [{lb}, {ub}])"
+        return f"Parameter({val} ± {_fmt_num(self.err)} ∈ [{lb}, {ub}])"
 
     def to_latex(self, nd: int = 3, hide_zero_err: bool = True) -> str:
         """
@@ -208,7 +212,7 @@ class Parameter(float):
 
     def _repr_latex_(self):
         """Return a KaTeX-safe single-line math representation."""
-        return r"$\text{Param}\ " + self.to_latex()+"$"
+        return r"$" + self.to_latex() + r"$"
 
 class ParameterDict(dict):
     """
@@ -566,7 +570,17 @@ class ParameterDict(dict):
         return self.keys()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({super().__repr__()[1:-1]})"
+        if not self:
+            return f"{self.__class__.__name__}()"
+        name_w = max(len(k) for k in self) + 1
+        lines = []
+        for k, v in self.items():
+            val  = _fmt_num(float(v))
+            lb   = _fmt_num(v.lb)
+            ub   = _fmt_num(v.ub)
+            err_s = f" ± {_fmt_num(v.err)}" if not (math.isnan(v.err) or v.err == 0.0) else ""
+            lines.append(f"  {k:<{name_w}} = {val}{err_s}  [{lb}, {ub}]")
+        return f"{self.__class__.__name__}(\n" + "\n".join(lines) + "\n)"
 
     def to_latex_lines(self, nd: int = 3, hide_zero_err: bool = True) -> dict[str,str]:
         """
@@ -582,14 +596,18 @@ class ParameterDict(dict):
         Basic LaTeX for direct parameters only.
         """
         lines = self.to_latex_lines()
-        rows = [rf"\text{{{self.__class__.__name__}}} &  & \\ "] + [
-            rf"\text{{{_escape_name(k)}}} & : & " + v + r" \\"
-            for k, v in lines.items()
-        ]
+        if not lines:
+            return r"$\text{" + self.__class__.__name__ + r"()}$"
+        items = list(lines.items())
+        rows = [rf"\textbf{{\text{{{self.__class__.__name__}}}}} & & \\"]
+        for i, (k, v) in enumerate(items):
+            row = rf"\text{{{_escape_name(k)}}} & {{:}} & {v}"
+            if i < len(items) - 1:
+                row += r" \\"
+            rows.append(row)
         body = "\n".join(rows)
         return (
             "$\n"
-            "\\small\n"
             "\\begin{array}{r c l}\n"
             + body +
             "\n\\end{array}\n"

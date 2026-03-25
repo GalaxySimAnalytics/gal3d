@@ -3,80 +3,91 @@ import logging
 logger = logging.getLogger("gal3d.optimization.util")
 
 
-_model_result_style = """
-        <style>
-        .mr-wrapper {
-            overflow:auto;
-            max-height:460px;
-            border:1px solid #c8ccd0;
-            border-radius:4px;
-            background:#fff;
-            box-shadow:0 2px 4px rgba(0,0,0,0.08);
-            padding:0;
-            position:relative;
-        }
-        .mr-summary {
-            position:sticky;
-            top:0;
-            z-index:5;
-            background:#1f2730;
-            color:#f2f5f7;
-            font-family:monospace;
-            font-size:13px;
-            line-height:1.25;
-            padding:4px 10px 5px 10px;
-            border-bottom:1px solid #444;
-            letter-spacing:0.3px;
-            white-space:nowrap;
-        }
-        .mr-table {
-            border-collapse:collapse;
-            font-family:monospace;
-            font-size:12.5px;
-            min-width:max-content;
-        }
-        .mr-table th, .mr-table td {
-            border:1px solid #d0d4da;
-            padding:4px 8px;
-            text-align:right;
-            white-space:nowrap;
-        }
-        .mr-table th {
-            background:#2d3642;
-            color:#f9f9f9;
-            font-weight:600;
-            position:sticky;
-            top:28px; /* summary height (approx) */
-            z-index:4;
-        }
-        .mr-table tbody tr:nth-child(even){
-            background:#fafafa;
-        }
-        .mr-table tbody tr:hover{
-            background:#ffe8aa;
-        }
-        .mr-table td{
-            color:#222;
-        }
-        .mr-table th:first-child,
-        .mr-table td:first-child{
-            background:#314150;
-            color:#fff;
-            font-weight:600;
-        }
-        .mr-table th:nth-child(2),
-        .mr-table td:nth-child(2){
-            background:#3a4a5a;
-            color:#f1f6ff;
-        }
-        .mr-note{
-            font-size:11px;
-            color:#555;
-            margin-top:4px;
-            font-family:monospace;
-        }
-        </style>
-        """
+_model_result_style = """<style>
+.mr-wrapper {
+    font-family: monospace;
+    border: 1px solid #c8ccd0;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+    display: inline-block;
+    max-width: 100%;
+}
+.mr-summary {
+    background: #1f2730;
+    color: #e8edf2;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 5px 12px;
+    border-bottom: 2px solid #3a4a5a;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* ── scrollable body - sticky th now uses top:0 within THIS container ── */
+.mr-body {
+    overflow: auto;
+    max-height: 420px;
+}
+.mr-table {
+    border-collapse: collapse;
+    font-size: 12.5px;
+    min-width: max-content;
+    width: 100%;
+}
+.mr-table th {
+    background: #2d3f50;
+    color: #f0f5ff;
+    font-weight: 600;
+    padding: 4px 10px;
+    border: 1px solid #4a5968;
+    text-align: right;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+.mr-table th:first-child {
+    text-align: center;
+    background: #1e3040;
+}
+.mr-table td {
+    border: 1px solid #d8dce2;
+    padding: 3px 10px;
+    text-align: right;
+    white-space: nowrap;
+    color: #1a1a2e;
+    background: #ffffff;       /* ← explicit white: blocks Jupyter dark-mode override */
+}
+.mr-table td:first-child {
+    text-align: center;
+    background: #eef2f8;
+    color: #2a3a4a;
+    font-weight: 600;
+    border-right: 2px solid #b0bac8;
+}
+.mr-table tbody tr:nth-child(even) td             { background: #f0f4fa; }
+.mr-table tbody tr:nth-child(even) td:first-child { background: #e4ecf5; }
+.mr-table tbody tr:hover td                       { background: #fff3cd; }
+.mr-table tbody tr:hover td:first-child           { background: #ffe8a0; }
+.mr-ellipsis td {
+    text-align: center !important;
+    color: #888 !important;
+    font-style: italic;
+    background: #f5f5f5 !important;
+    padding: 2px 10px;
+    font-size: 14px;
+    letter-spacing: 4px;
+}
+.mr-note {
+    font-size: 11px;
+    color: #666;
+    padding: 4px 10px 5px;
+    border-top: 1px solid #e0e4ea;
+    background: #fafbfc;
+}
+</style>"""
 
 def truncate(num: float, n: int) -> float:
     """

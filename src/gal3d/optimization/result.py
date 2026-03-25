@@ -614,21 +614,24 @@ class ModelResult:
         """
         from .util import _model_result_style
         if not self._param_sets:
-            return "<div><b>ModelResult</b>: (empty)</div>"
+            return (
+                "<div class='mr-wrapper'>"
+                "<div class='mr-summary'>ModelResult (empty)</div>"
+                "</div>"
+                + _model_result_style
+            )
 
         info = self._summary_fields()
         summary_text = (
-            f"ModelResult | num={_html_escape(info['num'])}"
-            f" | { _html_escape(info['coordinate']) }"
-            f" | { _html_escape(info['geometry']) }"
-            f" | { _html_escape(info['error_method']) } |"
+            f"ModelResult&nbsp;&#124;&nbsp;num={_html_escape(info['num'])}"
+            f"&nbsp;&#124;&nbsp;{_html_escape(info['coordinate'])}"
+            f"&nbsp;&#124;&nbsp;{_html_escape(info['geometry'])}"
+            f"&nbsp;&#124;&nbsp;{_html_escape(info['error_method'])}&nbsp;&#124;"
         )
 
-        # table data
         param_names = list(self.keys())
         records = self._table_records()
 
-        # columns
         cols = ["#"]
         if records and "cost" in records[0]:
             cols.append("cost")
@@ -637,60 +640,56 @@ class ModelResult:
         total = len(records)
         edge = 5
         force_show_all = bool(getattr(self, "_display_show_all", False))
-
-        # choose display rows: head+ellipsis+tail, unless forced to show all
-        truncated = False
-        # display_rows: actual rows to render; None means an ellipsis row
+        truncated = not force_show_all and total > 2 * edge
         display_rows: list[dict[str, str] | None]
-        if not force_show_all and total > 2 * edge:
+        if truncated:
             display_rows = list(records[:edge]) + [None] + list(records[-edge:])
-            truncated = True
         else:
             display_rows = list(records)
 
-        # thead
         thead = "<tr>" + "".join(f"<th>{_html_escape(c)}</th>" for c in cols) + "</tr>"
 
-        # tbody
         body_parts: list[str] = []
         for row in display_rows:
             if row is None:
                 body_parts.append(
-                    f"<tr><td colspan='{len(cols)}' "
-                    "style='text-align:center;color:#777;font-style:italic;background:#fff;'>"
-                    "…</td></tr>"
+                    f"<tr class='mr-ellipsis'>"
+                    f"<td colspan='{len(cols)}'>&#8942;</td></tr>"
                 )
-                continue
-            tds = []
-            for c in cols:
-                val = row.get(c, "")
-                tds.append(f"<td>{_html_escape(val)}</td>")
-            body_parts.append("<tr>" + "".join(tds) + "</tr>")
+            else:
+                tds = "".join(
+                    f"<td>{_html_escape(row.get(c, ''))}</td>" for c in cols
+                )
+                body_parts.append(f"<tr>{tds}</tr>")
         tbody = "\n".join(body_parts)
 
-        # note
-        trunc_note = ""
+        note_html = ""
         if truncated:
-            trunc_note = (
-                f"<div class='mr-note'>showing first {edge} and last {edge} of {total} rows; "
-                "use head(n)/tail(n) or slicing to see specific ranges.</div>"
+            note_html = (
+                f"<div class='mr-note'>showing first {edge} and last {edge}"
+                f" of {total} rows &mdash; use"
+                " <code>head(n)</code>&nbsp;/&nbsp;<code>tail(n)</code>"
+                " or slicing to select rows.</div>"
             )
         elif force_show_all:
-            trunc_note = (
-                f"<div class='mr-note'>showing {total} rows (via head/tail).</div>"
+            note_html = (
+                f"<div class='mr-note'>showing all {total} rows"
+                " (via head&nbsp;/&nbsp;tail).</div>"
             )
 
-        html_table = (
+        return (
             "<div class='mr-wrapper'>"
             f"<div class='mr-summary'>{summary_text}</div>"
+            "<div class='mr-body'>"
             "<table class='mr-table'>"
-            f"<thead>{thead}</thead><tbody>{tbody}</tbody>"
+            f"<thead>{thead}</thead>"
+            f"<tbody>{tbody}</tbody>"
             "</table>"
+            + note_html +
             "</div>"
-            + trunc_note
+            "</div>"
             + _model_result_style
         )
-        return html_table
 
 load_model = ModelResult.load_from_file
 

@@ -48,8 +48,8 @@ def _fmt_num(v: float, nd: int = 3, latex: bool = False) -> str:
             return r"\infty" if v > 0 else r"-\infty"
         # plain text: use 'inf' / '-inf'
         return "inf" if v > 0 else "-inf"
-    # large numbers use scientific notation
-    if abs(v) >= 10 ** (nd + 1):
+    # use scientific notation for very large or very small nonzero values
+    if v != 0 and (abs(v) >= 10 ** (nd + 1) or abs(v) < 10 ** (-nd)):
         return f"{v:.{nd}e}"
     return f"{v:.{nd}f}"
 

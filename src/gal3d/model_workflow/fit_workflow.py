@@ -135,10 +135,33 @@ class FitWorkflowBase(PluginBase):
 
         # ---- sequence path ----
         results: list[ModelResult] = []
-        errors: dict[str, list[float]] = {}
+        pending_skips: dict[str, list[float]] = {}
+
+        def _log_warning_below_pbar(msg: str, pbar: tqdm | None)-> None:
+            if pbar is not None and not pbar.disable:
+                with pbar.external_write_mode():
+                    logger.warning(msg)
+            else:
+                logger.warning(msg)
+
+        def _flush_pending(pbar: tqdm | None) -> None:
+            for etype, radii in pending_skips.items():
+                if not radii:
+                    continue
+                if len(radii) == 1:
+                    msg = f"{etype}: skipped radius {radii[0]:.4g}"
+                else:
+                    msg = (
+                        f"{etype}: skipped {len(radii)} radii "
+                        f"from {radii[0]:.4g} to {radii[-1]:.4g}"
+                    )
+                _log_warning_below_pbar(msg, pbar)
+            pending_skips.clear()
+
+        pbar = tqdm(r, desc="Fitting radii", disable=not progress)
 
         try:
-            for i in tqdm(r, desc="Fitting radii", disable=not progress):
+            for i in pbar:
                 radius = float(i)
                 kw = dict(kwargs)
 
@@ -151,27 +174,19 @@ class FitWorkflowBase(PluginBase):
 
                 try:
                     result = self._fit_single(obj, radius, **kw)
+                    if pending_skips:
+                        _flush_pending(pbar)
                     results.append(result)
                 except FitDataError as exc:
                     etype = type(exc).__name__
-                    errors.setdefault(etype, []).append(radius)
+                    pending_skips.setdefault(etype, []).append(radius)
 
         except KeyboardInterrupt:
-            logger.warning("Interrupted by user; returning partial results.")
+            _log_warning_below_pbar("Interrupted by user; returning partial results.", pbar)
 
-        # ---- report skipped radii ----
-        for etype, radii in errors.items():
-            if len(radii) > 2:
-                logger.warning(
-                    "%s: skipped %d radii between %.4g and %.4g",
-                    etype, len(radii), min(radii), max(radii),
-                )
-            else:
-                logger.warning(
-                    "%s: skipped radii: %s",
-                    etype,
-                    ", ".join(f"{rad:.4g}" for rad in radii),
-                )
+        # ----
+        if pending_skips:
+            _flush_pending(pbar)
 
         if results:
             return sum(results[1:], results[0])

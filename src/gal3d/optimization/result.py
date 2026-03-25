@@ -352,23 +352,58 @@ class ModelResult:
             A formatted string describing the ModelResult object.
         """
         info = self._summary_fields()
-        lin1 = (
-            "<ModelResult| num="
-            + info["num"]
-            + " | "
-            + info["coordinate"]
-            + " | "
-            + info["geometry"]
-            + " | "
-            + info["error_method"]
-            + " |>"
+        header = (
+            f"ModelResult | num={info['num']}"
+            f" | {info['coordinate']}"
+            f" | {info['geometry']}"
+            f" | {info['error_method']}"
         )
-        lin2 = "Parameters: " + str(list(self.keys()))
-        lenmax = max(len(lin1), len(lin2))
-        lins = [lin1, lin2]
-        result = "".join([i.center(lenmax, " ") + "\n" for i in lins])
+        if not self._param_sets:
+            return header + "\n(empty)\n"
 
-        return result
+        records = self._table_records()
+        n_params = len(list(self.keys()))
+        cols = ["#"]
+        if records and "cost" in records[0]:
+            cols.append("cost")
+        cols.extend(list(self.keys()))
+
+        total = len(records)
+        edge = 5
+        force_show_all = bool(getattr(self, "_display_show_all", False))
+        truncated = not force_show_all and total > 2 * edge
+        display_rows: list[dict[str, str] | None]
+        if truncated:
+            display_rows = list(records[:edge]) + [None] + list(records[-edge:])
+        else:
+            display_rows = list(records)
+
+        # column widths
+        col_w = {c: len(c) for c in cols}
+        for row in display_rows:
+            if row is not None:
+                for c in cols:
+                    col_w[c] = max(col_w[c], len(row.get(c, "")))
+
+        def _r(s: str, w: int) -> str:
+            return s.rjust(w)
+
+        col_line = "  ".join(_r(c, col_w[c]) for c in cols)
+        sep = "\u2500" * len(col_line)  # ─
+
+        lines = [header, sep, col_line, sep]
+        for row in display_rows:
+            if row is None:
+                lines.append("  ".join("\u22ee".center(col_w[c]) for c in cols))  # ⋮
+            else:
+                lines.append("  ".join(_r(row.get(c, ""), col_w[c]) for c in cols))
+        lines.append(sep)
+
+        note = f"[{total} rows \u00d7 {n_params} parameters]"  # ×
+        if truncated:
+            note += "  \u2014  head(n) / tail(n) to select rows"  # —
+        lines.append(note)
+        return "\n".join(lines) + "\n"
 
     def __add__(self, other: "ModelResult") -> "ModelResult":
         """

@@ -78,12 +78,16 @@ class ModelResult:
         """
         Get parameter keys from the first parameter set.
         """
+        if not self._param_sets:
+            return {}.keys()
         return self._param_sets[0].keys()
 
     def available_keys(self):
         """
         Get all available keys of parameters.
         """
+        if not self._param_sets:
+            return {}.keys()
         return self._param_sets[0].available_keys()
 
     @property
@@ -262,6 +266,8 @@ class ModelResult:
             raise KeyError(f"Key must be a string, integer, slice, or numpy array, got {type(k).__name__}")
 
     def _ipython_key_completions_(self) -> list[str]:
+        if not self._param_sets:
+            return []
         return list(self._param_sets[0]._ipython_key_completions_())
 
     def __getattr__(self, name: str) -> list[Any] | np.ndarray:

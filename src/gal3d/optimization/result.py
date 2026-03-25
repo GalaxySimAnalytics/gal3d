@@ -212,9 +212,11 @@ class ModelResult:
 
         elif isinstance(k, int):
             # Return the Structure3D initialized with parameters at index k
-            if k < 0 or k >= len(self._param_sets):
-                raise IndexError(f"Index {k} out of bounds (0-{len(self._param_sets)-1})")
-
+            n = len(self._param_sets)
+            if k < -n or k >= n:
+                raise IndexError(f"Index {k} out of bounds ({-n}-{n-1})")
+            if k < 0:
+                k += n
             return self._structure.clone_with_parameters(
                 **self._param_sets[k].structure_parameters
             )

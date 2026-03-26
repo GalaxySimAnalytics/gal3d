@@ -293,6 +293,39 @@ class DensityKNNConfig(BaseConfig):
         if self.workers is None or self.workers <= 0:
             self.workers = cpu_count
 
+
+@dataclass
+class LOSIntegratorConfig(BaseConfig):
+    """
+    Configuration for the adaptive Simpson line-of-sight integrator.
+
+    Parameters
+    ----------
+    nz_min : int
+        Minimum number of z samples (odd) for the base Simpson grid.
+    nz_max : int
+        Maximum number of z samples per pixel before accepting an
+        unconverged result with a warning.
+    rtol : float
+        Relative tolerance for the adaptive integrator.
+    atol : float
+        Absolute tolerance for the adaptive integrator.
+    """
+    nz_min: int = 33
+    nz_max: int = 4097
+    rtol: float = 1e-4
+    atol: float = 1e-8
+
+    def validate(self) -> None:
+        if self.nz_min < 3:
+            raise ValueError(f"nz_min must be >= 3, got {self.nz_min}")
+        if self.nz_max < self.nz_min:
+            raise ValueError(f"nz_max ({self.nz_max}) must be >= nz_min ({self.nz_min})")
+        if self.rtol < 0:
+            raise ValueError(f"rtol must be >= 0, got {self.rtol}")
+        if self.atol < 0:
+            raise ValueError(f"atol must be >= 0, got {self.atol}")
+
 @dataclass
 class SPHRenderConfig(BaseConfig):
     """
@@ -421,6 +454,8 @@ class Config:
         Logger settings section.
     densityknn : DensityKNNConfig
         Density KNN settings section.
+    los_integrator : LOSIntegratorConfig
+        Line-of-sight integrator settings section.
     sph_render : SPHRenderConfig
         SPH rendering settings section.
     ellipsoid_s : EllipsoidConfig
@@ -432,6 +467,7 @@ class Config:
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
     densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
+    los_integrator: LOSIntegratorConfig = field(default_factory=LOSIntegratorConfig)
     sph_render: SPHRenderConfig = field(default_factory=SPHRenderConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
     plugin_modules: PluginManagerConfig = field(default_factory=PluginManagerConfig)
@@ -445,6 +481,7 @@ class Config:
         self.general.validate()
         self.logger.validate()
         self.densityknn.validate()
+        self.los_integrator.validate()
         self.sph_render.validate()
         self.ellipsoid_s.validate()
 
@@ -454,6 +491,7 @@ class Config:
             f"[General]\n{self.general}",
             f"[Logger]\n{self.logger}",
             f"[DensityKNN]\n{self.densityknn}",
+            f"[LOSIntegrator]\n{self.los_integrator}",
             f"[SPHRender]\n{self.sph_render}",
             f"[Ellipsoid_S]\n{self.ellipsoid_s}",
             f"[Plugin Modules]\n{pformat(self.plugin_modules)}"
@@ -466,6 +504,7 @@ class Config:
             "general": asdict(self.general),
             "logger": asdict(self.logger),
             "densityknn": asdict(self.densityknn),
+            "los_integrator": asdict(self.los_integrator),
             "sph_render": asdict(self.sph_render),
             "ellipsoid_s": {k: (v.value if isinstance(v, IterationMethod) else v)
                            for k, v in asdict(self.ellipsoid_s).items()},

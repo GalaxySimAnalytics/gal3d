@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import numpy as np
 from numpy.typing import ArrayLike
 
+from gal3d.configuration import config
 from gal3d.util.array_operate import Auto3DShape
 
 if TYPE_CHECKING:
@@ -243,11 +244,7 @@ class DensitySource(Auto3DShape):
         DensitySource.project_2d_los :
             The always-available LOS integration implementation.
         """
-        #TODO these parameters may be set in config
-        nz_min: int = 33
-        nz_max: int = 4097
-        rtol: float = 1e-4
-        atol: float = 1e-8
+        los_cfg = config.los_integrator
 
         return self.project_2d_los(
             x_range=x_range,
@@ -255,8 +252,8 @@ class DensitySource(Auto3DShape):
             resolution=resolution,
             rotation_matrix=rotation_matrix,
             z_range=z_range,
-            nz_min=nz_min,
-            nz_max=nz_max,
-            rtol=rtol,
-            atol=atol,
+            nz_min=los_cfg.nz_min,
+            nz_max=los_cfg.nz_max,
+            rtol=los_cfg.rtol,
+            atol=los_cfg.atol,
         )

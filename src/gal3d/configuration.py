@@ -9,11 +9,11 @@ Quick start
 >>>
 >>> # Inspect core settings
 >>> print(config.general.number_of_threads)
->>> print(config.general.compute_backend)
+>>> print(config.general.use_cython)
 >>>
 >>> # Change threads and backend
 >>> config.general.number_of_threads = 8
->>> config.general.compute_backend = "auto"   # or "cython", "numba"
+>>> config.general.use_cython = False         # True: Cython (default), Numba currently disabled
 >>>
 >>> # Enable your plugin package for discovery
 >>> config.plugin_modules.add_module("gal3d.my_plugins")

@@ -81,6 +81,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 
+from .configuration import BaseConfig
 from .field import SphField
 from .model_workflow.fit_workflow import FitWorkflow, FitWorkflowBase
 from .optimization.optimizer import Optimizer, OptimizerBase
@@ -102,7 +103,7 @@ logger = logging.getLogger("gal3d.analyzer")
 T = TypeVar("T", bound="Gal3DAnalyzer")
 
 @dataclass
-class ParticleCfg:
+class ParticleCfg(BaseConfig):
     """
     Configuration for building a :class:`gal3d.point.Particles` instance.
 
@@ -126,8 +127,12 @@ class ParticleCfg:
     density_estimator: str = "DensityEstimatorSPH"
     estimator_kwargs: dict = dc_field(default_factory=dict)
 
+    def validate(self) -> None:
+        if self.rmax is not None and self.rmax <= 0:
+            raise ValueError(f"rmax must be positive, got {self.rmax}")
+
 @dataclass
-class FieldCfg:
+class FieldCfg(BaseConfig):
     """
     Configuration for building a :class:`gal3d.field.SphField` instance.
 
@@ -192,9 +197,19 @@ class FieldCfg:
     iso_from_rays_func: bool = False
     iso_res_b: float = 0.2
     iso_res_c: float = 0.1
-
+    def validate(self) -> None:
+        if not (0 < self.inner_frac < 1):
+            raise ValueError(f"inner_frac must be in (0, 1), got {self.inner_frac}")
+        if self.num_ray_min <= 0:
+            raise ValueError(f"num_ray_min must be > 0, got {self.num_ray_min}")
+        if self.num_ray_max < self.num_ray_min:
+            raise ValueError(f"num_ray_max ({self.num_ray_max}) must be >= num_ray_min ({self.num_ray_min})")
+        if self.profile_num_p <= 0:
+            raise ValueError(f"profile_num_p must be > 0, got {self.profile_num_p}")
+        if self.profile_step_mode not in ("log", "lin"):
+            raise ValueError(f"profile_step_mode must be 'log' or 'lin', got {self.profile_step_mode!r}")
 @dataclass
-class StructureCfg:
+class StructureCfg(BaseConfig):
     """
     Configuration for building a :class:`gal3d.shape.Structure3D`
     instance.
@@ -215,9 +230,12 @@ class StructureCfg:
     geometry: str = "Ellipsoid_S"    # {"Ellipsoid_S","Ellipsoid_T","Ellipsoid_O","Triaxial_N"}
     error_func: str = "sums_dev_rscale"   # {"sums_dev_rscale","sums_dev_rhalf","sums_dev_density"}
     error_method: str = "isodensity_curve_dcall"  # {"isodensity_curve_dcall","isodensity_point_dcall","profile_curve_dcall","profile_point_dcall"}
-
+    def validate(self) -> None:
+        valid_coords = {"ShiftEuler", "Euler", "Cartesian"}
+        if self.coordinate not in valid_coords:
+            raise ValueError(f"coordinate must be one of {valid_coords}, got {self.coordinate!r}")
 @dataclass
-class OptimizerCfg:
+class OptimizerCfg(BaseConfig):
     """
     Configuration for selecting and constructing an optimizer.
 
@@ -463,7 +481,7 @@ class Gal3DAnalyzer:
         mass: np.ndarray,
         *,
         recenter: bool = True,
-        inner_frac: float = 0.9,
+        inner_frac: float | None = None,
         inner: float | None = None,
         inner_mode: str | None = None,
         outer: float | None = None,
@@ -525,16 +543,12 @@ class Gal3DAnalyzer:
 
         cfg.particle.recenter = recenter
 
-        if inner is not None:
-            cfg.field.inner = float(inner)
-        if outer is not None:
-            cfg.field.outer = float(outer)
-        if inner_mode is not None:
-            cfg.field.inner_mode = inner_mode
-        if outer_mode is not None:
-            cfg.field.outer_mode = outer_mode
-        if inner_frac is not None:
-            cfg.field.inner_frac = inner_frac
+        cls._apply_field_overrides(
+            cfg,
+            inner=inner, outer=outer,
+            inner_mode=inner_mode, outer_mode=outer_mode,
+            inner_frac=inner_frac,
+        )
 
         return cls.from_configs(pos, mass, config = cfg, **kwargs)
 
@@ -649,6 +663,30 @@ class Gal3DAnalyzer:
         )
         return particles
 
+
+    @staticmethod
+    def _apply_field_overrides(
+        cfg: Gal3DAnalyzerCfg,
+        *,
+        inner: float | None,
+        outer: float | None,
+        inner_mode: str | None,
+        outer_mode: str | None,
+        inner_frac: float | None,
+    ) -> None:
+        """
+        Apply high-level field boundary overrides to the configuration.
+        """
+        if inner is not None:
+            cfg.field.inner = float(inner)
+        if outer is not None:
+            cfg.field.outer = float(outer)
+        if inner_mode is not None:
+            cfg.field.inner_mode = inner_mode
+        if outer_mode is not None:
+            cfg.field.outer_mode = outer_mode
+        if inner_frac is not None:
+            cfg.field.inner_frac = inner_frac
     @classmethod
     def _auto_field_bounds(
         cls,
@@ -685,7 +723,8 @@ class Gal3DAnalyzer:
         outer_mode = cfg.outer_mode
 
         if inner is None:
-            assert 0 < cfg.inner_frac < 1, "Inner fraction must be between 0 and 1."
+            if not (0 < cfg.inner_frac < 1):
+                raise ValueError(f"inner_frac must be in (0, 1), got {cfg.inner_frac}")
             center_param = density_source([0, 0, 0])
             inner = float(center_param) * cfg.inner_frac
             inner_mode = "value"

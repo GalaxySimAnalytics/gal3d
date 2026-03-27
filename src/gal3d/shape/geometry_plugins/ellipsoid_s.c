@@ -11,10 +11,8 @@ void f_shaped_ellipsoid_cpp(
     double inv_b2 = 1.0 / (b * b);
     double inv_c2 = 1.0 / (c * c);
 
-    omp_set_num_threads(num_threads);
-
     int i; // fix, windows compile error C3015: initialization in OpenMP 'for' statement has improper form
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0];
         double y = pos[i*3+1];
@@ -43,10 +41,9 @@ void f_shaped_ellipsoid_jacobian_cpp(
     double inv_b2 = 1.0 / (b * b);
     double inv_c2 = 1.0 / (c * c);
 
-    omp_set_num_threads(num_threads);
 
     int i;
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0];
         double y = pos[i*3+1];
@@ -152,7 +149,7 @@ double solve_ray_shaped_ellipsoid(
 
     double d0 = initial_guess, d1;
     double f, f1;
-    double d2, ExddSa, EyddSb, EzddSc;
+    double ExddSa, EyddSb, EzddSc;
 
 
     // avoid pow, for acceleration
@@ -215,7 +212,6 @@ void IntersectRaysEllipsoid_S_cpp(
 {
     double epsilon = 1e-7;
 
-    omp_set_num_threads(num_threads);
     EllipsoidIterFunc iter_func;
     if (method == 0){
         if (fabs(Sa - 1.0) < 0.1 && fabs(Sb - 1.0) < 0.1 && fabs(Sc - 1.0) < 0.1) {
@@ -238,7 +234,7 @@ void IntersectRaysEllipsoid_S_cpp(
     double initial_guess = (a+c) / 2.0;
 
     int i;
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
@@ -265,10 +261,15 @@ void f_ray_shaped_ellipsoid_cpp(
 {
     double epsilon = 1e-7;
 
-    omp_set_num_threads(num_threads);
 
     EllipsoidIterFunc iter_func;
-    if (method == 1) {
+    if (method == 0){
+        if (fabs(Sa - 1.0) < 0.1 && fabs(Sb - 1.0) < 0.1 && fabs(Sc - 1.0) < 0.1) {
+            iter_func = _ellipsoid_ray_newton; // Newton for near-spherical ellipsoids
+        } else {
+            iter_func = _ellipsoid_ray_halley; // otherwise use Halley
+        }
+    } else if (method == 1) {
         iter_func = _ellipsoid_ray_newton;
     } else if (method == 2) {
         iter_func = _ellipsoid_ray_halley;
@@ -283,7 +284,7 @@ void f_ray_shaped_ellipsoid_cpp(
     double initial_guess = (a+c) / 2.0;
 
     int i;
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double L = sqrt(x*x + y*y + z*z);
@@ -314,11 +315,9 @@ void area_factor_cpp(
 
     double epsilon = 1e-10;
 
-    omp_set_num_threads(num_threads);
-
 
     int i;
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         double x = pos[i*3+0], y = pos[i*3+1], z = pos[i*3+2];
         double x2 = x*x, y2 = y*y, z2 = z*z;
@@ -440,10 +439,8 @@ void IntersectLinesEllipsoid_S_cpp(
     double epsilon = 1e-9;
     double res_check = 1e-7;
 
-    omp_set_num_threads(num_threads);
-
     int i;
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (i = 0; i < n; ++i) {
         // pos1, pos2: [n, 3] row-major
         double x1 = pos1[i*3+0], y1 = pos1[i*3+1], z1 = pos1[i*3+2];
@@ -478,6 +475,10 @@ void IntersectLinesEllipsoid_S_cpp(
                 // Single intersection point (tangent)
                 ts[i*2+0] = res0.t;
                 ts[i*2+1] = res1.t;
+            } else {
+                // No valid intersection
+                ts[i*2+0] = -1;
+                ts[i*2+1] = -1;
             }
         } else if ((fabs(res0.f) <= res_check) && (fabs(res1.f) <= res_check)) {
             // Two distinct intersection points

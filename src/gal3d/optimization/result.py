@@ -168,16 +168,23 @@ class ModelResult:
     @overload
     def __getitem__(self, k: np.ndarray) -> "ModelResult": ...
 
-    def __getitem__(self, k: int | str | slice | np.ndarray) -> Union["StructureCore", "Structure3D", np.ndarray, "ModelResult"]:
+    @overload
+    def __getitem__(self, k: list[int]) -> "ModelResult": ...
+
+    @overload
+    def __getitem__(self, k: tuple[int, ...]) -> "ModelResult": ...
+
+    def __getitem__(self, k: int | str | slice | np.ndarray | list[int] | tuple[int, ...]) -> Union["StructureCore", "Structure3D", np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
         Parameters
         ----------
-        k : str, int, slice, or numpy.ndarray
+        k : str, int, slice, list[int], tuple[int, ...], or numpy.ndarray
             - If `k` is a string: returns the corresponding parameter value from all parameter sets.
             - If `k` is an integer: returns the `StructureCore` or `Structure3D` instance initialized with the k-th parameter set.
             - If `k` is a slice: returns a new `ModelResult` with the specified slice of parameter sets.
+            - If `k` is a list or tuple of integers: returns a new `ModelResult` with parameter sets at those indices.
             - If `k` is a numpy.ndarray of integers: returns a new `ModelResult` with parameter sets at those indices.
             - If `k` is a numpy.ndarray of booleans: returns a new `ModelResult` with parameter sets where mask is True.
 
@@ -195,6 +202,18 @@ class ModelResult:
         ValueError
             If boolean array length doesn't match number of parameter sets.
         """
+        if isinstance(k, tuple):
+            if all(isinstance(i, (int, np.integer)) for i in k):
+                k = np.asarray(k, dtype=int)
+            else:
+                raise TypeError(
+                    "Tuple indexing only supports integer selectors, "
+                    "e.g. model[1,2,3]"
+                )
+
+        elif isinstance(k, list):
+            k = np.asarray(k)
+
         if isinstance(k, str):
             try:
                 return cast("np.ndarray", np.array([params[k] for params in self._param_sets]))

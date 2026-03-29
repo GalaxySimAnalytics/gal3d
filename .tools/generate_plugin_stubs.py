@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Type
 
+from _log_utils import logger
 from gal3d.plugin import PluginManager, PluginManagerRegistry
 
 
@@ -179,13 +180,22 @@ def _inject_overloads(lines: list[str], mgr_name: str, overloads: list[str]) -> 
         lines.insert(start + 1, " " * 4 + "...\n")
         start, end, body_indent = _class_block_range(lines, mgr_name)
 
-    # Filter out overloads already present by matching Literal["plugin_name"]
+    # Filter out overloads already present in the class block
     class_block = "".join(lines[start:end])
     todo = []
     for chunk in overloads:
         if "Literal[" in chunk:
+            # Named overload: deduplicate via the Literal value
             lit = chunk.split("Literal[", 1)[1].split("]", 1)[0]
             if lit in class_block:
+                continue
+        else:
+            # Fallback (str) overload: deduplicate via the def-line signature
+            def_line = next(
+                (ln.strip() for ln in chunk.splitlines() if ln.strip().startswith("def ")),
+                None,
+            )
+            if def_line and def_line in class_block:
                 continue
         todo.append(chunk)
     if not todo:
@@ -254,6 +264,8 @@ def _run_stubgen_for_module(module_name: str, out_root: Path) -> Path:
 def gen_manager_pyi(manager: Type[PluginManager]) -> None:
     # Discover plugins — sorted for deterministic overload order
     plugins = sorted(manager.available_plugins())
+    plugin_list = ", ".join(plugins) if plugins else "(none)"
+    logger.step(f"{manager.__name__}  [{len(plugins)} plugin(s): {plugin_list}]")
 
     module_name = manager.__module__
     src_file = inspect.getsourcefile(manager)
@@ -264,6 +276,7 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
     out_root = _find_package_root(src_path, top_pkg)
 
     pyi_path = _run_stubgen_for_module(module_name, out_root)
+    logger.item(f"Stub: {pyi_path}")
 
     # Build plugin import lines and overloads (sorted = deterministic)
     imports: list[str] = []
@@ -298,15 +311,24 @@ def gen_manager_pyi(manager: Type[PluginManager]) -> None:
     # identical to what pre-commit ruff would produce, so git sees no diff.
     _ruff_fix(pyi_path)
 
-    print(f"Patched {pyi_path}")
+    logger.success(f"Patched {pyi_path}")
 
 
 def main() -> None:
+    logger.header("gal3d plugin stub generator")
     PluginManagerRegistry.all_managers()
-    for _, mgr in PluginManagerRegistry._managers.items():
-        if mgr is PluginManager:
-            continue
+    mgrs = [
+        mgr
+        for _, mgr in PluginManagerRegistry._managers.items()
+        if mgr is not PluginManager
+    ]
+    if not mgrs:
+        logger.warning("No plugin managers registered.")
+        return
+    logger.step(f"{len(mgrs)} plugin manager(s) to process")
+    for mgr in mgrs:
         gen_manager_pyi(mgr)
+    logger.summary(f"All {len(mgrs)} manager stub(s) patched")
 
 if __name__ == "__main__":
     main()

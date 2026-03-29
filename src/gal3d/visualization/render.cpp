@@ -84,8 +84,8 @@ T integrate_columnDensity(T x0, T x1, T y0, T y1, int Nx, int Ny, const CubicSpl
         T xi = x0 + (i + 0.5) * dx;
         for (int j = 0; j < Ny; ++j) {
             T yj = y0 + (j + 0.5) * dy;
-            T R = std::sqrt(xi * xi + yj * yj);
-            sum += kernel.lookup_columnDensity(R);
+            T R2 = xi * xi + yj * yj;
+            sum += kernel.lookup_columnDensity(R2);
         }
     }
     return sum * dx * dy;
@@ -105,9 +105,9 @@ void CubicSplineSmoothingKernel<T>::init_table() {
 }
 
 template<typename T>
-T CubicSplineSmoothingKernel<T>::lookup_density(T r) {
-    if (r < 0.0 || r > 1.0) return 0.0;
-    size_t idx = static_cast<size_t>(r / dr);
+T CubicSplineSmoothingKernel<T>::lookup_density(T r2) {
+    if (r2 < 0.0 || r2 > 1.0) return 0.0;
+    size_t idx = static_cast<size_t>(r2 / dr);
     if (idx >= density_table.size()) return 0.0;
     return density_table[idx];
 }
@@ -139,16 +139,16 @@ void KernelSampler<T>::make_sample() {
 }
 
 template<typename T>
-std::vector<std::vector<T>> KernelSampler<T>::get_weights() const {
+std::vector<T> KernelSampler<T>::get_weights_flat() const {
     T total = 0.0;
     int nx = grid.nx, ny = grid.ny;
-    // First, sum up the total
     for (T v : grid.qty) total += v;
-    // Split into 2D
-    std::vector<std::vector<T>> weights(ny, std::vector<T>(nx, 0.0));
-    for (int j = 0; j < ny; ++j)
-        for (int i = 0; i < nx; ++i)
-            weights[j][i] = (total > 0.0) ? (grid.qty[j * nx + i] / total) : 0.0;
+    std::vector<T> weights(nx * ny, static_cast<T>(0.0));
+    if (total > static_cast<T>(0.0)) {
+        T inv_total = static_cast<T>(1.0) / total;
+        for (int idx = 0; idx < nx * ny; ++idx)
+            weights[idx] = grid.qty[idx] * inv_total;
+    }
     return weights;
 }
 
@@ -157,7 +157,7 @@ RenderImage<T>::RenderImage(T x_min, T x_max, T y_min, T y_max, int nx, int ny,
                          const CubicSplineSmoothingKernel<T>& kernel, int subsample_nx, int subsample_ny, int numthreads)
     : image_grid(x_min, y_min, x_max, y_max, nx, ny),
       subsampler(subsample_nx, subsample_ny, kernel),
-      subsample_weights(subsampler.get_weights()),
+      subsample_weights(subsampler.get_weights_flat()),
       do_subsample(!(subsample_nx <= 1 && subsample_ny <= 1)),
       numthreads(numthreads)
 {}
@@ -171,6 +171,10 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
 
     T dx = image_grid.dx;
     T dy = image_grid.dy;
+
+    hsml = std::max(hsml, dx + dy);
+    T inv_hsml2 = static_cast<T>(1.0) / (hsml * hsml);
+
     int x0 = int(std::floor((x - hsml - image_grid.xmin) / dx));
     int x1 = int(std::floor((x + hsml - image_grid.xmin) / dx));
     int y0 = int(std::floor((y - hsml - image_grid.ymin) / dy));
@@ -193,15 +197,13 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
 
         // No need to resample, directly normalize and calculate the contribution to each pixel
         if (!need_subsample){
-            hsml = std::max(hsml, image_grid.dx + image_grid.dy);
-            T inv_hsml = 1.0 / hsml;
 
+            thread_local std::vector<T> vals;
+            thread_local std::vector<T> dx_arr;
+            vals.resize(nx * ny);
+            dx_arr.resize(nx);
 
-            std::vector<T> vals(nx * ny, 0.0);
-
-            T total_val = 0.0;
-
-            std::vector<T> dx_arr(nx);
+            T total_val = static_cast<T>(0.0);
             for (int i = 0; i < nx; ++i)
                 dx_arr[i] = image_grid.xcenter0 + (x0 + i) * image_grid.dx - x;
 
@@ -215,7 +217,7 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
                 for (int i = 0; i < nx; ++i) {
                     T r2 = iy2 + dx_arr[i] * dx_arr[i];
                     T val = CubicSplineSmoothingKernel<T>::lookup_columnDensity(
-                        r2 * inv_hsml * inv_hsml
+                        r2 * inv_hsml2
                     );
                     /* just lookup to table
                     T val = CubicSplineSmoothingKernel<T>::columnDensity(
@@ -228,27 +230,30 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
             }
 
             // Normalize and add to the grid
-            if (total_val > 0.0) {
+            if (total_val > static_cast<T>(0.0)) {
+                T scale = mass * image_grid.inv_dxdy / total_val;
                 for (int j = 0; j < ny; ++j) {
-                    int grid_j = y0 + j;
-                    for (int i = 0; i < nx; ++i) {
-                        int grid_i = x0 + i;
-                        T norm_val = mass * vals[j*nx + i] / total_val;
-                        qty[grid_j * image_grid.nx + grid_i] += norm_val * image_grid.inv_dxdy;
-                    }
+                    int grid_row = (y0 + j) * image_grid.nx + x0;
+                    int row_offset = j * nx;
+                    for (int i = 0; i < nx; ++i)
+                        qty[grid_row + i] += scale * vals[row_offset + i];
                 }
             } 
             return;
         } else {
 
-            for (int j = 0; j < subsampler.grid.ny; ++j) {
+            int snx = subsampler.grid.nx, sny = subsampler.grid.ny;
+            for (int j = 0; j < sny; ++j) {
                 T yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
-                for (int i = 0; i < subsampler.grid.nx; ++i) {
+                int iy = int((yy - image_grid.ymin) / image_grid.dy);
+                if (iy < 0 || iy >= image_grid.ny) continue;
+                int iy_row = iy * image_grid.nx;
+                for (int i = 0; i < snx; ++i) {
                     T xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
                     int ix = int((xx - image_grid.xmin) / image_grid.dx);
-                    int iy = int((yy - image_grid.ymin) / image_grid.dy);
-                    T value = mass * subsample_weights[j][i];
-                    qty[iy * image_grid.nx + ix] += value * image_grid.inv_dxdy;
+                    if (ix < 0 || ix >= image_grid.nx) continue;
+                    // FIX P2: flat index
+                    qty[iy_row + ix] += mass * subsample_weights[j * snx + i] * image_grid.inv_dxdy;
                 }
             }
         }
@@ -258,14 +263,12 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
 
         // No need to resample, directly normalize and calculate the contribution to each pixel
         if (!need_subsample){
-            hsml = std::max(hsml, image_grid.dx + image_grid.dy);
-            T inv_hsml = 1.0 / hsml;
+            thread_local std::vector<T> vals;
+            thread_local std::vector<T> dx_arr;
+            vals.resize(nx * ny);
+            dx_arr.resize(nx);
 
-
-            std::vector<T> vals(nx * ny, 0.0);
-            T total_val = 0.0;
-
-            std::vector<T> dx_arr(nx);
+            T total_val = static_cast<T>(0.0);
             for (int i = 0; i < nx; ++i)
                 dx_arr[i] = image_grid.xcenter0 + (x0 + i) * image_grid.dx - x;
 
@@ -279,7 +282,7 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
                 for (int i = 0; i < nx; ++i) {
                     T r2 = iy2 + dx_arr[i] * dx_arr[i];
                     T val = CubicSplineSmoothingKernel<T>::lookup_columnDensity(
-                        r2 * inv_hsml * inv_hsml
+                        r2 * inv_hsml2
                     );
                     vals[row_offset + i] = val;
                     total_val += val;
@@ -287,35 +290,33 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
             }
 
             // Normalize and add to the grid
-            if (total_val > 0.0) {
-                for (int j = 0; j < ny; ++j) {
-                    int grid_j = y0 + j;
-                    for (int i = 0; i < nx; ++i) {
-                        int grid_i = x0 + i;
-                        // Check if inside the grid
-                        if (grid_i >= 0 && grid_i < image_grid.nx && grid_j >= 0 && grid_j < image_grid.ny) {
-                            T norm_val = mass * vals[j*nx + i] / total_val;
-                            qty[grid_j * image_grid.nx + grid_i] += norm_val * image_grid.inv_dxdy;
-                        }
-                    }
+            if (total_val > static_cast<T>(0.0)) {
+                T scale = mass * image_grid.inv_dxdy / total_val;
+                int j_beg = std::max(y0, 0);
+                int j_end = std::min(y0 + ny, image_grid.ny);
+                int i_beg = std::max(x0, 0);
+                int i_end = std::min(x0 + nx, image_grid.nx);
+                for (int gj = j_beg; gj < j_end; ++gj) {
+                    int row_offset = (gj - y0) * nx - x0;  // vals index = row_offset + gi
+                    int grid_row   = gj * image_grid.nx;
+                    for (int gi = i_beg; gi < i_end; ++gi)
+                        qty[grid_row + gi] += scale * vals[row_offset + gi];
                 }
             }
-            return;
 
             
         } else {
-
-            for (int j = 0; j < subsampler.grid.ny; ++j) {
+            int snx = subsampler.grid.nx, sny = subsampler.grid.ny;
+            for (int j = 0; j < sny; ++j) {
                 T yy = y + (subsampler.grid.ymin + 0.5 * subsampler.grid.dy + j * subsampler.grid.dy) * hsml;
                 int iy = int((yy - image_grid.ymin) / image_grid.dy);
                 if (iy < 0 || iy >= image_grid.ny) continue;
-                for (int i = 0; i < subsampler.grid.nx; ++i) {
+                int iy_row = iy * image_grid.nx;
+                for (int i = 0; i < snx; ++i) {
                     T xx = x + (subsampler.grid.xmin + 0.5 * subsampler.grid.dx + i * subsampler.grid.dx) * hsml;
                     int ix = int((xx - image_grid.xmin) / image_grid.dx);
-                    if (ix >= 0 && ix < image_grid.nx) {
-                        T value = mass * subsample_weights[j][i];
-                        qty[iy * image_grid.nx + ix] += value * image_grid.inv_dxdy;
-                    }
+                    if (ix >= 0 && ix < image_grid.nx)
+                        qty[iy_row + ix] += mass * subsample_weights[j * snx + i] * image_grid.inv_dxdy;  // FIX P2
                 }
             }
         }
@@ -341,12 +342,10 @@ void RenderImage<T>::add_particle(const std::vector<T>& x,
 
     std::vector<std::vector<T>> thread_qty(nthreads, std::vector<T>(image_grid.nx * image_grid.ny, 0.0));
 
-    #pragma omp parallel
-    {
+    #pragma omp parallel for schedule(dynamic, 64)
+    for (size_t idx = 0; idx < n; ++idx) {
         int tid = omp_get_thread_num();
-        for (size_t idx = tid; idx < n; idx += nthreads) {
-            add_particle_to_qty(x[idx], y[idx], mass[idx], hsml[idx], thread_qty[tid]);
-        }
+        add_particle_to_qty(x[idx], y[idx], mass[idx], hsml[idx], thread_qty[tid]);
     }
     // Merge
     for (int t = 0; t < nthreads; ++t)
@@ -418,6 +417,11 @@ std::vector<std::vector<T>> RenderImage<T>::get_values() const {
         for (int i = 0; i < nx; ++i)
             values[j][i] = image_grid.qty[j * nx + i];
     return values;
+}
+
+template<typename T>
+const std::vector<T>& RenderImage<T>::get_flat_values() const {
+    return image_grid.qty;
 }
 
 

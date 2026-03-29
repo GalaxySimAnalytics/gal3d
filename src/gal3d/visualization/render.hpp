@@ -46,14 +46,14 @@ public:
     KernelSampler(int nx, int ny, const CubicSplineSmoothingKernel<T>& kernel_);
     void make_sample();
 
-    std::vector<std::vector<T>> get_weights() const;
+    std::vector<T> get_weights_flat() const;
 };
 template<typename T>
 class RenderImage {
 public:
     Grid<T> image_grid;
     KernelSampler<T> subsampler;
-    std::vector<std::vector<T>> subsample_weights;
+    std::vector<T> subsample_weights;
     bool do_subsample;
     int numthreads;
 
@@ -71,4 +71,5 @@ public:
     int circle_vs_canvas(T x, T y, T hsml) const;
 
     std::vector<std::vector<T>> get_values() const;
+    const std::vector<T>& get_flat_values() const;
 };

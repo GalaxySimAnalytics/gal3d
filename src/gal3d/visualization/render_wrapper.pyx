@@ -2,6 +2,7 @@
 cimport numpy as np
 from libcpp cimport bool
 from libcpp.vector cimport vector
+from libc.string cimport memcpy
 
 import numpy as np
 
@@ -13,12 +14,8 @@ from .model_projector import ImageData
 
 cdef extern from "render.hpp":
     cdef cppclass Grid "Grid<double>":
-        double xmin
-        double ymin
-        double xmax
-        double ymax
-        int nx
-        int ny
+        double xmin, ymin, xmax, ymax
+        int nx, ny
         Grid(double, double, double, double, int, int)
         void add_qty(double, double, double)
 
@@ -37,16 +34,13 @@ cdef extern from "render.hpp":
         int circle_vs_canvas(double, double, double) const
 
         vector[vector[double]] get_values() const
+        const vector[double]& get_flat_values() const
 
 cdef extern from "render.hpp":
 
     cdef cppclass GridFloat "Grid<float>":
-        float xmin
-        float ymin
-        float xmax
-        float ymax
-        int nx
-        int ny
+        float xmin, ymin, xmax, ymax
+        int nx, ny
         GridFloat(float, float, float, float, int, int)
         void add_qty(float, float, float)
     cdef cppclass CubicSplineSmoothingKernelFloat "CubicSplineSmoothingKernel<float>":
@@ -64,6 +58,7 @@ cdef extern from "render.hpp":
         int circle_vs_canvas(float, float, float) const
 
         vector[vector[float]] get_values() const
+        const vector[float]& get_flat_values() const
 
 
 
@@ -104,44 +99,22 @@ cdef class PyCubicSplineSmoothingKernelFloat:
         return self.cpp_kernel.columnDensity(R)
 
 
-cdef vector[double] from_numpy_to_vector(np.ndarray[np.float64_t] arr):
+# PERF P5: pointer-based copy — no Python-level loop
+cdef vector[double] from_numpy_to_vector(np.ndarray[np.float64_t, ndim=1] arr):
+    cdef Py_ssize_t n = arr.shape[0]
     cdef vector[double] v
-    cdef Py_ssize_t i, n = arr.shape[0]
-    v.reserve(n)
-    for i in range(n):
-        v.push_back(arr[i])
+    v.resize(n)
+    if n > 0:
+        memcpy(<void*>v.data(), &arr[0], n * sizeof(double))
     return v
 
-cdef np.ndarray matrix_to_numpy(vector[vector[double]] mat):
-    cdef Py_ssize_t ny = mat.size()
-    if ny == 0:
-        return np.empty((0, 0), dtype=np.float64)
-    cdef Py_ssize_t nx = mat[0].size()
-    arr = np.empty((ny, nx), dtype=np.float64)
-    for j in range(ny):
-        for i in range(nx):
-            arr[j, i] = mat[j][i]
-    return arr
-
-
-cdef vector[float] from_numpy_to_vector_float(np.ndarray[np.float32_t] arr):
+cdef vector[float] from_numpy_to_vector_float(np.ndarray[np.float32_t, ndim=1] arr):
+    cdef Py_ssize_t n = arr.shape[0]
     cdef vector[float] v
-    cdef Py_ssize_t i, n = arr.shape[0]
-    v.reserve(n)
-    for i in range(n):
-        v.push_back(arr[i])
+    v.resize(n)
+    if n > 0:
+        memcpy(<void*>v.data(), &arr[0], n * sizeof(float))
     return v
-
-cdef np.ndarray matrix_to_numpy_float(vector[vector[float]] mat):
-    cdef Py_ssize_t ny = mat.size()
-    if ny == 0:
-        return np.empty((0, 0), dtype=np.float32)
-    cdef Py_ssize_t nx = mat[0].size()
-    arr = np.empty((ny, nx), dtype=np.float32)
-    for j in range(ny):
-        for i in range(nx):
-            arr[j, i] = mat[j][i]
-    return arr
 
 cdef class PyRenderImage:
     cdef RenderImage* cpp_image
@@ -155,6 +128,8 @@ cdef class PyRenderImage:
         del self.cpp_image
 
     def add_particle(self, x, y, mass, hsml):
+
+        cdef vector[double] vx, vy, vm, vh
 
         if (isinstance(x, (float, int)) and isinstance(y, (float, int)) and
         isinstance(mass, (float, int)) and isinstance(hsml, (float, int))):
@@ -171,7 +146,6 @@ cdef class PyRenderImage:
             vy = from_numpy_to_vector(y_arr)
             vm = from_numpy_to_vector(mass_arr)
             vh = from_numpy_to_vector(hsml_arr)
-
             self.cpp_image.add_particle(vx, vy, vm, vh)
 
 
@@ -185,13 +159,16 @@ cdef class PyRenderImage:
         np.ndarray:
             image_grid.qty
         """
-        arr = matrix_to_numpy(self.cpp_image.get_values())
+        cdef int ny = self.cpp_image.image_grid.ny
+        cdef int nx = self.cpp_image.image_grid.nx
+        cdef vector[double] flat = self.cpp_image.get_flat_values()
+        cdef np.ndarray[np.float64_t, ndim=2] arr = np.empty((ny, nx), dtype=np.float64)
+        memcpy(<void*>arr.data, flat.data(), ny * nx * sizeof(double))
+
         x_range = (self.cpp_image.image_grid.xmin, self.cpp_image.image_grid.xmax)
         y_range = (self.cpp_image.image_grid.ymin, self.cpp_image.image_grid.ymax)
-        nx = arr.shape[0]
-        ny = arr.shape[1]
-        xs = np.linspace(x_range[0], x_range[1], nx+1)
-        ys = np.linspace(y_range[0], y_range[1], ny+1)
+        xs = np.linspace(x_range[0], x_range[1], nx + 1)
+        ys = np.linspace(y_range[0], y_range[1], ny + 1)
         xs = 0.5 * (xs[:-1] + xs[1:])
         ys = 0.5 * (ys[:-1] + ys[1:])
         return ImageData(arr, xs, ys, tuple(x_range), tuple(y_range))
@@ -209,14 +186,17 @@ cdef class PyRenderImageFloat:
         del self.cpp_image
 
     def add_particle(self, x, y, mass, hsml):
+
+        cdef vector[float] vx, vy, vm, vh
+
         if (isinstance(x, (float, int)) and isinstance(y, (float, int)) and
             isinstance(mass, (float, int)) and isinstance(hsml, (float, int))):
             self.cpp_image.add_particle(
                 <float>x, <float>y, <float>mass, <float>hsml
             )
         else:
-            x_arr = np.ascontiguousarray(np.asarray(x).ravel(), dtype=np.float32)
-            y_arr = np.ascontiguousarray(np.asarray(y).ravel(), dtype=np.float32)
+            x_arr    = np.ascontiguousarray(np.asarray(x).ravel(),    dtype=np.float32)
+            y_arr    = np.ascontiguousarray(np.asarray(y).ravel(),    dtype=np.float32)
             mass_arr = np.ascontiguousarray(np.asarray(mass).ravel(), dtype=np.float32)
             hsml_arr = np.ascontiguousarray(np.asarray(hsml).ravel(), dtype=np.float32)
 
@@ -231,13 +211,16 @@ cdef class PyRenderImageFloat:
         return self.cpp_image.circle_vs_canvas(x, y, hsml)
 
     def get_image(self):
-        arr = matrix_to_numpy_float(self.cpp_image.get_values())
+        cdef int ny = self.cpp_image.image_grid.ny
+        cdef int nx = self.cpp_image.image_grid.nx
+        cdef vector[float] flat = self.cpp_image.get_flat_values()
+        cdef np.ndarray[np.float32_t, ndim=2] arr = np.empty((ny, nx), dtype=np.float32)
+        memcpy(<void*>arr.data, flat.data(), ny * nx * sizeof(float))
+
         x_range = (self.cpp_image.image_grid.xmin, self.cpp_image.image_grid.xmax)
         y_range = (self.cpp_image.image_grid.ymin, self.cpp_image.image_grid.ymax)
-        nx = arr.shape[0]
-        ny = arr.shape[1]
-        xs = np.linspace(x_range[0], x_range[1], nx+1)
-        ys = np.linspace(y_range[0], y_range[1], ny+1)
+        xs = np.linspace(x_range[0], x_range[1], nx + 1)
+        ys = np.linspace(y_range[0], y_range[1], ny + 1)
         xs = 0.5 * (xs[:-1] + xs[1:])
         ys = 0.5 * (ys[:-1] + ys[1:])
         return ImageData(arr, xs, ys, tuple(x_range), tuple(y_range))
@@ -249,33 +232,23 @@ def get_kernel():
     else:
         return PyCubicSplineSmoothingKernelFloat()
 
-def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads = config.general.number_of_threads):
+def get_render_image(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, 
+                    numthreads = config.general.number_of_threads):
     """
     Get a render image object for the specified parameters.
 
     Parameters
     ----------
-    x_min : float
-        Minimum x-coordinate of the render image.
-    x_max : float
-        Maximum x-coordinate of the render image.
-    y_min : float
-        Minimum y-coordinate of the render image.
-    y_max : float
-        Maximum y-coordinate of the render image.
-    nx : int
-        Number of pixels in the x-direction.
-    ny : int
-        Number of pixels in the y-direction.
-    kernel : PyCubicSplineSmoothingKernel
-        Smoothing kernel to use for the render image.
-    subsample_nx : int
-        Subsampling factor in the x-direction.
-    subsample_ny : int
-        Subsampling factor in the y-direction.
+    x_min, x_max, y_min, y_max : float
+        Canvas extent.
+    nx, ny : int
+        Pixel resolution.
+    kernel : PyCubicSplineSmoothingKernel or PyCubicSplineSmoothingKernelFloat
+        Smoothing kernel.
+    subsample_nx, subsample_ny : int
+        Subsampling resolution.
     numthreads : int
-        Number of threads to use for rendering.
-
+        OpenMP thread count.
     """
     if config.sph_render.render_double:
         return PyRenderImage(x_min, x_max, y_min, y_max, nx, ny, kernel, subsample_nx, subsample_ny, numthreads)

@@ -44,7 +44,7 @@ class DensityEstimatorSPH(DensityEstimatorBase):
         self,
         pos: ArrayLike,
         mass: np.ndarray,
-        k_nearest: int = config.densityknn.k_neighbors,
+        k_nearest: int | None = None,
         r_cut: float | None = None,
         **kwargs: Any,
     ):
@@ -55,7 +55,7 @@ class DensityEstimatorSPH(DensityEstimatorBase):
             The coordinates (x, y, z) of the n data points.
         mass: array, shape(n,)
             The property of the n points, such as mass.
-        k_nearest: int, default 32
+        k_nearest: int, optional
             The number of nearest points used to estimate the target parameter.
         r_cut: float, optional
             The maximum distance to consider for neighbors. If None, no distance cutoff is applied.
@@ -198,13 +198,13 @@ class DensityEstimatorSPH(DensityEstimatorBase):
             n_index.astype(np.int32),
             self.mass.astype(np.float64), self.hsm.astype(np.float64))
 
-    def __generate_kd_options(self, k_nearest: int, r_cut: None | float, **kwargs: Any) -> None:
+    def __generate_kd_options(self, k_nearest: int | None = None, r_cut: None | float = None, **kwargs: Any) -> None:
         """
         Generate options for KDTree construction and query.
 
         Parameters
         ----------
-        k_nearest: int
+        k_nearest: int, optional
             The number of nearest neighbors to consider.
         r_cut: float, optional
             The maximum distance to consider for neighbors.
@@ -217,7 +217,7 @@ class DensityEstimatorSPH(DensityEstimatorBase):
 
         self._tree_build_options["leafsize"] = config.densityknn.leafsize
         self._tree_query_options["workers"] = config.densityknn.workers
-        self._tree_query_options["k"] = k_nearest
+        self._tree_query_options["k"] = k_nearest if k_nearest is not None else config.densityknn.k_neighbors
         if r_cut:
             self._tree_query_options["distance_upper_bound"] = r_cut
 

@@ -135,4 +135,4 @@ cpdef double sums_dev_rscale_byw(double[:] f_call, double[:] r, double[:] w):
         h += f_call[i] * f_call[i] * c
         sum_c += c
 
-    return h / (n*c)
+    return h / (n*sum_c)

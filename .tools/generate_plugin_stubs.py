@@ -51,12 +51,23 @@ def _ensure_typing_imports(lines: list[str]) -> None:
         lines.insert(insert_at, f"from typing import {name}\n")
 
 
+def _has_import(lines: list[str], cls_name: str) -> bool:
+    """Return True only when cls_name is present in a real import statement."""
+    import_re = re.compile(rf"^from\s+\S+\s+import\s+.*\b{re.escape(cls_name)}\b")
+    alias_re = re.compile(rf"^import\s+\S+\s+as\s+{re.escape(cls_name)}\b")
+    bare_re = re.compile(rf"^import\s+{re.escape(cls_name)}\b")
+    return any(
+        import_re.match(line) or alias_re.match(line) or bare_re.match(line)
+        for line in lines
+        if line.startswith(("from ", "import "))
+    )
+
+
 def _ensure_plugin_imports(lines: list[str], imports: list[str]) -> None:
     """Insert plugin class imports if not already present.
 
     Import order does NOT matter here — ruff will sort everything after.
     """
-    existing = "".join(lines)
     insert_at = 0
     for i, l in enumerate(lines):
         if l.startswith(("from ", "import ")):
@@ -65,7 +76,7 @@ def _ensure_plugin_imports(lines: list[str], imports: list[str]) -> None:
     for imp in imports:
         # Extract 'ClassName' from 'from x.y import ClassName'
         cls_name = imp.rsplit(" ", 1)[-1]
-        if cls_name not in existing:
+        if not _has_import(lines, cls_name):
             lines.insert(insert_at, imp + "\n")
             insert_at += 1
 
@@ -105,10 +116,10 @@ def _fix_type_aliases(lines: list[str], src_path: Path) -> None:
     # Patch bare 'NAME: TypeAlias' lines (no RHS) in the .pyi
     bare_re = re.compile(r'^(\s*)([A-Za-z_]\w*)\s*:\s*TypeAlias\s*$')
     for i, line in enumerate(lines):
-        m = bare_re.match(line)
-        if m and m.group(2) in aliases:
-            name = m.group(2)
-            lines[i] = f'{m.group(1)}{name}: TypeAlias = {aliases[name]}\n'
+        bare_match = bare_re.match(line)
+        if bare_match and bare_match.group(2) in aliases:
+            name = bare_match.group(2)
+            lines[i] = f'{bare_match.group(1)}{name}: TypeAlias = {aliases[name]}\n'
 
     # Ensure any typing-module names used in the injected RHS are imported
     all_rhs = " ".join(aliases.values())

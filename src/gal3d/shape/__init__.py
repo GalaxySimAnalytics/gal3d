@@ -1151,8 +1151,9 @@ def isodensity_curve_fcall(
         f = np.log(f)
     else:
         f = f - 1
-    r2 = r*r
-    f = f*r/np.sqrt(np.sum(r2))
+    if "rscale" in self._error_func_name:
+        r2 = r*r
+        f = f*r/np.sqrt(np.sum(r2))
     return f
 
 @Structure3D.compute_method_registry
@@ -1165,6 +1166,7 @@ def isodensity_curve_dcall(
         f = np.log(f)
     else:
         f = f - 1
-    r2 = r*r
-    f = f*r/np.sqrt(np.sum(r2))
+    if "rscale" in self._error_func_name:
+        r2 = r*r
+        f = f*r/np.sqrt(np.sum(r2))
     return f

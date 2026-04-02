@@ -3,6 +3,7 @@ from typing import Any, Literal, overload
 
 from _typeshed import Incomplete
 
+from gal3d.optimization.model_io_plugins.hdf_model_io import HDF5ModelIO
 from gal3d.plugin import PluginBase as PluginBase, PluginManager as PluginManager
 from gal3d.shape import Structure3D as Structure3D, StructureCore as StructureCore
 

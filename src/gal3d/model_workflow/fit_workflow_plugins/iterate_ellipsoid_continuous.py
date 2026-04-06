@@ -140,6 +140,7 @@ from numpy.polynomial.legendre import leggauss
 from gal3d.field.spherical_field.spherical_vector import SphVector
 from gal3d.model_workflow.fit_workflow import FitInput, FitWorkflowBase
 from gal3d.optimization.result import ModelResult
+from gal3d.point.util import solve_eigenvalues
 
 from .util import (
     EllipsoidResultBuilder,
@@ -164,12 +165,9 @@ def _shape_tensor_to_axes(
 
     so new axes = sqrt(eigenvalues) × volume-conservation scale.
     """
-    eigvals, eigvecs = np.linalg.eigh(S)            # ascending order
 
-    raw_axes = np.sqrt(np.clip(eigvals, 0, None))
-    idx      = np.argsort(raw_axes)[::-1]           # descending
-    new_axes = raw_axes[idx]
-    rot_mat  = eigvecs[:, idx]
+    abc2, rot_mat = solve_eigenvalues(S, sort_descending=True)
+    new_axes = np.sqrt(np.abs(abc2))
 
     if np.linalg.det(rot_mat) < 0:
         rot_mat = -rot_mat
@@ -260,7 +258,7 @@ class EllipsoidShellShapeTensor:
         R: np.ndarray,                  # (3, 3)
     ) -> np.ndarray:
         """Scale unit-sphere points to the ellipsoid surface and rotate to lab frame."""
-        return (unit_pos * np.array([a, b, c])) @ R.T
+        return (unit_pos * np.array([a, b, c])) @ R
 
     @staticmethod
     def _sigma_clip_rho(
@@ -407,6 +405,8 @@ class EllipsoidShellShapeTensor:
         # Evaluate density on the ellipsoid surface (lab frame)
         pos_lab = self._ellipsoid_points(self._sv.pos, a, b, c, R)
         rho = source._evaluate_density(pos_lab)   # shape (N,)
+        if self.sigma_clip is not None:
+            rho = self._sigma_clip_rho(rho, self._sv.area, sigma=self.sigma_clip)
 
         # Angular coordinates come from the unit-sphere parameterization
         # _sv.sph columns: (r, phi, theta)  — phi ∈ [0,2π], theta ∈ [0,π]
@@ -629,7 +629,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         damping = kwargs.get("damping", 0.8)
         n_sample = kwargs.get("n_sample", 512)
         method = kwargs.get("method", "fibonacci") # sampling method for shape tensor evaluation; default is fibonacci sampling on the sphere
-        sigma_clip = kwargs.get("sigma_clip", None)
+        sigma_clip = kwargs.get("sigma_clip", 3.0)
 
         # a, b, c
         abc = np.ones(3, dtype=float)*r

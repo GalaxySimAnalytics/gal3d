@@ -166,6 +166,19 @@ cpdef np.ndarray moment_of_inertia(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[D
     I[2,2] = I22 / total_mass
     return I
 
+
+cpdef tuple solve_eigenvalues(np.ndarray[DTYPE_t, ndim=2] I, bint sort_descending = True):
+    """
+    Compute eigenvalues and eigenvectors of the inertia tensor.
+    Returns (eigenvalues, corresponding eigenvectors).
+    """
+    D = np.linalg.eigh(I)
+    if sort_descending:
+        align = np.argsort(D[0])[::-1]
+        return D[0][align], D[1][:, align]
+    else:
+        return D[0], D[1]
+
 # Principal axes and eigenvalues
 cpdef tuple abc_vect(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYPE_t, ndim=1] mass):
     """
@@ -173,8 +186,4 @@ cpdef tuple abc_vect(np.ndarray[DTYPE_t, ndim=2] pos, np.ndarray[DTYPE_t, ndim=1
     Returns (sorted eigenvalues, corresponding eigenvectors).
     """
     cdef np.ndarray[DTYPE_t, ndim=2] I = moment_of_inertia(pos, mass)
-    D = np.linalg.eigh(I)
-    align = np.argsort(D[0])[::-1]
-    abc = D[0][align]
-    axes = D[1][:, align]
-    return abc, axes
+    return solve_eigenvalues(I, sort_descending=True)

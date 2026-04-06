@@ -172,7 +172,7 @@ def _shape_tensor_to_axes(
     rot_mat  = eigvecs[:, idx]
 
     if np.linalg.det(rot_mat) < 0:
-        rot_mat[:, -1] *= -1
+        rot_mat = -rot_mat
 
     if volume_conserve:
         vol_old = float(np.prod(a_old))

@@ -6,7 +6,8 @@ from scipy import integrate
 from tqdm import tqdm
 
 from gal3d.util.array_operate import Rotate
-from gal3d.visualization.model_projector import ImageData, ModelProjectorBase
+from gal3d.visualization.model_projector import ModelProjectorBase
+from gal3d.visualization.show import ImageData
 
 logger = logging.getLogger("gal3d.visualization.ModelProjector")
 class ProjectorLineIntegration(ModelProjectorBase):
@@ -126,18 +127,25 @@ class ProjectorLineIntegration(ModelProjectorBase):
         """
         Generate a 2D projection image by integrating along a specified line of sight.
 
-        Args:
-            x_range (tuple): The range of x-coordinates (min, max) for the projection.
-            y_range (tuple): The range of y-coordinates (min, max) for the projection.
-            nbins (int): The number of bins for the x and y axes (default is 100).
-            z_range (tuple): The range of z-coordinates (min, max) for the integration (default is (-20, 20)).
-            rotation (numpy.ndarray): A 3x3 rotation matrix to apply to the coordinates (default is identity matrix).
+        Parameters
+        ----------
+        x_range (tuple):
+            The range of x-coordinates (min, max) for the projection.
+        y_range (tuple):
+            The range of y-coordinates (min, max) for the projection.
+        nbins (int):
+            The number of bins for the x and y axes (default is 100).
+        z_range (tuple):
+            The range of z-coordinates (min, max) for the integration (default is (-20, 20)).
+        rotation (numpy.ndarray):
+            A 3x3 rotation matrix to apply to the coordinates (default is identity matrix).
 
-        Returns:
-            tuple: A tuple containing:
-                - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
-                - xs (numpy.ndarray): The x-coordinates of the bin centers.
-                - ys (numpy.ndarray): The y-coordinates of the bin centers.
+        Returns
+        -------
+        tuple: A tuple containing:
+            - deproject_array.T (numpy.ndarray): The transposed 2D array of integrated values.
+            - xs (numpy.ndarray): The x-coordinates of the bin centers.
+            - ys (numpy.ndarray): The y-coordinates of the bin centers.
         """
         # Set up projection grid
         indices, pos, xs, ys = self._setup_grid(x_range, y_range, nbins)

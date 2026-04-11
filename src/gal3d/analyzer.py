@@ -894,6 +894,8 @@ class Gal3DAnalyzer:
 
         if radius is not None:
             return workflow(self, radius, progress=progress, **kwargs)
+        if num_step <= 0:
+            raise ValueError(f"num_step must be > 0, got {num_step}")
 
         r_min = max(np.median(self.field.inner_r) * 3, self.field.iso_pro_r[0] * 3)
         r_max = min(self.field.iso_pro_r[-1], np.median(self.field.outer_r))

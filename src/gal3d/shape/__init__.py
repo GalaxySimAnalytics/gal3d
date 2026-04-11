@@ -566,7 +566,7 @@ class StructureCore:
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
 
-        coord_pa, geoty_pa = self._split_quick_parameters(**kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(*args,**kwargs)
 
         pos1_t = self._coordinate.quick_call(**coord_pa, pos=pos1)
         pos2_t = self._coordinate.quick_call(**coord_pa, pos=pos2)

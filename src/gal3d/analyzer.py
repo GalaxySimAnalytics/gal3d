@@ -62,7 +62,7 @@ Quick start
 >>>
 >>> # Or fit at specific radius
 >>> single = analyzer.fit(radius=8.0)          # returns a ModelResult
->>> multiple = analyzer.fit(radius=[5., 10., 15.])  # list of radii
+>>> multiple = analyzer.fit(radius=[5., 10., 15.])  # aggregated ModelResult
 
 Tips
 ----
@@ -204,6 +204,8 @@ class FieldCfg(BaseConfig):
             raise ValueError(f"num_ray_min must be > 0, got {self.num_ray_min}")
         if self.num_ray_max < self.num_ray_min:
             raise ValueError(f"num_ray_max ({self.num_ray_max}) must be >= num_ray_min ({self.num_ray_min})")
+        if self.num_ray_scale <= 0:
+            raise ValueError(f"num_ray_scale must be > 0, got {self.num_ray_scale}")
         if self.profile_num_p <= 0:
             raise ValueError(f"profile_num_p must be > 0, got {self.profile_num_p}")
         if self.profile_step_mode not in ("log", "lin"):
@@ -252,8 +254,8 @@ class OptimizerCfg(BaseConfig):
     default_method : str
         Fallback algorithm name for the default plugin.
     algo_options : dict
-        Extra keyword arguments forwarded to the optimizer constructor
-        (e.g. tolerances, max iterations).
+        Backend-specific algorithm options passed through the
+        selected optimizer plugin.
     """
     preferred_plugin: str = "OptimizerLMFit"  # or "OptimizerScipy"
     preferred_method: str = "least_squares"  # for LMFit: {"leastsq","least_squares"}, for Scipy: {"Powell","trf","dogbox"}
@@ -525,9 +527,6 @@ class Gal3DAnalyzer:
         config : Gal3DAnalyzerCfg, optional
             Initial configuration to start from. The scalar keyword
             arguments above are applied on top of this config.
-        **kwargs : dict
-            Reserved for future extensions and forwarded to
-            :meth:`from_configs`.
 
         Returns
         -------
@@ -550,7 +549,7 @@ class Gal3DAnalyzer:
             inner_frac=inner_frac,
         )
 
-        return cls.from_configs(pos, mass, config = cfg, **kwargs)
+        return cls.from_configs(pos, mass, config = cfg)
 
     @classmethod
     def analyze_theoretical_model(
@@ -563,7 +562,6 @@ class Gal3DAnalyzer:
         outer: float | None = 1e4,
         outer_mode: str | None = "value",
         config: Gal3DAnalyzerCfg | None = None,
-        **kwargs: Any
     ) -> T:
         """
         Analyze a theoretical density distribution model.
@@ -594,29 +592,19 @@ class Gal3DAnalyzer:
         config : Gal3DAnalyzerCfg, optional
             Initial configuration to start from. The scalar keyword
             arguments above are applied on top of this config.
-        **kwargs : dict
-            Reserved for future extensions and forwarded to
-            :meth:`from_configs`.
         """
         cfg = config or Gal3DAnalyzerCfg()
 
-        if inner is not None:
-            cfg.field.inner = float(inner)
-        if outer is not None:
-            cfg.field.outer = float(outer)
-        if inner_mode is not None:
-            cfg.field.inner_mode = inner_mode
-        if outer_mode is not None:
-            cfg.field.outer_mode = outer_mode
-        if inner_frac is not None:
-            cfg.field.inner_frac = inner_frac
+        cls._apply_field_overrides(
+            cfg,
+            inner=inner, outer=outer,
+            inner_mode=inner_mode, outer_mode=outer_mode,
+            inner_frac=inner_frac,
+        )
 
         field = cls._build_field(model, cfg.field)
         structure = cls._build_structure(cfg.structure)
         optimizer = cls._build_optimizer(cfg.optimizer)
-
-        if kwargs:
-            logger.debug("Unused analyze_theoretical_model kwargs: %s", list(kwargs.keys()))
 
         return cls.from_components(
             density_source=model,
@@ -687,6 +675,7 @@ class Gal3DAnalyzer:
             cfg.field.outer_mode = outer_mode
         if inner_frac is not None:
             cfg.field.inner_frac = inner_frac
+
     @classmethod
     def _auto_field_bounds(
         cls,

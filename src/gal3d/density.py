@@ -154,6 +154,21 @@ class DensitySource(Auto3DShape):
         ys = 0.5 * (ys[:-1] + ys[1:])
         return ImageData(im_value, xs=xs, ys=ys, xrange=x_range, yrange=y_range)
 
+
+    @classmethod
+    def available_shape_workflows(cls) -> list[str]:
+        """
+        Get a list of available shape-fitting workflows for density sources.
+
+        Returns
+        -------
+        list of str
+            Names of available shape-fitting workflows.
+        """
+        from gal3d.model_workflow.fit_workflow import FitWorkflow
+
+        return FitWorkflow.available_plugins()
+
     def shape_at(
         self,
         r: float | Iterable[float],
@@ -171,7 +186,7 @@ class DensitySource(Auto3DShape):
             Radius or sequence of radii at which to perform the fit.
         workflow : FitWorkflowBase, optional
             The fitting workflow to use.  If ``None`` (default), a default
-            workflow is used.
+            workflow is used. Get available workflows by :meth:`available_shape_workflows`.
         progress : bool, optional
             Show a ``tqdm`` progress bar when iterating over radii.  Default is ``True``.
         warm_start : bool, optional

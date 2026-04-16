@@ -23,7 +23,6 @@ from .density_estimator import DensityEstimator, DensityEstimatorBase
 from .global_calculator import GlobalCalculator
 
 if TYPE_CHECKING:
-    from gal3d.optimization.result import ModelResult
     from gal3d.visualization.show import ImageData
 
 class Particles(GlobalCalculator, DensitySource):
@@ -189,51 +188,6 @@ class Particles(GlobalCalculator, DensitySource):
             Estimated mass resolution.
         """
         return np.mean(self.mass)
-
-    def abc_shape_profile(
-        self,
-        nbins: int = 100,
-        rmin: float | None = None,
-        rmax: float | None = None,
-        bins: Literal["equal", "log", "lin"] = "equal",
-        max_iterations: int = 10,
-        tol: float = 1e-3,
-        is_enclosed: bool = False,
-        weight_method: Literal["r2", "rell2"] | None = None
-    ) -> "ModelResult":
-        """
-        Fit ellipsoidal shape using an iterative reduced inertia tensor method.
-
-        Parameters
-        ----------
-        nbins : int, optional
-            Number of radial bins (default 100).
-        rmin : float, optional
-            Minimum radius for binning. If None, set to rmax / 1E3.
-        rmax : float, optional
-            Maximum radius for binning. If None, set to maximum particle radius.
-        bins : {'equal', 'log', 'lin'}, optional
-            Binning method for radial shells (default 'equal').
-        max_iterations : int, optional
-            Maximum iterations per shell (default 10).
-        tol : float, optional
-            Convergence tolerance (default 1e-3).
-        is_enclosed : bool, optional
-            Whether to use enclosed ellipsoids (True) or shells (False, default).
-        weight_method : {'r2', 'rell2'}, optional
-            Method to weight particles when computing inertia tensor. 'r2' weights by r^-2,
-            'rell2' weights by ellipsoidal radius^-2. If None (default), no weighting is applied.
-
-        Returns
-        -------
-        ModelResult
-            Summed model result over all radial bins, or EmptyModelResult if no valid results.
-        """
-        from gal3d.model_workflow.fit_workflow_plugins import IterateEllipsoidWorkflow
-        fit = IterateEllipsoidWorkflow()
-        return fit(self,nbins=nbins,rmin=rmin,rmax=rmax,bins=bins,max_iterations=max_iterations,tol=tol,
-                   is_enclosed=is_enclosed, weight_method=weight_method)
-
 
     @classmethod
     def available_estimators(cls) -> list[str]:

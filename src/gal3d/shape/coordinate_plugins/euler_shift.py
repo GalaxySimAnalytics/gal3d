@@ -110,9 +110,11 @@ class RotateOnly(CoordinateBase):
         )
 
     def __call__(self, pos: np.ndarray) -> np.ndarray:
+        pos = self.to_3d_array(pos)
         return Rotate(pos, self._rotation.as_matrix())
 
     def inverse(self, pos: np.ndarray) -> np.ndarray:
+        pos = self.to_3d_array(pos)
         return Rotate(pos, self._rotation.as_matrix().T)
 
     @classmethod

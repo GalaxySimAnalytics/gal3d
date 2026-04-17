@@ -2,7 +2,7 @@ import functools
 import time
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 __all__ = ["timer"]
 
@@ -68,6 +68,74 @@ def timer(logger: "Logger") -> Callable[[F], F]:
 
     return _timer
 
+AnyFunc = Callable[..., Any]
+
+
+def _build_warning_wrapper(
+    func: AnyFunc,
+    message: str,
+    category: type[Warning],
+) -> AnyFunc:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(message, category=category, stacklevel=2)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def _rewrap_descriptor(
+    original: Any,
+    wrapped: AnyFunc,
+) -> Any:
+    if isinstance(original, classmethod):
+        return classmethod(wrapped)
+    if isinstance(original, staticmethod):
+        return staticmethod(wrapped)
+    return wrapped
+
+
+def _make_warning_decorator(
+    category: type[Warning],
+    default_message_factory: Callable[[str], str],
+) -> Callable[[Any, str | None], Any]:
+    def decorator(func: Any, message: str | None = None) -> Any:
+        if isinstance(func, str):
+            def apply_to(target: F) -> F:
+                return cast("F", decorator(target, message=func))
+
+            return apply_to
+
+        target: AnyFunc = (
+            func.__func__ if isinstance(func, (classmethod, staticmethod)) else func
+        )
+
+        if message is None:
+            name = getattr(target, "__name__", target.__class__.__name__)
+            message = default_message_factory(name)
+
+        wrapped = _build_warning_wrapper(target, message, category)
+        return _rewrap_descriptor(func, wrapped)
+
+    return decorator
+
+
+_deprecated_impl = _make_warning_decorator(
+    DeprecationWarning,
+    lambda name: f"Call to deprecated function {name}.",
+)
+
+
+class DevelopmentWarning(UserWarning):
+    """Warning for modules or features that are still under development."""
+
+
+_development_warning_impl = _make_warning_decorator(
+    DevelopmentWarning,
+    lambda name: f"Call to function {name} which is under development.",
+)
+
+
 @overload
 def deprecated(func: F) -> F: ...
 @overload
@@ -75,42 +143,9 @@ def deprecated(func: str) -> Callable[[F], F]: ...
 def deprecated(func: F | str, message: str | None = None) -> F | Callable[[F], F]:
     """
     Decorator to mark functions as deprecated.
-
-    Parameters
-    ----------
-    func : callable
-        The function to be marked as deprecated.
-    message : str, optional
-        Additional message to include in the deprecation warning.
-
-    Returns
-    -------
-    callable
-        A wrapper function that raises a DeprecationWarning when called.
-
-    Examples
-    --------
-    >>> @deprecated
-    ... def old_function():
-    ...     pass
-    >>> old_function()
-    # Raises DeprecationWarning: Call to deprecated function old_function.
     """
-    if isinstance(func, str):
-        return functools.partial(deprecated, message=func)
+    return cast("F | Callable[[F], F]", _deprecated_impl(func, message))
 
-    if message is None:
-        message = f"Call to deprecated function {func.__name__}."
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-        return func(*args, **kwargs)
-
-    return wrapper
-
-class DevelopmentWarning(UserWarning):
-    """Warning for modules or features that are still under development."""
 
 @overload
 def development_warning(func: F) -> F: ...
@@ -119,36 +154,5 @@ def development_warning(func: str) -> Callable[[F], F]: ...
 def development_warning(func: F | str, message: str | None = None) -> F | Callable[[F], F]:
     """
     Decorator to mark functions as under development.
-
-    Parameters
-    ----------
-    func : callable
-        The function to be marked as under development.
-    message : str, optional
-        Additional message to include in the development warning.
-
-    Returns
-    -------
-    callable
-        A wrapper function that raises a UserWarning when called.
-
-    Examples
-    --------
-    >>> @development_warning
-    ... def new_function():
-    ...     pass
-    >>> new_function()
-    # Raises UserWarning: Call to function new_function which is under development.
     """
-    if isinstance(func, str):
-        return functools.partial(development_warning, message=func)
-
-    if message is None:
-        message = f"Call to function {func.__name__} which is under development."
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        warnings.warn(message, category=DevelopmentWarning, stacklevel=2)
-        return func(*args, **kwargs)
-
-    return wrapper
+    return cast("F | Callable[[F], F]", _development_warning_impl(func, message))

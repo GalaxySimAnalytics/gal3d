@@ -574,58 +574,95 @@ class StructureCore:
             **geoty_pa, pos1=pos1_t, pos2=pos2_t
         )
 
-    def generate_points(self, random_np: int = 1024) -> np.ndarray:
+    def generate_points(
+        self,
+        n_points: int = 1024,
+    ) -> np.ndarray:
         """
-        Generate uniformly distributed points on the structure.
+        Sample surface points using approximately uniform directions.
 
         Parameters
         ----------
-        random_np : int, optional
-            Number of points to generate (default is 1024).
+        n_points : int, optional
+            Number of sampling directions, default is 1024.
 
         Returns
         -------
         np.ndarray
-            Points on the surface.
+            Surface points in the external coordinate frame.
         """
-        cpos, spos = fibonacci_sampling(random_np)
+
+        if n_points <= 0:
+            raise ValueError("n_points must be positive")
+
+        directions, _ = fibonacci_sampling(n_points)
 
         coord_pa, geoty_pa = self._split_quick_parameters()
+        coordinate = self._coordinate(**coord_pa)
+        geometry = self._geometry(**geoty_pa)
 
-        points = self._geometry(**geoty_pa).ray_point(cpos)
+        points_local = geometry.ray_point(directions)
+        return coordinate.inverse(points_local)
 
-        return self._coordinate(**coord_pa).inverse(points)
-
-    def generate_slice2D(self, n_bins: int = 100, z_slice: float = 0.0, bins: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    def generate_slice2D(
+        self,
+        n_bins: int = 100,
+        z_slice: float = 0.0,
+        bins: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Generate a 2D slice of the shape at a specific z-coordinate.
+        Generate the planar cross-section of the shape at ``z = z_slice``.
 
         Parameters
         ----------
         n_bins : int, optional
-            Number of bins for the 2D slice, default is 100.
+            Number of angular samples in the slice plane, default is 100.
         z_slice : float, optional
-            The z-coordinate at which to slice the shape, default is 0.0.
-        bins: np.ndarray, optional
-            Explicit angular sample locations in radians over [0, 2π]. If provided, supersedes `n_bins`.
+            Slice plane location in the external coordinate frame, default is 0.0.
+        bins : np.ndarray, optional
+            Explicit angular sample locations in radians. If provided, supersedes
+            ``n_bins``.
 
         Returns
         -------
         X : np.ndarray
-            X coordinates of the 2D slice.
+            X coordinates of the planar slice.
         Y : np.ndarray
-            Y coordinates of the 2D slice.
+            Y coordinates of the planar slice.
+
+        Notes
+        -----
+        Missing intersections are returned as ``nan``.
         """
-        if bins is not None:
-            ang_bins = np.asarray(bins)
+        if bins is None:
+            ang_bins = np.linspace(0.0, 2.0 * np.pi, n_bins, endpoint=True)
         else:
-            ang_bins = np.linspace(0,2*np.pi,n_bins)
-        x = np.sin(ang_bins)
-        y = np.cos(ang_bins)
-        z = np.ones_like(x) * z_slice
-        pos = np.array([x, y, z]).T
-        points,_ = self.ray_intersect(pos)
-        return points[:,0], points[:,1]
+            ang_bins = np.asarray(bins, dtype=np.float64)
+
+        if ang_bins.ndim != 1 or ang_bins.size == 0:
+            raise ValueError("bins must be a non-empty 1D array")
+
+        directions = np.column_stack(
+            (
+                np.sin(ang_bins),
+                np.cos(ang_bins),
+                np.zeros_like(ang_bins),
+            )
+        )
+        centers = np.zeros_like(directions)
+        centers[:, 2] = z_slice
+
+        pos0 = centers - directions
+        pos1 = centers + directions
+
+        t_values = self.line_intersect(pos0, pos1)
+        has_hit = np.any(t_values > 0.0, axis=1)
+
+        t_forward = np.max(t_values, axis=1)
+        points = pos0 + t_forward[:, None] * directions
+        points[~has_hit] = np.nan
+
+        return points[:, 0], points[:, 1]
 
     def generate_edge2D(
         self,
@@ -642,38 +679,37 @@ class StructureCore:
         """
         Generate the 2D projected boundary (edge) of the shape.
 
-        This method computes the 2D outline of the 3D structure as seen from a given projection,
-        by scanning along multiple angles and radii, and finding the outermost intersection points
-        in the projected plane.
-
         Parameters
         ----------
         n_angle_bins : int, optional
-            Number of angular bins (sampling directions in the plane), default is 130.
+            Number of angular samples in the projected plane, default is 130.
         n_r_bins : int, optional
-            Number of radial bins (sampling radii along each direction), default is 400.
+            Number of radial samples per angle, default is 400.
         r_min : float, optional
-            Minimum radius to consider for projection, default is 0.2.
+            Minimum sampled projected radius, default is 0.2.
         r_max : float, optional
-            Maximum radius to consider for projection, default is 3.
+            Maximum sampled projected radius, default is 3.
         z_l : float, optional
-            Half-length along the projection axis (z), default is 1.5.
+            Half-length of the probing line along the projection axis, default is 1.5.
         rotation : ndarray of shape (3, 3), optional
-            3x3 rotation matrix to apply to the shape before projection, default is identity.
+            Rotation applied before projection.
         angle_bins : ndarray, optional
-            Explicit angular sample locations (radians). If provided, supersedes `n_angle_bins`.
+            Explicit angular sample locations in radians. If provided, supersedes
+            ``n_angle_bins``.
         radius_bins : ndarray, optional
-            Explicit radial sample locations. If provided, supersedes `n_r_bins`/`r_min`/`r_max`.
+            Explicit radial sample locations. If provided, supersedes
+            ``n_r_bins``, ``r_min`` and ``r_max``.
 
         Returns
         -------
         X : ndarray
-            X coordinates of the 2D boundary points.
+            X coordinates of the 2D boundary.
         Y : ndarray
-            Y coordinates of the 2D boundary points.
+            Y coordinates of the 2D boundary.
 
         Notes
         -----
+        Angles with no valid line intersection are returned as ``nan``.
         To obtain an edge-on view along the x-z plane, use:
 
         >>> rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
@@ -684,45 +720,56 @@ class StructureCore:
         >>> X, Y = structure.generate_edge2D()
         >>> plt.plot(X, Y)
         """
-        # Angles
-        if angle_bins is not None:
-            ang_bins = np.asarray(angle_bins)
+        if angle_bins is None:
+            ang_bins = np.linspace(0.0, 2.0 * np.pi, n_angle_bins, endpoint=True)
         else:
-            ang_bins = np.linspace(0, 2*np.pi, n_angle_bins)
+            ang_bins = np.asarray(angle_bins, dtype=np.float64)
 
-        # Radii
-        if radius_bins is not None:
-            r_bins = np.asarray(radius_bins)
+        if radius_bins is None:
+            r_bins = np.linspace(r_min, r_max, n_r_bins, endpoint=True)
         else:
-            r_bins = np.linspace(r_min, r_max, n_r_bins)
+            r_bins = np.asarray(radius_bins, dtype=np.float64)
+
+        if ang_bins.ndim != 1 or ang_bins.size == 0:
+            raise ValueError("angle_bins must be a non-empty 1D array")
+        if r_bins.ndim != 1 or r_bins.size == 0:
+            raise ValueError("radius_bins must be a non-empty 1D array")
+
+        if rotation is not None:
+            rotation = np.asarray(rotation, dtype=np.float64)
+            if rotation.shape != (3, 3):
+                raise ValueError("rotation must have shape (3, 3)")
+
+        n_angle = ang_bins.size
+        n_radius = r_bins.size
 
         x = np.sin(ang_bins)
         y = np.cos(ang_bins)
 
-        z0 = np.ones(len(x))*(-z_l)
-        z1 = np.ones(len(x))*(z_l)
+        xy = np.stack((x, y), axis=1)
+        xy_grid = xy[:, None, :] * r_bins[None, :, None]
 
-        pos0 = np.array([x,y,z0]).T
-        pos1 = np.array([x,y,z1]).T
+        z_bottom = np.full((n_angle, n_radius, 1), -z_l, dtype=np.float64)
+        z_top = np.full((n_angle, n_radius, 1), z_l, dtype=np.float64)
 
-        pos0_all = np.einsum("ij,k->ikj",pos0,r_bins).reshape(n_angle_bins*n_r_bins,3)
-
-        pos0_all[:,2] = -z_l
-        pos1_all = np.einsum("ij,k->ikj",pos1,r_bins).reshape(n_angle_bins*n_r_bins,3)
-        pos1_all[:,2] = z_l
+        pos0_all = np.concatenate((xy_grid, z_bottom), axis=2).reshape(-1, 3)
+        pos1_all = np.concatenate((xy_grid, z_top), axis=2).reshape(-1, 3)
 
         if rotation is not None:
-            pos0_all = np.matmul(pos0_all, rotation.T)
-            pos1_all = np.matmul(pos1_all, rotation.T)
+            pos0_all = pos0_all @ rotation.T
+            pos1_all = pos1_all @ rotation.T
 
-        lineinter = self.line_intersect(pos0_all,pos1_all)[:, 0]
-        lineinter = lineinter.reshape(n_angle_bins,n_r_bins)
+        t_values = self.quick_line_intersect(pos1=pos0_all, pos2=pos1_all)
+        hit = np.any(t_values > 0.0, axis=1).reshape(n_angle, n_radius)
+        has_hit = np.any(hit, axis=1)
 
-        R_all: np.ndarray = np.array([r_bins[lineinter[i]>0][-1] for i in range(n_angle_bins)])
+        last_hit_from_right = np.argmax(hit[:, ::-1], axis=1)
+        radius_idx = n_radius - 1 - last_hit_from_right
 
-        X = R_all*x
-        Y = R_all*y
-        return X,Y
+        r_all = np.full(n_angle, np.nan, dtype=np.float64)
+        r_all[has_hit] = r_bins[radius_idx[has_hit]]
+
+        return r_all * x, r_all * y
 
     def generate_edge3D(
         self,
@@ -733,7 +780,7 @@ class StructureCore:
         theta_bins: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Generate the 3D surface boundary of the shape.
+        Generate the 3D surface mesh of the shape.
 
         This method samples the 3D surface of the structure by scanning over spherical angles,
         and computes the corresponding boundary points in 3D space.
@@ -752,11 +799,11 @@ class StructureCore:
         Returns
         -------
         X : ndarray
-            X coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
+            X coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
         Y : ndarray
-            Y coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
+            Y coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
         Z : ndarray
-            Z coordinates of the 3D boundary surface, shape (n_phi_bins, n_theta_bins).
+            Z coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
 
         Notes
         -----
@@ -771,31 +818,41 @@ class StructureCore:
         >>> ax = fig.add_subplot(111, projection='3d')
         >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
         """
-        if phi_bins is None or theta_bins is None:
-            # integer-driven mode, keep the original closure property
+        if phi_bins is None:
             n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)
-            n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
-            u = np.linspace(0, 2*np.pi, 4*n_phi_bins + 1, endpoint=True)   # φ
-            v = np.linspace(0, np.pi,   2*n_theta_bins + 1, endpoint=True) # θ
+            u = np.linspace(0.0, 2.0 * np.pi, 4 * n_phi_bins + 1, endpoint=True)
         else:
-            u = np.asarray(phi_bins)
-            v = np.asarray(theta_bins)
+            u = np.asarray(phi_bins, dtype=np.float64)
 
-        nu, nv = len(u), len(v)
+        if theta_bins is None:
+            n_theta_bins = max(int(np.ceil(n_theta_bins / 2)), 1)
+            v = np.linspace(0.0, np.pi, 2 * n_theta_bins + 1, endpoint=True)
+        else:
+            v = np.asarray(theta_bins, dtype=np.float64)
+
+        if u.ndim != 1 or u.size == 0:
+            raise ValueError("phi_bins must be a non-empty 1D array")
+        if v.ndim != 1 or v.size == 0:
+            raise ValueError("theta_bins must be a non-empty 1D array")
+
+        nu, nv = u.size, v.size
 
         x = np.outer(np.cos(u), np.sin(v))
         y = np.outer(np.sin(u), np.sin(v))
         z = np.outer(np.ones_like(u), np.cos(v))
 
-        pos = np.array([x.reshape(1,-1)[0],y.reshape(1,-1)[0],z.reshape(1,-1)[0]]).T
-        pos=self._coordinate(**self.parameters).inverse(pos)
+        directions = np.column_stack((x.ravel(), y.ravel(), z.ravel()))
 
-        pos_plot,_ =self.ray_intersect(pos)
+        coord_pa, geoty_pa = self._split_quick_parameters()
+        coordinate = self._coordinate(**coord_pa)
+        geometry = self._geometry(**geoty_pa)
 
-        X = pos_plot.reshape(nu,nv,3)[:,:,0]
-        Y = pos_plot.reshape(nu,nv,3)[:,:,1]
-        Z = pos_plot.reshape(nu,nv,3)[:,:,2]
-        return X,Y,Z
+        pos_plot = coordinate.inverse(geometry.ray_point(directions))
+
+        X = pos_plot[:, 0].reshape(nu, nv)
+        Y = pos_plot[:, 1].reshape(nu, nv)
+        Z = pos_plot[:, 2].reshape(nu, nv)
+        return X, Y, Z
 
 class StructureError:
     """Base class for managing error functions and evaluation methods for structure fitting."""

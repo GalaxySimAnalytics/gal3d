@@ -589,7 +589,16 @@ class StructureCore:
         Returns
         -------
         np.ndarray
-            Surface points in the external coordinate frame.
+            Surface points in the external coordinate frame, with shape
+            ``(n_points, 3)``.
+
+        Examples
+        --------
+        Sample 1024 surface points:
+
+        >>> pts = structure.generate_points()
+        >>> pts.shape
+        (1024, 3)
         """
 
         if n_points <= 0:
@@ -609,60 +618,116 @@ class StructureCore:
         n_bins: int = 100,
         z_slice: float = 0.0,
         bins: np.ndarray | None = None,
+        *,
+        rotation: np.ndarray | None = None,
+        angle_bins: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Generate the planar cross-section of the shape at ``z = z_slice``.
+        Generate a planar cross-section of the shape.
 
         Parameters
         ----------
         n_bins : int, optional
-            Number of angular samples in the slice plane, default is 100.
+            Number of angular samples in the slice plane when explicit angular
+            bins are not provided, default is 100.
         z_slice : float, optional
-            Slice plane location in the external coordinate frame, default is 0.0.
+            Offset of the slice plane along the local slice normal, default is 0.0.
+            With ``rotation=None`` this is the usual external ``z`` coordinate.
         bins : np.ndarray, optional
+            Deprecated alias of ``angle_bins`` kept for backward compatibility.
+        rotation : ndarray of shape (3, 3), optional
+            Rotation matrix that maps slice-local coordinates into the external
+            frame. If omitted, the slice plane is the default external x-y plane.
+        angle_bins : np.ndarray, optional
             Explicit angular sample locations in radians. If provided, supersedes
             ``n_bins``.
 
         Returns
         -------
         X : np.ndarray
-            X coordinates of the planar slice.
+            X coordinates in the local slice plane.
         Y : np.ndarray
-            Y coordinates of the planar slice.
+            Y coordinates in the local slice plane.
 
         Notes
         -----
+        The returned ``X`` and ``Y`` are always coordinates in the slice plane
+        itself. For the default unrotated case, these coincide with the external
+        x-y coordinates.
         Missing intersections are returned as ``nan``.
+
+        Examples
+        --------
+        Mid-plane slice in the default x-y plane:
+
+        >>> x, y = structure.generate_slice2D(n_bins=256)
+
+        Offset slice parallel to the default x-y plane:
+
+        >>> x, y = structure.generate_slice2D(z_slice=0.2, n_bins=256)
+
+        Slice in a rotated plane, for example the external x-z plane:
+
+        >>> rotation = np.array([[1.0, 0.0, 0.0],
+        ...                      [0.0, 0.0, 1.0],
+        ...                      [0.0, 1.0, 0.0]]).T
+        >>> x, y = structure.generate_slice2D(rotation=rotation, n_bins=256)
+
+        Use custom angular samples:
+
+        >>> theta = np.linspace(0.0, 2.0 * np.pi, 128, endpoint=True)
+        >>> x, y = structure.generate_slice2D(angle_bins=theta)
         """
-        if bins is None:
+        if angle_bins is None and bins is not None:
+            angle_bins = bins
+
+        if angle_bins is None:
             ang_bins = np.linspace(0.0, 2.0 * np.pi, n_bins, endpoint=True)
         else:
             ang_bins = np.asarray(bins, dtype=np.float64)
 
         if ang_bins.ndim != 1 or ang_bins.size == 0:
-            raise ValueError("bins must be a non-empty 1D array")
+            raise ValueError("angle_bins must be a non-empty 1D array")
 
-        directions = np.column_stack(
+        if rotation is None:
+            rotation = np.eye(3, dtype=np.float64)
+        else:
+            rotation = np.asarray(rotation, dtype=np.float64)
+            if rotation.shape != (3, 3):
+                raise ValueError("rotation must have shape (3, 3)")
+
+        directions_local = np.column_stack(
             (
                 np.sin(ang_bins),
                 np.cos(ang_bins),
                 np.zeros_like(ang_bins),
             )
         )
-        centers = np.zeros_like(directions)
-        centers[:, 2] = z_slice
 
-        pos0 = centers - directions
-        pos1 = centers + directions
+        plane_origin_local = np.array([0.0, 0.0, z_slice], dtype=np.float64)
+        plane_origin_world = plane_origin_local @ rotation.T
 
-        t_values = self.line_intersect(pos0, pos1)
+        pos0_local = plane_origin_local + np.column_stack(
+            (-np.sin(ang_bins),-np.cos(ang_bins),np.zeros_like(ang_bins),)
+        )
+        pos1_local = plane_origin_local + np.column_stack(
+            (np.sin(ang_bins),np.cos(ang_bins),np.zeros_like(ang_bins),)
+        )
+
+        pos0_world = pos0_local @ rotation.T
+        pos1_world = pos1_local @ rotation.T
+        directions_world = directions_local @ rotation.T
+
+        t_values = self.line_intersect(pos0_world, pos1_world)
         has_hit = np.any(t_values > 0.0, axis=1)
 
         t_forward = np.max(t_values, axis=1)
-        points = pos0 + t_forward[:, None] * directions
-        points[~has_hit] = np.nan
+        points_world = pos0_world + t_forward[:, None] * directions_world
+        points_local = (points_world - plane_origin_world) @ rotation
 
-        return points[:, 0], points[:, 1]
+        points_local[~has_hit] = np.nan
+
+        return points_local[:, 0], points_local[:, 1]
 
     def generate_edge2D(
         self,
@@ -677,7 +742,7 @@ class StructureCore:
         radius_bins: np.ndarray | None = None,
         ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Generate the 2D projected boundary (edge) of the shape.
+        Generate the 2D projected boundary of the shape.
 
         Parameters
         ----------
@@ -710,16 +775,35 @@ class StructureCore:
         Notes
         -----
         Angles with no valid line intersection are returned as ``nan``.
-        To obtain an edge-on view along the x-z plane, use:
+        The choice of ``z_l`` should be large enough that the probing line spans
+        the object along the projection direction.
 
         >>> rotation = np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
 
         Examples
         --------
-        >>> import matplotlib.pyplot as plt
+        Default face-on projected edge:
+
         >>> X, Y = structure.generate_edge2D()
-        >>> plt.plot(X, Y)
+
+        Edge-on view in the external x-z plane:
+
+        >>> rotation = np.array([[1.0, 0.0, 0.0],
+        ...                      [0.0, 0.0, 1.0],
+        ...                      [0.0, 1.0, 0.0]]).T
+        >>> X, Y = structure.generate_edge2D(rotation=rotation)
+
+        Use denser radial sampling:
+
+        >>> X, Y = structure.generate_edge2D(n_angle_bins=256, n_r_bins=1024)
+
+        Use custom angular and radial samples:
+
+        >>> ang = np.linspace(0.0, 2.0 * np.pi, 180, endpoint=True)
+        >>> rad = np.linspace(0.05, 4.0, 600)
+        >>> X, Y = structure.generate_edge2D(angle_bins=ang, radius_bins=rad)
         """
+
         if angle_bins is None:
             ang_bins = np.linspace(0.0, 2.0 * np.pi, n_angle_bins, endpoint=True)
         else:
@@ -782,9 +866,6 @@ class StructureCore:
         """
         Generate the 3D surface mesh of the shape.
 
-        This method samples the 3D surface of the structure by scanning over spherical angles,
-        and computes the corresponding boundary points in 3D space.
-
         Parameters
         ----------
         n_phi_bins : int, optional
@@ -798,25 +879,48 @@ class StructureCore:
 
         Returns
         -------
-        X : ndarray
-            X coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
-        Y : ndarray
-            Y coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
-        Z : ndarray
-            Z coordinates of the surface mesh, shape (n_phi_bins, n_theta_bins).
+        X : np.ndarray
+            X coordinates of the surface mesh with shape ``(n_phi, n_theta)``.
+        Y : np.ndarray
+            Y coordinates of the surface mesh with shape ``(n_phi, n_theta)``.
+        Z : np.ndarray
+            Z coordinates of the surface mesh with shape ``(n_phi, n_theta)``.
 
         Notes
         -----
-        - When using integer bin counts, φ is coerced to 4a+1 and θ to 2b+1 (to include endpoints nicely).
-        - When providing arrays, your exact arrays are used (ensure desired endpoints are included).
+        When integer bin counts are used, ``phi`` is expanded to ``4a + 1`` and
+        ``theta`` to ``2b + 1`` so that endpoint closure is included naturally.
+        If arrays are provided, they are used exactly as given.
+        ``phi_bins`` and ``theta_bins`` can be supplied independently.
 
         Examples
         --------
+        Generate a default surface mesh:
+
+        >>> X, Y, Z = structure.generate_edge3D()
+
+        Use a denser regular grid:
+
+        >>> X, Y, Z = structure.generate_edge3D(n_phi_bins=200, n_theta_bins=100)
+
+        Use custom azimuthal sampling only:
+
+        >>> phi = np.linspace(0.0, 2.0 * np.pi, 181, endpoint=True)
+        >>> X, Y, Z = structure.generate_edge3D(phi_bins=phi)
+
+        Use custom azimuthal and polar sampling:
+
+        >>> phi = np.linspace(0.0, 2.0 * np.pi, 181, endpoint=True)
+        >>> theta = np.linspace(0.0, np.pi, 91, endpoint=True)
+        >>> X, Y, Z = structure.generate_edge3D(phi_bins=phi, theta_bins=theta)
+
+        Plot with matplotlib:
+
         >>> import matplotlib.pyplot as plt
         >>> X, Y, Z = structure.generate_edge3D()
-        >>> fig = plt.figure(dpi=150, figsize=plt.figaspect(1))
-        >>> ax = fig.add_subplot(111, projection='3d')
-        >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap='grey', linewidth=0.1, edgecolor='k', alpha=0.2)
+        >>> fig = plt.figure(dpi=150, figsize=plt.figaspect(1.0))
+        >>> ax = fig.add_subplot(111, projection="3d")
+        >>> ax.plot_surface(X, Y, Z, rstride=4, cstride=4, cmap="gray", linewidth=0.1)
         """
         if phi_bins is None:
             n_phi_bins = max(int(np.ceil(n_phi_bins / 4)), 1)

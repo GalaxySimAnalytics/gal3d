@@ -1266,6 +1266,44 @@ class Structure3D(StructureCore, StructureError):
 
         return False
 
+    def calculate_error(
+        self,
+        pos: ArrayLike,
+        params: Sequence[float] | dict[str, float] | None = None,
+        **kwargs: Any,
+    ) -> float | np.ndarray:
+        """
+        Calculate the current error value for input positions.
+
+        Parameters
+        ----------
+        pos : array_like
+            Positions used to evaluate the error.
+        params : sequence, dict, optional
+            Optional parameter override. If omitted, use ``self.parameters``.
+            A sequence follows the current optimization parameter order; a dict
+            updates parameters by name.
+        **kwargs : dict
+            Extra keyword arguments required by the error function, e.g. ``w``.
+
+        Returns
+        -------
+        float or np.ndarray
+            Error value or residual vector, depending on the configured error method.
+        """
+        parameters_set = self.parameters.copy()
+
+        param_values: Sequence[float] | list[float]
+        if params is None:
+            param_values = parameters_set.values_list()
+        elif isinstance(params, dict):
+            parameters_set.set_value(**params)
+            param_values = parameters_set.values_list()
+        else:
+            param_values = params
+
+        error_method = parameters_set.decorate_func_constraints(self._error_method)
+        return error_method(param_values, pos=np.asarray(pos), **kwargs)
 
 @Structure3D.compute_method_registry
 def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) -> float:

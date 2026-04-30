@@ -151,6 +151,7 @@ class EllipsoidResultBuilder:
         n_iter_done: int,
         err: float,
         shell_density: float,
+        extra_info: dict[str, Any] | None = None,
     ) -> ModelResult:
         """
         Package ellipsoid iteration results into a ``ModelResult``.
@@ -177,6 +178,8 @@ class EllipsoidResultBuilder:
             for the continuous workflow it is the mean surface density
             :math:`\\oint \\rho\\,d\\Omega / \\oint d\\Omega`.
             Stored via ``params.add_info``.
+        extra_info : dict, optional
+            Any extra info to be added to the result parameters
 
         Returns
         -------
@@ -208,6 +211,8 @@ class EllipsoidResultBuilder:
 
         # ---- pack result ----
         params.add_info(parameter=shell_density)
+        if extra_info is not None:
+            params.add_info(**extra_info)
 
         opt = OptimizeResult(
             params=params,

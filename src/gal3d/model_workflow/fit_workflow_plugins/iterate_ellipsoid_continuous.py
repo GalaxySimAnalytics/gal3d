@@ -107,16 +107,13 @@ Fit isodensity ellipsoid shells to a :class:`~gal3d.density.DensitySource`
 
     result = workflow(
         source,
-        rmin=0.5,
-        rmax=20.0,
-        nbins=40,
-        bins="log",
+        r=np.geomspace(0.5, 20.0, 40),
+        max_iterations=30,
         tol=1e-3,
-        n_iter=20,
-        volume_conserve=True,
-        damping=0.5,
-        ntheta=64,
-        nphi=128,
+        n_sample=1024,
+        method="gauss_legendre",
+        log=None,
+        log_dynamic_range=2.0,
     )
 
 Alternatively, supply an explicit radius array::
@@ -150,6 +147,9 @@ if TYPE_CHECKING:
     from gal3d.density import DensitySource
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
+
+
+SamplingMethod = Literal["fibonacci", "gauss_legendre", "healpix"]
 
 def _shape_tensor_to_axes(
     S: np.ndarray,
@@ -209,28 +209,38 @@ class EllipsoidShellShapeTensor:
         ``n_sample`` points are placed on the unit sphere; the Voronoi cell
         areas serve as the :math:`d\\Omega` weights.  The ``SphVector``
         instance is cached (singleton) across calls.
+    ``"healpix"``
+        Equal-area HEALPix sampling.  Requires the optional ``healpy`` package.
 
     Parameters
     ----------
     n_sample : int, optional, default 512
         Target number of sample points.
-    method : {"fibonacci", "gauss_legendre"}, optional
+    method : {"fibonacci", "gauss_legendre", "healpix"}, optional
         Sampling method.  Default is ``"fibonacci"``.
     sigma_clip : float | None, optional, default 3.0
         If not ``None``, winsorise density samples that deviate more than
         ``sigma_clip`` weighted standard deviations from the weighted mean.
-
+    log : bool | None, optional
+        If ``True``, apply logarithmic weighting to the density samples, else use linear weighting.
+        If ``None`` (default), automatically enable log weighting if the density dynamic range exceeds ``log_dynamic_range``.
+    log_dynamic_range : float, optional, default 2.0
+        Dynamic range threshold for automatic log weighting.  Defined 1., e.g., as :math:`\\log_{10}(\\rho_\\mathrm{max}/\\rho_\\mathrm{min})`.
     """
 
     def __init__(
         self,
         n_sample: int = 512,
-        method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
+        method: SamplingMethod = "fibonacci",
         sigma_clip: float | None = 3.0,
+        log: bool | None = None,
+        log_dynamic_range: float = 2.0,
     ) -> None:
         self.n_sample = n_sample
         self.method   = method
         self.sigma_clip = sigma_clip
+        self.log = log
+        self.log_dynamic_range = log_dynamic_range
 
         if method == "gauss_legendre":
             ntheta = max(4, int(np.sqrt(n_sample / 2)))
@@ -244,6 +254,8 @@ class EllipsoidShellShapeTensor:
             self._w_ct       = w_ct
             self._phi_nodes  = np.pi * (t_phi + 1.0)
             self._w_phi      = np.pi * w_phi
+        elif method == "healpix":
+            self._hp_pos, self._hp_area = self._build_healpix(n_sample)
         else:
             self._sv = SphVector(n_sample=n_sample, method=method, verbose=False)
 
@@ -311,23 +323,69 @@ class EllipsoidShellShapeTensor:
 
     @staticmethod
     def _shape_tensor_from_samples(
-        pos_lab: np.ndarray,    # (N, 3)
-        rho: np.ndarray,        # (N,)
-        W: np.ndarray,          # (N,)
+        pos_lab: np.ndarray,
+        rho: np.ndarray,
+        W: np.ndarray,
+        rho_weight: np.ndarray | None = None,
     ) -> tuple[np.ndarray, float]:
-        """Compute angular-weighted shape tensor and mean density from flat samples."""
-        rho_W        = rho * W
+        """Compute angular-weighted shape tensor and true mean density.
+
+        rho_weight only affects the shape tensor calculation; the mean density is always the true weighted mean of the original rho values.
+        """
+        if rho_weight is None:
+            rho_weight = rho
+
+        rho_weight = np.asarray(rho_weight, dtype=float)
+        rho_weight = np.where(np.isfinite(rho_weight) & (rho_weight > 0.0), rho_weight, 0.0)
+        rho_W = rho_weight * W
         total_weight = rho_W.sum()
+        if not np.isfinite(total_weight) or total_weight <= 0.0:
+            raise ValueError("Invalid density weights: total tensor weight is not positive.")
 
         S = np.zeros((3, 3))
         for i in range(3):
             for j in range(i, 3):
-                val     = (rho_W * pos_lab[:, i] * pos_lab[:, j]).sum() / total_weight
+                val = (rho_W * pos_lab[:, i] * pos_lab[:, j]).sum() / total_weight
                 S[i, j] = val
                 S[j, i] = val
 
-        mean_rho = float(rho_W.sum() / W.sum()) if W.sum() > 0 else 0.0
+        valid = np.isfinite(rho) & np.isfinite(W) & (W > 0)
+        mean_rho = float((rho[valid] * W[valid]).sum() / W[valid].sum()) if np.any(valid) else 0.0
         return S, mean_rho
+
+    @staticmethod
+    def _build_healpix(n_sample: int) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Build equal-area HEALPix angular quadrature nodes.
+
+        Requires the optional ``healpy`` package.
+        """
+        try:
+            import healpy as hp
+        except ImportError as exc:
+            raise ImportError(
+                "method='healpix' requires the optional package 'healpy'. "
+                "Install it with: pip install healpy"
+            ) from exc
+
+        nside_float = np.sqrt(max(int(n_sample), 12) / 12.0)
+        nside_pow = int(2 ** np.round(np.log2(nside_float)))
+        nside = max(1, nside_pow)
+
+        npix = hp.nside2npix(nside)
+        pix = np.arange(npix)
+
+        theta, phi = hp.pix2ang(nside, pix, nest=False)
+        st = np.sin(theta)
+
+        pos = np.column_stack([
+            st * np.cos(phi),
+            st * np.sin(phi),
+            np.cos(theta),
+        ])
+
+        area = np.full(npix, 4.0 * np.pi / npix, dtype=float)
+        return pos, area
 
     # ------------------------------------------------------------------
 
@@ -360,6 +418,8 @@ class EllipsoidShellShapeTensor:
         """
         if self.method == "gauss_legendre":
             return self._compute_gauss_legendre(source, a, b, c, rotation_matrix)
+        elif self.method == "healpix":
+            return self._compute_healpix(source, a, b, c, rotation_matrix)
         else:
             return self._compute_fibonacci_voronoi(source, a, b, c, rotation_matrix)
 
@@ -444,9 +504,14 @@ class EllipsoidShellShapeTensor:
         W_flat  = (self._w_ct[:, None] * self._w_phi[None, :]).ravel()
         pos_lab = self._ellipsoid_points(unit_flat, a, b, c, R)
         rho     = source._evaluate_density(pos_lab)
-        if self.sigma_clip is not None:
-            rho = self._sigma_clip_rho(rho, W_flat, sigma=self.sigma_clip)
-        return self._shape_tensor_from_samples(pos_lab, rho, W_flat)
+        rho_weight, _ = self._effective_density_weight(
+            rho,
+            W_flat,
+            sigma=self.sigma_clip,
+            log=self.log,
+            log_dynamic_range=self.log_dynamic_range,
+        )
+        return self._shape_tensor_from_samples(pos_lab, rho, W_flat, rho_weight=rho_weight)
 
     def _compute_fibonacci_voronoi(
         self,
@@ -458,9 +523,139 @@ class EllipsoidShellShapeTensor:
         R       = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
         pos_lab = self._ellipsoid_points(self._sv.pos, a, b, c, R)
         rho     = source._evaluate_density(pos_lab)
-        if self.sigma_clip is not None:
-            rho = self._sigma_clip_rho(rho, self._sv.area, sigma=self.sigma_clip)
-        return self._shape_tensor_from_samples(pos_lab, rho, self._sv.area)
+        rho_weight, _ = self._effective_density_weight(
+            rho,
+            self._sv.area,
+            sigma=self.sigma_clip,
+            log=self.log,
+            log_dynamic_range=self.log_dynamic_range,
+        )
+        return self._shape_tensor_from_samples(pos_lab, rho, self._sv.area, rho_weight=rho_weight)
+
+    def _compute_healpix(
+        self,
+        source: "DensitySource",
+        a: float, b: float, c: float,
+        rotation_matrix: np.ndarray | None = None
+        ) -> tuple[np.ndarray, float]:
+        """HEALPix equal-area angular quadrature backend."""
+        R = np.eye(3) if rotation_matrix is None else np.asarray(rotation_matrix)
+        pos_lab = self._ellipsoid_points(self._hp_pos, a, b, c, R)
+        rho = source._evaluate_density(pos_lab)
+        rho_weight, _ = self._effective_density_weight(
+            rho,
+            self._hp_area,
+            sigma=self.sigma_clip,
+            log=self.log,
+            log_dynamic_range=self.log_dynamic_range,
+        )
+        return self._shape_tensor_from_samples(pos_lab, rho, self._hp_area, rho_weight=rho_weight)
+
+    @staticmethod
+    def _weighted_quantile(
+        values: np.ndarray,
+        weights: np.ndarray,
+        q: float,
+    ) -> float:
+        values = np.asarray(values, dtype=float)
+        weights = np.asarray(weights, dtype=float)
+        mask = np.isfinite(values) & np.isfinite(weights) & (weights > 0)
+        if not np.any(mask):
+            return np.nan
+
+        values = values[mask]
+        weights = weights[mask]
+        order = np.argsort(values)
+        values = values[order]
+        weights = weights[order]
+        cdf = np.cumsum(weights)
+        cdf /= cdf[-1]
+        return float(np.interp(q, cdf, values))
+
+    @classmethod
+    def _effective_density_weight(
+        cls,
+        rho: np.ndarray,
+        W: np.ndarray,
+        sigma: float | None,
+        log: bool | None = None,
+        log_dynamic_range: float = 2.0,
+        tiny: float | None = None,
+    ) -> tuple[np.ndarray, bool]:
+        """
+        Build robust positive density weights for the shape tensor.
+
+        Parameters
+        ----------
+        rho : ndarray
+            Raw density samples.
+        W : ndarray
+            Angular quadrature weights.
+        sigma : float or None
+            Clip threshold.  If None, no clipping is applied.
+        log : bool or None
+            False:
+                Use rho-space clipping and rho-space tensor weights.
+            True:
+                Clip in log(rho) space, then use log1p-compressed positive
+                weights for the tensor iteration.
+            None:
+                Automatically choose log=True when the central 90 percent
+                density dynamic range exceeds ``log_dynamic_range`` dex.
+        log_dynamic_range : float
+            Dynamic range threshold in dex for automatic log mode.
+
+        Returns
+        -------
+        rho_weight : ndarray
+            Positive effective weights used only for the shape tensor.
+        use_log : bool
+            Whether log mode was used.
+        """
+        rho = np.asarray(rho, dtype=float)
+        W = np.asarray(W, dtype=float)
+        tiny = float(np.finfo(np.float64).tiny) if tiny is None else float(tiny)
+
+        rho_safe = np.where(np.isfinite(rho) & (rho > 0.0), rho, tiny)
+        log10rho = np.log10(rho_safe)
+
+        if log is None:
+            q05 = cls._weighted_quantile(log10rho, W, 0.05)
+            q95 = cls._weighted_quantile(log10rho, W, 0.95)
+            use_log = bool(
+                np.isfinite(q05)
+                and np.isfinite(q95)
+                and (q95 - q05 > log_dynamic_range)
+            )
+        else:
+            use_log = bool(log)
+
+        if not use_log:
+            if sigma is None:
+                return rho_safe, False
+            return cls._sigma_clip_rho(rho_safe, W, sigma=sigma), False
+
+        logrho = np.log(rho_safe)
+
+        if sigma is not None:
+            med = cls._weighted_quantile(logrho, W, 0.50)
+            mad = cls._weighted_quantile(np.abs(logrho - med), W, 0.50)
+            if np.isfinite(med) and np.isfinite(mad) and mad > 0.0:
+                scale = 1.4826 * mad
+                logrho = np.clip(logrho, med - sigma * scale, med + sigma * scale)
+
+        rho_clip = np.exp(logrho)
+
+        rho_scale = cls._weighted_quantile(rho_clip, W, 0.50)
+        if not np.isfinite(rho_scale) or rho_scale <= 0.0:
+            rho_scale = np.nanmax(rho_clip)
+        if not np.isfinite(rho_scale) or rho_scale <= 0.0:
+            return np.ones_like(rho_safe), True
+
+        rho_weight = np.log1p(rho_clip / max(rho_scale, tiny))
+        rho_weight = np.maximum(rho_weight, tiny)
+
+        return rho_weight, True
 
 class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
     """
@@ -534,8 +729,10 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         damping: float,
         rot_init: np.ndarray | None = None,
         n_sample: int = 512,
-        method: Literal["fibonacci", "gauss_legendre"] = "fibonacci",
+        method: SamplingMethod = "fibonacci",
         sigma_clip: float | None = 3.0,
+        log: bool | None = None,
+        log_dynamic_range: float = 1.0,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, float, float]:
         """
         Iterate one radial shell to convergence.
@@ -558,7 +755,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             Initial rotation matrix; if None, defaults to identity.
         n_sample : int
             Number of sample points on the ellipsoid surface.
-        method : {"fibonacci", "gauss_legendre"}
+        method : {"fibonacci", "gauss_legendre", "healpix"}
             Sampling method for shape tensor evaluation.
         sigma_clip : float | None
             If not ``None``, winsorise density samples that deviate more than
@@ -592,7 +789,8 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         iteration_counter = 0
 
         shape_tensor = EllipsoidShellShapeTensor(
-            n_sample=n_sample, method=method, sigma_clip=sigma_clip
+            n_sample=n_sample, method=method, sigma_clip=sigma_clip,
+            log=log, log_dynamic_range=log_dynamic_range,
         )
 
         while (err > tol) and (iteration_counter < max_iterations):
@@ -623,13 +821,16 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
 
         init_parameters = kwargs.get("init_parameters",{}) # initial guess for a,b,c.  Default is spherical.
 
-        max_iterations = kwargs.get("max_iterations", 20)
+        max_iterations = kwargs.get("max_iterations", 30)
         tol = kwargs.get("tol", 1e-3)
         volume_conserve = kwargs.get("volume_conserve", False)
         damping = kwargs.get("damping", 0.8)
         n_sample = kwargs.get("n_sample", 512)
-        method = kwargs.get("method", "fibonacci") # sampling method for shape tensor evaluation; default is fibonacci sampling on the sphere
+        method = kwargs.get("method", "fibonacci")
         sigma_clip = kwargs.get("sigma_clip", 3.0)
+
+        log = kwargs.get("log", None)
+        log_dynamic_range = kwargs.get("log_dynamic_range", 1.0)
 
         # a, b, c
         abc = np.ones(3, dtype=float)*r
@@ -651,6 +852,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             volume_conserve=volume_conserve, damping=damping,
             rot_init=rot_init,
             n_sample=n_sample, method=method,
-            sigma_clip=sigma_clip
+            sigma_clip=sigma_clip,
+            log=log, log_dynamic_range=log_dynamic_range
             )
         return self._build_model_result(abc, rot, abc_prev, rot_prev, n_done, err, mean_rho)

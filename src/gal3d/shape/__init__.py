@@ -1369,3 +1369,124 @@ def isodensity_curve_dcall(
         r2 = r*r
         f = f*r/np.sqrt(np.sum(r2))
     return f
+
+def _azimuthal_fourier_residual(
+    pos_local: np.ndarray,
+    f: np.ndarray,
+    r: np.ndarray,
+    *,
+    azimuth_weight: float = 1.0,
+    n_mu_bins: int = 24,
+    min_count: int = 12,
+    min_sin_theta: float = 0.1,
+    azimuth_m: int = 4,
+) -> np.ndarray:
+    """
+    Compare model/data azimuthal m-mode structure in bins of mu = z / r.
+
+    The residual is based on the Fourier coefficient of log(radius) after
+    subtracting the mean log(radius) in each mu bin. This keeps axisymmetric
+    radial/vertical structure out of the azimuthal penalty.
+    """
+    if azimuth_weight <= 0.0 or n_mu_bins <= 0 or azimuth_m <= 0:
+        return np.empty(0, dtype=np.float64)
+
+    tiny = float(np.finfo(np.float64).tiny)
+    f_safe = np.maximum(f, tiny)
+    r_safe = np.maximum(r, tiny)
+
+    unit_pos = pos_local / r_safe[:, None]
+    mu = np.clip(unit_pos[:, 2], -1.0, 1.0)
+    sin_theta = np.sqrt(np.maximum(1.0 - mu * mu, 0.0))
+    valid = sin_theta >= min_sin_theta
+
+    if not np.any(valid):
+        return np.empty(0, dtype=np.float64)
+
+    phi = np.arctan2(unit_pos[:, 1], unit_pos[:, 0])
+    data_log_r = np.log(r_safe)
+    model_log_r = data_log_r - np.log(f_safe)
+
+    mu_edges = np.linspace(-1.0, 1.0, n_mu_bins + 1)
+    mu_bin = np.digitize(mu, mu_edges) - 1
+    mu_bin = np.clip(mu_bin, 0, n_mu_bins - 1)
+
+    mu_bin = mu_bin[valid]
+    phi = phi[valid]
+    data_log_r = data_log_r[valid]
+    model_log_r = model_log_r[valid]
+
+    mode_angle = azimuth_m * phi
+    mode_cos = np.cos(mode_angle)
+    mode_sin = np.sin(mode_angle)
+
+    count = np.bincount(mu_bin, minlength=n_mu_bins).astype(np.float64)
+    use = count >= min_count
+    if not np.any(use):
+        return np.empty(0, dtype=np.float64)
+
+    sum_cos = np.bincount(mu_bin, weights=mode_cos, minlength=n_mu_bins)
+    sum_sin = np.bincount(mu_bin, weights=mode_sin, minlength=n_mu_bins)
+
+    sum_data = np.bincount(mu_bin, weights=data_log_r, minlength=n_mu_bins)
+    sum_model = np.bincount(mu_bin, weights=model_log_r, minlength=n_mu_bins)
+
+    sum_data_cos = np.bincount(mu_bin, weights=data_log_r * mode_cos, minlength=n_mu_bins)
+    sum_data_sin = np.bincount(mu_bin, weights=data_log_r * mode_sin, minlength=n_mu_bins)
+    sum_model_cos = np.bincount(mu_bin, weights=model_log_r * mode_cos, minlength=n_mu_bins)
+    sum_model_sin = np.bincount(mu_bin, weights=model_log_r * mode_sin, minlength=n_mu_bins)
+
+    inv_count = np.zeros_like(count)
+    inv_count[use] = 1.0 / count[use]
+
+    data_real = (sum_data_cos - sum_data * sum_cos * inv_count) * inv_count
+    data_imag = -(sum_data_sin - sum_data * sum_sin * inv_count) * inv_count
+    model_real = (sum_model_cos - sum_model * sum_cos * inv_count) * inv_count
+    model_imag = -(sum_model_sin - sum_model * sum_sin * inv_count) * inv_count
+
+    scale = np.sqrt(2.0 * count[use] * azimuth_weight)
+
+    residual = np.empty(2 * np.count_nonzero(use), dtype=np.float64)
+    residual[0::2] = scale * (model_real[use] - data_real[use])
+    residual[1::2] = scale * (model_imag[use] - data_imag[use])
+    return residual
+
+
+@Structure3D.compute_method_registry
+def isodensity_curve_dcall_azimuthal(
+    self: Structure3D, params: Sequence[float], **kwargs: Any
+) -> np.ndarray:
+    pos = np.asarray(kwargs["pos"])
+
+    coord_pa, geoty_pa = self._split_quick_parameters(*params)
+    pos_local = self._coordinate.quick_call(**coord_pa, pos=pos)
+    f, r = self._geometry.quick_f_ray_d(**geoty_pa, pos=pos_local)
+
+    tiny = float(np.finfo(np.float64).tiny)
+    f_safe = np.maximum(f, tiny)
+
+    if self.use_ln_error:
+        base_residual = np.log(f_safe)
+    else:
+        base_residual = f - 1.0
+
+    if "rscale" in self._error_func_name:
+        r_norm = max(float(np.sqrt(np.sum(r * r))), tiny)
+        base_residual = base_residual * r / r_norm
+
+    fourier_residual = _azimuthal_fourier_residual(
+        pos_local,
+        f,
+        r,
+        azimuth_weight=float(kwargs.get("azimuth_weight", 1.0)),
+        n_mu_bins=int(kwargs.get("azimuth_n_mu_bins", 24)),
+        min_count=int(kwargs.get("azimuth_min_count", 12)),
+        min_sin_theta=float(kwargs.get("azimuth_min_sin_theta", 0.1)),
+        azimuth_m=int(kwargs.get("azimuth_m", 4)),
+    )
+
+    if fourier_residual.size == 0:
+        return base_residual
+
+    return np.concatenate((base_residual, fourier_residual))
+

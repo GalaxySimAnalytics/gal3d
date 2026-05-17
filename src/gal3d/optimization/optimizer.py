@@ -2,6 +2,7 @@
 Base classes and utilities for optimization algorithms.
 
 """
+
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
@@ -18,8 +19,6 @@ from gal3d.plugin import PluginBase, PluginManager
 __all__ = ["Optimizer", "OptimizerBase", "OptimizeResult"]
 
 logger = logging.getLogger("gal3d.optimization.optimizer")
-
-
 
 
 class OptimizeResult(_RichResult):
@@ -71,21 +70,53 @@ class OptimizeResult(_RichResult):
     algorithm_output: dict
         Additional algorithm specific information.
     """
-    _order_keys: list[str] = ["message", "success", "status", "cost", "fun", "params",
-                    "col_ind", "n_iterations", "lower", "upper", "eqlin", "ineqlin",
-                    "converged", "flag", "function_calls", "iterations",
-                    "root"]
+
+    _order_keys: list[str] = [
+        "message",
+        "success",
+        "status",
+        "cost",
+        "fun",
+        "params",
+        "col_ind",
+        "n_iterations",
+        "lower",
+        "upper",
+        "eqlin",
+        "ineqlin",
+        "converged",
+        "flag",
+        "function_calls",
+        "iterations",
+        "root",
+    ]
 
     # omit_keys
     def __repr__(self):
-        order_keys = ["message", "success", "status", "fun", "funl", "x", "xl",
-                      "col_ind", "nit", "lower", "upper", "eqlin", "ineqlin",
-                      "converged", "flag", "function_calls", "iterations",
-                      "root"]
+        order_keys = [
+            "message",
+            "success",
+            "status",
+            "fun",
+            "funl",
+            "x",
+            "xl",
+            "col_ind",
+            "nit",
+            "lower",
+            "upper",
+            "eqlin",
+            "ineqlin",
+            "converged",
+            "flag",
+            "function_calls",
+            "iterations",
+            "root",
+        ]
         order_keys = getattr(self, "_order_keys", order_keys)
         # 'slack', 'con' are redundant with residuals
         # 'crossover_nit' is probably not interesting to most users
-        omit_keys = {"slack", "con", "crossover_nit", "_order_keys","call_kws"}
+        omit_keys = {"slack", "con", "crossover_nit", "_order_keys", "call_kws"}
 
         def key(item):
             try:
@@ -106,6 +137,8 @@ class OptimizeResult(_RichResult):
             return _dict_formatter(self, sorter=item_sorter)
         else:
             return self.__class__.__name__ + "()"
+
+
 class OptimizerBase(PluginBase):
     """
     Abstract base class for implementing optimization algorithms.
@@ -152,13 +185,14 @@ class OptimizerBase(PluginBase):
         super().__init_subclass__(**kwargs)
         Optimizer.register(cls)
 
-    def fit(self,
+    def fit(
+        self,
         fun: Callable,
         params: Parameters,
         func_args: tuple | None = None,
         func_kwargs: dict | None = None,
         **kwargs: Any,
-        ) -> OptimizeResult:
+    ) -> OptimizeResult:
         """
         Fit the model to the data.
 
@@ -239,8 +273,8 @@ class OptimizerBase(PluginBase):
         param_names: list[str] | None = None,
         param_lbs: Sequence[float | None] | None = None,
         param_ubs: Sequence[float | None] | None = None,
-        param_errors: Sequence[float | None] | None = None
-        ) -> ParameterDict:
+        param_errors: Sequence[float | None] | None = None,
+    ) -> ParameterDict:
         """
         Create a ParameterDict from the given parameter information.
 
@@ -269,7 +303,9 @@ class OptimizerBase(PluginBase):
         param_errors = [None] * n if param_errors is None else param_errors
 
         params = ParameterDict()
-        for name, value, lb, ub, err in zip(param_names, param_values, param_lbs, param_ubs, param_errors, strict=False):
+        for name, value, lb, ub, err in zip(
+            param_names, param_values, param_lbs, param_ubs, param_errors, strict=False
+        ):
             params[name] = Parameter(value, lb=lb, ub=ub, err=err)
         return params
 
@@ -309,6 +345,7 @@ class Optimizer(PluginManager[OptimizerBase]):
     """
     Factory class for accessing registered optimizer plugins.
     """
+
     _plugins = {}
     _plugin_module = "gal3d.optimization.optimizer_plugins"
     _base_class = OptimizerBase

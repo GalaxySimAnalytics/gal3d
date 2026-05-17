@@ -63,8 +63,7 @@ class MinimizeFunc:
             if callable(fn):
                 func_name = getattr(fn, "__name__", str(fn))
                 MinimizeFunc.minimize_fn[func_name] = fn
-                logger.debug("Registered function '%s' to minimization registry",
-                             func_name)
+                logger.debug("Registered function '%s' to minimization registry", func_name)
                 return fn  # Return the function unchanged
 
             # Case 2: String name provided, return a decorator
@@ -74,17 +73,11 @@ class MinimizeFunc:
                 if not callable(func):
                     raise TypeError("Cannot register %s as '%s', object is not callable", func, fn_name)
                 MinimizeFunc.minimize_fn[fn_name] = func
-                logger.debug("Registered function '%s' as '%s' to minimization registry",
-                             func.__name__, fn_name)
+                logger.debug("Registered function '%s' as '%s' to minimization registry", func.__name__, fn_name)
                 return func
 
             return decorator
 
         except Exception as e:
-            logger.exception(
-                "Error registering function to minimization registry: %s",
-                repr(e),
-            )
-            raise RuntimeError(
-                f"Error registering function to minimization registry: {repr(e)}"
-            ) from e
+            logger.exception("Error registering function to minimization registry: %s", repr(e))
+            raise RuntimeError(f"Error registering function to minimization registry: {repr(e)}") from e

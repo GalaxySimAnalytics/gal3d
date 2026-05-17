@@ -24,7 +24,7 @@ def optimize_thread_count(
     print_result: bool = True,
     early_stop: bool = True,
     real_world_factor: float = 0.75,
-    return_mode: Literal["recommended", "fastest", "adjusted", "balanced"] = "recommended"
+    return_mode: Literal["recommended", "fastest", "adjusted", "balanced"] = "recommended",
 ) -> int:
     """
     Find the optimal thread count for OpenMP/nogil parallel functions through benchmarking.
@@ -72,8 +72,7 @@ def optimize_thread_count(
 
     # Run benchmarks
     results, best_threads, best_time = _run_benchmarks(
-        set_threads_func, min_threads, max_threads, test_function,
-        iterations, progress_bar, early_stop
+        set_threads_func, min_threads, max_threads, test_function, iterations, progress_bar, early_stop
     )
 
     # Analyze results
@@ -115,7 +114,10 @@ def _setup_test_function(test_function: Callable[[], Any] | None, benchmark_size
 
     from gal3d.shape.geometry_plugins.ellipsoid_s_cy import f_ray_shaped_ellipsoid
     from gal3d.util.array_operate_cy import RotateAndShift
-    return lambda: f_ray_shaped_ellipsoid(3.,2.,1.,1.5,1.,0.5,RotateAndShift(data, rotation_matrix, center),100)
+
+    return lambda: f_ray_shaped_ellipsoid(
+        3.0, 2.0, 1.0, 1.5, 1.0, 0.5, RotateAndShift(data, rotation_matrix, center), 100
+    )
 
 
 def _run_benchmarks(
@@ -125,7 +127,7 @@ def _run_benchmarks(
     test_function: Callable[[], Any],
     iterations: int,
     progress_bar: bool,
-    early_stop: bool
+    early_stop: bool,
 ) -> tuple[list[tuple[int, float]], int, float]:
     """Run benchmarks for different thread counts."""
     results: list[tuple[int, float]] = []
@@ -174,8 +176,10 @@ def _run_benchmarks(
 
         # Handle early termination
         if early_terminated and progress_bar:
-            print(f"\n  Thread {threads} terminated after {_i+1}/{iterations} iterations "
-                  f"(time: {total_time:.4f}s > single thread: {single_thread_total_time:.4f}s)")
+            print(
+                f"\n  Thread {threads} terminated after {_i + 1}/{iterations} iterations "
+                f"(time: {total_time:.4f}s > single thread: {single_thread_total_time:.4f}s)"
+            )
             break
 
         # Store results
@@ -193,8 +197,14 @@ def _run_benchmarks(
     return results, best_threads, best_time
 
 
-def _update_progress(completed_threads: int, total_threads: int, threads: int,
-                    max_threads: int, spinner_chars: list[str], spinner_idx: int) -> None:
+def _update_progress(
+    completed_threads: int,
+    total_threads: int,
+    threads: int,
+    max_threads: int,
+    spinner_chars: list[str],
+    spinner_idx: int,
+) -> None:
     """Update progress bar display."""
     progress_pct = 100 * completed_threads / total_threads
     spinner_char = spinner_chars[spinner_idx % len(spinner_chars)]
@@ -204,16 +214,12 @@ def _update_progress(completed_threads: int, total_threads: int, threads: int,
     print(status_line, end="", flush=True)
 
 
-def _analyze_results(
-    results: list[tuple[int, float]],
-    best_threads: int,
-    real_world_factor: float
-) -> dict[str, int]:
+def _analyze_results(results: list[tuple[int, float]], best_threads: int, real_world_factor: float) -> dict[str, int]:
     """Analyze benchmark results and calculate optimal thread counts."""
     analysis = {
         "fastest": best_threads,
         "adjusted": max(1, int(best_threads * real_world_factor)),
-        "balanced": 1  # Default value
+        "balanced": 1,  # Default value
     }
 
     # Calculate diminishing returns point
@@ -231,7 +237,7 @@ def _find_diminishing_returns_point(results: list[tuple[int, float]]) -> int:
     """Find the point where adding more threads gives diminishing returns."""
     improvements = []
     for i in range(1, len(results)):
-        prev_time = results[i-1][1]
+        prev_time = results[i - 1][1]
         curr_time = results[i][1]
         improvement = (prev_time - curr_time) / prev_time  # Relative improvement
         improvements.append((results[i][0], improvement))
@@ -248,9 +254,7 @@ def _find_diminishing_returns_point(results: list[tuple[int, float]]) -> int:
 
 
 def _print_benchmark_results(
-    results: list[tuple[int, float]],
-    analysis: dict[str, int],
-    real_world_factor: float
+    results: list[tuple[int, float]], analysis: dict[str, int], real_world_factor: float
 ) -> None:
     """Print benchmark results and analysis."""
     print("\n====== Benchmark Results ======")
@@ -260,7 +264,7 @@ def _print_benchmark_results(
 
     # Print individual results
     for threads, time_taken in results:
-        speedup = baseline/time_taken if baseline is not None else 0.0
+        speedup = baseline / time_taken if baseline is not None else 0.0
         speedup_str = f"{speedup:.2f}x" if baseline is not None else "N/A"
         efficiency = speedup / threads if threads > 0 and speedup > 0 else 0.0
         efficiency_str = f"{efficiency:.2f}" if baseline is not None and threads > 0 else "N/A"
@@ -276,8 +280,10 @@ def _print_benchmark_results(
             markers.append("RECOMMENDED")
 
         marker_str = f" ({', '.join(markers)})" if markers else ""
-        print(f"Threads: {threads:2d}, Time: {time_taken:.4f}s, Speedup: {speedup_str}, "
-              f"Efficiency: {efficiency_str}{marker_str}")
+        print(
+            f"Threads: {threads:2d}, Time: {time_taken:.4f}s, Speedup: {speedup_str}, "
+            f"Efficiency: {efficiency_str}{marker_str}"
+        )
 
     print("\n====== Analysis ======")
     print(f"Raw performance best: {analysis['fastest']} threads (FASTEST)")
@@ -286,11 +292,7 @@ def _print_benchmark_results(
     print(f"Overall recommendation: {analysis['recommended']} threads (RECOMMENDED)")
 
 
-def _select_result_by_mode(
-    analysis: dict[str, int],
-    return_mode: str,
-    print_result: bool
-) -> int:
+def _select_result_by_mode(analysis: dict[str, int], return_mode: str, print_result: bool) -> int:
     """Return the requested thread count based on return mode."""
     result = analysis[return_mode]
 
@@ -298,6 +300,7 @@ def _select_result_by_mode(
         print(f"\nReturning {return_mode.upper()} thread count: {result}")
 
     return result
+
 
 class ThreadOptimizer:
     """

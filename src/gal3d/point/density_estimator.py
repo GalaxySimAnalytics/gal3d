@@ -14,7 +14,7 @@ __all__ = ["DensityEstimator", "DensityEstimatorBase"]
 logger = logging.getLogger("gal3d.particle.density_estimator")
 
 
-class DensityEstimatorBase(PluginBase,Auto3DShape):
+class DensityEstimatorBase(PluginBase, Auto3DShape):
     """
     Abstract base class for all density estimators.
 
@@ -38,7 +38,6 @@ class DensityEstimatorBase(PluginBase,Auto3DShape):
     """
 
     def __init__(self, pos: ArrayLike, mass: np.ndarray):
-
         self.pos = self.to_3d_array(pos)
         self.mass = mass
 
@@ -141,6 +140,7 @@ class DensityEstimator(PluginManager[DensityEstimatorBase]):
     """
     Factory class for accessing registered density estimator plugins.
     """
+
     _plugins = {}
     _plugin_module = "gal3d.point.density_estimator_plugins"
     _base_class = DensityEstimatorBase

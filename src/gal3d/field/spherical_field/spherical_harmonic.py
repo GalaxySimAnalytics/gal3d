@@ -39,7 +39,9 @@ def spherical_harmonics_in_real(phi: np.ndarray | float, theta: np.ndarray | flo
         return np.real(sph_harm(m, l, phi, theta))
 
 
-def spherical_harmonics_dec(theta: np.ndarray, phi: np.ndarray, density: np.ndarray, lmax: int = 4) -> dict[int, np.ndarray]:
+def spherical_harmonics_dec(
+    theta: np.ndarray, phi: np.ndarray, density: np.ndarray, lmax: int = 4
+) -> dict[int, np.ndarray]:
     """
     Perform spherical harmonics decomposition on a given density distribution.
 
@@ -71,12 +73,6 @@ def spherical_harmonics_dec(theta: np.ndarray, phi: np.ndarray, density: np.ndar
     for l in range(lmax + 1):
         temp = []
         for m in np.linspace(l, -l, 2 * l + 1):
-            temp.append(
-                np.sum(
-                    density
-                    * spherical_harmonics_in_real(phi, theta, m, l)
-                    * np.sin(theta)
-                )
-            )
+            temp.append(np.sum(density * spherical_harmonics_in_real(phi, theta, m, l) * np.sin(theta)))
         coef[l] = np.array(temp)
     return coef

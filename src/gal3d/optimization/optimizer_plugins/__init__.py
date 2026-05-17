@@ -21,12 +21,16 @@ except ImportError:
 
 try:
     from .optimize_optimagic import OptimizerOptimagic
+
     __all__ += ["OptimizerOptimagic"]
 except ImportError:
-    logger.debug("Optimagic not available, skipping OptimizerOptimagic plugin. Use 'pip install optimagic' to enable it.")
+    logger.debug(
+        "Optimagic not available, skipping OptimizerOptimagic plugin. Use 'pip install optimagic' to enable it."
+    )
 
 try:
     from .optimize_lmfit import OptimizerLMFit
+
     __all__ += ["OptimizerLMFit"]
 except ImportError:
     logger.debug("LMFit not available, skipping OptimizerLMFit plugin. Use 'pip install lmfit' to enable it.")

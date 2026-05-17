@@ -2,10 +2,11 @@
 Model result classes for optimization algorithms.
 
 """
+
 import copy
 import logging
 from html import escape as _html_escape
-from typing import TYPE_CHECKING, Any, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Union, overload
 
 import numpy as np
 
@@ -42,10 +43,7 @@ class ModelResult:
     """
 
     def __init__(
-        self,
-        structure: Structure3D | StructureCore,
-        optimize_result: OptimizeResult,
-        parameters: "Parameters",
+        self, structure: Structure3D | StructureCore, optimize_result: OptimizeResult, parameters: "Parameters"
     ):
         """
         Initialize the ModelResult with structure, optimization results, and parameters.
@@ -95,22 +93,17 @@ class ModelResult:
         """Get the 3D structure model"""
         return self._structure
 
-    def estimate_errors(self, param_name: list[str] | str | None=None) -> dict[str, Any]:
+    def estimate_errors(self, param_name: list[str] | str | None = None) -> dict[str, Any]:
         """
         Get the estimated errors for the model.
         """
         from gal3d.model_workflow.error_workflow import ErrorWorkflow
+
         if isinstance(param_name, str):
             param_name = [param_name]
         return ErrorWorkflow.estimate_error(self, param_name=param_name)
 
-    def __call__(
-        self,
-        pos: np.ndarray | list | tuple,
-        *,
-        item: int = 0,
-        **kwargs: Any
-    ) -> np.ndarray:
+    def __call__(self, pos: np.ndarray | list | tuple, *, item: int = 0, **kwargs: Any) -> np.ndarray:
         """
         Evaluate the 3D structure model at given positions using specified parameter set.
 
@@ -174,7 +167,9 @@ class ModelResult:
     @overload
     def __getitem__(self, k: tuple[int, ...]) -> "ModelResult": ...
 
-    def __getitem__(self, k: int | str | slice | np.ndarray | list[int] | tuple[int, ...]) -> Union["StructureCore", "Structure3D", np.ndarray, "ModelResult"]:
+    def __getitem__(
+        self, k: int | str | slice | np.ndarray | list[int] | tuple[int, ...]
+    ) -> Union["StructureCore", "Structure3D", np.ndarray, "ModelResult"]:
         """
         Retrieves either specific parameters, a specific parameter set, or a slice of parameter sets.
 
@@ -206,24 +201,21 @@ class ModelResult:
             if all(isinstance(i, (int, np.integer)) for i in k):
                 k = np.asarray(k, dtype=int)
             else:
-                raise TypeError(
-                    "Tuple indexing only supports integer selectors, "
-                    "e.g. model[1,2,3]"
-                )
+                raise TypeError("Tuple indexing only supports integer selectors, e.g. model[1,2,3]")
 
         elif isinstance(k, list):
             k = np.asarray(k)
 
         if isinstance(k, str):
             try:
-                return cast("np.ndarray", np.array([params[k] for params in self._param_sets]))
+                return np.array([params[k] for params in self._param_sets])
             except KeyError:
                 pass
 
-            try :
+            try:
                 if k.endswith(("_lb", "_ub", "_err")):
-                    name, atr =k.rsplit("_",1)
-                    return cast("np.ndarray", np.array([getattr(params[name], atr) for params in self._param_sets]))
+                    name, atr = k.rsplit("_", 1)
+                    return np.array([getattr(params[name], atr) for params in self._param_sets])
             except KeyError:
                 pass
 
@@ -233,12 +225,10 @@ class ModelResult:
             # Return the Structure3D initialized with parameters at index k
             n = len(self._param_sets)
             if k < -n or k >= n:
-                raise IndexError(f"Index {k} out of bounds ({-n}-{n-1})")
+                raise IndexError(f"Index {k} out of bounds ({-n}-{n - 1})")
             if k < 0:
                 k += n
-            return self._structure.clone_with_parameters(
-                **self._param_sets[k].structure_parameters
-            )
+            return self._structure.clone_with_parameters(**self._param_sets[k].structure_parameters)
 
         elif isinstance(k, slice):
             # Create a new ModelResult with sliced parameters and results
@@ -269,9 +259,7 @@ class ModelResult:
                 # Check if all indices are in bounds
                 if np.any((k < 0) | (k >= len(self._param_sets))):
                     out_of_bounds = k[(k < 0) | (k >= len(self._param_sets))]
-                    raise IndexError(
-                        f"Indices {out_of_bounds} out of bounds (0-{len(self._param_sets)-1})"
-                    )
+                    raise IndexError(f"Indices {out_of_bounds} out of bounds (0-{len(self._param_sets) - 1})")
 
                 # Create a new ModelResult with indexed parameters and results
                 indexed_result = copy.copy(self)
@@ -280,9 +268,7 @@ class ModelResult:
                 return indexed_result
 
             else:
-                raise TypeError(
-                    f"Numpy array index must be integers or booleans, got {k.dtype}"
-                )
+                raise TypeError(f"Numpy array index must be integers or booleans, got {k.dtype}")
         else:
             raise KeyError(f"Key must be a string, integer, slice, or numpy array, got {type(k).__name__}")
 
@@ -335,9 +321,7 @@ class ModelResult:
         Create a shallow copy of this ModelResult object.
         """
         new_obj = ModelResult(
-            structure=self._structure,
-            optimize_result=self._opt_results[0],
-            parameters=self._param_sets[0]
+            structure=self._structure, optimize_result=self._opt_results[0], parameters=self._param_sets[0]
         )
         new_obj._opt_results = self._opt_results.copy()
         new_obj._param_sets = self._param_sets.copy()
@@ -354,12 +338,7 @@ class ModelResult:
         coor = getattr(self._structure, "_coordinate_name", "N/A")
         shape = getattr(self._structure, "_geometry_name", "N/A")
         error = getattr(self._structure, "_error_method_name", "N/A")
-        return {
-            "num": str(len(self._param_sets)),
-            "coordinate": coor,
-            "geometry": shape,
-            "error_method": error,
-        }
+        return {"num": str(len(self._param_sets)), "coordinate": coor, "geometry": shape, "error_method": error}
 
     def __repr__(self) -> str:
         """
@@ -371,12 +350,7 @@ class ModelResult:
             A formatted string describing the ModelResult object.
         """
         info = self._summary_fields()
-        header = (
-            f"ModelResult | num={info['num']}"
-            f" | {info['coordinate']}"
-            f" | {info['geometry']}"
-            f" | {info['error_method']}"
-        )
+        header = f"ModelResult | num={info['num']} | {info['coordinate']} | {info['geometry']} | {info['error_method']}"
         if not self._param_sets:
             return header + "\n(empty)\n"
 
@@ -480,7 +454,7 @@ class ModelResult:
         filename: str,
         handler: str = "HDF5ModelIO",
         info_keys: tuple[str, ...] = ("parameter",),
-        result_keys: tuple[str, ...] = ("cost","success","n_fun_evals","n_iterations"),
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
         metadata: dict[str, Any] | None = None,
         overwrite: bool = False,
         **kwargs: Any,
@@ -507,8 +481,17 @@ class ModelResult:
             If the group path already exists and overwrite=False
         """
         from .model_io import ModelIO
+
         load = ModelIO.get_plugin(handler)
-        load.save(self, filename,info_keys=info_keys,result_keys=result_keys, metadata=metadata,overwrite=overwrite, **kwargs)
+        load.save(
+            self,
+            filename,
+            info_keys=info_keys,
+            result_keys=result_keys,
+            metadata=metadata,
+            overwrite=overwrite,
+            **kwargs,
+        )
 
     @classmethod
     def load_from_file(
@@ -534,8 +517,9 @@ class ModelResult:
             The loaded model result
         """
         from .model_io import ModelIO
+
         load = ModelIO.get_plugin(handler)
-        return load.load(filename, structure,**kwargs)
+        return load.load(filename, structure, **kwargs)
 
     def _format_param_cell(self, val: Union[float, "Parameter"], nd: int = 3, show_err: bool = True) -> str:
         """
@@ -543,6 +527,7 @@ class ModelResult:
         `val` may be Parameter (float) or float.
         """
         from .parameter import Parameter  # lazy import to avoid circular dependency
+
         v_float = float(val)
         if np.isnan(v_float):
             base = "NaN"
@@ -565,12 +550,7 @@ class ModelResult:
                 return f"{base}±{err_s}"
         return base
 
-    def _table_records(
-        self,
-        nd: int = 3,
-        show_err: bool = True,
-        include_cost: bool = True,
-    ) -> list[dict[str, str]]:
+    def _table_records(self, nd: int = 3, show_err: bool = True, include_cost: bool = True) -> list[dict[str, str]]:
         """
         Generate records for table display. Each record represents a parameter set.
         """
@@ -632,12 +612,10 @@ class ModelResult:
           show all selected rows without collapsing.
         """
         from .util import _model_result_style
+
         if not self._param_sets:
             return (
-                "<div class='mr-wrapper'>"
-                "<div class='mr-summary'>ModelResult (empty)</div>"
-                "</div>"
-                + _model_result_style
+                "<div class='mr-wrapper'><div class='mr-summary'>ModelResult (empty)</div></div>" + _model_result_style
             )
 
         info = self._summary_fields()
@@ -671,14 +649,9 @@ class ModelResult:
         body_parts: list[str] = []
         for row in display_rows:
             if row is None:
-                body_parts.append(
-                    f"<tr class='mr-ellipsis'>"
-                    f"<td colspan='{len(cols)}'>&#8942;</td></tr>"
-                )
+                body_parts.append(f"<tr class='mr-ellipsis'><td colspan='{len(cols)}'>&#8942;</td></tr>")
             else:
-                tds = "".join(
-                    f"<td>{_html_escape(row.get(c, ''))}</td>" for c in cols
-                )
+                tds = "".join(f"<td>{_html_escape(row.get(c, ''))}</td>" for c in cols)
                 body_parts.append(f"<tr>{tds}</tr>")
         tbody = "\n".join(body_parts)
 
@@ -691,10 +664,7 @@ class ModelResult:
                 " or slicing to select rows.</div>"
             )
         elif force_show_all:
-            note_html = (
-                f"<div class='mr-note'>showing all {total} rows"
-                " (via head&nbsp;/&nbsp;tail).</div>"
-            )
+            note_html = f"<div class='mr-note'>showing all {total} rows (via head&nbsp;/&nbsp;tail).</div>"
 
         return (
             "<div class='mr-wrapper'>"
@@ -703,14 +673,13 @@ class ModelResult:
             "<table class='mr-table'>"
             f"<thead>{thead}</thead>"
             f"<tbody>{tbody}</tbody>"
-            "</table>"
-            + note_html +
-            "</div>"
-            "</div>"
-            + _model_result_style
+            "</table>" + note_html + "</div>"
+            "</div>" + _model_result_style
         )
 
+
 load_model = ModelResult.load_from_file
+
 
 class EmptyModelResult(ModelResult):
     def __init__(self):

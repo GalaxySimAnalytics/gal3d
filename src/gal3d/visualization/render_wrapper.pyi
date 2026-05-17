@@ -23,11 +23,15 @@ class PyRenderImageFloat:
     def get_image(self) -> ImageData: ...
 
 def get_kernel() -> PyCubicSplineSmoothingKernel | PyCubicSplineSmoothingKernelFloat: ...
-
 def get_render_image(
-    x_min: float, x_max: float, y_min: float, y_max: float,
-    nx: int, ny: int,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    nx: int,
+    ny: int,
     kernel: PyCubicSplineSmoothingKernel | PyCubicSplineSmoothingKernelFloat,
-    subsample_nx: int, subsample_ny: int,
-    numthreads: int = ...
+    subsample_nx: int,
+    subsample_ny: int,
+    numthreads: int = ...,
 ) -> PyRenderImage | PyRenderImageFloat: ...

@@ -12,6 +12,7 @@ logger = logging.getLogger("gal3d.shape.with_parameter")
 required_attrs = ["PN", "UB", "LB"]
 required_type = [tuple, dict, dict]
 
+
 class WithParameter(ABC):
     """
     Abstract base class for objects that contain parameters with bounds.
@@ -41,7 +42,6 @@ class WithParameter(ABC):
     _parameter_valid: bool = False
 
     _derived_registry: ClassVar[dict[type["WithParameter"], dict[str, Callable[["Parameters"], float]]]] = {}
-
 
     def __init__(self, **kwargs):
         self.parameters = self.create_parameters(**kwargs)
@@ -75,7 +75,7 @@ class WithParameter(ABC):
                     "%s is missing required attribute '%s' or has incorrect type. Expected type %s.",
                     cls.__name__,
                     attr,
-                    typ
+                    typ,
                 )
                 cls._parameter_valid = False
                 return
@@ -85,11 +85,7 @@ class WithParameter(ABC):
         missing_in_lb = set(cls.PN) - set(cls.LB.keys())
         if missing_in_lb or missing_in_ub:
             logger.error(
-                "%s missing bounds for parameters: "
-                "lower: %s, upper: %s",
-                cls.__name__,
-                missing_in_lb,
-                missing_in_ub
+                "%s missing bounds for parameters: lower: %s, upper: %s", cls.__name__, missing_in_lb, missing_in_ub
             )
             cls._parameter_valid = False
             return
@@ -131,6 +127,7 @@ class WithParameter(ABC):
         while ensuring they stay within their defined bounds.
         """
         from gal3d.optimization.parameter import Parameters
+
         param = Parameters(**kwargs)
         param.add_derived(cls.derived_param_funcs())
 
@@ -146,7 +143,6 @@ class WithParameter(ABC):
         """Get derived parameter functions."""
         return cls._derived_registry.get(cls, {})
 
-
     @classmethod
     def derived(cls, fn):
         """
@@ -161,7 +157,6 @@ class WithParameter(ABC):
             WithParameter._derived_registry[cls] = {}
         WithParameter._derived_registry[cls][fn.__name__] = fn
         return fn
-
 
     @classmethod
     @abstractmethod
@@ -220,7 +215,6 @@ class WithParameter(ABC):
 
         return f"<{self.__class__.__name__}|: " + param_repr[10:] + "|>"
 
-
     @property
     def _latex_equation(self) -> str:
         return ""
@@ -232,6 +226,7 @@ class WithParameter(ABC):
         Subclasses may override if they need special symbols.
         """
         import re
+
         mapping: dict[str, str] = {}
         for name in getattr(cls, "PN", ()):
             safe = re.sub(r"_", r"\_", name)
@@ -273,13 +268,13 @@ class WithParameter(ABC):
     def _name(self) -> str:
         return self.__class__.__name__
 
-
     def _latex_str_(
         self,
         name: str | None = None,
         equation: str | None = None,
         params: str | None = None,
-        derived: str | None = None) -> str:
+        derived: str | None = None,
+    ) -> str:
         if name is None:
             name = self._latex_name
         if equation is None:
@@ -288,7 +283,6 @@ class WithParameter(ABC):
             params = self._latex_parameters
         if derived is None:
             derived = self._latex_other
-
 
         def _strip_math(s: str) -> str:
             if not s:
@@ -304,7 +298,7 @@ class WithParameter(ABC):
         if equation:
             rows.append(("\\text{Func}", _strip_math(equation)))
         if params:
-            rows.append(("\\text{Param ("+f"{len(self.parameters)}"+")}", _strip_math(params)))
+            rows.append(("\\text{Param (" + f"{len(self.parameters)}" + ")}", _strip_math(params)))
         if derived:
             rows.append(("\\text{Derived\\ param}", _strip_math(derived)))
 
@@ -321,7 +315,8 @@ class WithParameter(ABC):
         name: str | None = None,
         equation: str | None = None,
         params: str | None = None,
-        derived: str | None = None) -> str:
+        derived: str | None = None,
+    ) -> str:
         """
         Render an aligned LaTeX block with vertically aligned colons:
           Name  : <name>
@@ -330,22 +325,9 @@ class WithParameter(ABC):
           Derived param : <definitions>
         Falls back to plain repr if nothing available.
         """
-        body = self._latex_str_(
-            name=name,
-            equation=equation,
-            params=params,
-            derived=derived
-        )
+        body = self._latex_str_(name=name, equation=equation, params=params, derived=derived)
         # Use \large once at top to avoid repeating inside each fragment
-        return (
-            "$\n"
-            "\\large\n"
-            "\\begin{array}{r c l}\n" +
-            body +
-            "\n\\end{array}\n"
-            "$"
-        )
-
+        return "$\n\\large\n\\begin{array}{r c l}\n" + body + "\n\\end{array}\n$"
 
     def __getitem__(self, key: str) -> Any:
         """

@@ -8,6 +8,7 @@ logger = logging.getLogger("gal3d.util.func_signature")
 
 T = TypeVar("T", bound=Callable[..., Any])
 
+
 class MySignature(inspect.Signature):
     """
     A custom signature class that extends `inspect.Signature` to provide additional functionality
@@ -43,10 +44,7 @@ class MySignature(inspect.Signature):
             (parameter kind, default value).
         """
         try:
-            return {
-                i: (self.parameters[i].kind, self.parameters[i].default)
-                for i in self.parameters
-            }
+            return {i: (self.parameters[i].kind, self.parameters[i].default) for i in self.parameters}
         except Exception as e:
             logger.error("Error retrieving parameter information")
             raise ValueError("Failed to retrieve parameter information") from e
@@ -149,9 +147,9 @@ class MySignature(inspect.Signature):
         try:
             # Available parameter kinds to filter
             available_kinds = [
-                inspect.Parameter.POSITIONAL_ONLY,        # 0
+                inspect.Parameter.POSITIONAL_ONLY,  # 0
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,  # 1
-                inspect.Parameter.KEYWORD_ONLY            # 3
+                inspect.Parameter.KEYWORD_ONLY,  # 3
             ]
 
             valid_filter_levels = [0, 1, 2]
@@ -176,8 +174,9 @@ class MySignature(inspect.Signature):
             if keyword == 1:
                 # Parameters that can be keyword (POSITIONAL_OR_KEYWORD, KEYWORD_ONLY)
                 available_kinds = [
-                    k for k in available_kinds if
-                    k in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+                    k
+                    for k in available_kinds
+                    if k in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
                 ]
             elif keyword == 2:
                 # Only strictly keyword parameters
@@ -244,8 +243,8 @@ def update_dict_value(origin: dict, other: dict, **kwargs: dict) -> dict:
 
     Examples
     --------
-    >>> original = {'a': 1, 'b': 2}
-    >>> updated = update_dict_value(original, {'b': 3}, c=4)
+    >>> original = {"a": 1, "b": 2}
+    >>> updated = update_dict_value(original, {"b": 3}, c=4)
     >>> updated
     {'a': 1, 'b': 3, 'c': 4}
     """
@@ -274,14 +273,8 @@ def update_dict_value(origin: dict, other: dict, **kwargs: dict) -> dict:
 
 # Helper functions to extract parameters from callable objects
 def func_optional_key(x):
-    return MySignature.from_callable(x).get_params(
-    positional=0,
-    keyword=1,
-    empty=2,
-)
+    return MySignature.from_callable(x).get_params(positional=0, keyword=1, empty=2)
+
+
 def func_required_key(x):
-    return MySignature.from_callable(x).get_params(
-    positional=0,
-    keyword=0,
-    empty=1,
-)
+    return MySignature.from_callable(x).get_params(positional=0, keyword=0, empty=1)

@@ -29,6 +29,7 @@ _logo = [
 logo = "\n".join(_logo)
 logo_color = logo
 
+
 def print_gal3d_info(show_plugins=True):
     """
     Print gal3d package information, including logo, version and plugins.
@@ -61,7 +62,7 @@ def print_gal3d_info(show_plugins=True):
         welcome_msg = string_formatter(
             "\n" + "Welcome to Gal3D !!! \n        3D Morphological Models of Galaxies in Simulations",
             fg_color="bright_cyan",
-            bold=True
+            bold=True,
         )
         # Display colored logo
         info_logger.info(welcome_msg)
@@ -69,23 +70,19 @@ def print_gal3d_info(show_plugins=True):
 
         # Display version information
         version_info = string_formatter(
-            f"\n{f'gal3d version: {__version__}'.rjust(70, ' ')}\n",
-            fg_color="bright_cyan",
-            bold=True
+            f"\n{f'gal3d version: {__version__}'.rjust(70, ' ')}\n", fg_color="bright_cyan", bold=True
         )
         info_logger.info(version_info)
 
         # Display plugin information
         if show_plugins:
             # Add a separator line
-            separator = string_formatter(
-                "=" * width,
-                fg_color="bright_blue"
-            )
+            separator = string_formatter("=" * width, fg_color="bright_blue")
             info_logger.info(separator)
 
             # Import and use PluginManagerRegistry
             from gal3d.plugin import PluginManagerRegistry
+
             PluginManagerRegistry.print_plugins()
 
             # Add another separator line at the end
@@ -93,6 +90,7 @@ def print_gal3d_info(show_plugins=True):
     finally:
         # Clean up handlers
         info_logger.removeHandler(handler)
+
 
 # If the script is run directly, display information automatically
 if __name__ == "__main__":

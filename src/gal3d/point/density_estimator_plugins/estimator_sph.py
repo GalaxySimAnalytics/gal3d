@@ -41,12 +41,7 @@ class DensityEstimatorSPH(DensityEstimatorBase):
     """
 
     def __init__(
-        self,
-        pos: ArrayLike,
-        mass: np.ndarray,
-        k_nearest: int | None = None,
-        r_cut: float | None = None,
-        **kwargs: Any,
+        self, pos: ArrayLike, mass: np.ndarray, k_nearest: int | None = None, r_cut: float | None = None, **kwargs: Any
     ):
         """
         Parameters
@@ -108,7 +103,7 @@ class DensityEstimatorSPH(DensityEstimatorBase):
 
         n_d, n_index = self.tree.query(target_pos, **query_options)
 
-        return n_d[:,-1]
+        return n_d[:, -1]
 
     def get_parameter(self, target_pos: ArrayLike, **kwargs: Any) -> np.ndarray:
         """
@@ -174,9 +169,14 @@ class DensityEstimatorSPH(DensityEstimatorBase):
             The estimated gradients at the target positions.
         """
         # Placeholder implementation
-        return sph_gradient(n_d.astype(np.float64),
+        return sph_gradient(
+            n_d.astype(np.float64),
             n_index.astype(np.int32),
-            self.mass.astype(np.float64), self.pos.astype(np.float64), self.hsm.astype(np.float64), target_pos.astype(np.float64))
+            self.mass.astype(np.float64),
+            self.pos.astype(np.float64),
+            self.hsm.astype(np.float64),
+            target_pos.astype(np.float64),
+        )
 
     def _cal_density(self, n_d: np.ndarray, n_index: np.ndarray, **kwargs: Any) -> np.ndarray:
         """
@@ -194,9 +194,9 @@ class DensityEstimatorSPH(DensityEstimatorBase):
         fit_pa: array, shape(m,)
             The estimated parameter values based on the nearest neighbors.
         """
-        return sph_density(n_d.astype(np.float64),
-            n_index.astype(np.int32),
-            self.mass.astype(np.float64), self.hsm.astype(np.float64))
+        return sph_density(
+            n_d.astype(np.float64), n_index.astype(np.int32), self.mass.astype(np.float64), self.hsm.astype(np.float64)
+        )
 
     def __generate_kd_options(self, k_nearest: int | None = None, r_cut: None | float = None, **kwargs: Any) -> None:
         """

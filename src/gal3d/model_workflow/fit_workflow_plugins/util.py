@@ -1,4 +1,3 @@
-
 from typing import Any
 
 import numpy as np
@@ -31,13 +30,7 @@ def _periodic_diff(a: float, b: float, period: float = 2 * np.pi) -> float:
     return float(np.abs(d))
 
 
-def _prepare_bins(
-    r: np.ndarray,
-    rmin: float,
-    rmax: float,
-    nbins: int,
-    bins: str,
-) -> tuple[np.ndarray, np.ndarray]:
+def _prepare_bins(r: np.ndarray, rmin: float, rmax: float, nbins: int, bins: str) -> tuple[np.ndarray, np.ndarray]:
     """
     Prepare radial bin edges and representative radii.
 
@@ -66,26 +59,22 @@ def _prepare_bins(
     def equal_bins(r: np.ndarray, N: int) -> np.ndarray:
         sorted_r = np.sort(r[(r >= rmin) & (r <= rmax)])
         step = max(len(sorted_r) // N, 1)
-        return np.array(
-            [sorted_r[i * step] for i in range(N)] + [sorted_r[-1]],
-            dtype=float,
-        )
+        return np.array([sorted_r[i * step] for i in range(N)] + [sorted_r[-1]], dtype=float)
 
     if bins == "equal":
         full = equal_bins(r, nbins * 2)
         bin_edges = full[0::2]
-        rbins     = full[1::2]
+        rbins = full[1::2]
     elif bins == "log":
         bin_edges = np.geomspace(rmin, rmax, nbins + 1)
-        rbins     = np.sqrt(bin_edges[:-1] * bin_edges[1:])
+        rbins = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     elif bins == "lin":
         bin_edges = np.linspace(rmin, rmax, nbins + 1)
-        rbins     = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        rbins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
     else:
         raise ValueError(f"Unknown bins scheme: {bins!r}")
 
     return bin_edges.astype(float), rbins.astype(float)
-
 
 
 class EllipsoidResultBuilder:
@@ -116,13 +105,14 @@ class EllipsoidResultBuilder:
         Mean volumetric density inside the shell,
         :math:`\\bar{\\rho} = M_\\mathrm{shell} / V_\\mathrm{shell}`.
     """
+
     _default_structure = StructureCore("RotateOnly", "Ellipsoid")
-    _min_axis_ratio = 0.001 # avoid unphysical axis ratios and numerical instability
+    _min_axis_ratio = 0.001  # avoid unphysical axis ratios and numerical instability
 
     @staticmethod
     def _axis_ratio_error(a: ArrayF, a_prev: ArrayF) -> float:
-        return float(np.abs(a[2]*a_prev[0]/ (a[0]*a_prev[2]) - 1.0)
-                    + np.abs(a[1]*a_prev[0]/ (a[0]*a_prev[1]) - 1.0)
+        return float(
+            np.abs(a[2] * a_prev[0] / (a[0] * a_prev[2]) - 1.0) + np.abs(a[1] * a_prev[0] / (a[0] * a_prev[1]) - 1.0)
         )
 
     @classmethod
@@ -132,14 +122,14 @@ class EllipsoidResultBuilder:
             # which can help stabilize the iteration when the axis ratios are far from unity.
             old_vol = np.prod(a_old)
             new_vol = np.prod(a_new)
-            scale = (old_vol / new_vol) ** (1/3)
+            scale = (old_vol / new_vol) ** (1 / 3)
             return a_new * scale
         else:
             # fix major axis (a_old[0]), update b/a and c/a from a_new
             a0 = abs(float(a_old[0]))
-            b_a = np.clip(float(a_new[1]/a_new[0]), cls._min_axis_ratio, 1.0)
-            c_a = np.clip(float(a_new[2]/a_new[0]), cls._min_axis_ratio, 1.0)
-            return np.array([a0, b_a*a0, c_a*a0], dtype=float)
+            b_a = np.clip(float(a_new[1] / a_new[0]), cls._min_axis_ratio, 1.0)
+            c_a = np.clip(float(a_new[2] / a_new[0]), cls._min_axis_ratio, 1.0)
+            return np.array([a0, b_a * a0, c_a * a0], dtype=float)
 
     @classmethod
     def _build_model_result(
@@ -192,22 +182,18 @@ class EllipsoidResultBuilder:
 
         # ---- ellipticities ----
         params["eps_ab"] = 1.0 - abc[1] / abc[0]
-        params.get_parameter("eps_ab").err = float(
-            np.abs(abc[1] / abc[0] - abc_prev[1] / abc_prev[0])
-        )
+        params.get_parameter("eps_ab").err = float(np.abs(abc[1] / abc[0] - abc_prev[1] / abc_prev[0]))
 
         params["eps_bc"] = 1.0 - abc[2] / abc[1]
-        params.get_parameter("eps_bc").err = float(
-            np.abs(abc[2] / abc[1] - abc_prev[2] / abc_prev[1])
-        )
+        params.get_parameter("eps_bc").err = float(np.abs(abc[2] / abc[1] - abc_prev[2] / abc_prev[1]))
 
         # ---- orientation angles ----
-        ang      = cls._default_structure._coordinate.mat_to_angle(rot)       # type: ignore
+        ang = cls._default_structure._coordinate.mat_to_angle(rot)  # type: ignore
         ang_prev = cls._default_structure._coordinate.mat_to_angle(rot_prev)  # type: ignore
         params["ang1"], params["ang2"], params["ang3"] = ang
         for k, (aa, bb) in enumerate(zip(ang, ang_prev, strict=False), start=1):
             # for ellipsoid, angles are periodic with period π/2 (not 2π) because of the symmetry
-            params.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb, period = np.pi/2)
+            params.get_parameter(f"ang{k}").err = _periodic_diff(aa, bb, period=np.pi / 2)
 
         # ---- pack result ----
         params.add_info(parameter=shell_density)
@@ -215,11 +201,6 @@ class EllipsoidResultBuilder:
             params.add_info(**extra_info)
 
         opt = OptimizeResult(
-            params=params,
-            fun=None,
-            start_fun=None,
-            start_params=None,
-            n_iterations=n_iter_done,
-            cost=err,
+            params=params, fun=None, start_fun=None, start_params=None, n_iterations=n_iter_done, cost=err
         )
         return ModelResult(cls._default_structure, opt, params)

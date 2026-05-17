@@ -1,6 +1,7 @@
 """
 Characterizer base class and factory for measuring properties from data or model results.
 """
+
 import logging
 from abc import abstractmethod
 from typing import Any
@@ -14,20 +15,19 @@ logger = logging.getLogger("gal3d.characterization.characterizer")
 
 
 class CharacterizerBase(PluginBase):
-
     def __init__(self, data: dict | ModelResult):
         if not isinstance(data, dict | ModelResult):
             raise TypeError(f"Expected 'data' to be of type 'dict' or 'ModelResult', but got {type(data).__name__}")
         self.data = data
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-
         super().__init_subclass__(**kwargs)
         Characterizer.register(cls)
 
     @abstractmethod
-    def measure(self,*args, **kwargs):
+    def measure(self, *args, **kwargs):
         pass
+
 
 class Characterizer(PluginManager[CharacterizerBase]):
     """

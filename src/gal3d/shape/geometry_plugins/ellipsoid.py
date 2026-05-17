@@ -1,4 +1,3 @@
-
 import logging
 from typing import Any
 
@@ -20,6 +19,7 @@ from .ellipsoid_cy import (
 __all__ = ["Ellipsoid"]
 
 logger = logging.getLogger("gal3d.shape.geometry.ellipsoid")
+
 
 class Ellipsoid(GeometryBase):
     """
@@ -119,7 +119,6 @@ class Ellipsoid(GeometryBase):
         return IntersectRaysEllipsoid(self["a"], self["b"], self["c"], pos)
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike) -> np.ndarray:
-
         pos1 = self.to_3d_array(pos1)
         pos2 = self.to_3d_array(pos2)
 
@@ -144,11 +143,7 @@ class Ellipsoid(GeometryBase):
         b = np.percentile(np.abs(pos[:, 1]), 95)
         c = np.percentile(np.abs(pos[:, 2]), 95)
 
-        return {
-            "a": a,
-            "eps_ab": 1 - b / a,
-            "eps_bc": 1 - c / b,
-        }
+        return {"a": a, "eps_ab": 1 - b / a, "eps_bc": 1 - c / b}
 
     @staticmethod
     def quick_call(a: float, eps_ab: float, eps_bc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -238,7 +233,9 @@ class Ellipsoid(GeometryBase):
         return IntersectLinesEllipsoid(float(a), float(b), float(c), pos1, pos2)
 
     @staticmethod
-    def quick_jacobian(a: float, b: float, c: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def quick_jacobian(
+        a: float, b: float, c: float, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute the Jacobian of the ellipsoid function with given parameters and positions.
 
@@ -266,12 +263,7 @@ class Ellipsoid(GeometryBase):
 
     @classmethod
     def PNlatex(cls):
-        return {
-            "a": "a",
-            "eps_ab": r"\epsilon_{ab}",
-            "eps_bc": r"\epsilon_{bc}",
-            "eps_ac": r"\epsilon_{ac}",
-        }
+        return {"a": "a", "eps_ab": r"\epsilon_{ab}", "eps_bc": r"\epsilon_{bc}", "eps_ac": r"\epsilon_{ac}"}
 
     @property
     def _latex_other(self) -> str:
@@ -284,9 +276,11 @@ class Ellipsoid(GeometryBase):
 def eps_ab(params):
     return 1.0 - params["b"] / params["a"]
 
+
 @Ellipsoid.derived
 def eps_bc(params):
     return 1.0 - params["c"] / params["b"]
+
 
 @Ellipsoid.derived
 def eps_ac(params):
@@ -295,7 +289,8 @@ def eps_ac(params):
 
 @Ellipsoid.derived
 def T(params):
-    return (params["a"]**2 - params["b"]**2)/(params["a"]**2 - params["c"]**2)
+    return (params["a"] ** 2 - params["b"] ** 2) / (params["a"] ** 2 - params["c"] ** 2)
+
 
 @Ellipsoid.derived
 def b(params):
@@ -320,14 +315,13 @@ def a(params):
     else:
         return params["c"] / (1 - params["eps_ac"])
 
+
 @Ellipsoid.derived
 def eps_ac_err(params):
     eps_ab = params["eps_ab"]
     eps_bc = params["eps_bc"]
-    return np.sqrt(
-        (1.0 - eps_bc)**2 * eps_ab.err**2 +
-        (1.0 - eps_ab)**2 * eps_bc.err**2
-    )
+    return np.sqrt((1.0 - eps_bc) ** 2 * eps_ab.err**2 + (1.0 - eps_ab) ** 2 * eps_bc.err**2)
+
 
 @Ellipsoid.derived
 def T_err(params):
@@ -336,15 +330,15 @@ def T_err(params):
     p = 1 - eps_ab
     r = 1 - eps_bc
     q = p * r
-    N = 1- p*p
+    N = 1 - p * p
     D = 1 - q * q
 
-    dT_deab = 2.0*p/D - (2.0*N*p*r**2)/(D**2)
-    dT_debc = - (2.0*N*p**2*r)/(D**2)
+    dT_deab = 2.0 * p / D - (2.0 * N * p * r**2) / (D**2)
+    dT_debc = -(2.0 * N * p**2 * r) / (D**2)
 
-    return np.sqrt((dT_deab**2)*(eps_ab.err**2) + (dT_debc**2)*(eps_bc.err**2))
+    return np.sqrt((dT_deab**2) * (eps_ab.err**2) + (dT_debc**2) * (eps_bc.err**2))
+
 
 @Ellipsoid.derived
 def eps_ac_s(params):
     return params["eps_ac"]
-

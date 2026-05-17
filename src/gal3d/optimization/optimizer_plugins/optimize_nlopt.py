@@ -18,20 +18,14 @@ __all__ = ["OptimizerNLopt"]
 
 
 # from optimagic
-def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_obj: Any, params: ParameterDict, is_global: bool) -> OptimizeResult:
+def _process_nlopt_results(
+    algorithm: str, x0: NDArray, start_fun: float, nlopt_obj: Any, params: ParameterDict, is_global: bool
+) -> OptimizeResult:
     messages = {
         1: "Convergence achieved ",
-        2: (
-            "Optimizer stopped because maximum value of criterion function was reached"
-        ),
-        3: (
-            "Optimizer stopped because convergence_ftol_rel or "
-            "convergence_ftol_abs was reached"
-        ),
-        4: (
-            "Optimizer stopped because convergence_xtol_rel or "
-            "convergence_xtol_abs was reached"
-        ),
+        2: ("Optimizer stopped because maximum value of criterion function was reached"),
+        3: ("Optimizer stopped because convergence_ftol_rel or convergence_ftol_abs was reached"),
+        4: ("Optimizer stopped because convergence_xtol_rel or convergence_xtol_abs was reached"),
         5: "Optimizer stopped because max_criterion_evaluations was reached",
         6: "Optimizer stopped because max running time was reached",
         -1: "Optimizer failed",
@@ -55,13 +49,15 @@ def _process_nlopt_results(algorithm: str, x0: NDArray, start_fun: float, nlopt_
     )
 
     return processed
+
+
 class OptimizerNLopt(OptimizerBase):
     """
     nlopt
     NLopt is a free/open-source library for nonlinear optimization
     """
 
-    def __init__(self, algorithm: str, algo_options: dict | None=None):
+    def __init__(self, algorithm: str, algo_options: dict | None = None):
         if algo_options is None:
             algo_options = {}
         super().__init__(algorithm, algo_options)
@@ -82,8 +78,10 @@ class OptimizerNLopt(OptimizerBase):
         is_global = self.algo_name[0] == "G"
         start_params = np.asarray(x0)
         opt = nlopt.opt(getattr(nlopt, self.algo_name), len(start_params))
+
         def fn(x, *_):
             return fun(x, *func_args, **func_kwargs)
+
         opt.set_min_objective(fn)
         opt.set_lower_bounds(bounds.lb)
         opt.set_upper_bounds(bounds.ub)

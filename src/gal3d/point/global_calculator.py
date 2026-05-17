@@ -6,13 +6,7 @@ from numpy.typing import ArrayLike
 
 from gal3d.util.array_operate import Auto3DShape, vector_length3d
 
-from .util import (
-    abc_vect,
-    center_of_mass,
-    centroid,
-    moment_of_inertia,
-    shrink_sphere_center as ssc,
-)
+from .util import abc_vect, center_of_mass, centroid, moment_of_inertia, shrink_sphere_center as ssc
 
 logger = logging.getLogger("gal3d.particle.global_calculator")
 
@@ -50,7 +44,7 @@ class GlobalCalculator(Auto3DShape):
         posarr: np.ndarray = self.to_3d_array(pos)
         massarr: np.ndarray = np.array(mass)
         if recenter:
-            cen: np.ndarray = self.shrink_sphere_center(posarr,massarr)
+            cen: np.ndarray = self.shrink_sphere_center(posarr, massarr)
             posarr = posarr - cen
             logger.info("Recentered positions by subtracting center: %s", cen)
         r: np.ndarray = vector_length3d(posarr)
@@ -126,7 +120,7 @@ class GlobalCalculator(Auto3DShape):
         return moment_of_inertia(self.pos, self.mass)
 
     @cached_property
-    def abc(self) -> tuple[np.ndarray,np.ndarray]:
+    def abc(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
@@ -139,7 +133,12 @@ class GlobalCalculator(Auto3DShape):
 
     @staticmethod
     def shrink_sphere_center(
-        pos: np.ndarray, mass: np.ndarray, shrink_factor: float=0.7, begin_r: float | None =None, min_points: int=100, itermax: int =100
+        pos: np.ndarray,
+        mass: np.ndarray,
+        shrink_factor: float = 0.7,
+        begin_r: float | None = None,
+        min_points: int = 100,
+        itermax: int = 100,
     ) -> np.ndarray:
         """
         Computes the center using the shrink-sphere method.
@@ -168,22 +167,12 @@ class GlobalCalculator(Auto3DShape):
 
         logger.debug("Using a begin_r= %.2f", begin_r)
 
-        cen, final_r, v_r, iternum = ssc(
-            np.array(pos),
-            np.array(mass),
-            min_points,
-            0,
-            shrink_factor,
-            begin_r,
-            itermax,
-        )
+        cen, final_r, v_r, iternum = ssc(np.array(pos), np.array(mass), min_points, 0, shrink_factor, begin_r, itermax)
 
         logger.debug("Iteration num= %d", iternum)
 
         if iternum > itermax:
-            logger.error(
-                "shrink_sphere_center failed to converge after %d iterations", iternum
-            )
+            logger.error("shrink_sphere_center failed to converge after %d iterations", iternum)
 
         logger.debug("After iteration, final_r= %.2f", final_r)
 
@@ -209,7 +198,7 @@ class GlobalCalculator(Auto3DShape):
         return moment_of_inertia(pos, mass)
 
     @staticmethod
-    def compute_abc(pos: np.ndarray, mass: np.ndarray) -> tuple[np.ndarray,np.ndarray]:
+    def compute_abc(pos: np.ndarray, mass: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the principal axes lengths (a, b, c) based on the inertia tensor.
 
@@ -237,8 +226,9 @@ class GlobalCalculator(Auto3DShape):
             A dictionary containing the following keys:
             'ssc_center', 'mass_center', 'shape_center', 'abc'
         """
-        return {"ssc_center": self.ssc_center.tolist(),
-                "mass_center": self.mass_center.tolist(),
-                "shape_center": self.shape_center.tolist(),
-                "abc": self.abc}
-
+        return {
+            "ssc_center": self.ssc_center.tolist(),
+            "mass_center": self.mass_center.tolist(),
+            "shape_center": self.shape_center.tolist(),
+            "abc": self.abc,
+        }

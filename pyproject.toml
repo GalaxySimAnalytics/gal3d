@@ -146,6 +146,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+split-on-trailing-comma = false
 known-third-party = [
   "numpy",
   "scipy",

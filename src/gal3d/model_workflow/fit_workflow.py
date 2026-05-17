@@ -1,6 +1,7 @@
 """
 Workflow for model fitting.
 """
+
 import logging
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, TypeAlias, Union
@@ -20,6 +21,7 @@ logger = logging.getLogger("gal3d.fit_workflow")
 
 FitInput: TypeAlias = Union["Gal3DAnalyzer", "Particles", "DensitySource"]
 
+
 class FitWorkflowBase(PluginBase):
     """
     Base class for all fitting workflows.
@@ -33,6 +35,7 @@ class FitWorkflowBase(PluginBase):
     Registration:
     Subclasses are automatically registered as plugins via __init_subclass__.
     """
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Register the subclass as a fitting workflow plugin.
@@ -56,7 +59,6 @@ class FitWorkflowBase(PluginBase):
             True if this workflow should be used, False otherwise.
         """
         return False
-
 
     def _fit_single(self, obj: FitInput, r: float, **kwargs: Any) -> ModelResult:
         """
@@ -83,7 +85,6 @@ class FitWorkflowBase(PluginBase):
         """
         raise NotImplementedError
 
-
     def __call__(
         self,
         obj: FitInput,
@@ -92,7 +93,7 @@ class FitWorkflowBase(PluginBase):
         progress: bool = True,
         warm_start: bool = True,
         **kwargs: Any,
-        ) -> ModelResult:
+    ) -> ModelResult:
         """
         Fit the model at one or multiple radii.
 
@@ -137,7 +138,7 @@ class FitWorkflowBase(PluginBase):
         results: list[ModelResult] = []
         pending_skips: dict[str, list[float]] = {}
 
-        def _log_warning_below_pbar(msg: str, pbar: tqdm | None)-> None:
+        def _log_warning_below_pbar(msg: str, pbar: tqdm | None) -> None:
             if pbar is not None and not pbar.disable:
                 with pbar.external_write_mode():
                     logger.warning(msg)
@@ -151,10 +152,7 @@ class FitWorkflowBase(PluginBase):
                 if len(radii) == 1:
                     msg = f"{etype}: skipped radius {radii[0]:.4g}"
                 else:
-                    msg = (
-                        f"{etype}: skipped {len(radii)} radii "
-                        f"from {radii[0]:.4g} to {radii[-1]:.4g}"
-                    )
+                    msg = f"{etype}: skipped {len(radii)} radii from {radii[0]:.4g} to {radii[-1]:.4g}"
                 _log_warning_below_pbar(msg, pbar)
             pending_skips.clear()
 
@@ -167,10 +165,7 @@ class FitWorkflowBase(PluginBase):
 
                 if warm_start and results:
                     last = results[-1]
-                    kw.setdefault(
-                        "init_parameters",
-                        {key: last[key][0] for key in last.keys()},
-                    )
+                    kw.setdefault("init_parameters", {key: last[key][0] for key in last.keys()})
 
                 try:
                     result = self._fit_single(obj, radius, **kw)
@@ -209,6 +204,7 @@ class FitWorkflow(PluginManager[FitWorkflowBase]):
     _base_class : type
         The base class for all workflow plugins.
     """
+
     _plugins = {}
     _plugin_module = "gal3d.model_workflow.fit_workflow_plugins"
     _base_class = FitWorkflowBase

@@ -1,6 +1,7 @@
 """
 Module for defining and manipulating monotonically varying rays in spherical fields.
 """
+
 import logging
 from collections.abc import Callable
 from typing import Any, overload
@@ -36,6 +37,7 @@ def judge_monoton(x: np.ndarray, is_decreasing: bool = True) -> bool:
         judge_mono = all(np.diff(x) > 0)
 
     return judge_mono
+
 
 class MonotonRay:
     _interpolator_method: dict[str, Callable | type] = {}
@@ -106,7 +108,7 @@ class MonotonRay:
     def __call__(self, value: float, inv: bool = False) -> float: ...
     @overload
     def __call__(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def __call__(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+    def __call__(self, value: float | np.ndarray, inv: bool = False) -> float | np.ndarray:
         """
         Evaluate the interpolated function at a given value.
 
@@ -130,7 +132,7 @@ class MonotonRay:
     def lower(self, value: float, inv: bool = False) -> float: ...
     @overload
     def lower(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def lower(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+    def lower(self, value: float | np.ndarray, inv: bool = False) -> float | np.ndarray:
         """
         Evaluate the lower bound of the interpolated function at a given value.
 
@@ -154,7 +156,7 @@ class MonotonRay:
     def upper(self, value: float, inv: bool = False) -> float: ...
     @overload
     def upper(self, value: np.ndarray, inv: bool = False) -> np.ndarray: ...
-    def upper(self, value: float | np.ndarray, inv: bool =False) -> float | np.ndarray:
+    def upper(self, value: float | np.ndarray, inv: bool = False) -> float | np.ndarray:
         """
         Evaluate the upper bound of the interpolated function at a given value.
 
@@ -189,7 +191,6 @@ class MonotonRay:
             raise TypeError(f"try register {fn} as {fn_name}, but {fn} is not callable")
 
         return decorator
-
 
 
 MonotonRay.interpolator_registry("LU")(LU_Mono)

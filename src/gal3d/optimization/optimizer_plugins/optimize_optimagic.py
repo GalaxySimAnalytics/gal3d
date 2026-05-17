@@ -15,23 +15,26 @@ from gal3d.optimization.parameter import ParameterDict
 
 __all__ = ["OptimizerOptimagic"]
 
-def process_om_result(algorithm: str, x0: NDArray, om_result: om.OptimizeResult, params: ParameterDict) -> OptimizeResult:
+
+def process_om_result(
+    algorithm: str, x0: NDArray, om_result: om.OptimizeResult, params: ParameterDict
+) -> OptimizeResult:
     """Convert optimagic optimization results to standard OptimizeResult format."""
     # Process multistart info if available
     if om_result.multistart_info:
-        multistart={
+        multistart = {
             "start_parameters": om_result.multistart_info.start_parameters,
             "local_optima": om_result.multistart_info.local_optima,
             "exploration_sample": om_result.multistart_info.exploration_sample,
             "exploration_results": om_result.multistart_info.exploration_results,
-            "n_optimizations": om_result.multistart_info.n_optimizations
+            "n_optimizations": om_result.multistart_info.n_optimizations,
         }
     else:
         multistart = None
 
     # Create basic result with required attributes
     result = OptimizeResult(
-        params = params,
+        params=params,
         fun=om_result.fun,
         cost=om_result.fun,
         start_params=x0,
@@ -66,6 +69,7 @@ def process_om_result(algorithm: str, x0: NDArray, om_result: om.OptimizeResult,
 
     return result
 
+
 class OptimizerOptimagic(OptimizerBase):
     """
     optimagic
@@ -90,8 +94,10 @@ class OptimizerOptimagic(OptimizerBase):
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
         start_params = np.asarray(x0)
+
         def fn(x):
             return fun(x, *func_args, **func_kwargs)
+
         om_result = om.minimize(
             fun=fn,
             params=start_params,

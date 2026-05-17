@@ -89,6 +89,7 @@ _model_result_style = """<style>
 }
 </style>"""
 
+
 def truncate(num: float, n: int) -> float:
     """
     Truncate a float to n decimal places (without rounding).
@@ -106,7 +107,8 @@ def truncate(num: float, n: int) -> float:
         The truncated number. If num is inf, -inf, or nan, returns num unchanged.
     """
     import numpy as np
+
     if not np.isfinite(num):
         return num
-    factor = 10.0 ** n
+    factor = 10.0**n
     return float(int(num * factor) / factor)

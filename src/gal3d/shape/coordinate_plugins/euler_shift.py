@@ -7,7 +7,8 @@ from gal3d.util.array_operate import Rotate, RotateAndShift, Shift
 
 from ._rotation_eular_util import EulerAngles
 
-__all__ = ["EulerShift","ShiftEuler","ShiftOnly","RotateOnly"]
+__all__ = ["EulerShift", "ShiftEuler", "ShiftOnly", "RotateOnly"]
+
 
 class ShiftOnly(CoordinateBase):
     PN = ("x", "y", "z")
@@ -25,9 +26,7 @@ class ShiftOnly(CoordinateBase):
         """
         Returns a default set of parameters for the EulerShift transformation.
         """
-        return cls.create_parameters(
-            x=0.0, y=0.0, z=0.0,
-        )
+        return cls.create_parameters(x=0.0, y=0.0, z=0.0)
 
     def inverse(self, pos: np.ndarray) -> np.ndarray:
         return Shift(pos, -self["pos"])
@@ -56,6 +55,7 @@ class ShiftOnly(CoordinateBase):
         d_Py = np.array([np.zeros(N_p), -np.ones(N_p), np.zeros(N_p)])
         d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
         return (d_Px.T, d_Py.T, d_Pz.T)
+
     @classmethod
     def estimate_parameters(cls, pos: np.ndarray) -> dict:
         """
@@ -74,11 +74,7 @@ class ShiftOnly(CoordinateBase):
         pos = cls.to_3d_array(pos)
         # Compute the centroid of the positions
         centroid = np.median(pos, axis=0)
-        return {
-            "x": centroid[0],
-            "y": centroid[1],
-            "z": centroid[2],
-        }
+        return {"x": centroid[0], "y": centroid[1], "z": centroid[2]}
 
     @property
     def _latex_equation(self) -> str:
@@ -86,28 +82,25 @@ class ShiftOnly(CoordinateBase):
 
     @classmethod
     def PNlatex(cls):
-        return {
-            "x": "x_c",
-            "y": "y_c",
-            "z": "z_c",
-        }
+        return {"x": "x_c", "y": "y_c", "z": "z_c"}
+
     @property
     def _latex_other(self) -> str:
         return r"\mathbf{c}=\begin{bmatrix}x_c&y_c&z_c\end{bmatrix}"
 
+
 class RotateOnly(CoordinateBase):
     PN = ("ang1", "ang2", "ang3")
-    LB = {"ang1": -np.pi, "ang2": -np.pi/2, "ang3": -np.pi}
-    UB = {"ang1": np.pi, "ang2": np.pi/2, "ang3": np.pi}
+    LB = {"ang1": -np.pi, "ang2": -np.pi / 2, "ang3": -np.pi}
+    UB = {"ang1": np.pi, "ang2": np.pi / 2, "ang3": np.pi}
     EulerSeq = "zyx"
 
     def __init__(self, ang1: float, ang2: float, ang3: float, **kwargs: Any):
         super().__init__(ang1=ang1, ang2=ang2, ang3=ang3)
         from ._rotation_eular_util import EulerAngles
+
         self._seq = kwargs.get("seq", RotateOnly.EulerSeq)
-        self._rotation = EulerAngles.from_euler(
-            seq=self._seq, angles=[ang1, ang2, ang3]
-        )
+        self._rotation = EulerAngles.from_euler(seq=self._seq, angles=[ang1, ang2, ang3])
 
     def __call__(self, pos: np.ndarray) -> np.ndarray:
         pos = self.to_3d_array(pos)
@@ -122,9 +115,7 @@ class RotateOnly(CoordinateBase):
         """
         Returns a default set of parameters for the EulerShift transformation.
         """
-        return cls.create_parameters(
-            ang1=0.0, ang2=0.0, ang3=0.0
-        )
+        return cls.create_parameters(ang1=0.0, ang2=0.0, ang3=0.0)
 
     def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         pos1 = pos
@@ -134,25 +125,25 @@ class RotateOnly(CoordinateBase):
     @staticmethod
     def quick_call(ang1, ang2, ang3, pos):
         from ._rotation_eular_util import EulerAngles
-        rot_matrix = EulerAngles.from_euler(
-            seq=RotateOnly.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
+
+        rot_matrix = EulerAngles.from_euler(seq=RotateOnly.EulerSeq, angles=[ang1, ang2, ang3]).as_matrix()
         return Rotate(pos, rot_matrix)
 
     @staticmethod
     def quick_inverse(ang1, ang2, ang3, pos):
         from ._rotation_eular_util import EulerAngles
-        matrix = EulerAngles.from_euler(
-            seq=RotateOnly.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
+
+        matrix = EulerAngles.from_euler(seq=RotateOnly.EulerSeq, angles=[ang1, ang2, ang3]).as_matrix()
         return Rotate(pos, matrix.T)
 
     @staticmethod
     def quick_jacobian(ang1, ang2, ang3, pos):
         from ._rotation_eular_util import EulerAngles
+
         Rt = EulerAngles.from_euler(seq=RotateOnly.EulerSeq, angles=[ang1, ang2, ang3])
         d_ang1, d_ang2, d_ang3 = Rt.jacobian_euler(pos=pos, seq=RotateOnly.EulerSeq)
         return (d_ang1, d_ang2, d_ang3)
+
     @classmethod
     def estimate_parameters(cls, pos: np.ndarray) -> dict:
         """
@@ -179,11 +170,7 @@ class RotateOnly(CoordinateBase):
         except ValueError:
             angles = [0.0, 0.0, 0.0]
 
-        return {
-            "ang1": angles[0],
-            "ang2": angles[1],
-            "ang3": angles[2],
-        }
+        return {"ang1": angles[0], "ang2": angles[1], "ang3": angles[2]}
 
     @classmethod
     def mat_to_angle(cls, mat: np.ndarray) -> np.ndarray:
@@ -204,38 +191,26 @@ class RotateOnly(CoordinateBase):
 
     @classmethod
     def PNlatex(cls):
-        return {
-            "ang1": r"\alpha",
-            "ang2": r"\beta",
-            "ang3": r"\gamma",
-        }
+        return {"ang1": r"\alpha", "ang2": r"\beta", "ang3": r"\gamma"}
 
     @property
     def _latex_equation(self) -> str:
         # Batch, row-vector form consistent with Rotate(pos, R) -> X @ R^T
-        return r"\ \mathbf{X}'=\mathbf{X}\,R_{"+self._seq+r"}^{\mathsf T}(\alpha,\beta,\gamma)"
+        return r"\ \mathbf{X}'=\mathbf{X}\,R_{" + self._seq + r"}^{\mathsf T}(\alpha,\beta,\gamma)"
 
     @property
     def _latex_other(self) -> str:
         # Define R_seq composition explicitly, matching the seq string order
         # so angles map as (ang1, ang2, ang3) -> (axis seq[0], seq[1], seq[2])
         return (
-            fr"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
-            fr"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
+            rf"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
+            rf"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
         )
 
 
 class EulerShift(CoordinateBase):
-
     PN = ("x", "y", "z", "ang1", "ang2", "ang3")  ##!!!! not use set !!!!
-    LB = {
-        "x": -0.2,
-        "y": -0.2,
-        "z": -0.2,
-        "ang1": -np.pi,
-        "ang2": -np.pi / 2,
-        "ang3": -np.pi,
-    }
+    LB = {"x": -0.2, "y": -0.2, "z": -0.2, "ang1": -np.pi, "ang2": -np.pi / 2, "ang3": -np.pi}
     UB = {"x": 0.2, "y": 0.2, "z": 0.2, "ang1": np.pi, "ang2": np.pi / 2, "ang3": np.pi}
 
     EulerSeq = "zyx"
@@ -255,21 +230,17 @@ class EulerShift(CoordinateBase):
             - seq : str, optional
                 The sequence of Euler angles for rotation. Default is 'zyx'.
         """
-        super().__init__(x=x,y=y,z=z,ang1=ang1,ang2=ang2,ang3=ang3)
+        super().__init__(x=x, y=y, z=z, ang1=ang1, ang2=ang2, ang3=ang3)
 
         self._seq = kwargs.get("seq", EulerShift.EulerSeq)
-        self._rotation = EulerAngles.from_euler(
-            seq=self._seq, angles=[ang1, ang2, ang3]
-        )
+        self._rotation = EulerAngles.from_euler(seq=self._seq, angles=[ang1, ang2, ang3])
 
     @classmethod
     def default_parameters(cls):
         """
         Returns a default set of parameters for the EulerShift transformation.
         """
-        return cls.create_parameters(
-            x=0.0, y=0.0, z=0.0, ang1=0.0, ang2=0.0, ang3=0.0
-        )
+        return cls.create_parameters(x=0.0, y=0.0, z=0.0, ang1=0.0, ang2=0.0, ang3=0.0)
 
     @classmethod
     def mat_to_angle(cls, mat: np.ndarray) -> np.ndarray:
@@ -288,7 +259,9 @@ class EulerShift(CoordinateBase):
         """
         return EulerAngles.from_matrix(mat).as_euler(cls.EulerSeq, degrees=False)
 
-    def jacobian(self, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def jacobian(
+        self, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute the Jacobian of the transformed positions with respect to the translation and rotation parameters.
 
@@ -308,13 +281,7 @@ class EulerShift(CoordinateBase):
         d_ang1, d_ang2, d_ang3 = self._rotation.jacobian_euler(pos=pos1, seq=self._seq)
         self._rotation.as_matrix()
 
-        d_Px = np.array(
-            [
-                -np.ones(N_p),
-                np.zeros(N_p),
-                np.zeros(N_p),
-            ]
-        )
+        d_Px = np.array([-np.ones(N_p), np.zeros(N_p), np.zeros(N_p)])
         d_Py = np.array([np.zeros(N_p), -np.ones(N_p), np.zeros(N_p)])
         d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
 
@@ -415,13 +382,13 @@ class EulerShift(CoordinateBase):
         """
         pc = np.asarray([x, y, z], dtype=np.float64)
 
-        rot_matrix = EulerAngles.from_euler(
-            seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
+        rot_matrix = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]).as_matrix()
         return RotateAndShift(pos, rot_matrix, pc)
 
     @staticmethod
-    def quick_inverse(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> np.ndarray:
+    def quick_inverse(
+        x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray
+    ) -> np.ndarray:
         """
         Quickly inverse transform the given positions using the specified translation and rotation parameters.
 
@@ -439,20 +406,17 @@ class EulerShift(CoordinateBase):
         numpy.ndarray
             The inverse transformed positions.
         """
-        pc: np.ndarray = np.asarray([x, y, z],dtype=np.float64)
-        matrix = EulerAngles.from_euler(
-            seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
+        pc: np.ndarray = np.asarray([x, y, z], dtype=np.float64)
+        matrix = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]).as_matrix()
         return Rotate(Shift(pos.copy(), -pc), matrix.T)
 
     @staticmethod
-    def quick_jacobian(x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def quick_jacobian(
+        x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        pc: np.ndarray = np.asarray([x, y, z], dtype=np.float64)
 
-        pc: np.ndarray = np.asarray([x, y, z],dtype=np.float64)
-
-        EulerAngles.from_euler(
-            seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]
-        ).as_matrix()
+        EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3]).as_matrix()
         pos1 = Shift(pos, -pc)
         N_p = len(pos)
         Rt = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[ang1, ang2, ang3])
@@ -460,13 +424,7 @@ class EulerShift(CoordinateBase):
 
         Rt.as_matrix()
 
-        d_Px = np.array(
-            [
-                -np.ones(N_p),
-                np.zeros(N_p),
-                np.zeros(N_p),
-            ]
-        )
+        d_Px = np.array([-np.ones(N_p), np.zeros(N_p), np.zeros(N_p)])
         d_Py = np.array([np.zeros(N_p), -np.ones(N_p), np.zeros(N_p)])
         d_Pz = np.array([np.zeros(N_p), np.zeros(N_p), -np.ones(N_p)])
 
@@ -474,14 +432,7 @@ class EulerShift(CoordinateBase):
 
     @classmethod
     def PNlatex(cls):
-        return {
-            "x": "x_c",
-            "y": "y_c",
-            "z": "z_c",
-            "ang1": r"\alpha",
-            "ang2": r"\beta",
-            "ang3": r"\gamma",
-        }
+        return {"x": "x_c", "y": "y_c", "z": "z_c", "ang1": r"\alpha", "ang2": r"\beta", "ang3": r"\gamma"}
 
     @property
     def _latex_equation(self) -> str:
@@ -496,10 +447,9 @@ class EulerShift(CoordinateBase):
     def _latex_other(self) -> str:
         return (
             r"\ \mathbf{c}=\begin{bmatrix}x_c&y_c&z_c\end{bmatrix},\ "
-            fr"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
-            fr"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
+            rf"\ R_{{{self._seq}}}(\alpha,\beta,\gamma)"
+            rf"=R_{{{self._seq[0]}}}(\alpha)\,R_{{{self._seq[1]}}}(\beta)\,R_{{{self._seq[2]}}}(\gamma)"
         )
-
 
 
 class ShiftEuler(EulerShift):
@@ -542,15 +492,16 @@ class ShiftEuler(EulerShift):
             The inverse transformed positions.
         """
         pos = self.to_3d_array(pos)
-        return Shift(Rotate(pos,self._rotation.as_matrix().T), -self["pos"])
+        return Shift(Rotate(pos, self._rotation.as_matrix().T), -self["pos"])
 
     @property
     def _latex_equation(self) -> str:
         # Shift first (subtract c) then rotate
         return (
             r"\mathbf{X}'=(\mathbf{X}-\mathbf{1}_n\,\mathbf{c})"
-            r"\,R_{"+self._seq+r"}^{\mathsf T}(\alpha,\beta,\gamma)"
+            r"\,R_{" + self._seq + r"}^{\mathsf T}(\alpha,\beta,\gamma)"
         )
+
 
 @ShiftOnly.derived
 @EulerShift.derived
@@ -558,21 +509,21 @@ class ShiftEuler(EulerShift):
 def pos(params):
     return np.array([params["x"], params["y"], params["z"]])
 
+
 @RotateOnly.derived
 @EulerShift.derived
 @ShiftEuler.derived
 def angle(params):
     return np.array([params["ang1"], params["ang2"], params["ang3"]])
 
+
 @RotateOnly.derived
 @EulerShift.derived
 @ShiftEuler.derived
 def rot_matrix(params):
-    Rt = EulerAngles.from_euler(
-        seq=EulerShift.EulerSeq,
-        angles=[params["ang1"], params["ang2"], params["ang3"]],
-    )
+    Rt = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[params["ang1"], params["ang2"], params["ang3"]])
     return Rt.as_matrix()
+
 
 @RotateOnly.derived
 @EulerShift.derived
@@ -581,14 +532,12 @@ def x_axis_angle(params):
     """
     Angle between rotated x-axis and original x-axis (radians).
     """
-    Rt = EulerAngles.from_euler(
-        seq=EulerShift.EulerSeq,
-        angles=[params["ang1"], params["ang2"], params["ang3"]],
-    )
+    Rt = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[params["ang1"], params["ang2"], params["ang3"]])
     R = Rt.as_matrix()
     c = float(np.clip(R[0, 0], -1.0, 1.0))
     angle = np.arccos(c)
     return min(angle, np.pi - angle)
+
 
 @RotateOnly.derived
 @EulerShift.derived
@@ -597,14 +546,12 @@ def z_axis_angle(params):
     """
     Angle between rotated z-axis and original z-axis (radians).
     """
-    Rt = EulerAngles.from_euler(
-        seq=EulerShift.EulerSeq,
-        angles=[params["ang1"], params["ang2"], params["ang3"]],
-    )
+    Rt = EulerAngles.from_euler(seq=EulerShift.EulerSeq, angles=[params["ang1"], params["ang2"], params["ang3"]])
     R = Rt.as_matrix()
     c = float(np.clip(R[2, 2], -1.0, 1.0))
     angle = np.arccos(c)
     return min(angle, np.pi - angle)
+
 
 @RotateOnly.derived
 @EulerShift.derived
@@ -637,13 +584,10 @@ def x_axis_angle_err(params):
         diff = (fp - fm) / (2 * eps)
         g2[i] = diff * diff
 
-    sig = np.array([
-        params["ang1"].err,
-        params["ang2"].err,
-        params["ang3"].err,
-    ], dtype=float)
-    var = float(np.sum(g2 * (sig ** 2)))
+    sig = np.array([params["ang1"].err, params["ang2"].err, params["ang3"].err], dtype=float)
+    var = float(np.sum(g2 * (sig**2)))
     return np.sqrt(max(var, 0.0))
+
 
 # ...existing code...
 @RotateOnly.derived
@@ -677,10 +621,6 @@ def z_axis_angle_err(params):
         diff = (fp - fm) / (2 * eps)
         g2[i] = diff * diff
 
-    sig = np.array([
-        params["ang1"].err,
-        params["ang2"].err,
-        params["ang3"].err,
-    ], dtype=float)
-    var = float(np.sum(g2 * (sig ** 2)))
+    sig = np.array([params["ang1"].err, params["ang2"].err, params["ang3"].err], dtype=float)
+    var = float(np.sum(g2 * (sig**2)))
     return np.sqrt(max(var, 0.0))

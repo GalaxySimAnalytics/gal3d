@@ -52,6 +52,7 @@ import numpy as np
 if TYPE_CHECKING:
     from gal3d.density import DensitySource
 
+
 # ---------------------------------------------------------------------------
 # LOSIntegrator  (adaptive Simpson)
 # ---------------------------------------------------------------------------
@@ -115,9 +116,7 @@ class LOSIntegrator:
         self.y_range = y_range
         self.resolution = resolution
         self.rotation_matrix = self._validate_rotation_matrix(rotation_matrix)
-        self.z_range = z_range if z_range is not None else self._default_z_range(
-            x_range, y_range
-        )
+        self.z_range = z_range if z_range is not None else self._default_z_range(x_range, y_range)
         self.nz_min = self._to_odd(nz_min)
         self.nz_max = max(self._to_odd(nz_max), self.nz_min)
         self.rtol = rtol
@@ -136,9 +135,7 @@ class LOSIntegrator:
         return n if n % 2 == 1 else n + 1
 
     @staticmethod
-    def _validate_rotation_matrix(
-        mat: np.ndarray | None,
-    ) -> np.ndarray | None:
+    def _validate_rotation_matrix(mat: np.ndarray | None) -> np.ndarray | None:
         if mat is None:
             return None
         mat = np.asarray(mat, dtype=float)
@@ -147,10 +144,7 @@ class LOSIntegrator:
         return mat
 
     @staticmethod
-    def _default_z_range(
-        x_range: tuple[float, float],
-        y_range: tuple[float, float],
-    ) -> tuple[float, float]:
+    def _default_z_range(x_range: tuple[float, float], y_range: tuple[float, float]) -> tuple[float, float]:
         half = max(x_range[1] - x_range[0], y_range[1] - y_range[0])
         return (-half, half)
 
@@ -166,12 +160,7 @@ class LOSIntegrator:
     # Density evaluation
     # ------------------------------------------------------------------
 
-    def _evaluate(
-        self,
-        x: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-    ) -> np.ndarray:
+    def _evaluate(self, x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
         Evaluate the source density at arbitrary (x, y, z) triplets.
 
@@ -212,8 +201,7 @@ class LOSIntegrator:
     # ------------------------------------------------------------------
 
     def _build_pixel_grid(self) -> tuple[np.ndarray, np.ndarray]:
-        """Return flattened pixel-centre x/y coordinates.
-        """
+        """Return flattened pixel-centre x/y coordinates."""
         x_edges = np.linspace(self.x_range[0], self.x_range[1], self.resolution + 1)
         y_edges = np.linspace(self.y_range[0], self.y_range[1], self.resolution + 1)
         x = 0.5 * (x_edges[:-1] + x_edges[1:])
@@ -222,12 +210,7 @@ class LOSIntegrator:
         y_flat = np.repeat(y, self.resolution)
         return x_flat, y_flat
 
-    def _evaluate_pixel_z_grid(
-        self,
-        x_pixels: np.ndarray,
-        y_pixels: np.ndarray,
-        z_samples: np.ndarray,
-    ) -> np.ndarray:
+    def _evaluate_pixel_z_grid(self, x_pixels: np.ndarray, y_pixels: np.ndarray, z_samples: np.ndarray) -> np.ndarray:
         """
         Evaluate density on a subset of pixels at multiple *z* values.
 
@@ -257,13 +240,7 @@ class LOSIntegrator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _simpson(
-        a: np.ndarray,
-        b: np.ndarray,
-        fa: np.ndarray,
-        fm: np.ndarray,
-        fb: np.ndarray,
-    ) -> np.ndarray:
+    def _simpson(a: np.ndarray, b: np.ndarray, fa: np.ndarray, fm: np.ndarray, fb: np.ndarray) -> np.ndarray:
         """Vectorized composite Simpson integral over intervals [a, b]."""
         return (b - a) * (fa + 4.0 * fm + fb) / 6.0
 
@@ -278,16 +255,8 @@ class LOSIntegrator:
     # ------------------------------------------------------------------
 
     def _initialize_frontier(
-        self,
-        x_pixels: np.ndarray,
-        y_pixels: np.ndarray,
-        z0: float,
-        z1: float,
-    ) -> tuple[
-        np.ndarray, np.ndarray, np.ndarray,
-        np.ndarray, np.ndarray, np.ndarray,
-        np.ndarray, np.ndarray,
-    ]:
+        self, x_pixels: np.ndarray, y_pixels: np.ndarray, z0: float, z1: float
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Build the initial adaptive frontier from ``nz_min`` base segments.
 
@@ -309,8 +278,8 @@ class LOSIntegrator:
         """
         n_int = self.nz_min - 1
         z_base = np.linspace(z0, z1, self.nz_min)
-        z_mid  = 0.5 * (z_base[:-1] + z_base[1:])
-        z_all  = np.empty(self.nz_min + n_int, dtype=float)
+        z_mid = 0.5 * (z_base[:-1] + z_base[1:])
+        z_all = np.empty(self.nz_min + n_int, dtype=float)
         z_all[0::2] = z_base
         z_all[1::2] = z_mid
 
@@ -318,16 +287,16 @@ class LOSIntegrator:
 
         rho_all = self._evaluate_pixel_z_grid(x_pixels, y_pixels, z_all)
         # rho_all shape: (p, nz_min + n_int)
-        rho_nodes = rho_all[:, 0::2]   # shape (p, nz_min) — endpoint values
-        rho_a = rho_nodes[:, :-1]      # left endpoints
-        rho_b = rho_nodes[:, 1:]       # right endpoints
-        rho_m = rho_all[:, 1::2]       # midpoints
+        rho_nodes = rho_all[:, 0::2]  # shape (p, nz_min) — endpoint values
+        rho_a = rho_nodes[:, :-1]  # left endpoints
+        rho_b = rho_nodes[:, 1:]  # right endpoints
+        rho_m = rho_all[:, 1::2]  # midpoints
 
-        pidx  = np.repeat(np.arange(p, dtype=np.int32), n_int)
-        seg   = np.tile(np.arange(n_int, dtype=np.int32), p)
-        a, b  = z_base[seg], z_base[seg + 1]
+        pidx = np.repeat(np.arange(p, dtype=np.int32), n_int)
+        seg = np.tile(np.arange(n_int, dtype=np.int32), p)
+        a, b = z_base[seg], z_base[seg + 1]
         fa, fm, fb = rho_a[pidx, seg], rho_m[pidx, seg], rho_b[pidx, seg]
-        s     = self._simpson(a, b, fa, fm, fb)
+        s = self._simpson(a, b, fa, fm, fb)
         depth = np.zeros(pidx.size, dtype=np.int32)
         return pidx, a, b, fa, fm, fb, s, depth
 
@@ -347,11 +316,7 @@ class LOSIntegrator:
         fb: np.ndarray,
         s: np.ndarray,
         depth: np.ndarray,
-    ) -> tuple[
-        np.ndarray, np.ndarray, np.ndarray,
-        np.ndarray, np.ndarray, np.ndarray,
-        np.ndarray, np.ndarray,
-    ]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Run one adaptive-refinement iteration on the current frontier."""
         m = 0.5 * (a + b)
         lm = 0.5 * (a + m)
@@ -402,23 +367,18 @@ class LOSIntegrator:
         d_s = depth[split] + 1
 
         out_pid = np.tile(pid_s, 2)
-        out_a   = np.concatenate([a_s, m_s])
-        out_b   = np.concatenate([m_s, b_s])
-        out_fa  = np.concatenate([fa_s, fm_s])
-        out_fm  = np.concatenate([flm_s, frm_s])
-        out_fb  = np.concatenate([fm_s, fb_s])
-        out_s   = np.concatenate([sl_s, sr_s])
-        out_d   = np.tile(d_s, 2)
+        out_a = np.concatenate([a_s, m_s])
+        out_b = np.concatenate([m_s, b_s])
+        out_fa = np.concatenate([fa_s, fm_s])
+        out_fm = np.concatenate([flm_s, frm_s])
+        out_fb = np.concatenate([fm_s, fb_s])
+        out_s = np.concatenate([sl_s, sr_s])
+        out_d = np.tile(d_s, 2)
 
         return out_pid, out_a, out_b, out_fa, out_fm, out_fb, out_s, out_d
 
     def _integrate_pixels(
-        self,
-        pixel_ids: np.ndarray,
-        x_flat: np.ndarray,
-        y_flat: np.ndarray,
-        z0: float,
-        z1: float,
+        self, pixel_ids: np.ndarray, x_flat: np.ndarray, y_flat: np.ndarray, z0: float, z1: float
     ) -> np.ndarray:
         """
         Adaptively integrate the density along *z* for a set of pixels.
@@ -474,8 +434,7 @@ class LOSIntegrator:
 
         if not np.all(converged):
             warnings.warn(
-                f"{(~converged).sum()} pixel(s) reached nz_max={self.nz_max} "
-                "before meeting the tolerance target.",
+                f"{(~converged).sum()} pixel(s) reached nz_max={self.nz_max} before meeting the tolerance target.",
                 RuntimeWarning,
                 stacklevel=3,
             )
@@ -496,20 +455,17 @@ class LOSIntegrator:
         """
         x_flat, y_flat = self._build_pixel_grid()
         n_total = x_flat.size
-        sigma   = np.zeros(n_total, dtype=float)
+        sigma = np.zeros(n_total, dtype=float)
 
         # batch by tile to control memory usage per batch
         # each batch uses up to ~256 MB (float64)
-        mem_limit    = 256 * 1024**2  # bytes
-        bytes_per_pix = (2 * self.nz_min - 1) * 8   # float64
-        tile_size    = max(1, mem_limit // bytes_per_pix)
+        mem_limit = 256 * 1024**2  # bytes
+        bytes_per_pix = (2 * self.nz_min - 1) * 8  # float64
+        tile_size = max(1, mem_limit // bytes_per_pix)
 
         for start in range(0, n_total, tile_size):
             end = min(start + tile_size, n_total)
             tile_ids = np.arange(start, end, dtype=np.int32)
-            sigma[tile_ids] = self._integrate_pixels(
-                tile_ids, x_flat, y_flat,
-                self.z_range[0], self.z_range[1],
-            )
+            sigma[tile_ids] = self._integrate_pixels(tile_ids, x_flat, y_flat, self.z_range[0], self.z_range[1])
 
         return sigma.reshape(self.resolution, self.resolution)

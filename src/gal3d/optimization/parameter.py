@@ -2,6 +2,7 @@
 Parameter classes for optimization algorithms.
 
 """
+
 import logging
 import math
 import re
@@ -22,7 +23,7 @@ _RichParamDict = TypeVar("_RichParamDict", bound="RichParameterDict")
 logger = logging.getLogger("gal3d.optimization.parameter")
 
 
-__all__ = ["Parameters","Parameter", "ParameterDict", "ConstrainedParameterDict", "RichParameterDict"]
+__all__ = ["Parameters", "Parameter", "ParameterDict", "ConstrainedParameterDict", "RichParameterDict"]
 
 
 def _fmt_num(v: float, nd: int = 3, latex: bool = False) -> str:
@@ -53,13 +54,16 @@ def _fmt_num(v: float, nd: int = 3, latex: bool = False) -> str:
         return f"{v:.{nd}e}"
     return f"{v:.{nd}f}"
 
+
 def _escape_name(name: str) -> str:
     return re.sub(r"_", r"\_", name)
+
 
 def _fmt_bounds(lb: float, ub: float, nd: int = 3, latex: bool = False) -> str:
     lbs = _fmt_num(lb, nd, latex=latex)
     ubs = _fmt_num(ub, nd, latex=latex)
     return rf"[{lbs}, {ubs}]"
+
 
 def _latex_param_line(param: "Parameter", nd: int = 3, hide_zero_err: bool = True) -> str:
     """
@@ -73,6 +77,7 @@ def _latex_param_line(param: "Parameter", nd: int = 3, hide_zero_err: bool = Tru
     else:
         err = _fmt_num(param.err, nd, latex=True)
         return rf"{val} \pm {err} \in {bounds}"
+
 
 class Parameter(float):
     """
@@ -99,13 +104,20 @@ class Parameter(float):
     assign_bounds(lb, ub)
         Assigns new bounds to the parameter.
     """
+
     lb: float
     ub: float
     err: float
 
     __slots__ = ["lb", "ub", "err"]
 
-    def __new__(cls, value: Union[float, "Parameter"], lb: float | None = None, ub: float | None = None, err: float | None = None) -> "Parameter":
+    def __new__(
+        cls,
+        value: Union[float, "Parameter"],
+        lb: float | None = None,
+        ub: float | None = None,
+        err: float | None = None,
+    ) -> "Parameter":
         """
         Creates a new instance of the Parameter class.
 
@@ -198,8 +210,8 @@ class Parameter(float):
     def __repr__(self) -> str:
         """Return the verbose diagnostic form (old repr style)."""
         val = _fmt_num(float(self))
-        lb  = _fmt_num(self.lb)
-        ub  = _fmt_num(self.ub)
+        lb = _fmt_num(self.lb)
+        ub = _fmt_num(self.ub)
         if math.isnan(self.err) or self.err == 0.0:
             return f"Parameter({val} ∈ [{lb}, {ub}])"
         return f"Parameter({val} ± {_fmt_num(self.err)} ∈ [{lb}, {ub}])"
@@ -213,6 +225,7 @@ class Parameter(float):
     def _repr_latex_(self):
         """Return a KaTeX-safe single-line math representation."""
         return r"$" + self.to_latex() + r"$"
+
 
 class ParameterDict(dict):
     """
@@ -232,13 +245,12 @@ class ParameterDict(dict):
     Examples
     --------
     >>> params = ParameterDict(a=1.0, b=2.0)
-    >>> params = ParameterDict({'a': 1.0, 'b': 2.0})
+    >>> params = ParameterDict({"a": 1.0, "b": 2.0})
     """
 
-    def __init__(self, *args: Mapping[str,float] | Sequence[tuple[str, float]] | _ParamDict, **kwargs: float):
+    def __init__(self, *args: Mapping[str, float] | Sequence[tuple[str, float]] | _ParamDict, **kwargs: float):
         super().__init__()
         self.update(*args, **kwargs)
-
 
     def __setitem__(self, key: str, value: float | Parameter) -> None:
         """
@@ -260,8 +272,9 @@ class ParameterDict(dict):
         else:
             super().__setitem__(key, Parameter(value))
 
-
-    def update(self: _ParamDict, *args: Mapping[str,float] | Sequence[tuple[str, float]] | _ParamDict, **kwargs: float) -> None: # type: ignore[override]
+    def update(  # type: ignore[override]
+        self: _ParamDict, *args: Mapping[str, float] | Sequence[tuple[str, float]] | _ParamDict, **kwargs: float
+    ) -> None:
         """
         Update the dictionary with new key-value pairs.
 
@@ -275,7 +288,7 @@ class ParameterDict(dict):
         Examples
         --------
         >>> params = ParameterDict()
-        >>> params.update({'a': 1.0, 'b': 2.0})
+        >>> params.update({"a": 1.0, "b": 2.0})
         >>> params.update(c=3.0, d=4.0)
         """
         for k, v in dict(*args, **kwargs).items():
@@ -307,7 +320,9 @@ class ParameterDict(dict):
                 self[key] = param.assign_value(ub)
         return self
 
-    def get_rounded(self, n: int = 3, round_value: bool = True, round_bound: bool = False, only_value: bool = False) -> Union[dict[str, float], "ParameterDict"]:
+    def get_rounded(
+        self, n: int = 3, round_value: bool = True, round_bound: bool = False, only_value: bool = False
+    ) -> Union[dict[str, float], "ParameterDict"]:
         """
         Returns a new ParameterDict with rounded values and/or bounds.
 
@@ -330,20 +345,20 @@ class ParameterDict(dict):
         if n < 0:
             raise ValueError("Decimal places must be non-negative.")
         if only_value:
-            return {
-                k: truncate(v, n) if round_value else v
-                for k, v in self.items()
-            }
+            return {k: truncate(v, n) if round_value else v for k, v in self.items()}
         else:
-            return ParameterDict({
-                k: Parameter(
-                    truncate(v, n) if round_value else v,
-                    lb=truncate(v.lb, n) if round_bound else v.lb,
-                    ub=truncate(v.ub, n) if round_bound else v.ub,
-                    err = v.err
-                )
-                for k, v in self.items()
-            })
+            return ParameterDict(
+                {
+                    k: Parameter(
+                        truncate(v, n) if round_value else v,
+                        lb=truncate(v.lb, n) if round_bound else v.lb,
+                        ub=truncate(v.ub, n) if round_bound else v.ub,
+                        err=v.err,
+                    )
+                    for k, v in self.items()
+                }
+            )
+
     @property
     def value(self) -> dict[str, float]:
         """
@@ -531,10 +546,7 @@ class ParameterDict(dict):
         >>> bounds = params.scipy_bounds
         """
         param_keys = list(self.keys())
-        return Bounds(
-            lb=[self[key].lb for key in param_keys],
-            ub=[self[key].ub for key in param_keys],
-        )
+        return Bounds(lb=[self[key].lb for key in param_keys], ub=[self[key].ub for key in param_keys])
 
     def values_list(self) -> list[Parameter]:
         """
@@ -556,11 +568,13 @@ class ParameterDict(dict):
     def copy(self: _ParamDict) -> _ParamDict:
         """Create a shallow copy of the parameter dictionary."""
         from copy import copy
+
         return copy(self)
 
     def deepcopy(self) -> "ParameterDict":
         """Create a deep copy of the parameter dictionary."""
         from copy import deepcopy
+
         return deepcopy(self)
 
     def available_keys(self) -> KeysView:
@@ -575,18 +589,18 @@ class ParameterDict(dict):
         name_w = max(len(k) for k in self) + 1
         lines = []
         for k, v in self.items():
-            val  = _fmt_num(float(v))
-            lb   = _fmt_num(v.lb)
-            ub   = _fmt_num(v.ub)
+            val = _fmt_num(float(v))
+            lb = _fmt_num(v.lb)
+            ub = _fmt_num(v.ub)
             err_s = f" ± {_fmt_num(v.err)}" if not (math.isnan(v.err) or v.err == 0.0) else ""
             lines.append(f"  {k:<{name_w}} = {val}{err_s}  [{lb}, {ub}]")
         return f"{self.__class__.__name__}(\n" + "\n".join(lines) + "\n)"
 
-    def to_latex_lines(self, nd: int = 3, hide_zero_err: bool = True) -> dict[str,str]:
+    def to_latex_lines(self, nd: int = 3, hide_zero_err: bool = True) -> dict[str, str]:
         """
         Produce LaTeX lines (no $) for each direct parameter.
         """
-        lines: dict[str,str] = {}
+        lines: dict[str, str] = {}
         for k, v in self.items():
             lines[k] = _latex_param_line(v, nd=nd, hide_zero_err=hide_zero_err)
         return lines
@@ -606,17 +620,12 @@ class ParameterDict(dict):
                 row += r" \\"
             rows.append(row)
         body = "\n".join(rows)
-        return (
-            "$\n"
-            "\\begin{array}{r c l}\n"
-            + body +
-            "\n\\end{array}\n"
-            "$"
-        )
+        return "$\n\\begin{array}{r c l}\n" + body + "\n\\end{array}\n$"
 
     def _ipython_key_completions_(self) -> list[str]:
         """Return a list of parameter names for IPython tab completion."""
         return list(self)
+
 
 class ConstrainedParameterDict(ParameterDict):
     """
@@ -679,7 +688,7 @@ class ConstrainedParameterDict(ParameterDict):
         Examples
         --------
         >>> def constrain_c(params):
-        ...     return params['a'] * params['b']  # c = a*b
+        ...     return params["a"] * params["b"]  # c = a*b
         >>> params = ConstrainedParameterDict(a=2.0, b=3.0, c=6.0)
         >>> params.add_equal_constraints(c=constrain_c)
         """
@@ -730,7 +739,7 @@ class ConstrainedParameterDict(ParameterDict):
 
         Examples
         --------
-        >>> params.del_equal_constraints('c')  # Remove constraint on c
+        >>> params.del_equal_constraints("c")  # Remove constraint on c
         """
         if name not in self._parameter_names:
             raise ValueError(f"The parameter '{name}' was not found in original parameters")
@@ -756,7 +765,6 @@ class ConstrainedParameterDict(ParameterDict):
         self.clear()
         # reuse normal set to keep bounds/value semantics
         self.update(ordered_items)
-
 
     def __getitem__(self, key: str) -> Parameter | float:
         """
@@ -809,15 +817,12 @@ class ConstrainedParameterDict(ParameterDict):
         >>> decorated_objective = params.decorate_func_constraints(objective)
         """
         if self._equal_constraints:
+
             @wraps(function)
             def wrapper(params, *args, **kwargs):
                 input_dict = dict(zip(list(self.keys()), params, strict=False))
                 new_params = [
-                    (
-                        input_dict[i]
-                        if i in input_dict
-                        else self._equal_constraints[i](input_dict)
-                    )
+                    (input_dict[i] if i in input_dict else self._equal_constraints[i](input_dict))
                     for i in self._parameter_names
                 ]
 
@@ -829,7 +834,6 @@ class ConstrainedParameterDict(ParameterDict):
             return function
 
     def get_constraint(self, name: str) -> float:
-
         if name in self._equal_constraints:
             return float(self._equal_constraints[name](self))
         raise KeyError(f"Constraint '{name}' not found.")
@@ -849,9 +853,7 @@ class ConstrainedParameterDict(ParameterDict):
         set
             A set of all available parameter keys
         """
-        return dict.fromkeys(
-            list(super().available_keys())+list(self.constraint_keys())
-            ).keys()
+        return dict.fromkeys(list(super().available_keys()) + list(self.constraint_keys())).keys()
 
     @property
     def all_parameter_names(self):
@@ -884,7 +886,11 @@ class ConstrainedParameterDict(ParameterDict):
             self._parameter_names.append(key)
         return super().__setitem__(key, value)
 
-    def update(self: "ConstrainedParameterDict", *args: Union["ConstrainedParameterDict",Mapping[str, float],Sequence[tuple[str, float]]], **kwargs: float) -> None: # type: ignore[override]
+    def update(  # type: ignore[override]
+        self: "ConstrainedParameterDict",
+        *args: Union["ConstrainedParameterDict", Mapping[str, float], Sequence[tuple[str, float]]],
+        **kwargs: float,
+    ) -> None:
         """
         Update the dictionary with another dict, ParameterDict, or ConstrainedParameterDict.
 
@@ -916,23 +922,21 @@ class ConstrainedParameterDict(ParameterDict):
                 self._parameter_names.append(i)
 
     def to_latex_lines(
-        self,
-        nd: int = 3,
-        hide_zero_err: bool = True,
-        include_constraints: bool = True
-    ) -> dict[str,str]:
-        lines: dict[str,str] = {}
+        self, nd: int = 3, hide_zero_err: bool = True, include_constraints: bool = True
+    ) -> dict[str, str]:
+        lines: dict[str, str] = {}
         for k in self._parameter_names:
             if k in self._equal_constraints and include_constraints:
                 val = self.get_constraint(k)
                 lines[k] = rf"\lgroup {_fmt_num(val, nd)},\ \text{{constraint}} \rgroup"
             elif k in self:
                 p: Parameter = self.get_parameter(k)
-                lines[k] = _latex_param_line( p, nd=nd, hide_zero_err=hide_zero_err)
+                lines[k] = _latex_param_line(p, nd=nd, hide_zero_err=hide_zero_err)
         return lines
 
     def _ipython_key_completions_(self) -> list[str]:
         return list(self) + list(self._equal_constraints)
+
 
 class RichParameterDict(ParameterDict):
     """
@@ -980,18 +984,22 @@ class RichParameterDict(ParameterDict):
 
         Examples
         --------
-        >>> param = RichParameterDict(a = 2, b = 1)
+        >>> param = RichParameterDict(a=2, b=1)
         >>> @param.derived
         ... def eps_ab(p: RichParameterDict):
         ...     return 1 - p["b"] / p["a"]
-        >>> param['eps_ab']
+        >>> param["eps_ab"]
         >>> 0.5
         """
         self.add_derived(f.__name__, f)
 
     @classmethod
-    def with_derived(cls: type[_RichParamDict], derived_dict: dict[str, Callable[[_RichParamDict], float]],
-                     *args: float | Mapping | tuple[str, float], **kwargs: float) -> _RichParamDict:
+    def with_derived(
+        cls: type[_RichParamDict],
+        derived_dict: dict[str, Callable[[_RichParamDict], float]],
+        *args: float | Mapping | tuple[str, float],
+        **kwargs: float,
+    ) -> _RichParamDict:
         """Create a new instance with derived parameters."""
         inst = cls(*args, **kwargs)
         inst._derived.update(derived_dict)
@@ -1029,9 +1037,7 @@ class RichParameterDict(ParameterDict):
         """
         Get all available parameter keys, including derived and info keys.
         """
-        return dict.fromkeys(
-            list(super().available_keys()) + list(self.derived_keys()) + list(self.info_keys())
-            ).keys()
+        return dict.fromkeys(list(super().available_keys()) + list(self.derived_keys()) + list(self.info_keys())).keys()
 
     def __getitem__(self, key: str) -> Parameter | float | Any:
         if key in self:
@@ -1042,7 +1048,11 @@ class RichParameterDict(ParameterDict):
             return self.get_info(key)
         raise KeyError(key)
 
-    def update(self: "RichParameterDict", *args: Union["RichParameterDict", Mapping[str, float], Sequence[tuple[str, float]]], **kwargs: float) -> None: # type: ignore[override]
+    def update(  # type: ignore[override]
+        self: "RichParameterDict",
+        *args: Union["RichParameterDict", Mapping[str, float], Sequence[tuple[str, float]]],
+        **kwargs: float,
+    ) -> None:
         """
         Update the dictionary with another dict, ParameterDict, or RichParameterDict.
 
@@ -1067,19 +1077,22 @@ class RichParameterDict(ParameterDict):
     def _ipython_key_completions_(self) -> list[str]:
         return list(self) + list(self._derived) + list(self._info)
 
-class Parameters(RichParameterDict,ConstrainedParameterDict):
+
+class Parameters(RichParameterDict, ConstrainedParameterDict):
     """
     A class as a container for parameters with constraints and rich metadata.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def deepcopy(self) -> "Parameters":
         """Create a deep copy of the Parameters instance."""
         from copy import deepcopy
+
         return deepcopy(self)
 
-    def new(self,*args: Iterable[float] | float,**kwargs: float) -> "Parameters":
+    def new(self, *args: Iterable[float] | float, **kwargs: float) -> "Parameters":
         """
         Create a new instance with updated values.
 
@@ -1096,6 +1109,7 @@ class Parameters(RichParameterDict,ConstrainedParameterDict):
         new = self.deepcopy()
         new.set_value(*args, **kwargs)
         return new
+
     @property
     def structure_parameters(self):
         """
@@ -1126,7 +1140,7 @@ class Parameters(RichParameterDict,ConstrainedParameterDict):
 
     def __getitem__(self, key: str) -> Parameter | float | Any:
         try:
-            return ConstrainedParameterDict.__getitem__(self,key)
+            return ConstrainedParameterDict.__getitem__(self, key)
         except KeyError:
             pass
         if key in self._derived:
@@ -1136,8 +1150,7 @@ class Parameters(RichParameterDict,ConstrainedParameterDict):
         raise KeyError(key)
 
     def _ipython_key_completions_(self) -> list[str]:
-        return list(self) + list(self._equal_constraints)+list(self._derived) + list(self._info)
-
+        return list(self) + list(self._equal_constraints) + list(self._derived) + list(self._info)
 
     def __add__(self, other: Union[dict, "Parameters"]) -> "Parameters":
         h1 = self.deepcopy()

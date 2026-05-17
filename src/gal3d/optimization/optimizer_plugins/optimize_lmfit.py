@@ -18,24 +18,18 @@ __all__ = ["OptimizerLMFit"]
 
 
 def process_lmfit_result(start_fun: float, res: MinimizerResult, params: ParameterDict) -> OptimizeResult:
-
     all_keys = {i for i in dir(res) if not i.startswith("_")}
 
     result = OptimizeResult()
 
-    attribute_map = {
-        "init_values": "start_params",
-        "nfev": "n_fun_evals",
-        "method": "algorithm",
-    }
+    attribute_map = {"init_values": "start_params", "nfev": "n_fun_evals", "method": "algorithm"}
     # numdifftools ? ,
     # calc_covar (bool, optional) – Whether to calculate the covariance matrix (default is True) for solvers other than ‘leastsq’ and ‘least_squares’.
     # Requires the numdifftools package to be installed.
-    if getattr(res,"errorbars",False):
-        for i,j in res.uvars.items():
+    if getattr(res, "errorbars", False):
+        for i, j in res.uvars.items():
             params[i].err = j.std_dev
         all_keys.remove("uvars")
-
 
     for lm_key in all_keys:
         value = getattr(res, lm_key, None)
@@ -55,12 +49,10 @@ def process_lmfit_result(start_fun: float, res: MinimizerResult, params: Paramet
 
 
 class OptimizerLMFit(OptimizerBase):
-
-    def __init__(self, algorithm: str, algo_options: dict | None =None):
+    def __init__(self, algorithm: str, algo_options: dict | None = None):
         if algo_options is None:
             algo_options = {}
         super().__init__(algorithm, algo_options)
-
 
     def fitting(
         self,
@@ -78,6 +70,7 @@ class OptimizerLMFit(OptimizerBase):
         def fn(params):
             x = list(params.valuesdict().values())
             return fun(x, *func_args, **func_kwargs)
+
         x0_seq = np.asarray(x0, dtype=float).tolist()
         params = self.create_params(x0_seq, param_names=param_names, param_lbs=bounds.lb, param_ubs=bounds.ub)
 
@@ -85,15 +78,9 @@ class OptimizerLMFit(OptimizerBase):
         for i, param in params.items():
             lm_params.add(i, value=float(param), vary=True, min=param.lb, max=param.ub)
 
-        res = lmfit.minimize(
-            fcn=fn,
-            params=lm_params,
-            method=self.algo_name,
-            **self.kwargs,
-            **kwargs,
-        )
+        res = lmfit.minimize(fcn=fn, params=lm_params, method=self.algo_name, **self.kwargs, **kwargs)
         start_fun = fn(lm_params)
-        return process_lmfit_result(start_fun,res, params)
+        return process_lmfit_result(start_fun, res, params)
 
     @classmethod
     def available_algorithm(cls):
@@ -120,5 +107,5 @@ class OptimizerLMFit(OptimizerBase):
             "slsqp",
             "emcee",
             "shgo",
-            "dual_annealing"
+            "dual_annealing",
         ]

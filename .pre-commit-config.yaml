@@ -5,7 +5,7 @@ repos:
       - id: ruff
         name: ruff check
         files: '^src/gal3d/'
-        args: ["check"]
+        args: ["--no-fix"]
       - id: ruff-format
         name: ruff format
         files: '^src/gal3d/'
@@ -14,9 +14,9 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run mypy
+        entry: uv run --frozen mypy
         language: system
         types: [python]
         files: '^src/gal3d/'
-        args: ["--config-file=pyproject.toml"]
-        pass_filenames: true
+        args: ["src/gal3d/", "--config-file=pyproject.toml"]
+        pass_filenames: false

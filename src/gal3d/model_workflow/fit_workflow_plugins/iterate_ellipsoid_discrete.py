@@ -50,9 +50,7 @@ Examples
 A minimal usage example with a :class:`gal3d.point.Particles` instance
 ``particles``::
 
-    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import (
-        IterateEllipsoidParticles,
-    )
+    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import IterateEllipsoidParticles
 
     workflow = IterateEllipsoidParticles()
 
@@ -62,9 +60,9 @@ A minimal usage example with a :class:`gal3d.point.Particles` instance
         r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
-        is_enclosed=False,        # shell
+        is_enclosed=False,  # shell
         shell_frac=0.1,
-        weight_method=None,       # w = 1
+        weight_method=None,  # w = 1
     )
 
     # E3: enclosed ellipsoid, w ~ r_ell^{-2}
@@ -73,8 +71,8 @@ A minimal usage example with a :class:`gal3d.point.Particles` instance
         r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
-        is_enclosed=True,         # enclosed ellipsoid
-        weight_method="rell2",    # w ~ r_ell^{-2}
+        is_enclosed=True,  # enclosed ellipsoid
+        weight_method="rell2",  # w ~ r_ell^{-2}
     )
 
 The returned :class:`gal3d.optimization.result.ModelResult` contains the best‑fit
@@ -137,11 +135,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
     # ------------------------------------------------------------------
 
     def _apply_weight(
-        self,
-        weight_method: Literal["r2", "rell2"] | None,
-        mass: ArrayF,
-        r_sph: ArrayF,
-        r_ell: ArrayF,
+        self, weight_method: Literal["r2", "rell2"] | None, mass: ArrayF, r_sph: ArrayF, r_ell: ArrayF
     ) -> ArrayF:
         if weight_method == "r2":
             return mass / np.maximum(r_sph, 1e-9) ** 2
@@ -156,12 +150,7 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
         return R
 
     @staticmethod
-    def _compute_shell_density(
-        sel_mass: ArrayF,
-        abc: ArrayF,
-        shell_frac: float,
-        is_enclosed: bool,
-    ) -> float:
+    def _compute_shell_density(sel_mass: ArrayF, abc: ArrayF, shell_frac: float, is_enclosed: bool) -> float:
         """Mean volumetric density in the selected region."""
         vol_unit = (4.0 / 3.0) * np.pi * np.prod(abc)
         if is_enclosed:
@@ -170,21 +159,16 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             vol = vol_unit * ((1.0 + shell_frac) ** 3 - (1.0 - shell_frac) ** 3)
         return float(np.sum(sel_mass) / vol) if vol > 0 else 0.0
 
-    def _extract_particle_data(
-        self, obj: FitInput
-    ) -> tuple[ArrayF, ArrayF, ArrayF]:
+    def _extract_particle_data(self, obj: FitInput) -> tuple[ArrayF, ArrayF, ArrayF]:
         """Extract pos, mass, r from a Particles instance."""
         particles = obj.density_source if hasattr(obj, "density_source") else obj
         try:
-            return (particles.pos, particles.mass, particles.r) # type: ignore
+            return (particles.pos, particles.mass, particles.r)  # type: ignore
         except AttributeError as e:
             raise TypeError("Expected a Particles input with pos, mass, r attributes") from e
 
     def _init_trial_ellipsoid(
-        self,
-        r: float,
-        init_parameters: dict | None,
-        volume_conserve: bool,
+        self, r: float, init_parameters: dict | None, volume_conserve: bool
     ) -> tuple[ArrayF, ArrayF]:
         """Build initial axes ``a`` and rotation matrix ``R`` from warm-start params."""
         abc = np.ones(3, dtype=float) * r
@@ -196,41 +180,22 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             ang1 = float(init_parameters.get("ang1", 0.0))
             ang2 = float(init_parameters.get("ang2", 0.0))
             ang3 = float(init_parameters.get("ang3", 0.0))
-            R = np.array(
-                _ScipyRotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix(),
-                dtype=float,
-            )
+            R = np.array(_ScipyRotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix(), dtype=float)
         a: ArrayF = self._to_new_ellipsoid(abc, abc_init, volume_conservation=volume_conserve)
         return a, R
 
     def _prefilter_spherical(
-        self,
-        pos: ArrayF,
-        mass: ArrayF,
-        r_p: ArrayF,
-        a: ArrayF,
-        shell_frac: float,
-        is_enclosed: bool,
+        self, pos: ArrayF, mass: ArrayF, r_p: ArrayF, a: ArrayF, shell_frac: float, is_enclosed: bool
     ) -> tuple[ArrayF, ArrayF, ArrayF]:
         """Conservative spherical cut to reduce work before the ellipsoid call."""
         if is_enclosed:
             mask = r_p < a[0] * (1.0 + shell_frac)
         else:
-            mask = (
-                (r_p > a[2] * (1.0 - shell_frac))
-                & (r_p < a[0] * (1.0 + shell_frac))
-            )
+            mask = (r_p > a[2] * (1.0 - shell_frac)) & (r_p < a[0] * (1.0 + shell_frac))
         return pos[mask], mass[mask], r_p[mask]
 
     def _select_ellipsoidal(
-        self,
-        f: ArrayF,
-        r_ell: ArrayF,
-        a: ArrayF,
-        shell_frac: float,
-        is_enclosed: bool,
-        min_particles: int,
-        r: float,
+        self, f: ArrayF, r_ell: ArrayF, a: ArrayF, shell_frac: float, is_enclosed: bool, min_particles: int, r: float
     ) -> NDArray[np.bool_]:
         """Return the boolean selection mask and validate the particle count."""
         if is_enclosed:
@@ -278,29 +243,21 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
             Masses of the selected particles (needed for shell density).
         """
         # --- spherical pre-filter ---
-        pre_pos, pre_mass, pre_r_p = self._prefilter_spherical(
-            pos, mass, r_p, a, shell_frac, is_enclosed
-        )
+        pre_pos, pre_mass, pre_r_p = self._prefilter_spherical(pos, mass, r_p, a, shell_frac, is_enclosed)
         if pre_pos.size == 0:
-            raise InsufficientPointsError(
-                f"No particles survived spherical pre-filter at r={r:.4g}."
-            )
+            raise InsufficientPointsError(f"No particles survived spherical pre-filter at r={r:.4g}.")
 
         # --- ellipsoid function: f = x²/a² + y²/b² + z²/c² ---
         ang = self._default_structure._coordinate.mat_to_angle(R)  # type: ignore[attr-defined]
         eps_ab = 1.0 - a[1] / a[0]
         eps_bc = 1.0 - a[2] / a[1]
-        f, _ = self._default_structure.quick_call(
-            *ang, a[0], eps_ab, eps_bc, pos=pre_pos
-        )
+        f, _ = self._default_structure.quick_call(*ang, a[0], eps_ab, eps_bc, pos=pre_pos)
 
         # r_ell = a * sqrt(f)  <==>  sqrt(x² + y²/(b/a)² + z²/(c/a)²)
         r_ell = a[0] * np.sqrt(np.clip(f, 0.0, None))
 
         # --- particle selection ---
-        sel_mask = self._select_ellipsoidal(
-            f, r_ell, a, shell_frac, is_enclosed, min_particles, r
-        )
+        sel_mask = self._select_ellipsoidal(f, r_ell, a, shell_frac, is_enclosed, min_particles, r)
         sel_pos = pre_pos[sel_mask]
         sel_mass = pre_mass[sel_mask]
         sel_r_p = pre_r_p[sel_mask]
@@ -392,7 +349,12 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
 
         for _n_iter in range(max_iterations):
             a_prev, R_prev = a.copy(), R.copy()
-            a, R, sel_mass = self._iterate_once(pos, mass, r_p, a, R,
+            a, R, sel_mass = self._iterate_once(
+                pos,
+                mass,
+                r_p,
+                a,
+                R,
                 shell_frac=shell_frac,
                 is_enclosed=is_enclosed,
                 weight_method=weight_method,
@@ -405,6 +367,4 @@ class IterateEllipsoidParticles(FitWorkflowBase, EllipsoidResultBuilder):
 
         err = self._axis_ratio_error(a, a_prev)
         shell_density = self._compute_shell_density(sel_mass, a, shell_frac, is_enclosed)
-        return self._build_model_result(
-            a, R, a_prev, R_prev, _n_iter + 1, err, shell_density
-        )
+        return self._build_model_result(a, R, a_prev, R_prev, _n_iter + 1, err, shell_density)

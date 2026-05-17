@@ -12,6 +12,7 @@ from gal3d.optimization.result import ModelResult
 
 __all__ = ["Disk"]
 
+
 class Disk(CharacterizerBase):
     """
     GalaxyDisk
@@ -32,12 +33,11 @@ class Disk(CharacterizerBase):
         Sorted 1D array of the eps-like quantity corresponding to `a`.
     """
 
-
     def __init__(self, data: dict[str, np.ndarray] | ModelResult, use_key: str = "eps_ac"):
         super().__init__(data)
 
         dex = np.argsort(data["a"])
-        self.data={i: data[i][dex] for i in data.keys()}
+        self.data = {i: data[i][dex] for i in data.keys()}
 
         self.a = self.data["a"]
         if data.get(use_key) is not None:
@@ -54,15 +54,14 @@ class Disk(CharacterizerBase):
 
         self._f_eps_R = PchipInterpolator(self.a, self.eps, extrapolate=True)
 
-
-    def measure(self,
+    def measure(
+        self,
         eps_cond: float = 0.5,
         range_min: float = 0.2,
         min_n: int = 3,
         detail: bool = False,
-        other_keys: list[str] | str | None = None
-        ) -> dict:
-
+        other_keys: list[str] | str | None = None,
+    ) -> dict:
         """
         Find candidate disk regions where eps >= eps_cond and summarize each region.
 
@@ -167,11 +166,7 @@ class Disk(CharacterizerBase):
             "regions": regions,
         }
 
-
-    def select_region(
-        self,
-        eps_cond: float = 0.25,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def select_region(self, eps_cond: float = 0.25) -> tuple[np.ndarray, np.ndarray]:
         """
         Identify regions with ellipticity above threshold.
 
@@ -205,15 +200,14 @@ class Disk(CharacterizerBase):
 
         R_start_arr = self.a[starts_idx].astype(np.float64)
         if starts_idx.size:
-            mask0 = (starts_idx == 0)
+            mask0 = starts_idx == 0
             if np.any(mask0):
                 R_start_arr[mask0] = 0.0
         R_end_arr = self.a[ends_idx].astype(np.float64)
         return R_start_arr, R_end_arr
 
-
     def filter_region_length(
-        self, R_start: np.ndarray, R_end: np.ndarray, range_min: float = 0.3, min_n : int = 3,
+        self, R_start: np.ndarray, R_end: np.ndarray, range_min: float = 0.3, min_n: int = 3
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Filter regions based on spatial constraints.
@@ -258,10 +252,7 @@ class Disk(CharacterizerBase):
             n = int(np.count_nonzero((self.a >= s) & (self.a <= e)))
             keep[i] = n >= int(min_n)
 
-
-        R_start = R_start[sel_range&keep]
-        R_end = R_end[sel_range&keep]
+        R_start = R_start[sel_range & keep]
+        R_end = R_end[sel_range & keep]
 
         return R_start, R_end
-
-

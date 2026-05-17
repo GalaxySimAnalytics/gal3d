@@ -18,7 +18,6 @@ timing = timer(logger)
 
 
 class SphField:
-
     _bound_method: dict[str, Callable] = {}
     _step_method: dict[str, Callable] = {}
     _iso_method: dict[str, Callable] = {}
@@ -44,10 +43,7 @@ class SphField:
         self._build_ray_vector(density_source, num_ray, ray_method)
 
     def __repr__(self):
-        info = [
-            f"SphField(num_ray={getattr(self.rays, 'num', 'N/A')})",
-            f"[{repr(self.density_source)}]",
-        ]
+        info = [f"SphField(num_ray={getattr(self.rays, 'num', 'N/A')})", f"[{repr(self.density_source)}]"]
         if hasattr(self, "inner_r") and hasattr(self, "outer_r"):
             info.append(f"inner_r=[{np.min(self.inner_r):.3g}, {np.max(self.inner_r):.3g}]")
             info.append(f"outer_r=[{np.min(self.outer_r):.3g}, {np.max(self.outer_r):.3g}]")
@@ -55,7 +51,6 @@ class SphField:
 
     @timing
     def _build_ray_vector(self, density_source: DensitySource, num_ray: int, ray_method: str) -> "SphField":
-
         self.rays = SphVector(num_ray, ray_method)
         self.density_source = density_source
         return self
@@ -77,16 +72,10 @@ class SphField:
         self.rays_points_num = np.bincount(self.rays_index)
 
         max_num_dex = np.argmax(self.rays_points_num)
-        logger.debug(
-            "Ray %d has the maximum particle count of %d.",
-            max_num_dex, self.rays_points_num[max_num_dex]
-        )
+        logger.debug("Ray %d has the maximum particle count of %d.", max_num_dex, self.rays_points_num[max_num_dex])
 
         min_num_dex = np.argmin(self.rays_points_num)
-        logger.debug(
-            "Ray %d has the minimum particle count of %d.",
-            min_num_dex, self.rays_points_num[min_num_dex]
-        )
+        logger.debug("Ray %d has the minimum particle count of %d.", min_num_dex, self.rays_points_num[min_num_dex])
         if self.rays_points_num[min_num_dex] < 3:
             logger.error("It should be > 2, so please make the ray num smaller. ")
 
@@ -118,25 +107,25 @@ class SphField:
         r_in_min = np.min(self.inner_r)
         r_in_max = np.max(self.inner_r)
         logger.debug("Field inner boundaries range from %.2f to %.2f", r_in_min, r_in_max)
-        if r_in_min/r_in_max < 0.09:
-            logger.warning("The axial ratio of the inner boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
+        if r_in_min / r_in_max < 0.09:
+            logger.warning(
+                "The axial ratio of the inner boundary shape is quite extreme. Consider limiting the particles or refining the boundary."
+            )
 
         self.outer_r = self._bound_method[outer_mode](self, outer, mode="max")
         r_ou_min = np.min(self.outer_r)
         r_ou_max = np.max(self.outer_r)
         logger.debug("Field outer boundaries range from %.2f to %.2f", r_ou_min, r_ou_max)
-        if r_ou_min/r_ou_max < 0.09:
-            logger.warning("The axial ratio of the outer boundary shape is quite extreme. Consider limiting the particles or refining the boundary.")
+        if r_ou_min / r_ou_max < 0.09:
+            logger.warning(
+                "The axial ratio of the outer boundary shape is quite extreme. Consider limiting the particles or refining the boundary."
+            )
 
         self.check_boundary()
         return self
 
     @timing
-    def build_profile_sample(
-        self,
-        num_p: int = 500,
-        step_mode: str = "log",
-    ) -> "SphField":
+    def build_profile_sample(self, num_p: int = 500, step_mode: str = "log") -> "SphField":
         """
         Build a sample of points along the rays for parameter calculation.
 
@@ -153,17 +142,17 @@ class SphField:
         self.points_r = self._step_method[step_mode](self, num_p)
         self.points_pos = np.einsum("ij,ik->ijk", self.points_r, self.rays.pos)
 
-        points_que = self.points_pos.reshape(
-            self.points_pos.shape[0] * self.points_pos.shape[1], 3
-        )
-        self.points_parameter = self.density_source(points_que).reshape(
-            self.points_r.shape
-        )
+        points_que = self.points_pos.reshape(self.points_pos.shape[0] * self.points_pos.shape[1], 3)
+        self.points_parameter = self.density_source(points_que).reshape(self.points_r.shape)
         return self
 
     @timing
     def build_profile_interpolator(
-        self, interpolator_method: str = "LU", is_decreasing: bool = True, interpolator_kwargs: dict | None = None, **kwargs: Any
+        self,
+        interpolator_method: str = "LU",
+        is_decreasing: bool = True,
+        interpolator_kwargs: dict | None = None,
+        **kwargs: Any,
     ) -> "SphField":
         """
         Build interpolators for the sampled points.
@@ -197,12 +186,7 @@ class SphField:
 
     @timing
     def build_isodensity_profile(
-        self,
-        method: str = "pair",
-        from_rays_func: bool = False,
-        res_b: float = 0.2,
-        res_c: float = 0.1,
-        **kwargs: Any,
+        self, method: str = "pair", from_rays_func: bool = False, res_b: float = 0.2, res_c: float = 0.1, **kwargs: Any
     ) -> "SphField":
         """
         Build isodensity profiles for the galaxy model.
@@ -225,16 +209,10 @@ class SphField:
 
         self.set_isodensity_sphere(from_rays_func=from_rays_func, **kwargs)
 
-        self.iso_pro_parameter = self._iso_method[method](
-            self.rays_vect, self.iso_parameters, res_b, res_c
-        )
+        self.iso_pro_parameter = self._iso_method[method](self.rays_vect, self.iso_parameters, res_b, res_c)
         interpolator_method = kwargs.get("interpolator_method", "LU")
 
-        self.iso_pro_func = MonotonRay(
-            self.iso_pro_r,
-            self.iso_pro_parameter,
-            interpolator_method=interpolator_method,
-        )
+        self.iso_pro_func = MonotonRay(self.iso_pro_r, self.iso_pro_parameter, interpolator_method=interpolator_method)
 
         return self
 
@@ -253,24 +231,16 @@ class SphField:
         num_p = kwargs.get("num_p", self.points_r.shape[1])
 
         if from_rays_func:
-            self.iso_pro_r = np.geomspace(
-                np.max(self.inner_r), np.min(self.outer_r), num_p
-            )
+            self.iso_pro_r = np.geomspace(np.max(self.inner_r), np.min(self.outer_r), num_p)
             self.iso_points = np.einsum("ij,k->ikj", self.rays_vect, self.iso_pro_r)
-            self.iso_parameters = np.array(
-                [self.rays_func[i](self.iso_pro_r) for i in range(len(self.rays_func))]
-            )
+            self.iso_parameters = np.array([self.rays_func[i](self.iso_pro_r) for i in range(len(self.rays_func))])
 
         else:
-            self.iso_pro_r = np.geomspace(
-                np.percentile(self.inner_r, 50), np.percentile(self.outer_r, 50), num_p
-            )
+            self.iso_pro_r = np.geomspace(np.percentile(self.inner_r, 50), np.percentile(self.outer_r, 50), num_p)
             self.iso_points = np.einsum("ij,k->ikj", self.rays_vect, self.iso_pro_r)
 
             self.iso_parameters = self.density_source(
-                self.iso_points.reshape(
-                    self.iso_points.shape[0] * self.iso_points.shape[1], 3
-                )
+                self.iso_points.reshape(self.iso_points.shape[0] * self.iso_points.shape[1], 3)
             ).reshape((self.iso_points.shape[0], self.iso_points.shape[1]))
 
         return self
@@ -287,13 +257,8 @@ class SphField:
         if not all(self.outer_r > self.inner_r):
             ind = np.arange(len(self.outer_r))
             ind = ind[(self.outer_r < self.inner_r)]
-            logger.error(
-                "The outer boundaries need to be greater than the inner boundaries. Check Ray %d",
-                ind
-            )
-            raise ValueError(
-                "The outer boundaries need to be greater than the inner boundaries"
-            )
+            logger.error("The outer boundaries need to be greater than the inner boundaries. Check Ray %d", ind)
+            raise ValueError("The outer boundaries need to be greater than the inner boundaries")
 
     def pos_ray_n(self, n: int) -> np.ndarray:
         """
@@ -409,21 +374,17 @@ class SphField:
 
         level = kwargs.get("level", (0, 0))
         rval: np.ndarray | float
-        if isinstance(r,Iterable):
+        if isinstance(r, Iterable):
             rval = np.array(r)
         else:
             rval = r
 
         ftarget = self.query_iso_f(rval, which=level[0])
 
-        rtarget = self.query_rays_r(
-            ftarget, which=level[1]
-        )  # shape (len(ftarget),num_rays)
+        rtarget = self.query_rays_r(ftarget, which=level[1])  # shape (len(ftarget),num_rays)
 
         if isinstance(r, Iterable):
-            target_pos = np.einsum(
-                "ji,ik->jik", rtarget, self.rays_vect
-            )  # (len(ftarget),num_rays) * (num_rays , 3)
+            target_pos = np.einsum("ji,ik->jik", rtarget, self.rays_vect)  # (len(ftarget),num_rays) * (num_rays , 3)
         else:
             target_pos = np.einsum("i,ik->ik", rtarget, self.rays_vect)
 
@@ -434,9 +395,9 @@ class SphField:
         if for_fit:
             Eq_surface["pos"] = Eq_surface["pos"][~np.isnan(Eq_surface["r"])]
             Eq_surface["r"] = Eq_surface["r"][~np.isnan(Eq_surface["r"])]
-            #Eq_surface["r"] = Eq_surface["r"] / np.sqrt(
+            # Eq_surface["r"] = Eq_surface["r"] / np.sqrt(
             #    np.sum(Eq_surface["r"] ** 2) / len(Eq_surface["r"])
-            #)  #  normalization as this used for calculate error
+            # )  #  normalization as this used for calculate error
             Eq_surface["info"] = {"parameter": Eq_surface["parameter"]}
 
         return Eq_surface
@@ -459,7 +420,7 @@ class SphField:
         """
         level = kwargs.get("level", (0, 0))
         fval: np.ndarray | float
-        if isinstance(f,Iterable):
+        if isinstance(f, Iterable):
             fval = np.array(f)
         else:
             fval = f
@@ -621,7 +582,6 @@ class SphField:
 
     @staticmethod
     def iso_registry(fn: str | Callable) -> Callable:
-
         if callable(fn):
             SphField._iso_method[fn.__name__] = fn
             return fn
@@ -682,7 +642,6 @@ def bound_pct(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     return np.array([np.percentile(self.r_ray_n(i), value) for i in range(self.rays.num)])
 
 
-
 @SphField.boundary_registry("value")
 def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     """
@@ -717,9 +676,11 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
 
     # determine search direction
     is_inner = mode == "min"
-    r10,r90 = np.percentile(self.density_source.r, [10,90]) if hasattr(self.density_source, "r") else (1., 30.)  # fallback values if particle radii are not available
-    radius_guess = r90*np.ones(len(self.rays_vect)) if is_inner else r10*np.ones(len(self.rays_vect))
-    eps_radius = r10/100 if is_inner else r90/100
+    r10, r90 = (
+        np.percentile(self.density_source.r, [10, 90]) if hasattr(self.density_source, "r") else (1.0, 30.0)
+    )  # fallback values if particle radii are not available
+    radius_guess = r90 * np.ones(len(self.rays_vect)) if is_inner else r10 * np.ones(len(self.rays_vect))
+    eps_radius = r10 / 100 if is_inner else r90 / 100
 
     active_mask = np.ones_like(radius_guess, dtype=bool)  # Only iterate over unconverged rays
 
@@ -730,12 +691,12 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
         iter_step = step_fraction * radius_guess
 
         if is_inner:
-            condition = param_val > value # inner boundary: param_val > value
+            condition = param_val > value  # inner boundary: param_val > value
             active_mask[condition] = False  # stop iterating over converged rays
             # otherwise, search inward
             radius_guess[active_mask] -= iter_step[active_mask]
         else:
-            condition = param_val < value # outer boundary: param_val < value
+            condition = param_val < value  # outer boundary: param_val < value
             active_mask[condition] = False  # stop iterating over converged rays
             # otherwise, search outward
             radius_guess[active_mask] += iter_step[active_mask]
@@ -747,7 +708,7 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     if _i >= iter_max - 1:
         logger.error("[Coarse Search] %s boundary search did not converge after %d iterations", search_type, iter_max)
     else:
-        logger.debug("[Coarse Search] %s boundary converged in %d iterations", search_type, _i+1)
+        logger.debug("[Coarse Search] %s boundary converged in %d iterations", search_type, _i + 1)
 
     # Set the upper and lower bounds for bisection search
     radius_upper = radius_guess * (1 + step_fraction) if is_inner else radius_guess.copy()
@@ -781,11 +742,9 @@ def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     if _i >= iter_max - 1:
         logger.error("[Bisection Search] %s boundary iteration exceeded maximum limit: %d", search_type, iter_max)
     else:
-        logger.debug("[Bisection Search] Found target %s radius in %d iterations", search_type, _i+1)
+        logger.debug("[Bisection Search] Found target %s radius in %d iterations", search_type, _i + 1)
 
     return (radius_lower + radius_upper) / 2
-
-
 
 
 @SphField.step_registry("lin")

@@ -43,18 +43,19 @@ def which_pos_to_rotation(which_pos: Sequence[int]) -> np.ndarray:
         h1[i] = np.eye(3)[int(order[i])]
     return h1.T
 
+
 def hist_2d(
     x: np.ndarray,
     y: np.ndarray,
     weights: np.ndarray | None = None,
     parameters: np.ndarray | None = None,
     density: bool = True,
-    gridsize: tuple[int,int]= (100, 100),
+    gridsize: tuple[int, int] = (100, 100),
     nbins: int | None = None,
-    x_logscale: bool =False,
-    y_logscale: bool =False,
-    x_range: tuple[float,float] | None =None,
-    y_range: tuple[float,float] | None =None,
+    x_logscale: bool = False,
+    y_logscale: bool = False,
+    x_range: tuple[float, float] | None = None,
+    y_range: tuple[float, float] | None = None,
     **kwargs: Any,
 ) -> ImageData:
     """
@@ -93,28 +94,18 @@ def hist_2d(
         if len(y_range) != 2:
             raise RuntimeError("Range must be a length 2 list or array")
     else:
-        y_range = (
-            (np.log10(np.min(y)), np.log10(np.max(y)))
-            if y_logscale
-            else (np.min(y), np.max(y))
-        )
+        y_range = (np.log10(np.min(y)), np.log10(np.max(y))) if y_logscale else (np.min(y), np.max(y))
 
     if x_range is not None:
         if len(x_range) != 2:
             raise RuntimeError("Range must be a length 2 list or array")
     else:
-        x_range = (
-            (np.log10(np.min(x)), np.log10(np.max(x)))
-            if x_logscale
-            else (np.min(x), np.max(x))
-        )
+        x_range = (np.log10(np.min(x)), np.log10(np.max(x))) if x_logscale else (np.min(x), np.max(x))
 
     x = np.log10(x) if x_logscale else x
     y = np.log10(y) if y_logscale else y
 
-    ind = np.where(
-        (x > x_range[0]) & (x < x_range[1]) & (y > y_range[0]) & (y < y_range[1])
-    )
+    ind = np.where((x > x_range[0]) & (x < x_range[1]) & (y > y_range[0]) & (y < y_range[1]))
 
     x = x[ind[0]]
     y = y[ind[0]]
@@ -128,9 +119,7 @@ def hist_2d(
             weights = np.ones_like(parameters)
 
     def _histogram_generator(weights):
-        return np.histogram2d(
-            y, x, weights=weights, bins=(gridsize[1],gridsize[0]), range=(y_range, x_range)
-        )
+        return np.histogram2d(y, x, weights=weights, bins=(gridsize[1], gridsize[0]), range=(y_range, x_range))
 
     if parameters is not None:
         hist, ys, xs = _histogram_generator(weights * parameters)
@@ -149,6 +138,7 @@ def hist_2d(
 
     return ImageData(hist, xs, ys, x_range, y_range)
 
+
 @overload
 def render_2d(
     pos: np.ndarray,
@@ -160,7 +150,7 @@ def render_2d(
     y_range: Sequence[float] = ...,
     nbins: int | None = ...,
     subsample: int | None = ...,
-    ret_image: Literal[True] = True
+    ret_image: Literal[True] = True,
 ) -> ImageData: ...
 @overload
 def render_2d(
@@ -173,16 +163,20 @@ def render_2d(
     y_range: Sequence[float] = ...,
     nbins: int | None = ...,
     subsample: int | None = ...,
-    ret_image: Literal[False] = False
+    ret_image: Literal[False] = False,
 ) -> PyRenderImage | PyRenderImageFloat: ...
-def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Sequence[int] = (0, 1),
-            rotation_matrix: np.ndarray | None = None,
-            x_range: Sequence[float] = (-15, 15),
-            y_range: Sequence[float] = (-15, 15),
-            nbins: int | None = None,
-            subsample: int | None = None,
-            ret_image: bool = True
-            ) -> (ImageData | PyRenderImage | PyRenderImageFloat):
+def render_2d(
+    pos: np.ndarray,
+    mass: np.ndarray,
+    hsm: np.ndarray,
+    which_pos: Sequence[int] = (0, 1),
+    rotation_matrix: np.ndarray | None = None,
+    x_range: Sequence[float] = (-15, 15),
+    y_range: Sequence[float] = (-15, 15),
+    nbins: int | None = None,
+    subsample: int | None = None,
+    ret_image: bool = True,
+) -> ImageData | PyRenderImage | PyRenderImageFloat:
     """
     SPH-based 2D rendering (fast and smooth). Returns ImageData by default.
 
@@ -217,14 +211,15 @@ def render_2d(pos: np.ndarray, mass: np.ndarray, hsm: np.ndarray, which_pos: Seq
     if subsample is None:
         subsample = config.sph_render.subsample
 
-    render = get_render_image(x_range[0], x_range[1], y_range[0], y_range[1],
-                              nbins, nbins, get_kernel(), subsample, subsample)
+    render = get_render_image(
+        x_range[0], x_range[1], y_range[0], y_range[1], nbins, nbins, get_kernel(), subsample, subsample
+    )
     # Ensure rotation_matrix dtype matches particle.pos
     if rotation_matrix is not None:
         rot = rotation_matrix.T.astype(pos.dtype)
         pos = Rotate(pos, rot)
 
-    render.add_particle(pos[:,which_pos[0]],pos[:, which_pos[1]],mass,hsm)
+    render.add_particle(pos[:, which_pos[0]], pos[:, which_pos[1]], mass, hsm)
 
     if ret_image:
         return render.get_image()

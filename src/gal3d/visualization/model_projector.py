@@ -19,7 +19,7 @@ Implement your projector:
 >>> import numpy as np
 >>>
 >>> class SimpleDensityProjector(ModelProjectorBase):
-...     def _image(self, x_range, y_range, nbins=100, z_range=(-20,20), rotation=None, **kwargs):
+...     def _image(self, x_range, y_range, nbins=100, z_range=(-20, 20), rotation=None, **kwargs):
 ...         # Example: draw a 2D Gaussian as a stand-in for a model projection
 ...         xs = np.linspace(*x_range, nbins)
 ...         ys = np.linspace(*y_range, nbins)
@@ -39,6 +39,7 @@ Discover available projectors:
 >>> from gal3d.visualization.model_projector import ModelProjector
 >>> ModelProjector.available_plugins()
 """
+
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
@@ -76,7 +77,6 @@ class ModelProjectorBase(PluginBase):
         super().__init_subclass__(**kwargs)
         ModelProjector.register(cls)
 
-
     def __init__(self, cache_len: int = 100):
         """
         Parameters
@@ -103,33 +103,39 @@ class ModelProjectorBase(PluginBase):
         callable
             Wrapped function that includes caching behavior.
         """
+
         @wraps(func)
-        def wrapper(self: "ModelProjectorBase", x_range: tuple[float, float], y_range: tuple[float, float],
-                   nbins: int, z_range: tuple[float, float], rotation: NDArray[np.float64] | None = None,
-                   **kwargs: Any) -> ImageData:
+        def wrapper(
+            self: "ModelProjectorBase",
+            x_range: tuple[float, float],
+            y_range: tuple[float, float],
+            nbins: int,
+            z_range: tuple[float, float],
+            rotation: NDArray[np.float64] | None = None,
+            **kwargs: Any,
+        ) -> ImageData:
             rotation_bytes = rotation.tobytes() if rotation is not None else None
-            recod = (
-                x_range[0],
-                x_range[1],
-                y_range[0],
-                y_range[1],
-                nbins,
-                z_range[0],
-                z_range[1],
-                rotation_bytes,
-            )
+            recod = (x_range[0], x_range[1], y_range[0], y_range[1], nbins, z_range[0], z_range[1], rotation_bytes)
             if recod in self._image_cache:
-                logger.debug("Get image from cache for input: x:%s, y:%s, "
-                             "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, rotation)
+                logger.debug(
+                    "Get image from cache for input: x:%s, y:%s, z:%s, nbins:%d, rotation:%s",
+                    x_range,
+                    y_range,
+                    z_range,
+                    nbins,
+                    rotation,
+                )
                 return self._image_cache[recod]
             else:
-                logger.debug("Cache image, register input: x:%s, y:%s, "
-                             "z:%s, nbins:%d, rotation:%s",
-                             x_range, y_range, z_range, nbins, rotation)
-                self._image_cache[recod] = func(
-                    self, x_range, y_range, nbins, z_range, rotation, **kwargs
+                logger.debug(
+                    "Cache image, register input: x:%s, y:%s, z:%s, nbins:%d, rotation:%s",
+                    x_range,
+                    y_range,
+                    z_range,
+                    nbins,
+                    rotation,
                 )
+                self._image_cache[recod] = func(self, x_range, y_range, nbins, z_range, rotation, **kwargs)
             return self._image_cache[recod]
 
         return wrapper
@@ -160,7 +166,7 @@ class ModelProjectorBase(PluginBase):
         nbins: int = 100,
         z_range: tuple[float, float] = (-20, 20),
         rotation: NDArray[np.float64] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> ImageData:
         """Generate a projected image of the model with caching.
 
@@ -200,9 +206,7 @@ class ModelProjectorBase(PluginBase):
         if rotation is not None and rotation.shape != (3, 3):
             raise ValueError(f"Rotation matrix must be 3x3, got {rotation.shape}")
 
-        return self._image(
-            x_range, y_range, nbins, z_range=z_range, rotation=rotation, **kwargs
-        )
+        return self._image(x_range, y_range, nbins, z_range=z_range, rotation=rotation, **kwargs)
 
     @abstractmethod
     def _image(
@@ -212,7 +216,7 @@ class ModelProjectorBase(PluginBase):
         nbins: int = 100,
         z_range: tuple[float, float] = (-20, 20),
         rotation: NDArray[np.float64] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> ImageData:
         """Abstract method to generate a projected image.
 
@@ -243,10 +247,10 @@ class ModelProjectorBase(PluginBase):
 
     def image_xz(
         self,
-        x_range: tuple[float,float],
-        y_range: tuple[float,float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: tuple[float,float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
     ) -> ImageData:
         """Generate a projection in the x-z plane (viewing along +y).
 
@@ -270,19 +274,15 @@ class ModelProjectorBase(PluginBase):
             The projected image in the x-z plane.
         """
         return self.image(
-            x_range,
-            y_range,
-            nbins,
-            z_range,
-            rotation=np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T,
+            x_range, y_range, nbins, z_range, rotation=np.array([[1.0, 0, 0], [0, 0, 1.0], [0, 1.0, 0.0]]).T
         )
 
     def image_yz(
         self,
-        x_range: tuple[float,float],
-        y_range: tuple[float,float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
         nbins: int = 100,
-        z_range: tuple[float,float] = (-20, 20),
+        z_range: tuple[float, float] = (-20, 20),
     ) -> ImageData:
         """Generate a projection in the y-z plane (viewing along +x).
 
@@ -306,11 +306,7 @@ class ModelProjectorBase(PluginBase):
             The projected image in the y-z plane.
         """
         return self.image(
-            x_range,
-            y_range,
-            nbins,
-            z_range,
-            rotation=np.array([[0, 1.0, 0.0], [0, 0, 1.0], [1.0, 0, 0.0]]).T,
+            x_range, y_range, nbins, z_range, rotation=np.array([[0, 1.0, 0.0], [0, 0, 1.0], [1.0, 0, 0.0]]).T
         )
 
 

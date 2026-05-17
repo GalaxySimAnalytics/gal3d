@@ -17,5 +17,5 @@ __all__ = [
     "unit_vector3d",
     "Matmul",
     "iso_profile_by_moi",
-    "iso_profile_by_pair"
+    "iso_profile_by_pair",
 ]

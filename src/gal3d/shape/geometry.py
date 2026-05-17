@@ -14,7 +14,7 @@ __all__ = ["Geometry", "GeometryBase"]
 logger = logging.getLogger("gal3d.shape.geometry")
 
 
-class GeometryBase(WithParameter,PluginBase,Auto3DShape):
+class GeometryBase(WithParameter, PluginBase, Auto3DShape):
     """Abstract base class for geometry models."""
 
     def __init_subclass__(cls, **kwargs: Any):
@@ -25,8 +25,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         valid = getattr(cls, "_parameter_valid", True)
         delattr(cls, "_parameter_valid")
         if not valid:
-            logger.warning("GeometryPlugin found: %s but failed to load",
-                           cls.__name__)
+            logger.warning("GeometryPlugin found: %s but failed to load", cls.__name__)
             return
         Geometry.register(cls)
 
@@ -79,9 +78,7 @@ class GeometryBase(WithParameter,PluginBase,Auto3DShape):
         """
 
     @abstractmethod
-    def line_intersect(
-        self, pos1: NDArray[np.float64], pos2: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def line_intersect(self, pos1: NDArray[np.float64], pos2: NDArray[np.float64]) -> NDArray[np.float64]:
         """
         Compute the intersection between a line segment and the geometry surface.
 
@@ -239,7 +236,7 @@ class Geometry(PluginManager[GeometryBase]):
     """
     Factory class for accessing registered Geometry plugins.
     """
+
     _plugins = {}
     _plugin_module = "gal3d.shape.geometry_plugins"
     _base_class = GeometryBase
-

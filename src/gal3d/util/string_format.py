@@ -2,9 +2,11 @@
 String formatting utilities for terminal output.
 Modified from https://github.com/wx-ys/ansi-string-formatter
 """
+
 from functools import singledispatch
 
 __all__ = ["string_formatter"]
+
 
 def string_formatter(
     string: str,
@@ -284,9 +286,7 @@ def background_color(*args: (str | int | tuple)) -> str:
         raise TypeError("Invalid input format for background_color")
 
 
-def color(
-    bg_color: str | int | tuple | None = None, fg_color: str | int | tuple | None = None
-) -> str:
+def color(bg_color: str | int | tuple | None = None, fg_color: str | int | tuple | None = None) -> str:
     """
     Combine background and foreground color escape codes.
 
@@ -309,11 +309,7 @@ def color(
 
 
 def fontformat(
-    bold: bool = False,
-    thin: bool = False,
-    italics: bool = False,
-    underline: bool = False,
-    strikethrough: bool = False,
+    bold: bool = False, thin: bool = False, italics: bool = False, underline: bool = False, strikethrough: bool = False
 ) -> str:
     """
     Generate ANSI escape codes for font formatting.

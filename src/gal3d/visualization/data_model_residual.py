@@ -21,8 +21,9 @@ Quick start
 >>>
 >>> # Example model projector
 >>> class DummyProjector(ModelProjectorBase):
-...     def _image(self, x_range, y_range, nbins=100, z_range=(-20,20), rotation=None, **kwargs):
+...     def _image(self, x_range, y_range, nbins=100, z_range=(-20, 20), rotation=None, **kwargs):
 ...         import numpy as np
+...
 ...         xs = np.linspace(*x_range, nbins)
 ...         ys = np.linspace(*y_range, nbins)
 ...         X, Y = np.meshgrid(xs, ys, indexing="xy")
@@ -38,6 +39,7 @@ Quick start
 >>> fig = show_image_model_residual(data, DummyProjector())
 >>> plt.show()
 """
+
 from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
@@ -51,17 +53,9 @@ from numpy.typing import NDArray
 from gal3d.point import Particles
 from gal3d.util.array_operate import Rotate
 
-from .hist2d import (
-    hist_2d,
-    render_2d,
-    which_pos_to_rotation,
-)
+from .hist2d import hist_2d, render_2d, which_pos_to_rotation
 from .model_projector import ModelProjectorBase
-from .show import (
-    add_colorbar,
-    show_contour,
-    show_image,
-)
+from .show import add_colorbar, show_contour, show_image
 
 
 def show_data_model(
@@ -80,7 +74,7 @@ def show_data_model(
     linewidth: float = 0.8,
     color: str = "k",
     linestyle: str = "-",
-    render: bool = True
+    render: bool = True,
 ) -> tuple[tuple[AxesImage, AxesImage, AxesImage], tuple[QuadContourSet, QuadContourSet, QuadContourSet]]:
     """
     Draw data, model, and residual panels for one viewpoint (3 stacked subplots).
@@ -94,7 +88,9 @@ def show_data_model(
         rotation_matrix = np.eye(3)
     if render:
         data_image = render_2d(
-            data.pos,data.mass,data.hsm,
+            data.pos,
+            data.mass,
+            data.hsm,
             which_pos=which_pos,
             rotation_matrix=rotation_matrix,
             x_range=x_range,
@@ -125,12 +121,7 @@ def show_data_model(
         nlevel2 = nlevels[1]
         nlevel3 = nlevels[-1]
 
-    data_im = show_image(
-        data_image,
-        axesObj=axes[0],
-        logscale=logscale,
-        cmap=cmap,
-    )
+    data_im = show_image(data_image, axesObj=axes[0], logscale=logscale, cmap=cmap)
 
     data_contour = show_contour(
         data_image,
@@ -146,9 +137,7 @@ def show_data_model(
 
     rota = which_pos_to_rotation(which_pos)
     rota = Rotate(rotation_matrix, rota.T)
-    model_image = model.image(
-        x_range=x_range, y_range=y_range, nbins=nbins, z_range=z_range, rotation=rota
-    )
+    model_image = model.image(x_range=x_range, y_range=y_range, nbins=nbins, z_range=z_range, rotation=rota)
 
     model_im = show_image(
         model_image,
@@ -199,11 +188,7 @@ def show_data_model(
         vmax=data_im.colorizer.vmax,
     )
 
-    return (data_im, model_im, residual_im), (
-        data_contour,
-        model_contour,
-        residual_contour,
-    )
+    return (data_im, model_im, residual_im), (data_contour, model_contour, residual_contour)
 
 
 def set_tick_params(*args, **kwargs):
@@ -275,15 +260,7 @@ def plot_zoom(
         If an invalid zoom_loc value is provided.
     """
 
-    square = Rectangle(
-        xy,
-        length,
-        height,
-        linestyle=linestyle,
-        linewidth=linewidth,
-        edgecolor=color,
-        facecolor="none",
-    )
+    square = Rectangle(xy, length, height, linestyle=linestyle, linewidth=linewidth, edgecolor=color, facecolor="none")
     main_axs.add_patch(square)
 
     # Determine connection points based on zoom location
@@ -300,9 +277,7 @@ def plot_zoom(
         line1 = ((xy[0] + length, xy[1]), (xy[0] + length, xy[1] + height))
         line2 = ((xy[0], xy[1]), (xy[0], xy[1] + height))
     else:
-        raise ValueError(
-            f"Invalid zoom_loc '{zoom_loc}'. Must be one of: 'right', 'left', 'top', 'bottom'"
-        )
+        raise ValueError(f"Invalid zoom_loc '{zoom_loc}'. Must be one of: 'right', 'left', 'top', 'bottom'")
 
     # Create connection patches
     con1 = ConnectionPatch(
@@ -345,7 +320,7 @@ def show_image_model_residual(
     which_pos_all: list[tuple[int, int]] | None = None,
     rotation_matrix: NDArray[np.float64] | None = None,
     cmap: str = "turbo",
-    title_text: list[str] | None= None,
+    title_text: list[str] | None = None,
     titlesize: float = 25,
     ylabel_all: list[str] | None = None,
     xlabel_all: list[str] | None = None,
@@ -444,7 +419,7 @@ def show_image_model_residual(
             z_range=depth_z_range,
             nbins=nbins_large,
             nlevels=nlevels_large,
-            render=render
+            render=render,
         )
         allpanels.append(h1)
         h2 = show_data_model(
@@ -459,7 +434,7 @@ def show_image_model_residual(
             z_range=depth_z_range,
             nbins=nbins_zoom,
             nlevels=nlevels_zoom,
-            render=render
+            render=render,
         )
         allpanels.append(h2)
 
@@ -519,17 +494,9 @@ def show_image_model_residual(
 
     for i in range(4):
         position = axes[0][i].get_position()
-        cb_ax = fig.add_axes(
-            (position.x0, position.y1, position.x1 - position.x0, (1 - position.y1) / 6)
-        )
+        cb_ax = fig.add_axes((position.x0, position.y1, position.x1 - position.x0, (1 - position.y1) / 6))
         cb_ax.set_visible(False)
-        cb = add_colorbar(
-            allpanels[i][0][0],
-            ax=cb_ax,
-            loc="top",
-            size="100%",
-            pad=-(1 - position.y1) / 12,
-        )
+        cb = add_colorbar(allpanels[i][0][0], ax=cb_ax, loc="top", size="100%", pad=-(1 - position.y1) / 12)
         cb.set_label(r"$\Sigma_{*}\ [M_{\odot}/\mathrm{kpc^2}]$", fontsize=10)
 
     for i in range(3):
@@ -557,26 +524,13 @@ def show_image_model_residual(
     for i in range(2):
         position1 = axes[0][2 * i].get_position()
         position2 = axes[0][2 * i + 1].get_position()
-        fig.text(
-            (position1.x0 + position2.x1) / 2,
-            0.95,
-            title_text[i],
-            fontsize=titlesize,
-            va="center",
-            ha="center",
-        )
+        fig.text((position1.x0 + position2.x1) / 2, 0.95, title_text[i], fontsize=titlesize, va="center", ha="center")
 
     for i in range(3):
-        axes[i][0].set_ylabel(
-            ylabel_all[i],
-            fontsize=labelsize,
-        )
+        axes[i][0].set_ylabel(ylabel_all[i], fontsize=labelsize)
 
     for i in range(4):
-        axes[-1][i].set_xlabel(
-            xlabel_all[i],
-            fontsize=labelsize,
-        )
+        axes[-1][i].set_xlabel(xlabel_all[i], fontsize=labelsize)
 
     if savefile is not None:
         plt.savefig(savefile, bbox_inches="tight")

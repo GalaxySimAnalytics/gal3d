@@ -19,7 +19,7 @@ There are three main ways to construct an analyzer:
 - High-level, with sensible defaults (recommended for most users):
 
   >>> analyzer = Gal3DAnalyzer.analyze(pos, mass)
-  >>> result = analyzer.fit(num_step=100)     # log-spaced radii
+  >>> result = analyzer.fit(num_step=100)  # log-spaced radii
 
 - Medium-level, via configuration dataclasses:
 
@@ -34,14 +34,10 @@ There are three main ways to construct an analyzer:
 
   >>> particles = Particles(pos, mass)
   >>> field = SphField(particles, num_ray=1024).build_field_boundary(...)
-  >>> structure = Structure3D("ShiftEuler", "Ellipsoid_S",
-  ...                         "sums_dev_rscale", "isodensity_curve_dcall")
+  >>> structure = Structure3D("ShiftEuler", "Ellipsoid_S", "sums_dev_rscale", "isodensity_curve_dcall")
   >>> optimizer = Optimizer.get_plugin("OptimizerScipy")("trf")
   >>> analyzer = Gal3DAnalyzer.from_components(
-  ...     density_source=particles,
-  ...     field=field,
-  ...     structure=structure,
-  ...     optimizer=optimizer,
+  ...     density_source=particles, field=field, structure=structure, optimizer=optimizer
   ... )
 
 Quick start
@@ -58,11 +54,11 @@ Quick start
 >>>
 >>> # Analyze with sensible defaults and run a fit
 >>> analyzer = Gal3DAnalyzer.analyze(pos, mass)
->>> result = analyzer.fit(num_step=100)   # log-spaced radii by default
+>>> result = analyzer.fit(num_step=100)  # log-spaced radii by default
 >>>
 >>> # Or fit at specific radius
->>> single = analyzer.fit(radius=8.0)          # returns a ModelResult
->>> multiple = analyzer.fit(radius=[5., 10., 15.])  # aggregated ModelResult
+>>> single = analyzer.fit(radius=8.0)  # returns a ModelResult
+>>> multiple = analyzer.fit(radius=[5.0, 10.0, 15.0])  # aggregated ModelResult
 
 Tips
 ----
@@ -73,6 +69,7 @@ Tips
     >>> from gal3d.plugin import PluginManagerRegistry
     >>> PluginManagerRegistry.print_plugins()
 """
+
 from __future__ import annotations
 
 import logging
@@ -96,11 +93,11 @@ if TYPE_CHECKING:
     from .theoretical import TheoreticalDensityDistribution
 
 
-
 logger = logging.getLogger("gal3d.analyzer")
 
 
 T = TypeVar("T", bound="Gal3DAnalyzer")
+
 
 @dataclass
 class ParticleCfg(BaseConfig):
@@ -121,15 +118,17 @@ class ParticleCfg(BaseConfig):
         Extra keyword arguments passed to the density estimator
         constructor.
     """
+
     recenter: bool = True
     # Additional particle configuration options can be added here
-    rmax : float | None = None
+    rmax: float | None = None
     density_estimator: str = "DensityEstimatorSPH"
     estimator_kwargs: dict = dc_field(default_factory=dict)
 
     def validate(self) -> None:
         if self.rmax is not None and self.rmax <= 0:
             raise ValueError(f"rmax must be positive, got {self.rmax}")
+
 
 @dataclass
 class FieldCfg(BaseConfig):
@@ -180,23 +179,25 @@ class FieldCfg(BaseConfig):
     iso_res_b, iso_res_c : float, optional
         Resolution parameters passed down to iso-profile builders.
     """
+
     # boundary
     inner: float | None = None
     outer: float | None = None
     inner_frac: float = 0.9
-    inner_mode: str = "value"       # {"dist","pct","value"}
-    outer_mode: str = "value"       # {"dist","pct","value"}
+    inner_mode: str = "value"  # {"dist","pct","value"}
+    outer_mode: str = "value"  # {"dist","pct","value"}
     # sampling
     num_ray_min: int = 64
     num_ray_max: int = 1024
-    num_ray_scale: int = 150    # per 150 particles one ray
+    num_ray_scale: int = 150  # per 150 particles one ray
     profile_num_p: int = 500
     profile_step_mode: str = "log"
     # estimate iso-density profile
-    iso_method: str ="pair"
+    iso_method: str = "pair"
     iso_from_rays_func: bool = False
     iso_res_b: float = 0.2
     iso_res_c: float = 0.1
+
     def validate(self) -> None:
         if not (0 < self.inner_frac < 1):
             raise ValueError(f"inner_frac must be in (0, 1), got {self.inner_frac}")
@@ -210,6 +211,8 @@ class FieldCfg(BaseConfig):
             raise ValueError(f"profile_num_p must be > 0, got {self.profile_num_p}")
         if self.profile_step_mode not in ("log", "lin"):
             raise ValueError(f"profile_step_mode must be 'log' or 'lin', got {self.profile_step_mode!r}")
+
+
 @dataclass
 class StructureCfg(BaseConfig):
     """
@@ -228,14 +231,18 @@ class StructureCfg(BaseConfig):
         Error evaluation method name registered on
         :class:`gal3d.shape.Structure3D`.
     """
-    coordinate: str = "ShiftEuler"   # {"ShiftEuler","Euler","Cartesian"}
-    geometry: str = "Ellipsoid_S"    # {"Ellipsoid_S","Ellipsoid_T","Ellipsoid_O","Triaxial_N"}
-    error_func: str = "sums_dev_rscale"   # {"sums_dev_rscale","sums_dev_rhalf","sums_dev_density"}
+
+    coordinate: str = "ShiftEuler"  # {"ShiftEuler","Euler","Cartesian"}
+    geometry: str = "Ellipsoid_S"  # {"Ellipsoid_S","Ellipsoid_T","Ellipsoid_O","Triaxial_N"}
+    error_func: str = "sums_dev_rscale"  # {"sums_dev_rscale","sums_dev_rhalf","sums_dev_density"}
     error_method: str = "isodensity_curve_dcall"  # {"isodensity_curve_dcall","isodensity_point_dcall","profile_curve_dcall","profile_point_dcall"}
+
     def validate(self) -> None:
         valid_coords = {"ShiftEuler", "Euler", "Cartesian"}
         if self.coordinate not in valid_coords:
             raise ValueError(f"coordinate must be one of {valid_coords}, got {self.coordinate!r}")
+
+
 @dataclass
 class OptimizerCfg(BaseConfig):
     """
@@ -257,13 +264,17 @@ class OptimizerCfg(BaseConfig):
         Backend-specific algorithm options passed through the
         selected optimizer plugin.
     """
+
     preferred_plugin: str = "OptimizerLMFit"  # or "OptimizerScipy"
-    preferred_method: str = "least_squares"  # for LMFit: {"leastsq","least_squares"}, for Scipy: {"Powell","trf","dogbox"}
+    preferred_method: str = (
+        "least_squares"  # for LMFit: {"leastsq","least_squares"}, for Scipy: {"Powell","trf","dogbox"}
+    )
 
     default_plugin: str = "OptimizerScipy"
     default_method: str = "trf"  # for Scipy: {"Powell","trf","dogbox"}
 
     algo_options: dict[str, Any] = dc_field(default_factory=dict)
+
 
 @dataclass
 class Gal3DAnalyzerCfg:
@@ -286,6 +297,7 @@ class Gal3DAnalyzerCfg:
     >>> cfg.field.num_ray_max = 2048
     >>> analyzer = Gal3DAnalyzer.from_configs(pos, mass, config=cfg)
     """
+
     particle: ParticleCfg = dc_field(default_factory=ParticleCfg)
     field: FieldCfg = dc_field(default_factory=FieldCfg)
     structure: StructureCfg = dc_field(default_factory=StructureCfg)
@@ -324,14 +336,10 @@ class Gal3DAnalyzer:
 
     >>> particles = Particles(pos, mass)
     >>> field = SphField(particles, num_ray=1024).build_field_boundary(...)
-    >>> structure = Structure3D("ShiftEuler", "Ellipsoid_S",
-    ...                         "sums_dev_rscale", "isodensity_curve_dcall")
+    >>> structure = Structure3D("ShiftEuler", "Ellipsoid_S", "sums_dev_rscale", "isodensity_curve_dcall")
     >>> optimizer = Optimizer.get_plugin("OptimizerScipy")("trf")
     >>> analyzer = Gal3DAnalyzer.from_components(
-    ...     density_source=particles,
-    ...     field=field,
-    ...     structure=structure,
-    ...     optimizer=optimizer,
+    ...     density_source=particles, field=field, structure=structure, optimizer=optimizer
     ... )
 
     Once constructed, the main public API is:
@@ -378,8 +386,6 @@ class Gal3DAnalyzer:
         self.optimizer = optimizer
         self.config = config or Gal3DAnalyzerCfg()
 
-
-
     # ------------------------------------------------------------------
     # Lower-level builders: direct construction from components
     # ------------------------------------------------------------------
@@ -422,19 +428,11 @@ class Gal3DAnalyzer:
         """
         return cls(density_source=density_source, field=field, structure=structure, optimizer=optimizer, config=config)
 
-
-
     # ------------------------------------------------------------------
     # middle-level builders: construction from arrays + config
     # ------------------------------------------------------------------
     @classmethod
-    def from_configs(
-        cls: type[T],
-        pos: np.ndarray,
-        mass: np.ndarray,
-        *,
-        config: Gal3DAnalyzerCfg | None = None,
-    ) -> T:
+    def from_configs(cls: type[T], pos: np.ndarray, mass: np.ndarray, *, config: Gal3DAnalyzerCfg | None = None) -> T:
         """
         Construct an analyzer from arrays and a configuration object.
 
@@ -465,13 +463,8 @@ class Gal3DAnalyzer:
         optimizer = cls._build_optimizer(cfg.optimizer)
 
         return cls.from_components(
-            density_source=density_source,
-            field=field,
-            structure=structure,
-            optimizer=optimizer,
-            config=cfg,
+            density_source=density_source, field=field, structure=structure, optimizer=optimizer, config=cfg
         )
-
 
     # ------------------------------------------------------------------
     # High-level builder: analyze from arrays + auto config
@@ -489,7 +482,7 @@ class Gal3DAnalyzer:
         outer: float | None = None,
         outer_mode: str | None = None,
         config: Gal3DAnalyzerCfg | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> T:
         """
         High-level helper to analyze particle data and build an analyzer.
@@ -543,13 +536,10 @@ class Gal3DAnalyzer:
         cfg.particle.recenter = recenter
 
         cls._apply_field_overrides(
-            cfg,
-            inner=inner, outer=outer,
-            inner_mode=inner_mode, outer_mode=outer_mode,
-            inner_frac=inner_frac,
+            cfg, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode, inner_frac=inner_frac
         )
 
-        return cls.from_configs(pos, mass, config = cfg)
+        return cls.from_configs(pos, mass, config=cfg)
 
     @classmethod
     def analyze_theoretical_model(
@@ -596,10 +586,7 @@ class Gal3DAnalyzer:
         cfg = config or Gal3DAnalyzerCfg()
 
         cls._apply_field_overrides(
-            cfg,
-            inner=inner, outer=outer,
-            inner_mode=inner_mode, outer_mode=outer_mode,
-            inner_frac=inner_frac,
+            cfg, inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode, inner_frac=inner_frac
         )
 
         field = cls._build_field(model, cfg.field)
@@ -607,23 +594,14 @@ class Gal3DAnalyzer:
         optimizer = cls._build_optimizer(cfg.optimizer)
 
         return cls.from_components(
-            density_source=model,
-            field=field,
-            structure=structure,
-            optimizer=optimizer,
-            config=cfg,
+            density_source=model, field=field, structure=structure, optimizer=optimizer, config=cfg
         )
-
 
     # ------------------------------------------------------------------
     # component builders
     # ------------------------------------------------------------------
     @staticmethod
-    def _build_particles(
-        pos: np.ndarray,
-        mass: np.ndarray,
-        cfg: ParticleCfg,
-    ) -> Particles:
+    def _build_particles(pos: np.ndarray, mass: np.ndarray, cfg: ParticleCfg) -> Particles:
         """
         Build the particle container from position/mass arrays.
 
@@ -651,7 +629,6 @@ class Gal3DAnalyzer:
         )
         return particles
 
-
     @staticmethod
     def _apply_field_overrides(
         cfg: Gal3DAnalyzerCfg,
@@ -677,11 +654,7 @@ class Gal3DAnalyzer:
             cfg.field.inner_frac = inner_frac
 
     @classmethod
-    def _auto_field_bounds(
-        cls,
-        density_source: DensitySource,
-        cfg: FieldCfg,
-    ) -> tuple[float, str, float, str]:
+    def _auto_field_bounds(cls, density_source: DensitySource, cfg: FieldCfg) -> tuple[float, str, float, str]:
         """
         Automatically determine inner and outer field boundaries.
 
@@ -726,19 +699,12 @@ class Gal3DAnalyzer:
                     outer = float(np.max(density_source.r))
                 outer_mode = "dist"
             else:
-                raise ValueError(
-                    "outer must be provided for continuous DensitySource models "
-                    "without particle radii."
-                )
+                raise ValueError("outer must be provided for continuous DensitySource models without particle radii.")
 
         return inner, inner_mode, outer, outer_mode
 
     @classmethod
-    def _build_field(
-        cls,
-        density_source: DensitySource,
-        cfg: FieldCfg,
-    ) -> SphField:
+    def _build_field(cls, density_source: DensitySource, cfg: FieldCfg) -> SphField:
         """
         Build a :class:`SphField` from density_source and configuration.
 
@@ -772,16 +738,11 @@ class Gal3DAnalyzer:
 
         field = (
             SphField(density_source, num_ray=num_ray)
-            .build_field_boundary(inner=inner, outer=outer,
-                                  inner_mode=inner_mode, outer_mode=outer_mode)
-            .build_profile_sample(num_p=cfg.profile_num_p,
-                                  step_mode=cfg.profile_step_mode)
+            .build_field_boundary(inner=inner, outer=outer, inner_mode=inner_mode, outer_mode=outer_mode)
+            .build_profile_sample(num_p=cfg.profile_num_p, step_mode=cfg.profile_step_mode)
             .build_profile_interpolator()
             .build_isodensity_profile(
-                method=cfg.iso_method,
-                from_rays_func=cfg.iso_from_rays_func,
-                res_b=cfg.iso_res_b,
-                res_c=cfg.iso_res_c,
+                method=cfg.iso_method, from_rays_func=cfg.iso_from_rays_func, res_b=cfg.iso_res_b, res_c=cfg.iso_res_c
             )
         )
         min_r = np.min(field.inner_r)
@@ -790,12 +751,8 @@ class Gal3DAnalyzer:
 
         return field
 
-
     @classmethod
-    def _build_structure(
-        cls,
-        cfg: StructureCfg,
-    ) -> Structure3D:
+    def _build_structure(cls, cfg: StructureCfg) -> Structure3D:
         """
         Build a :class:`Structure3D` instance from configuration.
 
@@ -810,18 +767,12 @@ class Gal3DAnalyzer:
             Geometric model instance.
         """
         structure = Structure3D(
-            coordinate=cfg.coordinate,
-            geometry=cfg.geometry,
-            error_func=cfg.error_func,
-            error_method=cfg.error_method,
+            coordinate=cfg.coordinate, geometry=cfg.geometry, error_func=cfg.error_func, error_method=cfg.error_method
         )
         return structure
 
     @classmethod
-    def _build_optimizer(
-        cls,
-        cfg: OptimizerCfg,
-    ) -> OptimizerBase:
+    def _build_optimizer(cls, cfg: OptimizerCfg) -> OptimizerBase:
         """
         Build an optimizer from configuration.
 
@@ -839,18 +790,19 @@ class Gal3DAnalyzer:
             Constructed optimizer instance.
         """
         if cfg.preferred_plugin in Optimizer.available_plugins():
-            optimizer = Optimizer.get_plugin(cfg.preferred_plugin)(
-                cfg.preferred_method, **cfg.algo_options
-            )
+            optimizer = Optimizer.get_plugin(cfg.preferred_plugin)(cfg.preferred_method, **cfg.algo_options)
         else:
-            logger.info("Preferred optimizer plugin '%s' not available; using default '%s'.", cfg.preferred_plugin, cfg.default_plugin)
-            optimizer = Optimizer.get_plugin(cfg.default_plugin)(
-                cfg.default_method, **cfg.algo_options
+            logger.info(
+                "Preferred optimizer plugin '%s' not available; using default '%s'.",
+                cfg.preferred_plugin,
+                cfg.default_plugin,
             )
+            optimizer = Optimizer.get_plugin(cfg.default_plugin)(cfg.default_method, **cfg.algo_options)
         return optimizer
 
-
-    def fit(self, num_step: int = 200, step_mode: str = "log", radius: float | Iterable[float] | None = None , **kwargs: Any) -> ModelResult:
+    def fit(
+        self, num_step: int = 200, step_mode: str = "log", radius: float | Iterable[float] | None = None, **kwargs: Any
+    ) -> ModelResult:
         """
         Fit the model across a range of radii.
 

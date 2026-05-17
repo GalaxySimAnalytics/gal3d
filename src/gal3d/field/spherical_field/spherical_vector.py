@@ -18,7 +18,7 @@ __all__ = ["SphVector"]
 
 class SphSampler:
     @staticmethod
-    def fibonacci_sampling(n_sample: int = 256) -> tuple[np.ndarray,np.ndarray]:
+    def fibonacci_sampling(n_sample: int = 256) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate points on the unit sphere using the Fibonacci sphere sampling method.
 
@@ -39,7 +39,7 @@ class SphSampler:
         return fibonacci_sampling(n_sample)
 
     @staticmethod
-    def muller_sampling(n_sample: int = 256) -> tuple[np.ndarray,np.ndarray]:
+    def muller_sampling(n_sample: int = 256) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate points on the unit sphere using the Muller method.
 
@@ -67,7 +67,7 @@ class SphSampler:
         return cartesian_coords, sampling_sphere_coor
 
     @staticmethod
-    def polar_method(n_sample: int = 256) -> tuple[np.ndarray,np.ndarray]:
+    def polar_method(n_sample: int = 256) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate points on the unit sphere using the polar method.
 
@@ -98,13 +98,21 @@ class SphSampler:
 
         return pos, sph
 
+
 class SphVectorMeta(type):
     """Metaclass for SphVector to implement singleton pattern and limit max instances"""
 
-    _instances: CacheDict[tuple[int,str], "SphVector"] = CacheDict(cache_len = config.general.max_instances)
+    _instances: CacheDict[tuple[int, str], "SphVector"] = CacheDict(cache_len=config.general.max_instances)
 
-    def __call__(cls, n_sample: int = 512, method: str = "fibonacci",
-                pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any) -> "SphVector":
+    def __call__(
+        cls,
+        n_sample: int = 512,
+        method: str = "fibonacci",
+        pos: np.ndarray | None = None,
+        *,
+        verbose: bool = True,
+        **kwargs: Any,
+    ) -> "SphVector":
         """
         Control the creation process of SphVector instances to implement the singleton pattern.
         """
@@ -127,16 +135,25 @@ class SphVectorMeta(type):
 
         return instance
 
+
 class SphVector(metaclass=SphVectorMeta):
     """The coordinates of N points uniformly distributed on the unit sphere"""
 
     METHOD: dict[str, Callable[[int], tuple[np.ndarray, np.ndarray]]] = {
-    "fibonacci": SphSampler.fibonacci_sampling,
-    "muller": SphSampler.muller_sampling,
-    "polar": SphSampler.polar_method
+        "fibonacci": SphSampler.fibonacci_sampling,
+        "muller": SphSampler.muller_sampling,
+        "polar": SphSampler.polar_method,
     }
 
-    def __init__(self, n_sample: int = 512, method: str = "fibonacci", pos: np.ndarray | None = None, *, verbose: bool = True, **kwargs: Any):
+    def __init__(
+        self,
+        n_sample: int = 512,
+        method: str = "fibonacci",
+        pos: np.ndarray | None = None,
+        *,
+        verbose: bool = True,
+        **kwargs: Any,
+    ):
         """
         Initialize the SphVector class with N points uniformly distributed on the unit sphere.
 
@@ -185,16 +202,17 @@ class SphVector(metaclass=SphVectorMeta):
         self.voronoi = SphericalVoronoi(self.pos)
         self.voronoi.sort_vertices_of_regions()
         self.area = SphericalVoronoi.calculate_areas(self.voronoi)
-        target_area = 4*np.pi/n_sample
-        self.uniformity = 1 - np.mean(np.abs(self.area - target_area))/target_area
+        target_area = 4 * np.pi / n_sample
+        self.uniformity = 1 - np.mean(np.abs(self.area - target_area)) / target_area
 
         if verbose:
             logger.info(
                 "%d points on the sphere by %s method have the uniformity of %.3f",
-                self.num, method, self.uniformity * 100
+                self.num,
+                method,
+                self.uniformity * 100,
             )
-        self._tree: KDTree =  KDTree(self.pos)
-
+        self._tree: KDTree = KDTree(self.pos)
 
     def assign_points(self, pos: np.ndarray) -> np.ndarray:
         """
@@ -224,7 +242,7 @@ class SphVector(metaclass=SphVectorMeta):
             return self._tree.query(pos, k=1, workers=config.densityknn.workers)[1]
 
     @staticmethod
-    def cal_uniformity(pos: np.ndarray, cached_voronoi: SphericalVoronoi | None =None) -> float:
+    def cal_uniformity(pos: np.ndarray, cached_voronoi: SphericalVoronoi | None = None) -> float:
         pos_uni = unit_vector3d(pos)
         if cached_voronoi is None or not np.array_equal(cached_voronoi.points, pos_uni):
             cached_voronoi = SphericalVoronoi(pos_uni)
@@ -233,4 +251,3 @@ class SphVector(metaclass=SphVectorMeta):
         target_area = 4 * np.pi / len(pos)
         uniformity = 1 - np.mean(np.abs(area - target_area)) / target_area
         return uniformity
-

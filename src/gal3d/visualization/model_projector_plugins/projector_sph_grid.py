@@ -7,14 +7,12 @@ from gal3d.field.spherical_field.spherical_vector import SphVector
 from gal3d.optimization.result import ModelResult
 from gal3d.util.array_operate import Rotate
 from gal3d.visualization.hist2d import hist_2d
-from gal3d.visualization.model_projector import ImageData, ModelProjectorBase
+from gal3d.visualization.model_projector import ModelProjectorBase
+from gal3d.visualization.show import ImageData
 
 
 class ProjectorSphGrid(ModelProjectorBase):
-    def __init__(
-        self, model: ModelResult, N_ray: int = 6000, num_p: int = 200, cache_len: int = 100, **kwargs: Any
-    ):
-
+    def __init__(self, model: ModelResult, N_ray: int = 6000, num_p: int = 200, cache_len: int = 100, **kwargs: Any):
         inner_model = kwargs.get("inner_model", model[0])
         outer_model = kwargs.get("outer_model", model[-1])
 
@@ -25,16 +23,7 @@ class ProjectorSphGrid(ModelProjectorBase):
 
         points_r = np.geomspace(total_inner_r, total_outer_r, num_p).T
 
-        inner_r = np.array(
-            [
-                np.convolve(
-                    points_r[i],
-                    [0.5, 0.5],
-                    mode="same",
-                )
-                for i in range(len(points_r))
-            ]
-        )
+        inner_r = np.array([np.convolve(points_r[i], [0.5, 0.5], mode="same") for i in range(len(points_r))])
         inner_r[:, 0] = 0
         outer_r = np.roll(inner_r, -1, axis=1)
         outer_r[:, -1] = (points_r[:, -1] * 3 - points_r[:, -2]) / 2
@@ -68,7 +57,7 @@ class ProjectorSphGrid(ModelProjectorBase):
         nbins: int = 100,
         z_range: tuple[float, float] = (-20, 20),
         rotation: np.ndarray | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> ImageData:
         if rotation is not None:
             new_pos = Rotate(self.pos, rotation)

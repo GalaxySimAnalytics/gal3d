@@ -13,7 +13,8 @@ __all__ = ["Coordinate", "CoordinateBase"]
 
 logger = logging.getLogger("gal3d.shape.coordinate")
 
-class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
+
+class CoordinateBase(WithParameter, PluginBase, Auto3DShape):
     """
     Abstract base class for coordinate transformation plugins.
 
@@ -37,8 +38,7 @@ class CoordinateBase(WithParameter, PluginBase,Auto3DShape):
         valid = getattr(cls, "_parameter_valid", True)
         delattr(cls, "_parameter_valid")
         if not valid:
-            logger.warning("CoordinatePlugin found: %s but failed to load",
-                           cls.__name__)
+            logger.warning("CoordinatePlugin found: %s but failed to load", cls.__name__)
             return
         Coordinate.register(cls)
 
@@ -131,7 +131,7 @@ class Coordinate(PluginManager[CoordinateBase]):
     """
     Factory class for accessing registered Coordinate plugins.
     """
+
     _plugins = {}
     _plugin_module = "gal3d.shape.coordinate_plugins"
     _base_class = CoordinateBase
-

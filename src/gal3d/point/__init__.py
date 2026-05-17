@@ -1,4 +1,3 @@
-
 """
 Module for computing centers, inertia tensors, principal axes, and density estimations using density estimators.
 
@@ -12,6 +11,7 @@ Usage examples
 >>> particles.parameter
 
 """
+
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -24,6 +24,7 @@ from .global_calculator import GlobalCalculator
 
 if TYPE_CHECKING:
     from gal3d.visualization.show import ImageData
+
 
 class Particles(GlobalCalculator, DensitySource):
     """
@@ -64,21 +65,17 @@ class Particles(GlobalCalculator, DensitySource):
         if rmax is not None:
             if rmax <= 0:
                 raise ValueError(f"rmax must be positive; got {rmax}")
-            sel = (self.r<rmax)
+            sel = self.r < rmax
             self.pos = self.pos[sel]
             self.mass = self.mass[sel]
             self.r = self.r[sel]
         estimator_kwargs = {} if estimator_kwargs is None else estimator_kwargs
 
         if isinstance(density_estimator, str):
-            self.estimator = DensityEstimator.get_plugin(density_estimator)(
-                self.pos, self.mass, **estimator_kwargs
-            )
+            self.estimator = DensityEstimator.get_plugin(density_estimator)(self.pos, self.mass, **estimator_kwargs)
         elif isinstance(density_estimator, type) and issubclass(density_estimator, DensityEstimatorBase):
-            self.estimator = density_estimator(
-                self.pos, self.mass, **estimator_kwargs
-            )
-        elif isinstance(density_estimator,DensityEstimatorBase):
+            self.estimator = density_estimator(self.pos, self.mass, **estimator_kwargs)
+        elif isinstance(density_estimator, DensityEstimatorBase):
             self.estimator = density_estimator
         else:
             raise TypeError(
@@ -87,7 +84,7 @@ class Particles(GlobalCalculator, DensitySource):
             )
 
     def _evaluate_density(self, pos):
-        """ Used internally by DensitySource to evaluate density at given positions. """
+        """Used internally by DensitySource to evaluate density at given positions."""
         return self.estimator.get_parameter(pos)
 
     def __del__(self):
@@ -161,7 +158,6 @@ class Particles(GlobalCalculator, DensitySource):
         """
         return self.estimator.get_gradient(target_pos, **kwargs)
 
-
     def estimate_spatial_resolution(self) -> float:
         """
         Estimate a spatial resolution scale from the half-smoothing length (hsm).
@@ -196,7 +192,6 @@ class Particles(GlobalCalculator, DensitySource):
         """
         return DensityEstimator.available_plugins()
 
-
     def project_2d(
         self,
         x_range: tuple[float, float],
@@ -206,7 +201,7 @@ class Particles(GlobalCalculator, DensitySource):
         z_range: tuple[float, float] | None = None,
         render_by: Literal["sph", "los"] | None = "sph",
         subsample: int | None = None,
-        **kwargs:Any,
+        **kwargs: Any,
     ) -> "ImageData":
         """
         Project particles onto a 2-D surface-density image.
@@ -250,15 +245,12 @@ class Particles(GlobalCalculator, DensitySource):
             The always-available LOS integration fallback.
         """
         from gal3d.visualization.hist2d import Rotate, hist_2d, render_2d
+
         if render_by is None:
             if rotation_matrix is not None:
                 rot = rotation_matrix.T
                 pos = Rotate(self.pos, rot)
-            return hist_2d(pos[:,0],pos[:,1],
-                           weights=self.mass,
-                           nbins=resolution,
-                           x_range=x_range,
-                            y_range=y_range)
+            return hist_2d(pos[:, 0], pos[:, 1], weights=self.mass, nbins=resolution, x_range=x_range, y_range=y_range)
         elif render_by == "sph":
             return render_2d(
                 pos=self.pos,
@@ -282,4 +274,3 @@ class Particles(GlobalCalculator, DensitySource):
             )
         else:
             raise ValueError(f"Invalid render_by value: {render_by}. Must be one of 'sph', 'los', or None.")
-

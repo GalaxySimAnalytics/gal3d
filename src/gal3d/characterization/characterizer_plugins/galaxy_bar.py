@@ -1,6 +1,7 @@
 """
 Module for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
 """
+
 from typing import Any
 
 import numpy as np
@@ -11,6 +12,8 @@ from gal3d.optimization.result import ModelResult
 from gal3d.shape.coordinate_plugins.euler_shift import EulerAngles
 
 __all__ = ["Bar"]
+
+
 class Bar(CharacterizerBase):
     def __init__(self, data: dict[str, np.ndarray] | ModelResult, angle_clip: float | None = 3.0):
         """
@@ -57,11 +60,11 @@ class Bar(CharacterizerBase):
             raise KeyError("Both 'eps' and 'eps_ab' are missing from the data dictionary.")
         if data.get("pa") is not None:
             self.data["pa"] = np.asarray(data["pa"])[dex]
-            self.pa = self.data["pa"]*180/np.pi         # radians to degrees
+            self.pa = self.data["pa"] * 180 / np.pi  # radians to degrees
         elif data.get("angle") is not None:
             self.data["angle"] = np.asarray(data["angle"])[dex]
-            rota = EulerAngles.from_euler(seq="zyx",angles=self.data["angle"])
-            self.pa = rota.magnitude()*180/np.pi
+            rota = EulerAngles.from_euler(seq="zyx", angles=self.data["angle"])
+            self.pa = rota.magnitude() * 180 / np.pi
         else:
             raise KeyError("Both 'pa' and 'angle' are missing from the data dictionary.")
 
@@ -86,7 +89,7 @@ class Bar(CharacterizerBase):
         angle_dev: float = 10,
         dec: float = 0.85,
         detail: bool = False,
-        other_keys: list[str] | str | None = None
+        other_keys: list[str] | str | None = None,
     ) -> dict[str, Any]:
         """
         Measure galaxy bar parameters using ellipticity profile analysis.
@@ -156,21 +159,14 @@ class Bar(CharacterizerBase):
         """
 
         R_start, R_end = self.select_region(eps_cond=eps_cond)
-        R_start, R_end = self.filter_region_length(
-            R_start, R_end, start_max=start_max, range_min=range_min
-        )
+        R_start, R_end = self.filter_region_length(R_start, R_end, start_max=start_max, range_min=range_min)
         if R_start.size == 0 or R_end.size == 0:
-            return {
-                "flag": 0,
-                "eps_max": np.max(self.eps),
-                "R_max": self.a[np.argmax(self.eps)],
-                "R_bar": 0.0,
-            }
+            return {"flag": 0, "eps_max": np.max(self.eps), "R_max": self.a[np.argmax(self.eps)], "R_bar": 0.0}
 
         R_start_val: float = float(R_start[0])
         R_end_val: float = float(R_end[0])
 
-        eps_max, R_max, pa_max = self.get_max_epsRpa(R_start_val, R_end_val, R_cond=start_max, R_max_max = R_max_max)
+        eps_max, R_max, pa_max = self.get_max_epsRpa(R_start_val, R_end_val, R_cond=start_max, R_max_max=R_max_max)
 
         eps_dc, R_dc, f_eps_R = self.get_dec_epsRpa(R_max, eps_max, dec=dec)
         eps_pa, R_pa = self.get_dev_epsRpa(R_max, angle_cond=angle_dev)
@@ -178,7 +174,7 @@ class Bar(CharacterizerBase):
         bar_flag = 0
         if (R_start_val > 0) and (eps_max > eps_cond) and ((R_pa - R_max) > range_min):
             bar_flag = 1
-        result = {"flag": bar_flag, "eps_max":eps_max, "R_max": R_max, "R_bar": min(R_dc,R_pa)}
+        result = {"flag": bar_flag, "eps_max": eps_max, "R_max": R_max, "R_bar": min(R_dc, R_pa)}
 
         if other_keys is not None and not isinstance(other_keys, (str, list)):
             raise TypeError("Parameter 'other_keys' must be a string, list, or None.")
@@ -192,10 +188,10 @@ class Bar(CharacterizerBase):
         }
 
         if other_keys:
-            if isinstance(other_keys,str):
+            if isinstance(other_keys, str):
                 other_keys = [other_keys]
             for i in other_keys:
-                f_r = PchipInterpolator(self.a, self.data[i],extrapolate=False)
+                f_r = PchipInterpolator(self.a, self.data[i], extrapolate=False)
                 result[f"R_max_{i}"] = f_r(result["R_max"])
                 result[f"R_bar_{i}"] = f_r(result["R_bar"])
                 if detail:
@@ -210,10 +206,7 @@ class Bar(CharacterizerBase):
         result.update(update)
         return result
 
-    def select_region(
-        self,
-        eps_cond: float = 0.25,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def select_region(self, eps_cond: float = 0.25) -> tuple[np.ndarray, np.ndarray]:
         """
         Identify regions with ellipticity above threshold.
 
@@ -298,21 +291,21 @@ class Bar(CharacterizerBase):
             Threshold multiplier for filtering outliers (default: 3.0).
 
         """
-        n = max(int(len(self.a)/40),1) if n is None else n
+        n = max(int(len(self.a) / 40), 1) if n is None else n
         mean_dev = np.zeros(len(self.a))
         mean_std = np.zeros(len(self.a))
         for i in range(len(self.pa)):
             neighbors = []
             # left
-            for k in range(1, n+1):
+            for k in range(1, n + 1):
                 if i - k >= 0:
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i-k]))
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i - k]))
             # right
-            for k in range(1, n+1):
+            for k in range(1, n + 1):
                 if i + k < len(self.pa):
-                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i+k]))
+                    neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i + k]))
             # If one side is insufficient, supplement the other side
-            while len(neighbors) < 2*n:
+            while len(neighbors) < 2 * n:
                 # Preferentially supplement the left side
                 if i - (n + len(neighbors) - n) >= 0:
                     neighbors.append(Bar.inter_angle(self.pa[i], self.pa[i - (n + len(neighbors) - n)]))
@@ -335,7 +328,9 @@ class Bar(CharacterizerBase):
         self.pa_dev_mean = mean_dev
         self.pa_dev_std = mean_std
 
-    def get_max_epsRpa(self, R_start: float, R_end: float, R_cond: float = 3, R_max_max: float = 5,) -> tuple[float, float, float]:
+    def get_max_epsRpa(
+        self, R_start: float, R_end: float, R_cond: float = 3, R_max_max: float = 5
+    ) -> tuple[float, float, float]:
         """
         Find maximum ellipticity and corresponding parameters in a region.
 

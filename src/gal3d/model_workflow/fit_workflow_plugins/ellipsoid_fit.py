@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("gal3d.fit_workflow_plugins")
 
+
 class EllipsoidFitWorkflow(FitWorkflowBase):
     """
     Workflow for fitting ellipsoidal or generalized ellipsoidal structures.
@@ -54,12 +55,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         return is_supported
 
-    def _fit_single(
-        self,
-        obj: FitInput,
-        r: float,
-        **kwargs: Any,
-    ) -> ModelResult:
+    def _fit_single(self, obj: FitInput, r: float, **kwargs: Any) -> ModelResult:
         """
         Fit an ellipsoidal or generalized ellipsoidal structure at semi-major
         axis ``r``.
@@ -89,14 +85,14 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Process input parameters
         a = r
-        var_a        = min(max(kwargs.get("var_a", 0.3), 0), 0.99)
-        var_cen      = kwargs.get("var_cen", 0.1)
-        single_fit   = kwargs.get("single_fit", False)
-        fix_eps      = kwargs.get("fix_eps", True)
+        var_a = min(max(kwargs.get("var_a", 0.3), 0), 0.99)
+        var_cen = kwargs.get("var_cen", 0.1)
+        single_fit = kwargs.get("single_fit", False)
+        fix_eps = kwargs.get("fix_eps", True)
         init_parameters = kwargs.get("init_parameters", {})
         upper_bounds = kwargs.get("upper_bounds", {})
         lower_bounds = kwargs.get("lower_bounds", {})
-        min_uniform  = kwargs.get("min_uniform", 0.9)
+        min_uniform = kwargs.get("min_uniform", 0.9)
 
         # Generate data for fitting
         data = obj.field.generate(a, for_fit=True)
@@ -110,34 +106,38 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         if N_p < obj.field.rays.num:
             uni = SphVector.cal_uniformity(data["pos"])
             if uni < min_uniform:
-                raise PoorUniformityError(
-                    f"Poor point distribution uniformity detected: < {min_uniform}"
-                )
+                raise PoorUniformityError(f"Poor point distribution uniformity detected: < {min_uniform}")
 
         if var_cen is not None:
-            if ("x" in init_parameters and "y" in init_parameters
-                    and "z" in init_parameters):
+            if "x" in init_parameters and "y" in init_parameters and "z" in init_parameters:
                 curr_cen = np.mean(data["pos"], axis=0)
                 for ax, idx in zip(["x", "y", "z"], [0, 1, 2], strict=False):
                     if abs(curr_cen[idx] - init_parameters[ax]) > var_cen * a:
                         del init_parameters[ax]
 
-        is_standard = (geometry_name == "Ellipsoid") or (
-            geometry_name == "Ellipsoid_S" and single_fit
-        )
+        is_standard = (geometry_name == "Ellipsoid") or (geometry_name == "Ellipsoid_S" and single_fit)
 
-        if is_standard: # Simple case: standard ellipsoid fitting
+        if is_standard:  # Simple case: standard ellipsoid fitting
             return self._fit_standard_ellipsoid(
-                obj, data, a, var_a, var_cen,
-                init_parameters, upper_bounds, lower_bounds, info,
+                obj, data, a, var_a, var_cen, init_parameters, upper_bounds, lower_bounds, info
             )
-        else:           # Complex case: two-step generalized ellipsoid fitting
+        else:  # Complex case: two-step generalized ellipsoid fitting
             return self._fit_generalized_ellipsoid(
-                obj, data, a, var_a, var_cen, fix_eps,
-                init_parameters, upper_bounds, lower_bounds, info,
+                obj, data, a, var_a, var_cen, fix_eps, init_parameters, upper_bounds, lower_bounds, info
             )
 
-    def _fit_standard_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float | None, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
+    def _fit_standard_ellipsoid(
+        self,
+        obj: "Gal3DAnalyzer",
+        data: dict,
+        a: float,
+        var_a: float,
+        var_cen: float | None,
+        init_parameters: dict,
+        upper_bounds: dict,
+        lower_bounds: dict,
+        info: dict,
+    ) -> ModelResult:
         """
         Fit a standard ellipsoidal structure, or fit a generalized ellipsoid only once.
         """
@@ -173,29 +173,37 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set.add_info(**info)
 
         # Prepare optimization function and bounds
-        parameters_set["eps_ab"] = max(parameters_set["eps_ab"],0.1)
-        parameters_set["eps_bc"] = max(parameters_set["eps_bc"],0.1)
+        parameters_set["eps_ab"] = max(parameters_set["eps_ab"], 0.1)
+        parameters_set["eps_bc"] = max(parameters_set["eps_bc"], 0.1)
 
         # Run optimization
-        op_res = obj.optimizer.fit(
-            obj.structure._error_method, parameters_set, func_kwargs=data)
+        op_res = obj.optimizer.fit(obj.structure._error_method, parameters_set, func_kwargs=data)
 
         # Set optimized values and return result
-        for i,j in op_res.params.items():
+        for i, j in op_res.params.items():
             parameters_set[i] = j
         return ModelResult(obj.structure, op_res, parameters_set)
 
-    def _fit_generalized_ellipsoid(self, obj: "Gal3DAnalyzer", data: dict, a: float, var_a: float, var_cen: float | None, fix_eps: bool, init_parameters: dict, upper_bounds: dict, lower_bounds: dict, info: dict) -> ModelResult:
+    def _fit_generalized_ellipsoid(
+        self,
+        obj: "Gal3DAnalyzer",
+        data: dict,
+        a: float,
+        var_a: float,
+        var_cen: float | None,
+        fix_eps: bool,
+        init_parameters: dict,
+        upper_bounds: dict,
+        lower_bounds: dict,
+        info: dict,
+    ) -> ModelResult:
         """
         Fit a generalized ellipsoidal structure (Ellipsoid_S) using a two-step approach.
         """
 
         # Step 1: Create standard ellipsoid for initial fitting
         ellipsoid = Structure3D(
-            obj.structure._coordinate,
-            "Ellipsoid",
-            obj.structure._error_func_name,
-            obj.structure._error_method_name,
+            obj.structure._coordinate, "Ellipsoid", obj.structure._error_func_name, obj.structure._error_method_name
         )
 
         # Reuse parameter setup logic
@@ -214,8 +222,7 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         ell_params.set_value(a=a)
 
         # Run first optimization
-        ell_res = obj.optimizer.fit(
-            ellipsoid._error_method, ell_params, func_kwargs=data)
+        ell_res = obj.optimizer.fit(ellipsoid._error_method, ell_params, func_kwargs=data)
 
         # Step 2: Use ellipsoid results to initialize the generalized ellipsoid fit
         res_value = ell_res.params
@@ -224,14 +231,11 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
         parameters_set = obj.structure.parameters.new()
         self._setup_ellipsoid_parameters(parameters_set, obj.structure.parameters, a, var_a, var_cen)
         self._apply_parameter_bounds(parameters_set, upper_bounds, lower_bounds)
-        #parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
+        # parameters_set.get_parameter("a").assign_bounds(a * (1 - var_a), a * (1 + var_a))
 
         # Apply initial values and lock shape parameters
         if init_parameters:
-            updatevalue = {
-                i: init_parameters[i]
-                for i in init_parameters.keys() & parameters_set.keys()
-            }
+            updatevalue = {i: init_parameters[i] for i in init_parameters.keys() & parameters_set.keys()}
             parameters_set = parameters_set.set_value(**updatevalue)
             if "sa" in updatevalue:
                 parameters_set["sa"] = min(max(updatevalue["sa"], 0.5), 1.9)
@@ -240,10 +244,10 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             if "sc" in updatevalue:
                 parameters_set["sc"] = min(max(updatevalue["sc"], 0.5), 1.9)
 
-        for i,j in res_value.items():
+        for i, j in res_value.items():
             parameters_set.get_parameter(i).assign_value(j)
 
-        shape_params, fixed_name = self._prepare_shape_parameters(parameters_set,res_value,fix_eps)
+        shape_params, fixed_name = self._prepare_shape_parameters(parameters_set, res_value, fix_eps)
 
         # Record parent function result
         # parameters_set.add_info(parent_fun=ell_res.fun)
@@ -260,26 +264,25 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             parameters_set.get_parameter("eps_bc").assign_value(res_value["eps_bc"])
 
         # Run final optimization
-        op_res = obj.optimizer.fit(
-            obj.structure._error_method, parameters_set, func_kwargs=data
-        )
+        op_res = obj.optimizer.fit(obj.structure._error_method, parameters_set, func_kwargs=data)
         for i in fixed_name:
             parameters_set.del_equal_constraints(i)
-        for i,j in ell_res.params.items():
+        for i, j in ell_res.params.items():
             parameters_set[i] = j
         # Update parameters and return result
-        for i,j in op_res.params.items():
+        for i, j in op_res.params.items():
             parameters_set[i] = j
 
         return ModelResult(obj.structure, op_res, parameters_set)
 
-    def _setup_ellipsoid_parameters(self, ell_params: "Parameters", source_params: "Parameters", a: float, var_a: float, var_cen: float | None) -> None:
+    def _setup_ellipsoid_parameters(
+        self, ell_params: "Parameters", source_params: "Parameters", a: float, var_a: float, var_cen: float | None
+    ) -> None:
         """Set up parameter bounds for the ellipsoid"""
         # Copy parameter bounds from source
         for param_name in set(source_params.keys()) & set(ell_params.keys()):
             ell_params.get_parameter(param_name).assign_bounds(
-                source_params.get_parameter(param_name).lb,
-                source_params.get_parameter(param_name).ub
+                source_params.get_parameter(param_name).lb, source_params.get_parameter(param_name).ub
             )
         for param_name in set(source_params.constraint_keys()) & set(ell_params.keys()):
             ell_params.add_equal_constraints(**{param_name: source_params._equal_constraints[param_name]})
@@ -298,16 +301,20 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
             else:
                 for name in ["x", "y", "z"]:
                     if name in ell_params.parameter_keys():
-                        ell_params.fix_parameters(**{name: 0.})
+                        ell_params.fix_parameters(**{name: 0.0})
 
-    def _apply_parameter_bounds(self, params: "Parameters", upper_bounds: dict[str, float], lower_bounds: dict[str, float]) -> None:
+    def _apply_parameter_bounds(
+        self, params: "Parameters", upper_bounds: dict[str, float], lower_bounds: dict[str, float]
+    ) -> None:
         """Apply upper and lower bounds to parameters"""
         for param_name in set(upper_bounds) & set(params.keys()):
             params.get_parameter(param_name).ub = upper_bounds[param_name]
         for param_name in set(lower_bounds) & set(params.keys()):
             params.get_parameter(param_name).lb = lower_bounds[param_name]
 
-    def _prepare_shape_parameters(self, parameters_set: "Parameters", res_value: dict[str, float], fix_eps: bool) -> tuple[dict[str, float], list[str]]:
+    def _prepare_shape_parameters(
+        self, parameters_set: "Parameters", res_value: dict[str, float], fix_eps: bool
+    ) -> tuple[dict[str, float], list[str]]:
         """Prepare shape parameters and constraints for the final fit"""
         shape_params = res_value.copy()
         fixed_params = []
@@ -326,8 +333,8 @@ class EllipsoidFitWorkflow(FitWorkflowBase):
 
         # Set up shape parameter bounds and constraints
         if shape_params:
-        #    parameters_set.set_lb(only_infs=False, **shape_params)
-        #    parameters_set.set_ub(only_infs=False, **shape_params)
+            #    parameters_set.set_lb(only_infs=False, **shape_params)
+            #    parameters_set.set_ub(only_infs=False, **shape_params)
             for param_name in shape_params.keys() & parameters_set.keys():
                 parameters_set.fix_parameters(**{param_name: shape_params[param_name]})
                 fixed_params.append(param_name)

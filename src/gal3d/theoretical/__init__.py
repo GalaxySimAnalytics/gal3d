@@ -16,6 +16,7 @@ DensitySource
             ├── DoubleExponentialDisk
             └── PowerLawSphere
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -31,7 +32,6 @@ import numpy as np
 from gal3d.density import DensitySource
 
 THEORETICAL_MODELS: dict[str, type] = {}
-
 
 
 # ======================================================================
@@ -87,13 +87,9 @@ class FieldCoordinate(CoordinateTransform):
         Default ``[1, 1, 1]`` (spherical).
     """
 
-    center_pos: np.ndarray = field(
-        default_factory=lambda: np.zeros(3, dtype=float)
-    )
+    center_pos: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=float))
     angles: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    scales: np.ndarray = field(
-        default_factory=lambda: np.ones(3, dtype=float)
-    )
+    scales: np.ndarray = field(default_factory=lambda: np.ones(3, dtype=float))
 
     def __post_init__(self) -> None:
         self.center_pos = np.asarray(self.center_pos, dtype=float)
@@ -125,7 +121,7 @@ class FieldCoordinate(CoordinateTransform):
         cy, sy = np.cos(ay), np.sin(ay)
         cz, sz = np.cos(az), np.sin(az)
         rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
-        ry = np.array([[cy, 0, sy], [0,  1,  0], [-sy, 0, cy]])
+        ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
         rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
         return rz @ ry @ rx
 
@@ -147,8 +143,8 @@ class FieldCoordinate(CoordinateTransform):
         p = np.asarray(pos_world, dtype=float)
         shifted = p - self.center_pos
         rot = self.rotation_matrix_xyz(self.angles)
-        body = shifted @ rot.T          # world → body (Rᵀ = R⁻¹)
-        return body / self.scales       # apply axis scaling
+        body = shifted @ rot.T  # world → body (Rᵀ = R⁻¹)
+        return body / self.scales  # apply axis scaling
 
 
 # ======================================================================
@@ -178,9 +174,7 @@ class TheoreticalDensityDistribution(DensitySource):
         return list(THEORETICAL_MODELS.keys())
 
     def __init__(self, coordinate: CoordinateTransform | None = None) -> None:
-        self.coordinate: CoordinateTransform = (
-            coordinate if coordinate is not None else FieldCoordinate()
-        )
+        self.coordinate: CoordinateTransform = coordinate if coordinate is not None else FieldCoordinate()
 
     # ------------------------------------------------------------------
     # Coordinate convenience (FieldCoordinate only)
@@ -206,8 +200,7 @@ class TheoreticalDensityDistribution(DensitySource):
         """
         if not isinstance(self.coordinate, FieldCoordinate):
             raise TypeError(
-                "set_coordinate only supports FieldCoordinate. "
-                "Assign self.coordinate directly for other transforms."
+                "set_coordinate only supports FieldCoordinate. Assign self.coordinate directly for other transforms."
             )
         if center_pos is not None:
             self.coordinate.center_pos = np.asarray(center_pos, dtype=float)
@@ -242,24 +235,20 @@ class TheoreticalDensityDistribution(DensitySource):
         NotImplementedError
             Subclasses must override this method.
         """
-        raise NotImplementedError(
-            "Subclasses must implement _evaluate_density_generic."
-        )
+        raise NotImplementedError("Subclasses must implement _evaluate_density_generic.")
 
     # ------------------------------------------------------------------
     # Composition
     # ------------------------------------------------------------------
     def __add__(
-        self,
-        other: TheoreticalDensityDistribution | CombinedDensityDistribution,
+        self, other: TheoreticalDensityDistribution | CombinedDensityDistribution
     ) -> CombinedDensityDistribution:
         if isinstance(other, CombinedDensityDistribution):
             return CombinedDensityDistribution(self, *other.components)
         if isinstance(other, TheoreticalDensityDistribution):
             return CombinedDensityDistribution(self, other)
-        raise NotImplementedError(
-            "Addition is only supported between TheoreticalDensityDistribution instances."
-        )
+        raise NotImplementedError("Addition is only supported between TheoreticalDensityDistribution instances.")
+
 
 # ======================================================================
 # CombinedDensityDistribution
@@ -282,6 +271,7 @@ class CombinedDensityDistribution(TheoreticalDensityDistribution):
     def _evaluate_density(self, pos: np.ndarray) -> np.ndarray:
         return sum(c._evaluate_density(pos) for c in self.components)  # type: ignore[return-value]
 
+
 # ======================================================================
 # Concrete models
 # ======================================================================
@@ -296,12 +286,7 @@ class PlummerSphere(TheoreticalDensityDistribution):
     coordinate : CoordinateTransform, optional
     """
 
-    def __init__(
-        self,
-        total_mass: float,
-        scale_radius: float,
-        coordinate: CoordinateTransform | None = None,
-    ) -> None:
+    def __init__(self, total_mass: float, scale_radius: float, coordinate: CoordinateTransform | None = None) -> None:
         super().__init__(coordinate)
         self.total_mass = total_mass
         self.scale_radius = scale_radius
@@ -325,11 +310,7 @@ class DoubleExponentialDisk(TheoreticalDensityDistribution):
     """
 
     def __init__(
-        self,
-        sigma0: float,
-        scale_length: float,
-        scale_height: float,
-        coordinate: CoordinateTransform | None = None,
+        self, sigma0: float, scale_length: float, scale_height: float, coordinate: CoordinateTransform | None = None
     ) -> None:
         super().__init__(coordinate)
         self.sigma0 = sigma0
@@ -356,11 +337,7 @@ class PowerLawSphere(TheoreticalDensityDistribution):
     """
 
     def __init__(
-        self,
-        total_mass: float,
-        scale_radius: float,
-        slope: float,
-        coordinate: CoordinateTransform | None = None,
+        self, total_mass: float, scale_radius: float, slope: float, coordinate: CoordinateTransform | None = None
     ) -> None:
         super().__init__(coordinate)
         self.total_mass = total_mass

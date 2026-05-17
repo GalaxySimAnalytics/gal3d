@@ -31,13 +31,14 @@ Examples
 ...     def __init_subclass__(cls, **kwargs):
 ...         super().__init_subclass__(**kwargs)
 ...         MyPluginManager.register(cls)
+...
 ...     pass
 
 >>> class MyPluginManager(PluginManager[MyPlugin]):
 ...     # Required attributes (see notes below)
-...     _plugins = {}                           # name -> class
-...     _plugin_module = "gal3d.my_plugins"     # where implementations live
-...     _base_class = MyPlugin                  # enforcement for registration
+...     _plugins = {}  # name -> class
+...     _plugin_module = "gal3d.my_plugins"  # where implementations live
+...     _base_class = MyPlugin  # enforcement for registration
 
 
 2) Put actual implementations in the manager’s `_plugin_module` and let class
@@ -46,7 +47,7 @@ Examples
 
 >>> # gal3d/my_plugins.py
 >>> from gal3d.plugin import PluginBase  # optional if importing MyPlugin directly
->>> from gal3d.my_api import needs      # your own imports
+>>> from gal3d.my_api import needs  # your own imports
 >>> from gal3d.your_managers import MyPlugin, MyPluginManager
 >>>
 >>> class Foo(MyPlugin):
@@ -114,6 +115,7 @@ from gal3d.configuration import config
 logger = logging.getLogger("gal3d.plugin")
 
 _PluginType = TypeVar("_PluginType", bound="PluginBase")
+
 
 class PluginManagerRegistry:
     """
@@ -194,6 +196,7 @@ class PluginManagerRegistry:
             A shallow copy of the registered managers mapping.
         """
         import importlib
+
         for module_path in config.plugin_modules.modules:
             try:
                 importlib.import_module(module_path)
@@ -233,29 +236,37 @@ class PluginManagerRegistry:
                 plugin_display.info(string_formatter("No plugin managers registered.", fg_color="yellow", bold=True))
                 return
             n_managers = len(managers.keys())
-            plugin_display.info(string_formatter( f"\n{n_managers} Plugin Managers and their Plugins:\n",
-                                            fg_color="bright_blue", bold=True, underline=True))
+            plugin_display.info(
+                string_formatter(
+                    f"\n{n_managers} Plugin Managers and their Plugins:\n",
+                    fg_color="bright_blue",
+                    bold=True,
+                    underline=True,
+                )
+            )
             for manager_name, manager_class in sorted(managers.items()):
-                plugin_display.info(string_formatter(f"{manager_name}:",
-                                                fg_color="bright_green", bold=True))
+                plugin_display.info(string_formatter(f"{manager_name}:", fg_color="bright_green", bold=True))
 
                 try:
                     plugins = manager_class.available_plugins()
                     if not plugins:
-                        plugin_display.info(string_formatter("  - No plugins registered",
-                                                        fg_color="yellow", italics=True))
+                        plugin_display.info(
+                            string_formatter("  - No plugins registered", fg_color="yellow", italics=True)
+                        )
                     else:
                         for plugin in sorted(plugins):
                             plugin_display.info(string_formatter(f"  - {plugin}", fg_color="bright_blue"))
                 except Exception as e:
-                    plugin_display.info(string_formatter(f"  - Error retrieving plugins: {str(e)}",
-                                                    fg_color="red", italics=True))
+                    plugin_display.info(
+                        string_formatter(f"  - Error retrieving plugins: {str(e)}", fg_color="red", italics=True)
+                    )
                     main_logger.error("Error retrieving plugins from %s: %s", manager_name, str(e))
 
                 plugin_display.info("")
         finally:
             # Clean up handler
             plugin_display.removeHandler(handler)
+
 
 class PluginBase:
     """
@@ -276,6 +287,7 @@ class PluginBase:
     - Just subclass the typed base (e.g., `class Foo(MyPlugin): ...`) in the
       module that your manager declares in `_plugin_module`.
     """
+
     @classmethod
     def __init_subclass__(cls, **kwargs):
         """
@@ -287,6 +299,7 @@ class PluginBase:
         """
         super().__init_subclass__(**kwargs)
         # Registration is handled by the specific plugin type's Manager (via typed base classes).
+
 
 class PluginManager(Generic[_PluginType]):
     """
@@ -321,12 +334,10 @@ class PluginManager(Generic[_PluginType]):
     ...     def __init_subclass__(cls, **kwargs):
     ...         super().__init_subclass__(**kwargs)
     ...         MyPluginManager.register(cls)
-    ...
     >>> class MyPluginManager(PluginManager[MyPlugin]):
     ...     _plugins = {}
     ...     _plugin_module = "gal3d.my_plugins"
     ...     _base_class = MyPlugin
-    ...
     >>> MyPluginManager.available_plugins()
     ['Bar', 'Foo']
     >>> MyPluginManager.get_plugin("Foo")
@@ -338,11 +349,12 @@ class PluginManager(Generic[_PluginType]):
     - Requesting an unknown plugin name raises `LookupError`.
     - Import failures in `_plugin_module` raise `ImportError`.
     """
+
     _plugins: dict[str, type[_PluginType]]
     _plugin_module: ClassVar[str]
     _base_class: type[_PluginType]
 
-    def __init_subclass__(cls,**kwargs):
+    def __init_subclass__(cls, **kwargs):
         """
         Auto-register manager subclasses with the registry and validate config.
         """
@@ -350,7 +362,6 @@ class PluginManager(Generic[_PluginType]):
         if cls is not PluginManager:
             cls._check_subclass_config()
             PluginManagerRegistry.register_manager(cls)
-
 
     @classmethod
     def _check_subclass_config(cls) -> None:
@@ -364,7 +375,9 @@ class PluginManager(Generic[_PluginType]):
             `PluginManager` is used directly.
         """
         if cls is PluginManager:
-            raise AssertionError("PluginManager base class should not be used directly. Please subclass and define required attributes.")
+            raise AssertionError(
+                "PluginManager base class should not be used directly. Please subclass and define required attributes."
+            )
 
         if not (hasattr(cls, "_plugins") and isinstance(cls._plugins, dict)):
             raise AssertionError(f"{cls.__name__} must define _plugins as a dict")
@@ -466,6 +479,7 @@ class PluginManager(Generic[_PluginType]):
         """
         cls._check_subclass_config()
         import importlib
+
         try:
             importlib.import_module(cls._plugin_module)
             logger.debug("%s loaded plugins: %s", cls.__name__, ", ".join(cls._plugins.keys()))

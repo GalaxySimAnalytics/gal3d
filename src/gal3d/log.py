@@ -71,6 +71,8 @@ class DirectOutputHandler(logging.Handler):
         """
         # Just return the message part without any formatting
         return record.msg
+
+
 class ColorFormatter(logging.Formatter):
     """
     Logging Formatter to add colors and count warning / errors.
@@ -81,13 +83,10 @@ class ColorFormatter(logging.Formatter):
     FORMATS = {
         logging.DEBUG: "".join(
             [
-                string_formatter(
-                    "[%(asctime)s.%(msecs)03d] ",
-                    italics=True,
-                ),"< ",
-                string_formatter(
-                    "%(name)s", fg_color="bright_blue", underline=True
-                )," >",
+                string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True),
+                "< ",
+                string_formatter("%(name)s", fg_color="bright_blue", underline=True),
+                " >",
                 string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 string_formatter(" | %(levelname)s | ", fg_color="cyan", bold=True),
                 "%(message)s",
@@ -95,27 +94,20 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.INFO: "".join(
             [
-                string_formatter(
-                    "[%(asctime)s.%(msecs)03d] ", italics=True, underline=False
-                ),"< ",
-                string_formatter(
-                    "%(name)s", fg_color="bright_blue", underline=True
-                )," >",
+                string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True, underline=False),
+                "< ",
+                string_formatter("%(name)s", fg_color="bright_blue", underline=True),
+                " >",
                 string_formatter(" | %(levelname)s | ", fg_color="green", bold=True),
                 "%(message)s",
             ]
         ),
         logging.WARNING: "".join(
             [
-                string_formatter(
-                    "[%(asctime)s.%(msecs)03d] ",
-                    fg_color="yellow",
-                    italics=True,
-                    underline=False,
-                ), "from < ",
-                string_formatter(
-                    "%(filename)s", fg_color="bright_blue", underline=True
-                )," >",
+                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color="yellow", italics=True, underline=False),
+                "from < ",
+                string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
+                " >",
                 string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
@@ -125,42 +117,26 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.ERROR: "".join(
             [
-                string_formatter(
-                    "[%(asctime)s.%(msecs)03d] ",
-                    fg_color=(205, 0, 0),
-                    italics=True,
-                    underline=False,
-                ),"from < ",
-                string_formatter(
-                    "%(filename)s", fg_color="bright_blue", underline=True
-                )," >",
+                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(205, 0, 0), italics=True, underline=False),
+                "from < ",
+                string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
+                " >",
                 string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
-                string_formatter(
-                    "| %(levelname)s | %(message)s", fg_color=(205, 0, 0), bold=True
-                ),
+                string_formatter("| %(levelname)s | %(message)s", fg_color=(205, 0, 0), bold=True),
             ]
         ),
         logging.CRITICAL: "".join(
             [
-                string_formatter(
-                    "[%(asctime)s.%(msecs)03d] ",
-                    fg_color=(255, 20, 147),
-                    italics=True,
-                    underline=False,
-                ),"from < ",
-                string_formatter(
-                    "%(filename)s", fg_color="bright_blue", underline=True
-                )," >",
+                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(255, 20, 147), italics=True, underline=False),
+                "from < ",
+                string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
+                " >",
                 string_formatter(" line: %(lineno)d ", fg_color="purple", italics=True),
                 "\n",
                 "  >>>  ",
-                string_formatter(
-                    "| %(levelname)s | %(message)s",
-                    fg_color=(255, 20, 147),
-                    bold=True,
-                ),
+                string_formatter("| %(levelname)s | %(message)s", fg_color=(255, 20, 147), bold=True),
             ]
         ),
     }
@@ -185,6 +161,7 @@ class NoColorFormatter(logging.Formatter):
     str
         The formatted log message.
     """
+
     import re
 
     FORMATS = {
@@ -264,7 +241,6 @@ def set_logging_level(level: int = logging.INFO) -> None:
     """
     logger = logging.getLogger("gal3d")
     logger.setLevel(level)
-
 
 
 logger = _setup_logging(config.logger)

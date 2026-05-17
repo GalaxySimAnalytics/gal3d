@@ -132,6 +132,7 @@ __all__ = ["Segment"]
 
 logger = logging.getLogger("gal3d.characterization.segment")
 
+
 class Segment(CharacterizerBase):
     """
     Multivariate piecewise-constant/linear segmentation for shape profiles.
@@ -156,9 +157,9 @@ class Segment(CharacterizerBase):
         self,
         data: dict[str, np.ndarray] | ModelResult,
         radial_key: str = "a",
-        channel_keys: tuple[str, ...] =("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle"),
+        channel_keys: tuple[str, ...] = ("eps_ab", "eps_bc", "x_axis_angle", "z_axis_angle"),
         error_keys: tuple[str, ...] | None = None,
-        ):
+    ):
         """
         Parameters
         ----------
@@ -175,8 +176,7 @@ class Segment(CharacterizerBase):
         super().__init__(data)
         r = data[radial_key]
         dex = np.argsort(r)
-        self.data: dict[str, np.ndarray] = {k: np.asarray(data[k])[dex]
-                                            for k in channel_keys}
+        self.data: dict[str, np.ndarray] = {k: np.asarray(data[k])[dex] for k in channel_keys}
 
         # Also keep sorted radii
         self.r = r[dex]
@@ -197,16 +197,16 @@ class Segment(CharacterizerBase):
         fixed_segments: int | None = None,
         lam_scale: float = 1.0,
         *,
-        scale_mode: Literal["std","range","none"] | list[str] = "std",
+        scale_mode: Literal["std", "range", "none"] | list[str] = "std",
         with_stats: bool = True,
         radial_log: bool = False,
-        point_weights: np.ndarray | Literal["uniform","linear","log"] = "uniform",
+        point_weights: np.ndarray | Literal["uniform", "linear", "log"] = "uniform",
         channel_weights: np.ndarray | None = None,
         normalize_weights: bool = True,
         allowed_ranges: dict[str, tuple[float, float]] | None = None,
-        fit: Literal["constant", "linear","mix"] = "constant",
-        output_format: Literal["arrays","records"] = "arrays",
-        ) -> dict[str, Any]:
+        fit: Literal["constant", "linear", "mix"] = "constant",
+        output_format: Literal["arrays", "records"] = "arrays",
+    ) -> dict[str, Any]:
         """
         Run the segmentation algorithm on the specified keys.
 
@@ -302,26 +302,29 @@ class Segment(CharacterizerBase):
         [23, 61, 120]
         """
         # 1) Channel selection and ranges
-        r, series_dict, series_ranges = self._prepare_series(
-            keys=keys,
-            allowed_ranges=allowed_ranges,
-        )
+        r, series_dict, series_ranges = self._prepare_series(keys=keys, allowed_ranges=allowed_ranges)
 
         # 2) Working radius coordinate
         r_fit = self._get_working_radius(r, radial_log)
 
         # 3) Preprocess
         names, n_points, n_features, X, X_variance, mu, sd = self._preprocess_series(
-            r,
-            series_dict,
-            scale_mode=scale_mode,
-            allowed_ranges=series_ranges,
+            r, series_dict, scale_mode=scale_mode, allowed_ranges=series_ranges
         )
 
         # 4) Edge case
         edge_case = self._handle_edge_case(
-            n_points, min_size, r, series_dict, names, with_stats,
-            r_fit=r_fit, weights=None, fit=fit, output_format=output_format)
+            n_points,
+            min_size,
+            r,
+            series_dict,
+            names,
+            with_stats,
+            r_fit=r_fit,
+            weights=None,
+            fit=fit,
+            output_format=output_format,
+        )
         if edge_case is not None:
             return edge_case
 
@@ -354,21 +357,30 @@ class Segment(CharacterizerBase):
 
         # 8) Prepare output regions
         return self._prepare_output_regions(
-            bkps, r, r_fit, series_dict, names, n_points_w, with_stats, fit,
-            seg_models=seg_models, output_format = output_format)
+            bkps,
+            r,
+            r_fit,
+            series_dict,
+            names,
+            n_points_w,
+            with_stats,
+            fit,
+            seg_models=seg_models,
+            output_format=output_format,
+        )
 
     def _specific_weights(self, series_dict: dict[str, np.ndarray]) -> np.ndarray:
-        """ Compute specific weights from error data. """
+        """Compute specific weights from error data."""
         n_points = next(iter(series_dict.values())).size
         feature_names = list(series_dict.keys())
         n_features = len(series_dict)
         w_spec = np.ones((n_points, n_features), dtype=float)
         if "eps_ab" in series_dict and "x_axis_angle" in series_dict:
             w = series_dict["eps_ab"] ** 2
-            w_spec[:, feature_names.index("x_axis_angle")] = w/np.sum(w)*n_points
+            w_spec[:, feature_names.index("x_axis_angle")] = w / np.sum(w) * n_points
         if "eps_bc" in series_dict and "z_axis_angle" in series_dict:
             w = series_dict["eps_bc"] ** 2
-            w_spec[:, feature_names.index("z_axis_angle")] = w/np.sum(w)*n_points
+            w_spec[:, feature_names.index("z_axis_angle")] = w / np.sum(w) * n_points
         return w_spec
 
     def _optimize_segments(
@@ -377,13 +389,13 @@ class Segment(CharacterizerBase):
         C_lin: np.ndarray,
         n_points: int,
         n_features: int,
-        selector: Literal["bic","fixed"],
+        selector: Literal["bic", "fixed"],
         max_segments: int,
         min_size: int,
         lam_scale: float,
-        fit: Literal["constant","linear","mix"],
+        fit: Literal["constant", "linear", "mix"],
         fixed_segments: int | None,
-    ) -> tuple[list[int], list[Literal["constant","linear"]] | None]:
+    ) -> tuple[list[int], list[Literal["constant", "linear"]] | None]:
         """
         Run DP according to fit mode and select breakpoints with either BIC-like score or fixed count.
         Returns (bkps, seg_models). seg_models is None for non-mix modes.
@@ -436,11 +448,7 @@ class Segment(CharacterizerBase):
             bkps, seg_models = self._trace_back_mix(ptr_k, ptr_t, c, n_points)
             return bkps, seg_models
 
-    def _get_working_radius(
-        self,
-        r: np.ndarray,
-        radial_log: bool,
-    ) -> np.ndarray:
+    def _get_working_radius(self, r: np.ndarray, radial_log: bool) -> np.ndarray:
         """Choose working radius coordinate for segmentation/fitting."""
         return np.log10(r + 1e-3) if radial_log else r
 
@@ -448,7 +456,7 @@ class Segment(CharacterizerBase):
         self,
         r_fit: np.ndarray,
         X_variance: np.ndarray,
-        point_weights: np.ndarray | Literal["uniform","linear","log"],
+        point_weights: np.ndarray | Literal["uniform", "linear", "log"],
         channel_weights: np.ndarray,
         normalize_weights: bool,
         series_dict: dict[str, np.ndarray],
@@ -483,11 +491,7 @@ class Segment(CharacterizerBase):
 
         return w_all, n_points_w
 
-    def _compute_channel_weights(
-        self,
-        channel_weights: np.ndarray,
-        n_features: int,
-    ) -> np.ndarray:
+    def _compute_channel_weights(self, channel_weights: np.ndarray, n_features: int) -> np.ndarray:
         w = np.asarray(channel_weights, dtype=float)
         if w.size != n_features:
             raise ValueError(f"channel_weights size {w.size} does not match number of features {n_features}.")
@@ -502,10 +506,10 @@ class Segment(CharacterizerBase):
         names: list[str],
         weights: np.ndarray,
         with_stats: bool,
-        fit: Literal["constant", "linear","mix"] = "constant",
+        fit: Literal["constant", "linear", "mix"] = "constant",
         *,
-        seg_models: list[Literal["constant","linear"]] | None = None,
-        output_format: Literal["arrays","records"] = "arrays",
+        seg_models: list[Literal["constant", "linear"]] | None = None,
+        output_format: Literal["arrays", "records"] = "arrays",
     ) -> dict[str, Any]:
         """Prepare output either as list[dict] ('records') or arrays ('arrays') via shared aggregation."""
         arrays_out = self._aggregate_segments_arrays(
@@ -532,9 +536,9 @@ class Segment(CharacterizerBase):
         names: list[str],
         weights: np.ndarray | None,
         with_stats: bool,
-        fit: Literal["constant", "linear","mix"] = "constant",
+        fit: Literal["constant", "linear", "mix"] = "constant",
         *,
-        seg_models: list[Literal["constant","linear"]] | None = None,
+        seg_models: list[Literal["constant", "linear"]] | None = None,
     ) -> dict[str, Any]:
         """
         Aggregate segment summaries once (arrays output).
@@ -594,20 +598,22 @@ class Segment(CharacterizerBase):
                     if err_arr_full is not None and err_arr_full.size >= end_idx:
                         err_vals = np.asarray(err_arr_full)[sel]
                         err_mean_val = self._weighted_mean(err_vals, w_seg)
-                        err_p16[s, j], err_median[s, j], err_p84[s, j], err_std[s, j] = self._weighted_stats(err_vals, w_seg, err_mean_val)
-                        err_mean[s, j]   = err_mean_val
+                        err_p16[s, j], err_median[s, j], err_p84[s, j], err_std[s, j] = self._weighted_stats(
+                            err_vals, w_seg, err_mean_val
+                        )
+                        err_mean[s, j] = err_mean_val
 
             start_idx = end_idx
 
         out: dict[str, Any] = {
             "bkps": np.asarray(bkps, dtype=int),
-            "segments": segments,         # (n_segments, 2) -> [start, end)
-            "R_in": R_in,                 # (n_segments,)
-            "R_ou": R_ou,                 # (n_segments,)
-            "mean": mean,                 # (n_segments, n_features)
-            "model": model,               # (n_segments,), 0=const,1=linear
+            "segments": segments,  # (n_segments, 2) -> [start, end)
+            "R_in": R_in,  # (n_segments,)
+            "R_ou": R_ou,  # (n_segments,)
+            "mean": mean,  # (n_segments, n_features)
+            "model": model,  # (n_segments,), 0=const,1=linear
             "r": r,
-            "keys": names,                # channel order
+            "keys": names,  # channel order
         }
         # Only include slope/intercept if any linear params were computed
         if not np.isnan(slope).all():
@@ -615,18 +621,23 @@ class Segment(CharacterizerBase):
             out["intercept"] = intercept
 
         if with_stats:
-            out.update({
-                "median": median, "std": std, "p16": p16, "p84": p84,
-                # ---- add error stats to arrays output ----
-                "err_mean": err_mean, "err_median": err_median, "err_std": err_std,
-                "err_p16": err_p16, "err_p84": err_p84,
-            })
+            out.update(
+                {
+                    "median": median,
+                    "std": std,
+                    "p16": p16,
+                    "p84": p84,
+                    # ---- add error stats to arrays output ----
+                    "err_mean": err_mean,
+                    "err_median": err_median,
+                    "err_std": err_std,
+                    "err_p16": err_p16,
+                    "err_p84": err_p84,
+                }
+            )
         return out
-    def _weighted_mean(
-        self,
-        vals: np.ndarray,
-        w: np.ndarray | None,
-    ) -> float:
+
+    def _weighted_mean(self, vals: np.ndarray, w: np.ndarray | None) -> float:
         """Weighted mean with fallback."""
         if vals.size == 0:
             return float("nan")
@@ -638,10 +649,7 @@ class Segment(CharacterizerBase):
         return float(np.mean(vals))
 
     def _weighted_stats(
-        self,
-        vals: np.ndarray,
-        w: np.ndarray | None,
-        mean_val: float,
+        self, vals: np.ndarray, w: np.ndarray | None, mean_val: float
     ) -> tuple[float, float, float, float]:
         """
         Weighted percentiles (16/50/84) and std (population) around mean_val.
@@ -693,33 +701,30 @@ class Segment(CharacterizerBase):
 
             if model[s] == 1:
                 reg["slope"] = {k: float(slope[s, j]) for j, k in enumerate(names)} if slope is not None else {}
-                reg["intercept"] = {k: float(intercept[s, j]) for j, k in enumerate(names)} if intercept is not None else {}
+                reg["intercept"] = (
+                    {k: float(intercept[s, j]) for j, k in enumerate(names)} if intercept is not None else {}
+                )
 
-            attach_stats(reg, s, {
-                "median": "median",
-                "std": "std",
-                "16th": "p16",
-                "84th": "p84",
-            })
+            attach_stats(reg, s, {"median": "median", "std": "std", "16th": "p16", "84th": "p84"})
 
-            attach_stats(reg, s, {
-                "err_mean": "err_mean",
-                "err_median": "err_median",
-                "err_std": "err_std",
-                "err_16th": "err_p16",
-                "err_84th": "err_p84",
-            })
+            attach_stats(
+                reg,
+                s,
+                {
+                    "err_mean": "err_mean",
+                    "err_median": "err_median",
+                    "err_std": "err_std",
+                    "err_16th": "err_p16",
+                    "err_84th": "err_p84",
+                },
+            )
 
             regions.append(reg)
 
         return {"bkps": list(map(int, bkps_arr.tolist())), "regions": regions, "r": r, "keys": names}
 
     def _weighted_linear_fit(
-        self,
-        x: np.ndarray,
-        y: np.ndarray,
-        w: np.ndarray,
-        tiny: float = 1e-12,
+        self, x: np.ndarray, y: np.ndarray, w: np.ndarray, tiny: float = 1e-12
     ) -> tuple[float, float]:
         """Weighted linear regression y ~ a + b x. Returns (b, a). Falls back to mean if ill-conditioned."""
         sw = np.sum(w)
@@ -737,10 +742,7 @@ class Segment(CharacterizerBase):
         return float(b), float(a)
 
     def _weighted_percentiles(
-        self,
-        vals: np.ndarray,
-        w: np.ndarray,
-        ps: tuple[float, ...] = (0.16, 0.5, 0.84),
+        self, vals: np.ndarray, w: np.ndarray, ps: tuple[float, ...] = (0.16, 0.5, 0.84)
     ) -> list[float]:
         """Weighted percentiles using the 'cumulative weight crossing' rule."""
         if vals.size == 0:
@@ -752,7 +754,7 @@ class Segment(CharacterizerBase):
         tot = float(cw[-1])
         if tot <= 0:
             # fall back to unweighted percentiles if all weights 0/non-finite
-            return [float(np.percentile(v, p*100)) for p in ps]
+            return [float(np.percentile(v, p * 100)) for p in ps]
         out: list[float] = []
         for p in ps:
             target = p * tot
@@ -779,11 +781,7 @@ class Segment(CharacterizerBase):
         return C_const if model == "constant" else C_lin
 
     def _segment_cost_matrices(
-        self,
-        X: np.ndarray,
-        W: np.ndarray,
-        r: np.ndarray,
-        min_size: int,
+        self, X: np.ndarray, W: np.ndarray, r: np.ndarray, min_size: int
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute cost matrices for both constant and linear models:
@@ -793,60 +791,50 @@ class Segment(CharacterizerBase):
         cum = self._build_prefix_sums(X, W, r)
         return self._fill_cost_matrices(cum, n, p, min_size)
 
-    def _build_prefix_sums(
-        self,
-        X: np.ndarray,
-        W: np.ndarray,
-        r: np.ndarray,
-    ) -> dict[str, np.ndarray]:
+    def _build_prefix_sums(self, X: np.ndarray, W: np.ndarray, r: np.ndarray) -> dict[str, np.ndarray]:
         """Prefix sums for constant and linear models."""
         n, p = X.shape
         zeros = np.zeros((1, p))
         R = r.reshape(-1, 1)
 
-        Wp   = np.vstack([zeros, W])
-        WXp  = np.vstack([zeros, W * X])
+        Wp = np.vstack([zeros, W])
+        WXp = np.vstack([zeros, W * X])
         WXXp = np.vstack([zeros, W * X * X])
 
-        WRp  = np.vstack([zeros, W * R])
+        WRp = np.vstack([zeros, W * R])
         WRRp = np.vstack([zeros, W * R * R])
         WRXp = np.vstack([zeros, W * R * X])
 
         return {
-            "cum_W":   np.cumsum(Wp, axis=0),
-            "cum_WX":  np.cumsum(WXp, axis=0),
+            "cum_W": np.cumsum(Wp, axis=0),
+            "cum_WX": np.cumsum(WXp, axis=0),
             "cum_WXX": np.cumsum(WXXp, axis=0),
-            "cum_WR":  np.cumsum(WRp, axis=0),
+            "cum_WR": np.cumsum(WRp, axis=0),
             "cum_WRR": np.cumsum(WRRp, axis=0),
             "cum_WRX": np.cumsum(WRXp, axis=0),
         }
 
     def _fill_cost_matrices(
-        self,
-        cum: dict[str, np.ndarray],
-        n: int,
-        p: int,
-        min_size: int,
-        tiny: float = 1e-12,
+        self, cum: dict[str, np.ndarray], n: int, p: int, min_size: int, tiny: float = 1e-12
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute both constant and linear cost matrices in one pass."""
-        cum_W   = cum["cum_W"]
-        cum_WX  = cum["cum_WX"]
+        cum_W = cum["cum_W"]
+        cum_WX = cum["cum_WX"]
         cum_WXX = cum["cum_WXX"]
-        cum_WR  = cum["cum_WR"]
+        cum_WR = cum["cum_WR"]
         cum_WRR = cum["cum_WRR"]
         cum_WRX = cum["cum_WRX"]
 
         C_const = np.full((n + 1, n + 1), np.inf, dtype=float)
-        C_lin   = np.full((n + 1, n + 1), np.inf, dtype=float)
+        C_lin = np.full((n + 1, n + 1), np.inf, dtype=float)
 
         for i in range(n):
             j_min = i + min_size
             if j_min > n:
                 continue
             for j in range(j_min, n + 1):
-                sw  = cum_W[j]   - cum_W[i]     # (p,)
-                sy  = cum_WX[j]  - cum_WX[i]
+                sw = cum_W[j] - cum_W[i]  # (p,)
+                sy = cum_WX[j] - cum_WX[i]
                 syy = cum_WXX[j] - cum_WXX[i]
 
                 denom = np.maximum(sw, tiny)
@@ -855,7 +843,7 @@ class Segment(CharacterizerBase):
                 C_const[i, j] = max(0.0, float(np.sum(np.maximum(0.0, sse_const_j))))
 
                 # linear terms
-                sx  = cum_WR[j]  - cum_WR[i]
+                sx = cum_WR[j] - cum_WR[i]
                 sxx = cum_WRR[j] - cum_WRR[i]
                 sxy = cum_WRX[j] - cum_WRX[i]
                 det = sw * sxx - sx * sx
@@ -868,13 +856,8 @@ class Segment(CharacterizerBase):
                 C_lin[i, j] = max(0.0, float(np.sum(np.maximum(0.0, sse_lin_j))))
         return C_const, C_lin
 
-
     def _dp_optimal_costs(
-        self,
-        C: np.ndarray,
-        n: int,
-        max_segments: int,
-        min_size: int,
+        self, C: np.ndarray, n: int, max_segments: int, min_size: int
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Dynamic programming over segment counts.
@@ -918,11 +901,7 @@ class Segment(CharacterizerBase):
         return dp, ptr
 
     def _dp_optimal_costs_dc(
-        self,
-        C: np.ndarray,
-        n: int,
-        max_segments: int,
-        min_size: int,
+        self, C: np.ndarray, n: int, max_segments: int, min_size: int
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Divide-and-conquer DP optimization for segmentation with a single model.
@@ -986,12 +965,7 @@ class Segment(CharacterizerBase):
         return dp, ptr
 
     def _dp_optimal_costs_mix(
-        self,
-        C_const: np.ndarray,
-        C_lin: np.ndarray,
-        n: int,
-        max_complexity: int,
-        min_size: int,
+        self, C_const: np.ndarray, C_lin: np.ndarray, n: int, max_complexity: int, min_size: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         DP over complexity units c where:
@@ -1062,18 +1036,14 @@ class Segment(CharacterizerBase):
         return bkps
 
     def _trace_back_mix(
-        self,
-        ptr_k: np.ndarray,
-        ptr_t: np.ndarray,
-        c: int,
-        n: int,
-    ) -> tuple[list[int], list[Literal["constant","linear"]]]:
+        self, ptr_k: np.ndarray, ptr_t: np.ndarray, c: int, n: int
+    ) -> tuple[list[int], list[Literal["constant", "linear"]]]:
         """
         Recover breakpoints and per-segment model types for complexity c ending at n.
         Returns (bkps, seg_models), where seg_models[i] in {"constant","linear"}.
         """
         bkps: list[int] = []
-        models: list[Literal["constant","linear"]] = []
+        models: list[Literal["constant", "linear"]] = []
         j = n
         cc = c
         while cc > 0 and j >= 0:
@@ -1089,11 +1059,8 @@ class Segment(CharacterizerBase):
         models.reverse()
         return bkps, models
 
-
     def _compute_point_weights(
-        self,
-        r: np.ndarray,
-        scheme_or_array: np.ndarray | Literal["uniform","linear","log"],
+        self, r: np.ndarray, scheme_or_array: np.ndarray | Literal["uniform", "linear", "log"]
     ) -> np.ndarray:
         """
         Compute per-point weights.
@@ -1135,8 +1102,8 @@ class Segment(CharacterizerBase):
         *,
         r_fit: np.ndarray | None = None,
         weights: np.ndarray | None = None,
-        fit: Literal["constant","linear","mix"] = "constant",
-        output_format: Literal["arrays","records"] = "arrays",
+        fit: Literal["constant", "linear", "mix"] = "constant",
+        output_format: Literal["arrays", "records"] = "arrays",
     ) -> dict | None:
         """
         Handle small-n case by creating a single segment [0:n) and delegating to
@@ -1172,7 +1139,7 @@ class Segment(CharacterizerBase):
         self,
         r: np.ndarray,
         series_dict: dict[str, np.ndarray],
-        scale_mode: Literal["std","range","none"] | list[str],
+        scale_mode: Literal["std", "range", "none"] | list[str],
         allowed_ranges: dict[str, tuple[float, float]],
     ) -> tuple[list[str], int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         # Implementation of preprocessing logic
@@ -1254,9 +1221,7 @@ class Segment(CharacterizerBase):
         return names, n_points, n_features, X, X_variance, mu, sd
 
     def _prepare_series(
-        self,
-        keys: list[str] | None,
-        allowed_ranges: dict[str, tuple[float, float]] | None,
+        self, keys: list[str] | None, allowed_ranges: dict[str, tuple[float, float]] | None
     ) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, tuple[float, float]]]:
         # Implementation of data preparation logic
         if keys is None:

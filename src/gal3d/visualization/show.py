@@ -2,6 +2,7 @@
 - show_image / show_contour: display helpers with consistent normalization reuse
 - add_colorbar: attach colorbar to any ScalarMappable
 """
+
 from dataclasses import dataclass
 from typing import cast
 
@@ -35,6 +36,7 @@ class ImageData:
     yrange : tuple[float, float]
         (ymin, ymax)
     """
+
     value: np.ndarray
     xs: np.ndarray
     ys: np.ndarray
@@ -56,6 +58,7 @@ class ImageData:
     @property
     def pixel_area(self) -> float:
         return (self.xrange[1] - self.xrange[0]) * (self.yrange[1] - self.yrange[0]) / (self.nx * self.ny)
+
     @property
     def total_quantity(self) -> float:
         return np.sum(self.value) * self.pixel_area
@@ -121,28 +124,15 @@ def show_image(
     else:
         raise ValueError(f"Unsupported scale: {scale}")
 
-
     if axesObj is None:
         if not noErase:
             plt.clf()
         axesImg = plt.imshow(
-            im_arr,
-            interpolation="nearest",
-            origin="lower",
-            aspect="equal",
-            extent=extent,
-            norm=cont_color,
-            cmap=cmap,
+            im_arr, interpolation="nearest", origin="lower", aspect="equal", extent=extent, norm=cont_color, cmap=cmap
         )
     else:
         axesImg = axesObj.imshow(
-            im_arr,
-            interpolation="nearest",
-            origin="lower",
-            aspect="equal",
-            extent=extent,
-            norm=cont_color,
-            cmap=cmap,
+            im_arr, interpolation="nearest", origin="lower", aspect="equal", extent=extent, norm=cont_color, cmap=cmap
         )
     return axesImg
 
@@ -234,26 +224,10 @@ def show_contour(
     if axesObj is None:
         if not noErase:
             plt.clf()
-        axesCont = plt.contour(
-            xs,
-            ys,
-            im_arr,
-            levels,
-            colors=color,
-            linewidths=linewidth,
-            linestyles=linestyle,
-        )
+        axesCont = plt.contour(xs, ys, im_arr, levels, colors=color, linewidths=linewidth, linestyles=linestyle)
 
     else:  # user supplied a matplotlib.axes.Axes object to receive the plotting commands
-        axesCont = axesObj.contour(
-            xs,
-            ys,
-            im_arr,
-            levels,
-            colors=color,
-            linewidths=linewidth,
-            linestyles=linestyle,
-        )
+        axesCont = axesObj.contour(xs, ys, im_arr, levels, colors=color, linewidths=linewidth, linestyles=linestyle)
     return axesCont
 
 
@@ -261,10 +235,10 @@ def add_colorbar(
     mappable: ScalarMappable | ColorizingArtist,
     ax: plt.Axes | None = None,
     loc: str = "right",
-    size: str ="5%",
-    pad: float =0.05,
-    label_pad: float =2,
-    tick_label_size: float = 10
+    size: str = "5%",
+    pad: float = 0.05,
+    label_pad: float = 2,
+    tick_label_size: float = 10,
 ) -> Colorbar:
     """
     Add a colorbar to a 'mappable' (ScalarMappable/ColorizingArtist) with flexible placement.

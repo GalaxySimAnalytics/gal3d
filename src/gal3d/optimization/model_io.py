@@ -2,6 +2,7 @@
 Model I/O base class and factory for saving and loading model results.
 
 """
+
 import logging
 import os
 import time
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("gal3d.optimization.model_io")
 
+
 class MetaDataDict(dict[str, Any]):
     """
     Dictionary subclass for storing model metadata.
@@ -37,11 +39,13 @@ class MetaDataDict(dict[str, Any]):
     model_count : int
         Number of models stored.
     """
+
     coordinate_name: str
     geometry_name: str
     error_method_name: str | None
     error_func_name: str | None
     model_count: int
+
 
 class ModelIOBase(PluginBase):
     """
@@ -82,14 +86,15 @@ class ModelIOBase(PluginBase):
         ModelIO.register(cls)
 
     @classmethod
-    def save(cls,
+    def save(
+        cls,
         model: ModelResult,
         filename: str,
         info_keys: tuple[str, ...] = ("parameter",),
         result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
         metadata: dict[str, Any] | None = None,
         overwrite: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         """
         Save the model to a file.
@@ -120,18 +125,16 @@ class ModelIOBase(PluginBase):
             data["meta"].update(metadata)
         cls._save(data, filename, overwrite=overwrite, **kwargs)
         elapsed = time.time() - start_time
-        logger.info(
-            "Model saved to %s in %.2f seconds (n: %d)",
-            filename, elapsed, data["meta"]["model_count"]
-        )
+        logger.info("Model saved to %s in %.2f seconds (n: %d)", filename, elapsed, data["meta"]["model_count"])
 
     @classmethod
     @abstractmethod
-    def _save(cls,
+    def _save(
+        cls,
         data: dict[Literal["meta", "parameters", "opt_info"], dict[str, Any]],
         filename: str,
         overwrite: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         """
         Abstract method to save data to a file.
@@ -148,12 +151,9 @@ class ModelIOBase(PluginBase):
             Additional keyword arguments.
         """
 
-
     @classmethod
-    def load(cls,
-        filename: str,
-        structure: Union["Structure3D", "StructureCore", None] = None,
-        **kwargs: Any
+    def load(
+        cls, filename: str, structure: Union["Structure3D", "StructureCore", None] = None, **kwargs: Any
     ) -> ModelResult:
         """
         Load the model from a file.
@@ -179,46 +179,32 @@ class ModelIOBase(PluginBase):
 
         if structure is None:
             metadata = cls._load_metadata_from_file(
-                filename, keys=["coordinate_name", "geometry_name","error_method_name","error_func_name"], **kwargs)
+                filename, keys=["coordinate_name", "geometry_name", "error_method_name", "error_func_name"], **kwargs
+            )
             if metadata.get("error_method_name") is None or metadata.get("error_func_name") is None:
-                structure = StructureCore(
-                    coordinate=metadata["coordinate_name"],
-                    geometry=metadata["geometry_name"]
-                )
+                structure = StructureCore(coordinate=metadata["coordinate_name"], geometry=metadata["geometry_name"])
             else:
                 structure = Structure3D(
                     coordinate=metadata["coordinate_name"],
                     geometry=metadata["geometry_name"],
                     error_method=metadata["error_method_name"],
-                    error_func=metadata["error_func_name"]
+                    error_func=metadata["error_func_name"],
                 )
 
-        param_sets = cls._load_parameters_from_file(filename,**kwargs)
+        param_sets = cls._load_parameters_from_file(filename, **kwargs)
         for param_set in param_sets:
             param_set.add_derived(structure.derived_param_funcs())
-        opt_results = cls._load_opt_from_file(filename,**kwargs)
-        result = ModelResult(
-            structure = structure,
-            optimize_result=opt_results[0],
-            parameters=param_sets[0]
-        )
+        opt_results = cls._load_opt_from_file(filename, **kwargs)
+        result = ModelResult(structure=structure, optimize_result=opt_results[0], parameters=param_sets[0])
         # Replace the lists with all loaded data
         result._param_sets = param_sets
         result._opt_results = opt_results
         elapsed = time.time() - start_time
-        logger.debug(
-            "Model loaded from %s in %.2f seconds (n: %d)",
-            filename, elapsed, len(param_sets)
-        )
+        logger.debug("Model loaded from %s in %.2f seconds (n: %d)", filename, elapsed, len(param_sets))
         return result
 
     @classmethod
-    def load_columns(
-        cls,
-        filename: str,
-        param_keys: list[str] | None = None,
-        **kwargs: Any
-    ) -> dict[str, Any]:
+    def load_columns(cls, filename: str, param_keys: list[str] | None = None, **kwargs: Any) -> dict[str, Any]:
         """
         Fast path: load only specific parameter columns as numpy arrays,
         skipping Parameters object construction entirely.
@@ -243,16 +229,14 @@ class ModelIOBase(PluginBase):
         Examples
         --------
         >>> cols = HDF5ModelIO.load_columns("result.h5", param_keys=["a", "eps_ab"])
-        >>> a   = cols["a"]       # numpy array, shape (n_models,)
+        >>> a = cols["a"]  # numpy array, shape (n_models,)
         >>> eps = cols["eps_ab"]
         """
         return cls._load_columns_from_file(filename, param_keys=param_keys, **kwargs)
 
     @classmethod
     @abstractmethod
-    def _load_metadata_from_file(
-        cls, filename: str, keys: list[str] | None = None, **kwargs: Any
-    ) -> MetaDataDict:
+    def _load_metadata_from_file(cls, filename: str, keys: list[str] | None = None, **kwargs: Any) -> MetaDataDict:
         """
         Abstract method to load metadata from a file.
 
@@ -312,10 +296,7 @@ class ModelIOBase(PluginBase):
     @classmethod
     @abstractmethod
     def _load_columns_from_file(
-        cls,
-        filename: str,
-        param_keys: list[str] | None = None,
-        **kwargs: Any
+        cls, filename: str, param_keys: list[str] | None = None, **kwargs: Any
     ) -> dict[str, Any]:
         """
         Abstract method to load specific parameter columns as raw arrays,
@@ -377,16 +358,14 @@ class ModelIOBase(PluginBase):
             coordinate_name=model._structure._coordinate_name,
             geometry_name=model._structure._geometry_name,
             error_method_name=getattr(model._structure, "_error_method_name", None),
-            error_func_name=getattr(model._structure, "_error_func_name", None)
+            error_func_name=getattr(model._structure, "_error_func_name", None),
         )
         meta_data["model_count"] = len(model._param_sets)
         return meta_data
 
     @classmethod
     def _extract_parameters_from_model(
-        cls,
-        model: ModelResult,
-        info_keys: tuple[str, ...] = ("parameter",)
+        cls, model: ModelResult, info_keys: tuple[str, ...] = ("parameter",)
     ) -> dict[str, Any]:
         """
         Extract parameters from the model.
@@ -426,9 +405,7 @@ class ModelIOBase(PluginBase):
 
     @classmethod
     def _extract_opt_from_model(
-        cls,
-        model: ModelResult,
-        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")
+        cls, model: ModelResult, result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")
     ) -> dict[str, Any]:
         """
         Extract optimization results from the model.
@@ -461,7 +438,7 @@ class ModelIOBase(PluginBase):
         cls,
         model: ModelResult,
         info_keys: tuple[str, ...] = ("parameter",),
-        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations")
+        result_keys: tuple[str, ...] = ("cost", "success", "n_fun_evals", "n_iterations"),
     ) -> dict[Literal["meta", "parameters", "opt_info"], dict[str, Any] | MetaDataDict]:
         """
         Extract all relevant data from a ModelResult for saving or management.
@@ -484,12 +461,14 @@ class ModelIOBase(PluginBase):
         combined_data: dict[Literal["meta", "parameters", "opt_info"], dict[str, Any]] = {
             "meta": cls._extract_metadata_from_model(model),
             "parameters": cls._extract_parameters_from_model(model, info_keys),
-            "opt_info": cls._extract_opt_from_model(model, result_keys)
+            "opt_info": cls._extract_opt_from_model(model, result_keys),
         }
         return combined_data
 
+
 class ModelIO(PluginManager[ModelIOBase]):
     """Factory class for accessing registered model I/O plugins."""
+
     _plugins = {}
     _plugin_module = "gal3d.optimization.model_io_plugins"
     _base_class = ModelIOBase

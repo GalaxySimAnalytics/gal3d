@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Literal, TypeAlias, Union, overload
+from typing import Any, Literal, TypeAlias, overload
 
 from _typeshed import Incomplete
 
@@ -14,7 +14,7 @@ from gal3d.point import Particles as Particles
 from gal3d.util.errors import FitDataError as FitDataError
 
 logger: Incomplete
-FitInput: TypeAlias = Union[Gal3DAnalyzer, Particles, DensitySource]
+FitInput: TypeAlias = Gal3DAnalyzer | Particles | DensitySource
 
 class FitWorkflowBase(PluginBase):
     """

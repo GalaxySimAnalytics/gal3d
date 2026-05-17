@@ -10,9 +10,10 @@ from gal3d.visualization.model_projector import ModelProjectorBase
 from gal3d.visualization.show import ImageData
 
 logger = logging.getLogger("gal3d.visualization.ModelProjector")
+
+
 class ProjectorLineIntegration(ModelProjectorBase):
     def __init__(self, model, model_cric=None, sigma_clip=2, cache_len=100, **kwargs):
-
         super().__init__(cache_len=cache_len)
 
         self.model = model
@@ -27,11 +28,10 @@ class ProjectorLineIntegration(ModelProjectorBase):
         if sigma_clip:
             me = np.mean(np.array(self.model.cost))
             std = np.std(np.array(self.model.cost))
-            sel = sel & (np.array(self.model.cost) < me+sigma_clip*std)
+            sel = sel & (np.array(self.model.cost) < me + sigma_clip * std)
         removed_count = np.sum(~sel)
         if removed_count:
-            logger.info("Projector removed %d steps with relatively large fit error",
-                        removed_count)
+            logger.info("Projector removed %d steps with relatively large fit error", removed_count)
             self.model_sel = self.model_sel[sel]
 
     def _setup_grid(self, x_range, y_range, nbins):
@@ -51,7 +51,7 @@ class ProjectorLineIntegration(ModelProjectorBase):
 
         return indices, pos, xs, ys
 
-    def _prepare_sight_lines(self, pos, z_range, rotation = None):
+    def _prepare_sight_lines(self, pos, z_range, rotation=None):
         """Prepare the sight lines for integration."""
         pos1 = np.zeros((len(pos), 3))
         pos2 = np.zeros((len(pos), 3))
@@ -90,7 +90,7 @@ class ProjectorLineIntegration(ModelProjectorBase):
         for i in tqdm(model_sel[::-1], desc="Intersecting"):
             model_i = self.model[int(i)]
             sec = model_i.quick_line_intersect(pos1=pos1[ind_in], pos2=pos2[ind_in])
-            sel = (sec[:, 0] > 0.0)
+            sel = sec[:, 0] > 0.0
             tar = ind_in[sel]
             sec = sec[sel]
             p = para[i]
@@ -114,7 +114,6 @@ class ProjectorLineIntegration(ModelProjectorBase):
             deproject_array[tuple(indices[i])] = inte
         return deproject_array
 
-
     def _image(
         self,
         x_range: tuple[float, float],
@@ -122,7 +121,7 @@ class ProjectorLineIntegration(ModelProjectorBase):
         nbins: int = 100,
         z_range: tuple[float, float] = (-20, 20),
         rotation: np.ndarray | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> ImageData:
         """
         Generate a 2D projection image by integrating along a specified line of sight.
@@ -159,10 +158,4 @@ class ProjectorLineIntegration(ModelProjectorBase):
         # Integrate profiles
         deproject_array = self._integrate_profiles(intersections, parameters, ind_total, indices, nbins)
 
-        return ImageData(
-            value=deproject_array.T,
-            xs=xs,
-            ys=ys,
-            xrange=x_range,
-            yrange=y_range
-        )
+        return ImageData(value=deproject_array.T, xs=xs, ys=ys, xrange=x_range, yrange=y_range)

@@ -13,7 +13,7 @@ Quick start
 >>>
 >>> # Change threads and backend
 >>> config.general.number_of_threads = 8
->>> config.general.use_cython = False         # True: Cython (default), Numba currently disabled
+>>> config.general.use_cython = False  # True: Cython (default), Numba currently disabled
 >>>
 >>> # Enable your plugin package for discovery
 >>> config.plugin_modules.add_module("gal3d.my_plugins")
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 cpu_count: int
 try:
     import psutil
+
     cpu_count = psutil.cpu_count(logical=False)
 except ImportError:
     os_cpu = os.cpu_count()
@@ -64,8 +65,10 @@ DEFAULT_PLUGIN_MODULES = {
     "gal3d.optimization.model_io",
     "gal3d.characterization.characterizer",
     "gal3d.model_workflow.fit_workflow",
-    "gal3d.model_workflow.error_workflow"
+    "gal3d.model_workflow.error_workflow",
 }
+
+
 class IterationMethod(IntEnum):
     """
     Iteration methods for ray-ellipsoid intersection.
@@ -85,6 +88,7 @@ class IterationMethod(IntEnum):
         Iteration formula:
             :math:`x_{n+1} = x_n - [6 f(x_n) (f'(x_n))^2 - 3 f(x_n)^2 f''(x_n)] / [6 (f'(x_n))^3 - 6 f(x_n) f'(x_n) f''(x_n) + f(x_n)^2 f'''(x_n)]`
     """
+
     NEWTON = 1
     HALLEY = 2
     HOUSEHOLDER = 3
@@ -95,6 +99,7 @@ class IterationMethod(IntEnum):
 
     def __repr__(self) -> str:
         return f"{self.name}({self.value})"
+
 
 @dataclass
 class BaseConfig:
@@ -112,6 +117,7 @@ class BaseConfig:
     def validate(self) -> None:
         """Validate configuration values. To be implemented by subclasses."""
 
+
 @dataclass(slots=True)
 class GeneralConfig(BaseConfig):
     """
@@ -128,42 +134,42 @@ class GeneralConfig(BaseConfig):
     max_instances : int
         Maximum number of cached instances.
     """
-    min_batchsize: int = 200000         # Minimum batch size for processing
-    number_of_threads: int = 1         # Number of threads for parallel processing
-    use_cython: bool = True             # Use Cython for acceleration
-    max_instances: int = 20              # Maximum number of cached instances
+
+    min_batchsize: int = 200000  # Minimum batch size for processing
+    number_of_threads: int = 1  # Number of threads for parallel processing
+    use_cython: bool = True  # Use Cython for acceleration
+    max_instances: int = 20  # Maximum number of cached instances
 
     def validate(self) -> None:
         """Validate and correct configuration values."""
         if self.min_batchsize <= 0:
             self.min_batchsize = 200000
-            warnings.warn(f"Invalid min_batchsize corrected to {self.min_batchsize}",stacklevel=2)
+            warnings.warn(f"Invalid min_batchsize corrected to {self.min_batchsize}", stacklevel=2)
 
         if self.number_of_threads <= 0:
             self.number_of_threads = cpu_count
 
         if self.max_instances <= 0:
             self.max_instances = 20
-            warnings.warn(f"Invalid max_instances corrected to {self.max_instances}",stacklevel=2)
+            warnings.warn(f"Invalid max_instances corrected to {self.max_instances}", stacklevel=2)
 
         if not self.use_cython:
             self.use_cython = True
-            warnings.warn(
-                "Numba support has been disabled. Using Cython as a fallback.",
-                UserWarning, stacklevel=2
-            )
-    def optimize_thread_count(self,
-                     benchmark_size: int = 1024,
-                     min_threads: int = 1,
-                     max_threads: int | None = None,
-                     test_function: Callable | None = None,
-                     iterations: int = 100,
-                     progress_bar: bool = False,
-                     print_result: bool = False,
-                     early_stop: bool = True,
-                     real_world_factor: float = 0.75,
-                     return_mode: Literal["recommended", "fastest", "adjusted", "balanced"] = "recommended"
-                     ) -> int:
+            warnings.warn("Numba support has been disabled. Using Cython as a fallback.", UserWarning, stacklevel=2)
+
+    def optimize_thread_count(
+        self,
+        benchmark_size: int = 1024,
+        min_threads: int = 1,
+        max_threads: int | None = None,
+        test_function: Callable | None = None,
+        iterations: int = 100,
+        progress_bar: bool = False,
+        print_result: bool = False,
+        early_stop: bool = True,
+        real_world_factor: float = 0.75,
+        return_mode: Literal["recommended", "fastest", "adjusted", "balanced"] = "recommended",
+    ) -> int:
         """
         Find the optimal thread count for OpenMP/nogil parallel functions through benchmarking.
 
@@ -218,10 +224,10 @@ class GeneralConfig(BaseConfig):
             test_function=test_function,
             iterations=iterations,
             progress_bar=progress_bar,
-            print_result = print_result,
+            print_result=print_result,
             early_stop=early_stop,
             real_world_factor=real_world_factor,
-            return_mode = return_mode,
+            return_mode=return_mode,
         )
 
     def set_optimal_thread_count(self, logger: Optional["Logger"] = None) -> None:
@@ -235,6 +241,7 @@ class GeneralConfig(BaseConfig):
         self.number_of_threads = optimal_threads
         if logger is not None:
             logger.info("Thread count has been set to optimal value: %d", optimal_threads)
+
 
 @dataclass
 class LoggerConfig(BaseConfig):
@@ -254,11 +261,12 @@ class LoggerConfig(BaseConfig):
     stream_level : int
         Console log level.
     """
-    level: int = 20                     # Logging level
-    save_file: bool = False             # Save logs to a file
-    file_name: str = "gal3d.log"        # Log file name
-    file_level: int = 20                # Log file level
-    stream_level: int = 20              # Console log level
+
+    level: int = 20  # Logging level
+    save_file: bool = False  # Save logs to a file
+    file_name: str = "gal3d.log"  # Log file name
+    file_level: int = 20  # Log file level
+    stream_level: int = 20  # Console log level
 
 
 @dataclass
@@ -275,6 +283,7 @@ class DensityKNNConfig(BaseConfig):
     workers : int, optional
         Number of worker threads to use. If None, will be set to the number of CPU cores.
     """
+
     k_neighbors: int = 32
     leafsize: int | None = None
     workers: int | None = None
@@ -283,13 +292,13 @@ class DensityKNNConfig(BaseConfig):
         """Validate and correct configuration values."""
         if self.k_neighbors <= 0:
             self.k_neighbors = 32
-            warnings.warn(f"Invalid k_neighbors corrected to {self.k_neighbors}",stacklevel=2)
+            warnings.warn(f"Invalid k_neighbors corrected to {self.k_neighbors}", stacklevel=2)
 
         if self.leafsize is None:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
         elif self.leafsize <= 0:
             self.leafsize = max(int(self.k_neighbors / 2), 10)
-            warnings.warn(f"Invalid leafsize corrected to {self.leafsize}",stacklevel=2)
+            warnings.warn(f"Invalid leafsize corrected to {self.leafsize}", stacklevel=2)
         if self.workers is None or self.workers <= 0:
             self.workers = cpu_count
 
@@ -311,6 +320,7 @@ class LOSIntegratorConfig(BaseConfig):
     atol : float
         Absolute tolerance for the adaptive integrator.
     """
+
     nz_min: int = 33
     nz_max: int = 4097
     rtol: float = 1e-4
@@ -326,6 +336,7 @@ class LOSIntegratorConfig(BaseConfig):
         if self.atol < 0:
             raise ValueError(f"atol must be >= 0, got {self.atol}")
 
+
 @dataclass
 class SPHRenderConfig(BaseConfig):
     """
@@ -340,9 +351,10 @@ class SPHRenderConfig(BaseConfig):
     subsample : int
         Subsampling factor. Particles subsampled by this factor.
     """
+
     resolution: int = 500
-    render_double: bool = False         # Use double precision for rendering
-    subsample: int = 1                   # Subsampling factor
+    render_double: bool = False  # Use double precision for rendering
+    subsample: int = 1  # Subsampling factor
 
     def validate(self) -> None:
         """Validate and correct configuration values."""
@@ -353,6 +365,7 @@ class SPHRenderConfig(BaseConfig):
         if self.subsample <= 0:
             self.subsample = 1
             warnings.warn(f"Invalid subsample corrected to {self.subsample}", stacklevel=2)
+
 
 @dataclass
 class EllipsoidConfig(BaseConfig):
@@ -370,12 +383,14 @@ class EllipsoidConfig(BaseConfig):
     MaxIterationLine : int
         Maximum iterations for line intersection.
     """
-    DistIteration: IterationMethod = IterationMethod.HALLEY   # Distance iteration method
-    LineIteration: IterationMethod = IterationMethod.HALLEY    # Line iteration method  #TODO, currently only Newton
-    MaxIterationDist: int = 100                          # Maximum iterations for ray distance
-    MaxIterationLine: int = 100                         # Maximum iterations for line intersection
+
+    DistIteration: IterationMethod = IterationMethod.HALLEY  # Distance iteration method
+    LineIteration: IterationMethod = IterationMethod.HALLEY  # Line iteration method  #TODO, currently only Newton
+    MaxIterationDist: int = 100  # Maximum iterations for ray distance
+    MaxIterationLine: int = 100  # Maximum iterations for line intersection
     # Only this parameter is exposed for eps_ac_s
     EpsTableN: int = 81
+
     def __setattr__(self, name, value):
         if name in ("DistIteration", "LineIteration"):
             value = IterationMethod(value)
@@ -386,15 +401,20 @@ class EllipsoidConfig(BaseConfig):
 
         if self.MaxIterationDist <= 0:
             self.MaxIterationDist = 100
-            warnings.warn(f"Invalid MaxIterationDist corrected to {self.MaxIterationDist}",stacklevel=2)
+            warnings.warn(f"Invalid MaxIterationDist corrected to {self.MaxIterationDist}", stacklevel=2)
 
         if self.MaxIterationLine <= 0:
             self.MaxIterationLine = 100
-            warnings.warn(f"Invalid MaxIterationLine corrected to {self.MaxIterationLine}",stacklevel=2)
+            warnings.warn(f"Invalid MaxIterationLine corrected to {self.MaxIterationLine}", stacklevel=2)
 
         if self.EpsTableN <= 1:
             self.EpsTableN = 81
-            warnings.warn(f"Invalid EpsTableN corrected to {self.EpsTableN}",stacklevel=2)
+            warnings.warn(f"Invalid EpsTableN corrected to {self.EpsTableN}", stacklevel=2)
+
+
+def default_module():
+    """Get the default set of plugin modules for discovery."""
+    return DEFAULT_PLUGIN_MODULES.copy()
 
 
 @dataclass
@@ -407,8 +427,9 @@ class PluginManagerConfig(BaseConfig):
     modules : Set[str]
         Set of module paths to be loaded by the plugin manager.
     """
+
     section_name: ClassVar[str] = "plugin_manager"
-    modules: set[str] = field(default_factory=lambda: DEFAULT_PLUGIN_MODULES.copy())
+    modules: set[str] = field(default_factory=default_module)
 
     def __setattr__(self, name, value):
         if name == "modules":
@@ -441,6 +462,8 @@ class PluginManagerConfig(BaseConfig):
         """
         if module_path in self.modules:
             self.modules.remove(module_path)
+
+
 @dataclass
 class Config:
     """
@@ -464,6 +487,7 @@ class Config:
         Plugin manager discovery settings.
     # Add more sections as needed, e.g. database, simulation, etc.
     """
+
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
     densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
@@ -494,7 +518,7 @@ class Config:
             f"[LOSIntegrator]\n{self.los_integrator}",
             f"[SPHRender]\n{self.sph_render}",
             f"[Ellipsoid_S]\n{self.ellipsoid_s}",
-            f"[Plugin Modules]\n{pformat(self.plugin_modules)}"
+            f"[Plugin Modules]\n{pformat(self.plugin_modules)}",
         ]
         return "\n\n".join(sections)
 
@@ -506,9 +530,10 @@ class Config:
             "densityknn": asdict(self.densityknn),
             "los_integrator": asdict(self.los_integrator),
             "sph_render": asdict(self.sph_render),
-            "ellipsoid_s": {k: (v.value if isinstance(v, IterationMethod) else v)
-                           for k, v in asdict(self.ellipsoid_s).items()},
-            "plugin_modules": list(self.plugin_modules.modules)
+            "ellipsoid_s": {
+                k: (v.value if isinstance(v, IterationMethod) else v) for k, v in asdict(self.ellipsoid_s).items()
+            },
+            "plugin_modules": list(self.plugin_modules.modules),
         }
         return config_dict
 
@@ -538,8 +563,7 @@ class Config:
                     self.plugin_modules.modules = set(section_value)
                 else:
                     warnings.warn(
-                        "plugin_modules must be a dict with 'modules' or a sequence of module paths.",
-                        stacklevel=2,
+                        "plugin_modules must be a dict with 'modules' or a sequence of module paths.", stacklevel=2
                     )
                 continue
 
@@ -574,7 +598,8 @@ class Config:
             with open(filepath, "w") as f:
                 json.dump(config_dict, f, indent=2)
         elif filepath.lower().endswith((".yaml", ".yml")):
-            import yaml  # type: ignore
+            import yaml
+
             with open(filepath, "w") as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
         else:
@@ -597,6 +622,7 @@ class Config:
                 config_dict = json.load(f)
         elif filepath.lower().endswith((".yaml", ".yml")):
             import yaml
+
             with open(filepath) as f:
                 config_dict = yaml.safe_load(f)
         else:
@@ -623,7 +649,9 @@ class Config:
             The name of the logger to configure (default: "gal3d").
         """
         from gal3d.log import _setup_logging
+
         _setup_logging(self.logger, logger_name=logger_name)
+
 
 # Instantiate configuration
 config: Config = Config()

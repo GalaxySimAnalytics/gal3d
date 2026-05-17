@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from gal3d.optimization.result import ModelResult
     from gal3d.visualization.show import ImageData
 
+
 class DensitySource(Auto3DShape):
     """
     Base class for density estimation, providing a common interface for
@@ -154,7 +155,6 @@ class DensitySource(Auto3DShape):
         ys = 0.5 * (ys[:-1] + ys[1:])
         return ImageData(im_value, xs=xs, ys=ys, xrange=x_range, yrange=y_range)
 
-
     @classmethod
     def available_shape_workflows(cls) -> list[str]:
         """
@@ -175,8 +175,8 @@ class DensitySource(Auto3DShape):
         workflow: Optional["FitWorkflowBase"] = None,
         progress: bool = True,
         warm_start: bool = True,
-        **kwargs: Any
-        ) -> "ModelResult":
+        **kwargs: Any,
+    ) -> "ModelResult":
         """
         Fit a shape model to the density distribution at one or more radii.
 

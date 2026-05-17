@@ -99,9 +99,7 @@ Examples
 Fit isodensity ellipsoid shells to a :class:`~gal3d.density.DensitySource`
 ``source`` over the radial range :math:`[0.5, 20]` kpc::
 
-    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_continuous import (
-        IterateEllipsoidDensity,
-    )
+    from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_continuous import IterateEllipsoidDensity
 
     workflow = IterateEllipsoidDensity()
 
@@ -119,6 +117,7 @@ Fit isodensity ellipsoid shells to a :class:`~gal3d.density.DensitySource`
 Alternatively, supply an explicit radius array::
 
     import numpy as np
+
     result = workflow(source, r=np.geomspace(0.5, 20.0, 40))
 
 The returned :class:`~gal3d.optimization.result.ModelResult` contains the
@@ -126,7 +125,6 @@ best-fit axis length ``a``, ellipticities ``eps_ab`` and ``eps_bc``, the
 three orientation angles ``ang1``, ``ang2``, ``ang3``, and per-parameter
 iteration uncertainties.
 """
-
 
 import logging
 from dataclasses import dataclass, field
@@ -140,9 +138,7 @@ from gal3d.model_workflow.fit_workflow import FitInput, FitWorkflowBase
 from gal3d.optimization.result import ModelResult
 from gal3d.point.util import solve_eigenvalues
 
-from .util import (
-    EllipsoidResultBuilder,
-)
+from .util import EllipsoidResultBuilder
 
 if TYPE_CHECKING:
     from gal3d.density import DensitySource
@@ -170,6 +166,7 @@ class DensityWeightConfig:
     log_dynamic_range : float, optional
         Dynamic range threshold in dex for automatic log weighting.
     """
+
     sigma_clip: float | None = 3.0
     log: bool | None = None
     log_dynamic_range: float = 1.0
@@ -189,6 +186,7 @@ class ShellTensorConfig:
     weight : DensityWeightConfig, optional
         Robust density-weight configuration.
     """
+
     n_sample: int = 512
     method: SamplingMethod = "fibonacci"
     weight: DensityWeightConfig = field(default_factory=DensityWeightConfig)
@@ -211,6 +209,7 @@ class EllipsoidIterationConfig:
     damping : float, optional
         Damping coefficient for axis updates.
     """
+
     max_iterations: int = 30
     tol: float = 1e-3
     volume_conserve: bool = False
@@ -220,6 +219,7 @@ class EllipsoidIterationConfig:
 @dataclass
 class EllipsoidIterationState:
     """Mutable state of one shell iteration."""
+
     axes: np.ndarray
     rotation: np.ndarray
     previous_axes: np.ndarray
@@ -231,6 +231,7 @@ class EllipsoidIterationState:
 
 class AngularSampler(Protocol):
     """Protocol for angular quadrature nodes on the unit sphere."""
+
     pos: np.ndarray
     weights: np.ndarray
 
@@ -281,13 +282,7 @@ class GaussLegendreAngularSampler:
         phi = np.broadcast_to(phi_nodes[None, :], (ntheta, nphi))
         st = np.sqrt(np.clip(1.0 - ct**2, 0.0, None))
 
-        self.pos = np.column_stack(
-            [
-                (st * np.cos(phi)).ravel(),
-                (st * np.sin(phi)).ravel(),
-                ct.ravel(),
-            ]
-        )
+        self.pos = np.column_stack([(st * np.cos(phi)).ravel(), (st * np.sin(phi)).ravel(), ct.ravel()])
         self.weights = (w_ct[:, None] * phi_weights[None, :]).ravel()
         self._phi = phi.ravel()
         self._theta = np.arccos(np.clip(ct.ravel(), -1.0, 1.0))
@@ -308,8 +303,7 @@ class HealpixAngularSampler:
             import healpy as hp
         except ImportError as exc:
             raise ImportError(
-                "method='healpix' requires the optional package 'healpy'. "
-                "Install it with: pip install healpy"
+                "method='healpix' requires the optional package 'healpy'. Install it with: pip install healpy"
             ) from exc
 
         nside_float = np.sqrt(max(int(n_sample), 12) / 12.0)
@@ -321,13 +315,7 @@ class HealpixAngularSampler:
         theta, phi = hp.pix2ang(nside, pix, nest=False)
         st = np.sin(theta)
 
-        self.pos = np.column_stack(
-            [
-                st * np.cos(phi),
-                st * np.sin(phi),
-                np.cos(theta),
-            ]
-        )
+        self.pos = np.column_stack([st * np.cos(phi), st * np.sin(phi), np.cos(theta)])
         self.weights = np.full(npix, 4.0 * np.pi / npix, dtype=float)
         self._phi = phi
         self._theta = theta
@@ -344,10 +332,9 @@ def build_angular_sampler(config: ShellTensorConfig) -> AngularSampler:
         return HealpixAngularSampler(config.n_sample)
     return FibonacciAngularSampler(config.n_sample, method=config.method)
 
+
 def _shape_tensor_to_axes(
-    S: np.ndarray,
-    a_old: np.ndarray,
-    volume_conserve: bool = True,
+    S: np.ndarray, a_old: np.ndarray, volume_conserve: bool = True
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert angular-weighted shape tensor S → new semi-axes + rotation matrix.
@@ -372,6 +359,7 @@ def _shape_tensor_to_axes(
             new_axes = new_axes * (vol_old / vol_new) ** (1.0 / 3.0)
 
     return new_axes, rot_mat
+
 
 # ===========================================================================
 # Continuous density: shape tensor on ellipsoid surface
@@ -402,11 +390,7 @@ class DensityWeightPolicy:
         return rho_clipped
 
     @staticmethod
-    def weighted_quantile(
-        values: np.ndarray,
-        weights: np.ndarray,
-        q: float | np.ndarray,
-    ) -> float | np.ndarray:
+    def weighted_quantile(values: np.ndarray, weights: np.ndarray, q: float | np.ndarray) -> float | np.ndarray:
         values = np.asarray(values, dtype=float)
         weights = np.asarray(weights, dtype=float)
         mask = np.isfinite(values) & np.isfinite(weights) & (weights > 0)
@@ -430,11 +414,7 @@ class DensityWeightPolicy:
 
     @classmethod
     def effective_density_weight(
-        cls,
-        rho: np.ndarray,
-        weights: np.ndarray,
-        config: DensityWeightConfig,
-        tiny: float | None = None,
+        cls, rho: np.ndarray, weights: np.ndarray, config: DensityWeightConfig, tiny: float | None = None
     ) -> tuple[np.ndarray, bool]:
         """
         Build effective positive density weights.
@@ -451,11 +431,7 @@ class DensityWeightPolicy:
 
         if config.log is None:
             q05, q95 = cast("tuple[float, float]", cls.weighted_quantile(log10rho, weights, np.array([0.05, 0.95])))
-            use_log = bool(
-                np.isfinite(q05)
-                and np.isfinite(q95)
-                and (q95 - q05 > config.log_dynamic_range)
-            )
+            use_log = bool(np.isfinite(q05) and np.isfinite(q95) and (q95 - q05 > config.log_dynamic_range))
         else:
             use_log = bool(config.log)
 
@@ -471,11 +447,7 @@ class DensityWeightPolicy:
             mad = cls.weighted_quantile(np.abs(logrho - med), weights, 0.50)
             if np.isfinite(med) and np.isfinite(mad) and mad > 0.0:
                 scale = 1.4826 * mad
-                logrho = np.clip(
-                    logrho,
-                    med - config.sigma_clip * scale,
-                    med + config.sigma_clip * scale,
-                )
+                logrho = np.clip(logrho, med - config.sigma_clip * scale, med + config.sigma_clip * scale)
 
         rho_clip = np.exp(logrho)
         rho_scale = cls.weighted_quantile(rho_clip, weights, 0.50)
@@ -506,40 +478,25 @@ class EllipsoidShellShapeTensor:
     samples, not from the robust/log-compressed tensor weights.
     """
 
-    def __init__(
-        self,
-        sampler: AngularSampler,
-        weight_config: DensityWeightConfig | None = None,
-    ) -> None:
+    def __init__(self, sampler: AngularSampler, weight_config: DensityWeightConfig | None = None) -> None:
         self.sampler = sampler
         self.weight_config = weight_config or DensityWeightConfig()
 
     @staticmethod
-    def ellipsoid_points(
-        unit_pos: np.ndarray,
-        axes: np.ndarray,
-        rotation_matrix: np.ndarray,
-    ) -> np.ndarray:
+    def ellipsoid_points(unit_pos: np.ndarray, axes: np.ndarray, rotation_matrix: np.ndarray) -> np.ndarray:
         """Scale unit-sphere points to the ellipsoid surface and rotate to lab frame."""
         return (unit_pos * axes) @ rotation_matrix
 
     @staticmethod
     def shape_tensor_from_samples(
-        pos_lab: np.ndarray,
-        rho: np.ndarray,
-        weights: np.ndarray,
-        rho_weight: np.ndarray | None = None,
+        pos_lab: np.ndarray, rho: np.ndarray, weights: np.ndarray, rho_weight: np.ndarray | None = None
     ) -> tuple[np.ndarray, float]:
         """Compute the angular-weighted shape tensor and true mean density."""
         if rho_weight is None:
             rho_weight = rho
 
         rho_weight = np.asarray(rho_weight, dtype=float)
-        rho_weight = np.where(
-            np.isfinite(rho_weight) & (rho_weight > 0.0),
-            rho_weight,
-            0.0,
-        )
+        rho_weight = np.where(np.isfinite(rho_weight) & (rho_weight > 0.0), rho_weight, 0.0)
 
         rho_weights = rho_weight * weights
         total_weight = rho_weights.sum()
@@ -551,18 +508,11 @@ class EllipsoidShellShapeTensor:
         tensor = 0.5 * (tensor + tensor.T)
 
         valid = np.isfinite(rho) & np.isfinite(weights) & (weights > 0)
-        mean_rho = (
-            float((rho[valid] * weights[valid]).sum() / weights[valid].sum())
-            if np.any(valid)
-            else 0.0
-        )
+        mean_rho = float((rho[valid] * weights[valid]).sum() / weights[valid].sum()) if np.any(valid) else 0.0
         return tensor, mean_rho
 
     def __call__(
-        self,
-        source: "DensitySource",
-        axes: np.ndarray,
-        rotation_matrix: np.ndarray | None = None,
+        self, source: "DensitySource", axes: np.ndarray, rotation_matrix: np.ndarray | None = None
     ) -> tuple[np.ndarray, float]:
         """
         Compute the shape tensor on the ellipsoid surface.
@@ -589,24 +539,11 @@ class EllipsoidShellShapeTensor:
         pos_lab = self.ellipsoid_points(self.sampler.pos, axes, rotation)
         rho = source._evaluate_density(pos_lab)
 
-        rho_weight, _ = DensityWeightPolicy.effective_density_weight(
-            rho,
-            self.sampler.weights,
-            self.weight_config,
-        )
-        return self.shape_tensor_from_samples(
-            pos_lab,
-            rho,
-            self.sampler.weights,
-            rho_weight=rho_weight,
-        )
+        rho_weight, _ = DensityWeightPolicy.effective_density_weight(rho, self.sampler.weights, self.weight_config)
+        return self.shape_tensor_from_samples(pos_lab, rho, self.sampler.weights, rho_weight=rho_weight)
 
     def spherical_harmonics_expansion(
-        self,
-        source: "DensitySource",
-        axes: np.ndarray,
-        lmax: int = 4,
-        rotation_matrix: np.ndarray | None = None,
+        self, source: "DensitySource", axes: np.ndarray, lmax: int = 4, rotation_matrix: np.ndarray | None = None
     ) -> dict[int, np.ndarray]:
         """
         Real spherical-harmonic expansion of density on the ellipsoid shell.
@@ -627,25 +564,18 @@ class EllipsoidShellShapeTensor:
         rho = source._evaluate_density(pos_lab)
 
         if self.weight_config.sigma_clip is not None:
-            rho = DensityWeightPolicy.sigma_clip_rho(
-                rho,
-                self.sampler.weights,
-                sigma=self.weight_config.sigma_clip,
-            )
+            rho = DensityWeightPolicy.sigma_clip_rho(rho, self.sampler.weights, sigma=self.weight_config.sigma_clip)
 
         return {
             ell: np.array(
                 [
-                    np.sum(
-                        rho
-                        * spherical_harmonics_in_real(phi, theta, m, ell)
-                        * self.sampler.weights
-                    )
+                    np.sum(rho * spherical_harmonics_in_real(phi, theta, m, ell) * self.sampler.weights)
                     for m in range(ell, -ell - 1, -1)
                 ]
             )
             for ell in range(lmax + 1)
         }
+
 
 class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
     """
@@ -695,6 +625,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         wrapping one.
         """
         from gal3d.density import DensitySource
+
         # accept a bare DensitySource or an Analyzer whose density_source is one
         if isinstance(obj, DensitySource):
             logger.debug("Select IterateEllipsoidDensityWorkflow for DensitySource")
@@ -745,10 +676,7 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         )
 
     def _init_trial_ellipsoid(
-        self,
-        r: float,
-        init_parameters: dict[str, Any] | None,
-        volume_conserve: bool,
+        self, r: float, init_parameters: dict[str, Any] | None, volume_conserve: bool
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Build initial axes and rotation from optional warm-start parameters.
@@ -766,13 +694,10 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             ang3 = float(init_parameters.get("ang3", 0.0))
 
             from scipy.spatial.transform import Rotation as _Rotation
+
             rotation = _Rotation.from_euler("zyx", [ang1, ang2, ang3]).as_matrix()
 
-        axes = self._to_new_ellipsoid(
-            axes_ref,
-            ratio_axes,
-            volume_conservation=volume_conserve,
-        )
+        axes = self._to_new_ellipsoid(axes_ref, ratio_axes, volume_conservation=volume_conserve)
         return axes, rotation
 
     def _iterate_once(
@@ -786,26 +711,14 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         state.previous_axes = state.axes.copy()
         state.previous_rotation = state.rotation.copy()
 
-        shape_tensor, state.mean_rho = tensor(
-            source,
-            state.axes,
-            rotation_matrix=state.rotation,
-        )
+        shape_tensor, state.mean_rho = tensor(source, state.axes, rotation_matrix=state.rotation)
 
-        axes_new, rotation_new = _shape_tensor_to_axes(
-            shape_tensor,
-            state.axes,
-            config.volume_conserve,
-        )
+        axes_new, rotation_new = _shape_tensor_to_axes(shape_tensor, state.axes, config.volume_conserve)
 
         state.err = self._axis_ratio_error(axes_new, state.axes)
         axes_damped = (1.0 - config.damping) * state.axes + config.damping * axes_new
 
-        state.axes = self._to_new_ellipsoid(
-            state.axes,
-            axes_damped,
-            volume_conservation=config.volume_conserve,
-        )
+        state.axes = self._to_new_ellipsoid(state.axes, axes_damped, volume_conservation=config.volume_conserve)
         state.rotation = rotation_new
         state.n_iter += 1
 
@@ -850,20 +763,12 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
             err=iteration_config.tol + 1.0,
         )
 
-        while (
-            state.err > iteration_config.tol
-            and state.n_iter < iteration_config.max_iterations
-        ):
+        while state.err > iteration_config.tol and state.n_iter < iteration_config.max_iterations:
             self._iterate_once(source, tensor, state, iteration_config)
 
         return state
 
-    def _fit_single(
-        self,
-        obj: FitInput,
-        r: float,
-        **kwargs: Any,
-    ) -> ModelResult:
+    def _fit_single(self, obj: FitInput, r: float, **kwargs: Any) -> ModelResult:
         """
         Fit one continuous-density isodensity ellipsoid shell.
 
@@ -889,19 +794,9 @@ class IterateEllipsoidDensity(FitWorkflowBase, EllipsoidResultBuilder):
         tensor_config = self._parse_tensor_config(kwargs)
 
         init_parameters = kwargs.get("init_parameters", {})
-        axes_init, rotation_init = self._init_trial_ellipsoid(
-            r,
-            init_parameters,
-            iteration_config.volume_conserve,
-        )
+        axes_init, rotation_init = self._init_trial_ellipsoid(r, init_parameters, iteration_config.volume_conserve)
 
-        state = self._iterate_shell(
-            source,
-            axes_init,
-            rotation_init,
-            iteration_config,
-            tensor_config,
-        )
+        state = self._iterate_shell(source, axes_init, rotation_init, iteration_config, tensor_config)
 
         return self._build_model_result(
             state.axes,

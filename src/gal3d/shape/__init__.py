@@ -2,6 +2,7 @@
 Module for defining and manipulating 3D shapes.
 
 """
+
 import logging
 from collections.abc import Callable, Sequence
 from types import MethodType
@@ -25,13 +26,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("gal3d.shape")
 
+
 class StructureCore:
     """Base class for managing coordinate transformations, geometry, and parameters of a 3D structure."""
 
     def __init__(
-        self,
-        coordinate: CoordinateBase | type[CoordinateBase] | str,
-        geometry: GeometryBase | type[GeometryBase] | str,
+        self, coordinate: CoordinateBase | type[CoordinateBase] | str, geometry: GeometryBase | type[GeometryBase] | str
     ):
         """
         Initialize structure components.
@@ -46,9 +46,7 @@ class StructureCore:
         self._set_geometry(geometry)
         self._set_coordinate(coordinate)
 
-        self.parameters: Parameters = (
-            self._coordinate.default_parameters() + self._geometry.default_parameters()
-        )
+        self.parameters: Parameters = self._coordinate.default_parameters() + self._geometry.default_parameters()
 
     def _set_geometry(self, geometry: GeometryBase | type[GeometryBase] | str) -> None:
         if isinstance(geometry, str):
@@ -89,10 +87,7 @@ class StructureCore:
         StructureCore
             A new StructureCore instance with the same coordinate, geometry, and parameters.
         """
-        new_instance = StructureCore(
-            coordinate=self._coordinate,
-            geometry=self._geometry
-        )
+        new_instance = StructureCore(coordinate=self._coordinate, geometry=self._geometry)
         new_instance.parameters = self.parameters.copy()
         return new_instance
 
@@ -108,26 +103,20 @@ class StructureCore:
         indent = "      "
         coor_repr = repr(self._coordinate(**self.parameters)).replace("\n", "\n" + indent)
         geom_repr = repr(self._geometry(**self.parameters)).replace("\n", "\n" + indent)
-        return (
-            f"<{self.__class__.__name__}|\n"
-            f"   Coord : {coor_repr}\n"
-            f"   Geom  : {geom_repr}\n"
-            f"|>"
-        )
-
+        return f"<{self.__class__.__name__}|\n   Coord : {coor_repr}\n   Geom  : {geom_repr}\n|>"
 
     def _latex_str_(self):
         coord_pa = {k: self.parameters[k] for k in self._coordinate.PN}
         geoty_pa = {k: self.parameters[k] for k in self._geometry.PN}
         coord_obj = self._coordinate(**coord_pa)
-        geom_obj  = self._geometry(**geoty_pa)
+        geom_obj = self._geometry(**geoty_pa)
 
         header_coord = r"& \textbf{\text{Coordinate}} & \\"
-        header_geom  = r"& \textbf{\text{Geometry}} & \\"
+        header_geom = r"& \textbf{\text{Geometry}} & \\"
 
         lines = [
             header_coord,
-            coord_obj._latex_str_(),       # include derived/latex_other
+            coord_obj._latex_str_(),  # include derived/latex_other
             header_geom,
             geom_obj._latex_str_(),
         ]
@@ -146,14 +135,7 @@ class StructureCore:
         """
         body = self._latex_str_()
 
-        return (
-            "$\n"
-            "\\large\n"
-            "\\begin{array}{r c l}\n" +
-            body +
-            "\n\\end{array}\n"
-            "$"
-        )
+        return "$\n\\large\n\\begin{array}{r c l}\n" + body + "\n\\end{array}\n$"
 
     @property
     def geometry_name(self) -> str:
@@ -175,10 +157,7 @@ class StructureCore:
         dict
             A dictionary of available options.
         """
-        return {
-            "coordinate": Coordinate.available_plugins(),
-            "geometry": Geometry.available_plugins(),
-        }
+        return {"coordinate": Coordinate.available_plugins(), "geometry": Geometry.available_plugins()}
 
     def estimate_parameters(self, pos: NDArray[np.float64]) -> "Parameters":
         """
@@ -218,13 +197,9 @@ class StructureCore:
         """
         if args:
             params = dict(zip(self.parameters.keys(), *args, strict=False))
-            return self._coordinate.create_parameters(
-                **params
-            ) + self._geometry.create_parameters(**params)
+            return self._coordinate.create_parameters(**params) + self._geometry.create_parameters(**params)
         if kwargs:
-            return self._coordinate.create_parameters(
-                **kwargs
-            ) + self._geometry.create_parameters(**kwargs)
+            return self._coordinate.create_parameters(**kwargs) + self._geometry.create_parameters(**kwargs)
 
         return self._coordinate.default_parameters() + self._geometry.default_parameters()
 
@@ -284,7 +259,6 @@ class StructureCore:
 
         return False
 
-
     def transform_pos(self, pos: NDArray[np.float64]) -> np.ndarray:
         """
         Transform positions using the structure's coordinate system.
@@ -320,7 +294,6 @@ class StructureCore:
         return self._coordinate(**coord_pa).inverse(pos)
 
     def _split_parameters(self, **kwargs: Any) -> tuple[dict, dict]:
-
         if kwargs:
             coord_pa = self._coordinate.create_parameters(**kwargs)
             geoty_pa = self._geometry.create_parameters(**kwargs)
@@ -398,7 +371,7 @@ class StructureCore:
 
         return self._geometry(**geoty_pa).f_ray_d(self._coordinate(**coord_pa)(pos))
 
-    def ray_intersect(self, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
+    def ray_intersect(self, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute ray intersection with the structure.
 
@@ -418,12 +391,10 @@ class StructureCore:
 
         coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
-        pos_in,dist,r = self._geometry(**geoty_pa).ray_intersect(
-            self._coordinate(**coord_pa)(pos)
-        )
+        pos_in, dist, r = self._geometry(**geoty_pa).ray_intersect(self._coordinate(**coord_pa)(pos))
         pos_in = self._coordinate(**coord_pa).inverse(pos_in)
 
-        return pos_in,dist
+        return pos_in, dist
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike, **kwargs: Any) -> np.ndarray:
         """
@@ -450,11 +421,10 @@ class StructureCore:
         coord_pa, geoty_pa = self._split_parameters(**kwargs)
 
         return self._geometry(**geoty_pa).line_intersect(
-            pos1=self._coordinate(**coord_pa)(pos1),
-            pos2=self._coordinate(**coord_pa)(pos2),
+            pos1=self._coordinate(**coord_pa)(pos1), pos2=self._coordinate(**coord_pa)(pos2)
         )
 
-    def quick_call(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
+    def quick_call(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray, np.ndarray]:
         """
         Quick evaluation of the structure at the given position.
 
@@ -483,11 +453,9 @@ class StructureCore:
 
         coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
 
-        return self._geometry.quick_call(
-            **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
-        )
+        return self._geometry.quick_call(**geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos))
 
-    def quick_f_ray_d(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
+    def quick_f_ray_d(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray, np.ndarray]:
         """
         Quick the normalized ray distance evaluation.
 
@@ -535,7 +503,7 @@ class StructureCore:
         # Then compute area factor with transformed positions
         return self._geometry.quick_area_factor(**geoty_pa, pos=transformed_pos)
 
-    def quick_ray_dist(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
+    def quick_ray_dist(self, *args: Any, pos: ArrayLike, **kwargs: Any) -> tuple[np.ndarray, np.ndarray]:
         """
         Quick ray distance evaluation.
 
@@ -549,9 +517,7 @@ class StructureCore:
 
         coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
 
-        return self._geometry.quick_ray_dist(
-            **geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos)
-        )
+        return self._geometry.quick_ray_dist(**geoty_pa, pos=self._coordinate.quick_call(**coord_pa, pos=pos))
 
     def quick_line_intersect(self, *args: Any, pos1: ArrayLike, pos2: ArrayLike, **kwargs: Any) -> np.ndarray:
         """
@@ -566,18 +532,13 @@ class StructureCore:
         pos1 = np.asarray(pos1)
         pos2 = np.asarray(pos2)
 
-        coord_pa, geoty_pa = self._split_quick_parameters(*args,**kwargs)
+        coord_pa, geoty_pa = self._split_quick_parameters(*args, **kwargs)
 
         pos1_t = self._coordinate.quick_call(**coord_pa, pos=pos1)
         pos2_t = self._coordinate.quick_call(**coord_pa, pos=pos2)
-        return self._geometry.quick_line_intersect(
-            **geoty_pa, pos1=pos1_t, pos2=pos2_t
-        )
+        return self._geometry.quick_line_intersect(**geoty_pa, pos1=pos1_t, pos2=pos2_t)
 
-    def generate_points(
-        self,
-        n_points: int = 1024,
-    ) -> np.ndarray:
+    def generate_points(self, n_points: int = 1024) -> np.ndarray:
         """
         Sample surface points using approximately uniform directions.
 
@@ -668,9 +629,7 @@ class StructureCore:
 
         Slice in a rotated plane, for example the external x-z plane:
 
-        >>> rotation = np.array([[1.0, 0.0, 0.0],
-        ...                      [0.0, 0.0, 1.0],
-        ...                      [0.0, 1.0, 0.0]]).T
+        >>> rotation = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]).T
         >>> x, y = structure.generate_slice2D(rotation=rotation, n_bins=256)
 
         Use custom angular samples:
@@ -696,23 +655,15 @@ class StructureCore:
             if rotation.shape != (3, 3):
                 raise ValueError("rotation must have shape (3, 3)")
 
-        directions_local = np.column_stack(
-            (
-                np.sin(ang_bins),
-                np.cos(ang_bins),
-                np.zeros_like(ang_bins),
-            )
-        )
+        directions_local = np.column_stack((np.sin(ang_bins), np.cos(ang_bins), np.zeros_like(ang_bins)))
 
         plane_origin_local = np.array([0.0, 0.0, z_slice], dtype=np.float64)
         plane_origin_world = plane_origin_local @ rotation.T
 
         pos0_local = plane_origin_local + np.column_stack(
-            (-np.sin(ang_bins),-np.cos(ang_bins),np.zeros_like(ang_bins),)
+            (-np.sin(ang_bins), -np.cos(ang_bins), np.zeros_like(ang_bins))
         )
-        pos1_local = plane_origin_local + np.column_stack(
-            (np.sin(ang_bins),np.cos(ang_bins),np.zeros_like(ang_bins),)
-        )
+        pos1_local = plane_origin_local + np.column_stack((np.sin(ang_bins), np.cos(ang_bins), np.zeros_like(ang_bins)))
 
         pos0_world = pos0_local @ rotation.T
         pos1_world = pos1_local @ rotation.T
@@ -740,7 +691,7 @@ class StructureCore:
         *,
         angle_bins: np.ndarray | None = None,
         radius_bins: np.ndarray | None = None,
-        ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate the 2D projected boundary of the shape.
 
@@ -788,9 +739,7 @@ class StructureCore:
 
         Edge-on view in the external x-z plane:
 
-        >>> rotation = np.array([[1.0, 0.0, 0.0],
-        ...                      [0.0, 0.0, 1.0],
-        ...                      [0.0, 1.0, 0.0]]).T
+        >>> rotation = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]).T
         >>> X, Y = structure.generate_edge2D(rotation=rotation)
 
         Use denser radial sampling:
@@ -958,16 +907,13 @@ class StructureCore:
         Z = pos_plot[:, 2].reshape(nu, nv)
         return X, Y, Z
 
+
 class StructureError:
     """Base class for managing error functions and evaluation methods for structure fitting."""
 
     _compute_error_method: dict[str, Callable] = {}
 
-    def __init__(
-        self,
-        error_func: Callable | str,
-        error_method: Callable | str,
-    ):
+    def __init__(self, error_func: Callable | str, error_method: Callable | str):
         """
         Initialize error evaluation components.
 
@@ -984,17 +930,10 @@ class StructureError:
 
     def _set_error_func(self, error_func: Callable | str) -> None:
         assert callable(error_func) or isinstance(error_func, str)
-        self._error_func = (
-            MinimizeFunc.minimize_fn[error_func]
-            if isinstance(error_func, str)
-            else error_func
-        )
+        self._error_func = MinimizeFunc.minimize_fn[error_func] if isinstance(error_func, str) else error_func
         self._error_func_name = self._error_func.__name__
 
-        self._error_params = [
-            k for k in func_required_key(self._error_func).keys()
-            if "_call" not in k
-        ]
+        self._error_params = [k for k in func_required_key(self._error_func).keys() if "_call" not in k]
 
     def _set_error_method(self, error_method: Callable | str) -> None:
         assert callable(error_method) or isinstance(error_method, str)
@@ -1053,10 +992,7 @@ class StructureError:
         StructureError
             A new StructureError instance with the same error function and method.
         """
-        new_instance = StructureError(
-            error_func=self._error_func,
-            error_method=self._error_method
-        )
+        new_instance = StructureError(error_func=self._error_func, error_method=self._error_method)
         new_instance.use_ln_error = self.use_ln_error
         return new_instance
 
@@ -1066,10 +1002,11 @@ class StructureError:
         Keep the same 3-column layout: label & : & value, and a centered title row.
         """
         import re
+
         def _esc(s):
             return re.sub(r"(?<!\\)_", r"\_", s)
 
-        func_name   = _esc(self._error_func_name)
+        func_name = _esc(self._error_func_name)
         method_name = _esc(self._error_method_name)
         title = r"& \textbf{\text{Error}} & \\"
         line1 = rf"\text{{Err func}}   & : & \text{{{func_name}}} \\"
@@ -1078,14 +1015,7 @@ class StructureError:
 
     def _repr_latex_(self):
         body = self._latex_str_()
-        return (
-            "$\n"
-            "\\large\n"
-            "\\begin{array}{r c l}\n" +
-            body +
-            "\n\\end{array}\n"
-            "$"
-        )
+        return "$\n\\large\n\\begin{array}{r c l}\n" + body + "\n\\end{array}\n$"
 
     @classmethod
     def compute_method_registry(cls, fn: str | Callable) -> Callable:
@@ -1102,7 +1032,10 @@ class StructureError:
 
         return decorator
 
+
 register_all()
+
+
 class Structure3D(StructureCore, StructureError):
     """
     A 3D structure composed of a coordinate transformation and a geometry definition.
@@ -1152,10 +1085,9 @@ class Structure3D(StructureCore, StructureError):
 
         if optimizer is None:
             if "curve" in self._error_method_name:
-                optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="trf")
+                optimizer = Optimizer.get_plugin(name="OptimizerScipy")(algorithm="trf")
             else:
-                optimizer = Optimizer.get_plugin(name = "OptimizerScipy")(algorithm="Powell")
-
+                optimizer = Optimizer.get_plugin(name="OptimizerScipy")(algorithm="Powell")
 
         parameters_set = self.parameters.new()
 
@@ -1165,15 +1097,12 @@ class Structure3D(StructureCore, StructureError):
             parameters_set.set_value(**filtered_estimate_params)
             parameters_set.clip_to_bounds()
 
-        op_res = optimizer.fit(self._error_method,
-                               parameters_set,
-                               func_kwargs={"pos": pos})
-        for i,j in op_res.params.items():
+        op_res = optimizer.fit(self._error_method, parameters_set, func_kwargs={"pos": pos})
+        for i, j in op_res.params.items():
             parameters_set[i] = j
 
-        parameters_set.add_info(data = pos)
+        parameters_set.add_info(data=pos)
         return ModelResult(self, op_res, parameters_set)
-
 
     @classmethod
     def available_options(cls) -> dict[str, list[str]]:
@@ -1201,7 +1130,7 @@ class Structure3D(StructureCore, StructureError):
             coordinate=self._coordinate,
             geometry=self._geometry,
             error_func=self._error_func,
-            error_method=self._error_method
+            error_method=self._error_method,
         )
         new_instance.parameters = self.parameters.copy()
         new_instance.use_ln_error = self.use_ln_error
@@ -1236,14 +1165,11 @@ class Structure3D(StructureCore, StructureError):
         into one 3-column array body with global ':' alignment.
         """
         core_body = StructureCore._latex_str_(self)
-        err_body  = StructureError._latex_str_(self)
+        err_body = StructureError._latex_str_(self)
 
         return "\n".join([core_body, err_body])
 
-
-
-
-    def is_equal(self, other: Union["Structure3D", "StructureCore","StructureError"]) -> bool:
+    def is_equal(self, other: Union["Structure3D", "StructureCore", "StructureError"]) -> bool:
         """
         Check equality with another Structure3D.
 
@@ -1267,10 +1193,7 @@ class Structure3D(StructureCore, StructureError):
         return False
 
     def calculate_error(
-        self,
-        pos: ArrayLike,
-        params: Sequence[float] | dict[str, float] | None = None,
-        **kwargs: Any,
+        self, pos: ArrayLike, params: Sequence[float] | dict[str, float] | None = None, **kwargs: Any
     ) -> float | np.ndarray:
         """
         Calculate the current error value for input positions.
@@ -1305,10 +1228,10 @@ class Structure3D(StructureCore, StructureError):
         error_method = parameters_set.decorate_func_constraints(self._error_method)
         return error_method(param_values, pos=np.asarray(pos), **kwargs)
 
+
 @Structure3D.compute_method_registry
 def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) -> float:
-
-    f , kwargs["r"]  = self.quick_call(*params, pos=kwargs["pos"])
+    f, kwargs["r"] = self.quick_call(*params, pos=kwargs["pos"])
     error_pa = {i: kwargs[i] for i in self._error_params}
     if self.use_ln_error:
         f = np.log(f)
@@ -1319,9 +1242,7 @@ def isodensity_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) 
 
 
 @Structure3D.compute_method_registry
-def isodensity_dcall(
-    self: Structure3D, params: Sequence[float], *args: Any, **kwargs: Any
-) -> float:
+def isodensity_dcall(self: Structure3D, params: Sequence[float], *args: Any, **kwargs: Any) -> float:
     pos = kwargs["pos"]
     f, kwargs["r"] = self.quick_f_ray_d(*params, pos=pos)
     error_pa = {i: kwargs[i] for i in self._error_params}
@@ -1334,16 +1255,14 @@ def isodensity_dcall(
 
 @Structure3D.compute_method_registry
 def isodensity_dist(self: Structure3D, params: Sequence[float], **kwargs: Any) -> float:
-
     f, kwargs["r"] = self.quick_ray_dist(*params, pos=kwargs["pos"])
     error_pa = {i: kwargs[i] for i in self._error_params}
 
     return self._error_func(f, **error_pa)
 
+
 @Structure3D.compute_method_registry
-def isodensity_curve_fcall(
-    self: Structure3D, params: Sequence[float], **kwargs: Any
-) -> np.ndarray:
+def isodensity_curve_fcall(self: Structure3D, params: Sequence[float], **kwargs: Any) -> np.ndarray:
     pos = kwargs["pos"]
     f, r = self.quick_call(*params, pos=pos)
     if self.use_ln_error:
@@ -1351,14 +1270,13 @@ def isodensity_curve_fcall(
     else:
         f = f - 1
     if "rscale" in self._error_func_name:
-        r2 = r*r
-        f = f*r/np.sqrt(np.sum(r2))
+        r2 = r * r
+        f = f * r / np.sqrt(np.sum(r2))
     return f
 
+
 @Structure3D.compute_method_registry
-def isodensity_curve_dcall(
-    self: Structure3D, params: Sequence[float], **kwargs: Any
-) -> np.ndarray:
+def isodensity_curve_dcall(self: Structure3D, params: Sequence[float], **kwargs: Any) -> np.ndarray:
     pos = kwargs["pos"]
     f, r = self.quick_f_ray_d(*params, pos=pos)
     if self.use_ln_error:
@@ -1366,9 +1284,10 @@ def isodensity_curve_dcall(
     else:
         f = f - 1
     if "rscale" in self._error_func_name:
-        r2 = r*r
-        f = f*r/np.sqrt(np.sum(r2))
+        r2 = r * r
+        f = f * r / np.sqrt(np.sum(r2))
     return f
+
 
 def _azimuthal_fourier_residual(
     pos_local: np.ndarray,
@@ -1453,9 +1372,7 @@ def _azimuthal_fourier_residual(
 
 
 @Structure3D.compute_method_registry
-def isodensity_curve_dcall_azimuthal(
-    self: Structure3D, params: Sequence[float], **kwargs: Any
-) -> np.ndarray:
+def isodensity_curve_dcall_azimuthal(self: Structure3D, params: Sequence[float], **kwargs: Any) -> np.ndarray:
     pos = np.asarray(kwargs["pos"])
 
     coord_pa, geoty_pa = self._split_quick_parameters(*params)
@@ -1489,4 +1406,3 @@ def isodensity_curve_dcall_azimuthal(
         return base_residual
 
     return np.concatenate((base_residual, fourier_residual))
-

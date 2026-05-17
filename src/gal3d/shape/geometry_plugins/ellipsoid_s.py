@@ -22,6 +22,7 @@ __all__ = ["Ellipsoid_S"]
 
 logger = logging.getLogger("gal3d.shape.Ellipsoid_S")
 
+
 class Ellipsoid_S(GeometryBase):
     """
     A shaped ellipsoid geometry class.
@@ -60,7 +61,6 @@ class Ellipsoid_S(GeometryBase):
         """
         return cls.create_parameters(a=3.0, eps_ab=0.2, eps_bc=0.5, sa=1.0, sb=1.0, sc=1.0)
 
-
     def __call__(self, pos):
         """
         Evaluates the ellipsoid function at the given positions.
@@ -76,9 +76,7 @@ class Ellipsoid_S(GeometryBase):
             The evaluated values of the ellipsoid function at the given positions.
         """
         pos = self.to_3d_array(pos)
-        return f_shaped_ellipsoid(
-            self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos
-        )[0]
+        return f_shaped_ellipsoid(self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos)[0]
 
     def jacobian(self, pos: ArrayLike) -> tuple:
         """
@@ -95,9 +93,7 @@ class Ellipsoid_S(GeometryBase):
             The computed Jacobian values at the given positions.
         """
         pos = self.to_3d_array(pos)
-        return f_shaped_ellipsoid_jacobian(
-            self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos
-        )
+        return f_shaped_ellipsoid_jacobian(self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos)
 
     def ray_intersect(self, pos: ArrayLike) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -126,7 +122,6 @@ class Ellipsoid_S(GeometryBase):
         )
 
     def line_intersect(self, pos1: ArrayLike, pos2: ArrayLike) -> np.ndarray:
-
         pos1 = self.to_3d_array(pos1)
         pos2 = self.to_3d_array(pos2)
 
@@ -179,36 +174,22 @@ class Ellipsoid_S(GeometryBase):
             The computed area factors at the given positions.
         """
         pos = self.to_3d_array(pos)
-        return area_factor(
-            self["a"],
-            self["b"],
-            self["c"],
-            self["sa"],
-            self["sb"],
-            self["sc"],
-            pos
-        )
+        return area_factor(self["a"], self["b"], self["c"], self["sa"], self["sb"], self["sc"], pos)
 
     @classmethod
     def estimate_parameters(cls, pos: ArrayLike) -> dict:
-
         pos = cls.to_3d_array(pos)
 
         a = np.percentile(np.abs(pos[:, 0]), 95)
         b = np.percentile(np.abs(pos[:, 1]), 95)
         c = np.percentile(np.abs(pos[:, 2]), 95)
 
-        return {
-            "a": a,
-            "eps_ab": 1 - b / a,
-            "eps_bc": 1 - c / b,
-            "sa": 1.,
-            "sb": 1.,
-            "sc": 1.
-        }
+        return {"a": a, "eps_ab": 1 - b / a, "eps_bc": 1 - c / b, "sa": 1.0, "sb": 1.0, "sc": 1.0}
 
     @staticmethod
-    def quick_call(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def quick_call(
+        a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Quickly evaluates the ellipsoid function with the given parameters and positions.
 
@@ -244,7 +225,9 @@ class Ellipsoid_S(GeometryBase):
         return f_shaped_ellipsoid(a, b, c, sa, sb, sc, pos)
 
     @staticmethod
-    def quick_area_factor(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray) -> np.ndarray:
+    def quick_area_factor(
+        a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray
+    ) -> np.ndarray:
         """
         Quickly evaluates the area factor with the given parameters and positions.
 
@@ -280,17 +263,19 @@ class Ellipsoid_S(GeometryBase):
         return area_factor(a, b, c, sa, sb, sc, pos)
 
     @staticmethod
-    def quick_f_ray_d(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray,) -> tuple[np.ndarray, np.ndarray]:
+    def quick_f_ray_d(
+        a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Quickly evaluates the distance fraction of the geometry function with given parameters and positions, useful in error function"""
 
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
-        return f_ray_shaped_ellipsoid(
-            a, b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist
-        )
+        return f_ray_shaped_ellipsoid(a, b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist)
 
     @staticmethod
-    def quick_ray_dist(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray,) -> tuple[np.ndarray, np.ndarray]:
+    def quick_ray_dist(
+        a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Quickly computes the distance between points and ray points on the ellipsoid.
 
@@ -322,12 +307,12 @@ class Ellipsoid_S(GeometryBase):
 
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
-        return IntersectRaysEllipsoid_S(
-            float(a), b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist
-        )[1:]
+        return IntersectRaysEllipsoid_S(float(a), b, c, sa, sb, sc, pos, config.ellipsoid_s.MaxIterationDist)[1:]
 
     @staticmethod
-    def quick_line_intersect(a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos1: np.ndarray, pos2: np.ndarray) -> np.ndarray:
+    def quick_line_intersect(
+        a: float, eps_ab: float, eps_bc: float, sa: float, sb: float, sc: float, pos1: np.ndarray, pos2: np.ndarray
+    ) -> np.ndarray:
         b = a * (1 - eps_ab)
         c = b * (1 - eps_bc)
         return IntersectLinesEllipsoid_S(
@@ -372,14 +357,11 @@ class Ellipsoid_S(GeometryBase):
         tuple
             The computed Jacobian values at the given positions.
         """
-        return f_shaped_ellipsoid_jacobian(
-            float(a), float(b), float(c), float(sa), float(sb), float(sc), pos
-        )
+        return f_shaped_ellipsoid_jacobian(float(a), float(b), float(c), float(sa), float(sb), float(sc), pos)
 
     @property
     def _latex_equation(self) -> str:
         return r"([(\frac{x}{a})^2]^{S_a} + [(\frac{y}{b})^2]^{S_b} + [(\frac{z}{c})^2]^{S_c})"
-
 
     @property
     def _latex_other(self) -> str:
@@ -408,9 +390,11 @@ class Ellipsoid_S(GeometryBase):
 def eps_ab(params):
     return 1.0 - params["b"] / params["a"]
 
+
 @Ellipsoid_S.derived
 def eps_bc(params):
     return 1.0 - params["c"] / params["b"]
+
 
 @Ellipsoid_S.derived
 def eps_ac(params):
@@ -419,7 +403,8 @@ def eps_ac(params):
 
 @Ellipsoid_S.derived
 def T(params):
-    return (params["a"]**2 - params["b"]**2)/(params["a"]**2 - params["c"]**2)
+    return (params["a"] ** 2 - params["b"] ** 2) / (params["a"] ** 2 - params["c"] ** 2)
+
 
 @Ellipsoid_S.derived
 def b(params):
@@ -444,14 +429,13 @@ def a(params):
     else:
         return params["c"] / (1 - params["eps_ac"])
 
+
 @Ellipsoid_S.derived
 def eps_ac_err(params):
     eps_ab = params["eps_ab"]
     eps_bc = params["eps_bc"]
-    return np.sqrt(
-        (1.0 - eps_bc)**2 * eps_ab.err**2 +
-        (1.0 - eps_ab)**2 * eps_bc.err**2
-    )
+    return np.sqrt((1.0 - eps_bc) ** 2 * eps_ab.err**2 + (1.0 - eps_ab) ** 2 * eps_bc.err**2)
+
 
 @Ellipsoid_S.derived
 def T_err(params):
@@ -460,22 +444,24 @@ def T_err(params):
     p = 1 - eps_ab
     r = 1 - eps_bc
     q = p * r
-    N = 1- p*p
+    N = 1 - p * p
     D = 1 - q * q
 
-    dT_deab = 2.0*p/D - (2.0*N*p*r**2)/(D**2)
-    dT_debc = - (2.0*N*p**2*r)/(D**2)
+    dT_deab = 2.0 * p / D - (2.0 * N * p * r**2) / (D**2)
+    dT_debc = -(2.0 * N * p**2 * r) / (D**2)
 
-    return np.sqrt((dT_deab**2)*(eps_ab.err**2) + (dT_debc**2)*(eps_bc.err**2))
+    return np.sqrt((dT_deab**2) * (eps_ab.err**2) + (dT_debc**2) * (eps_bc.err**2))
+
 
 # Constants for normalization:
 # For a sphere (sa = sc = 1), I_sphere = ∫0^1 2x sqrt(1 - x^2) dx = 2/3
 _SPHERE_I = 2.0 / 3.0
-_SPHERE_CENTER = 1.0 - _SPHERE_I        # = 1/3, value when eps_ac = 0 at sphere
-_SPHERE_SLOPE = 1.0 - _SPHERE_CENTER    # = 2/3, delta from eps_ac=0 to eps_ac=1
-_SPHERE_SCALE = 1.0 / _SPHERE_SLOPE     # = 3/2, used to recover eps_ac at sphere
+_SPHERE_CENTER = 1.0 - _SPHERE_I  # = 1/3, value when eps_ac = 0 at sphere
+_SPHERE_SLOPE = 1.0 - _SPHERE_CENTER  # = 2/3, delta from eps_ac=0 to eps_ac=1
+_SPHERE_SCALE = 1.0 / _SPHERE_SLOPE  # = 3/2, used to recover eps_ac at sphere
 
-def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray,np.ndarray,np.ndarray,RegularGridInterpolator]:
+
+def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray, RegularGridInterpolator]:
     """
     Build a lookup table for I(sa, sc) over a regular grid and return
     (sa_grid, sc_grid, I_table, interpolator).
@@ -490,13 +476,11 @@ def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray,np.ndarray,
     - Grid resolution n is read from config.ellipsoid_s.EpsTableN (default 81).
     - Integration uses scipy.integrate.quad with epsabs=1e-5.
     """
-    logger.info(
-        "Building eps_ac_s table"
-    )
+    logger.info("Building eps_ac_s table")
 
     n = int(config.ellipsoid_s.EpsTableN) if n_samples is None else int(n_samples)
     sa_min = Ellipsoid_S.LB["sa"]
-    sa_max =  Ellipsoid_S.UB["sa"]
+    sa_max = Ellipsoid_S.UB["sa"]
     sc_min = Ellipsoid_S.LB["sc"]
     sc_max = Ellipsoid_S.UB["sc"]
 
@@ -507,7 +491,12 @@ def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray,np.ndarray,
 
     logger.debug(
         "Building eps_ac_s lookup table: n=%d, sa=[%.1f, %.1f], sc=[%.1f, %.1f], epsabs=%.1e",
-        n, sa_min, sa_max, sc_min, sc_max, integr_epsabs
+        n,
+        sa_min,
+        sa_max,
+        sc_min,
+        sc_max,
+        integr_epsabs,
     )
 
     def integrand(x, sa, sc):
@@ -518,14 +507,14 @@ def _build_I_table(n_samples: int | None = None) -> tuple[np.ndarray,np.ndarray,
         for j, sc in enumerate(sc_grid):
             I[i, j], _ = quad(integrand, 0.0, 1.0, args=(sa, sc), epsabs=integr_epsabs)
 
-    interp = RegularGridInterpolator(
-        (sa_grid, sc_grid), I, bounds_error=False, fill_value=None
-    )
+    interp = RegularGridInterpolator((sa_grid, sc_grid), I, bounds_error=False, fill_value=None)
     return sa_grid, sc_grid, I, interp
+
 
 @cache
 def _I_interp_for_n(n: int) -> RegularGridInterpolator:
     return _build_I_table(n)[3]
+
 
 def _get_I_interp() -> RegularGridInterpolator:
     """
@@ -533,12 +522,14 @@ def _get_I_interp() -> RegularGridInterpolator:
     """
     return _I_interp_for_n(int(config.ellipsoid_s.EpsTableN))
 
+
 def reset_I_interp_cache() -> None:
     """
     Clear cached interpolators. Call after changing config.ellipsoid_s.EpsTableN.
     """
     _I_interp_for_n.cache_clear()
     logger.info("Cleared eps_ac_s interpolator cache")
+
 
 @Ellipsoid_S.derived
 def eps_ac_s(params):

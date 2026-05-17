@@ -37,6 +37,27 @@ model = analyzer.fit()
 
 See [gal3d_example](https://github.com/GalaxySimAnalytics/gal3d_example) for more usage examples, or refer to the documentation for details.
 
+
+## Development Setup
+
+Prerequisites: [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+
+then run the following commands to set up the development environment:
+
+**Linux / macOS**
+```bash
+git clone https://github.com/GalaxySimAnalytics/gal3d.git
+cd gal3d
+make setup
+```
+**Windows** (PowerShell, no `make`):
+```powershell
+git clone https://github.com/GalaxySimAnalytics/gal3d.git
+cd gal3d
+uv sync --extra dev --extra tests --extra optimizer
+uv run pre-commit install
+```
+
 ## License
 
 [MIT License](./LICENSE)

@@ -1,27 +1,22 @@
 repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit  # if use local, repo: local
+    rev: v0.11.0
+    hooks:
+      - id: ruff
+        name: ruff check
+        files: '^src/gal3d/'
+        args: ["check"]
+      - id: ruff-format
+        name: ruff format
+        files: '^src/gal3d/'
+
   - repo: local
     hooks:
-      - id: ruff-check
-        name: ruff check (run "ruff check")
-        entry: ruff
-        language: system
-        types: [python]
-        files: '^src/gal3d/'               # only trigger in src
-        args: ["check"]
-        pass_filenames: true
-      - id: ruff-format          
-        name: ruff format (run "ruff format")
-        entry: ruff
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
         language: system
         types: [python]
         files: '^src/gal3d/'
-        args: ["format"]
-        pass_filenames: true
-      - id: mypy
-        name: mypy (run "mypy")
-        entry: mypy
-        language: system
-        types: [python]
-        files: '^src/gal3d/'               # only trigger in src
         args: ["--config-file=pyproject.toml"]
         pass_filenames: true

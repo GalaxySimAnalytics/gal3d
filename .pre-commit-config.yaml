@@ -9,6 +9,14 @@ repos:
         files: '^src/gal3d/'               # only trigger in src
         args: ["check"]
         pass_filenames: true
+      - id: ruff-format          
+        name: ruff format (run "ruff format")
+        entry: ruff
+        language: system
+        types: [python]
+        files: '^src/gal3d/'
+        args: ["format"]
+        pass_filenames: true
       - id: mypy
         name: mypy (run "mypy")
         entry: mypy

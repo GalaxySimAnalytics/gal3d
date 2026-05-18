@@ -1,14 +1,13 @@
-import math
+"""Tests for the Parameter and Parameters classes in gal3d.optimization.parameter."""
+
+
 
 import numpy as np
 import pytest
 
 from gal3d.optimization.parameter import (
-    ConstrainedParameterDict,
     Parameter,
-    ParameterDict,
     Parameters,
-    RichParameterDict,
     _escape_name,
     _fmt_bounds,
     _fmt_num,

@@ -176,9 +176,22 @@ void RenderImage<T>::add_particle_to_qty(T x, T y, T mass, T hsml, std::vector<T
     T inv_hsml2 = static_cast<T>(1.0) / (hsml * hsml);
 
     int x0 = int(std::floor((x - hsml - image_grid.xmin) / dx));
-    int x1 = int(std::floor((x + hsml - image_grid.xmin) / dx));
+    int x1 = int(std::ceil((x + hsml - image_grid.xmin) / dx)) -1;
     int y0 = int(std::floor((y - hsml - image_grid.ymin) / dy));
-    int y1 = int(std::floor((y + hsml - image_grid.ymin) / dy));
+    int y1 = int(std::ceil((y + hsml - image_grid.ymin) / dy)) -1;
+    // Map the particle support to a half-open pixel interval [min, max).
+    // When the support touches the right/top canvas boundary exactly,
+    // floor(...) can produce x1 == image_grid.nx or y1 == image_grid.ny,
+    // which writes past the end of qty in the "all inside" branch below.
+    // Clamp only for the "all inside" case to preserve the existing
+    // normalization behavior for partially clipped particles.
+    if (canvas_status == 2) {
+        x0 = std::max(0, x0);
+        x1 = std::min(x1, image_grid.nx - 1);
+        y0 = std::max(0, y0);
+        y1 = std::min(y1, image_grid.ny - 1);
+    }
+    if (x0 > x1 || y0 > y1) return;
     int nx = x1 - x0 + 1;
     int ny = y1 - y0 + 1;
     int area_npix_part = nx * ny;

@@ -53,7 +53,7 @@ from numpy.typing import NDArray
 from gal3d.point import Particles
 from gal3d.util.array_operate import Rotate
 
-from .hist2d import hist_2d, render_2d, which_pos_to_rotation
+from .hist2d import which_pos_to_rotation
 from .model_projector import ModelProjectorBase
 from .show import add_colorbar, show_contour, show_image
 
@@ -86,29 +86,19 @@ def show_data_model(
     """
     if rotation_matrix is None:
         rotation_matrix = np.eye(3)
-    if render:
-        data_image = render_2d(
-            data.pos,
-            data.mass,
-            data.hsm,
-            which_pos=which_pos,
-            rotation_matrix=rotation_matrix,
-            x_range=x_range,
-            y_range=y_range,
-            nbins=nbins,
-        )
-    else:
-        rot = rotation_matrix.T.astype(data.pos.dtype)
-        pos = Rotate(data.pos, rot)
-        data_image = hist_2d(
-            pos[:, which_pos[0]],
-            pos[:, which_pos[1]],
-            weights=data.mass,
-            x_range=x_range,
-            y_range=y_range,
-            density=True,
-            nbins=nbins,
-        )
+
+    axis_rotation = which_pos_to_rotation(which_pos)
+    view_rotation = Rotate(rotation_matrix, axis_rotation.T)
+
+    data_image = data.project_2d(
+        x_range=x_range,
+        y_range=y_range,
+        resolution=nbins,
+        rotation_matrix=view_rotation,
+        z_range=z_range,
+        render_by="sph" if render else None,
+    )
+    model_image = model.image(x_range=x_range, y_range=y_range, nbins=nbins, z_range=z_range, rotation=view_rotation)
 
     if nlevels is None:
         nlevels = int(np.sqrt(data_image.value.size))
@@ -134,10 +124,6 @@ def show_data_model(
         linestyle=linestyle,
         logscale=logscale,
     )
-
-    rota = which_pos_to_rotation(which_pos)
-    rota = Rotate(rotation_matrix, rota.T)
-    model_image = model.image(x_range=x_range, y_range=y_range, nbins=nbins, z_range=z_range, rotation=rota)
 
     model_im = show_image(
         model_image,

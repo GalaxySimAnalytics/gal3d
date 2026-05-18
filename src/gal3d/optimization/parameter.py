@@ -966,6 +966,18 @@ class RichParameterDict(ParameterDict):
         func : callable, optional
             The function for the derived parameter (if name_or_dict is str).
 
+        Examples
+        --------
+        if adding a single derived parameter:
+        >>> param = RichParameterDict(a=2, b=1)
+        >>> param.add_derived("eps_ab", lambda p: 1 - p["b"] / p["a"])
+        >>> param["eps_ab"]
+        0.5
+        if adding multiple derived parameters:
+        >>> param.add_derived({"eps_ab": lambda p: 1 - p["b"] / p["a"], "sum_ab": lambda p: p["a"] + p["b"]})
+        >>> param["sum_ab"]
+        3
+
         Raises
         ------
         TypeError

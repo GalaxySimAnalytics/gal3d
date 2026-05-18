@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import pytest
 
 from gal3d.density import DensitySource
@@ -132,27 +133,52 @@ class TestConcreteDensityModels:
 
 
 class TestDensityCombination:
+    
+    model = (PlummerSphere(1e10, 3.0) + 
+                PlummerSphere(5e10, 0.2).set_coordinate(scales=(1,0.4,0.3),angles=(0,0,45/180*3.1416), center_pos=(0, 0, 0)) +
+                PlummerSphere(3e10, 1).set_coordinate(scales=(1,0.8,0.6),angles=(0,0,30/180*3.1416), center_pos=(0, 0, 0)))
+    
     def test_combined_density_distribution_evaluation(self, out_dir):
         """Test that CombinedDensityDistribution correctly evaluates the sum of multiple density distributions."""
-        target_model = (PlummerSphere(1e10, 3.0) + 
-                PlummerSphere(5e10, 0.2).set_coordinate(scales=(1,0.4,0.3),angles=(0,0,45/180*3.1416), center_pos=(0, 0, 0)) +
-                PlummerSphere(2e10, 1).set_coordinate(scales=(1,0.8,0.6),angles=(0,0,30/180*3.1416), center_pos=(0, 0, 0)))
         
         # dominant component should be the second one, a:b:c = 1:0.4:0.3,
-        shape1 = target_model.shape_at(0.1)
+        shape1 = self.model.shape_at(0.1)
         assert shape1["eps_ab"] == pytest.approx(0.6, abs=0.01)
         assert shape1["eps_ac"] == pytest.approx(0.7, abs=0.01)
         
-        # dominant component should be the third one, a:b:c = 1:0.8:0.6, 
-        shape2 = target_model.shape_at(1.5)
-        assert shape2["eps_ab"] == pytest.approx(0.2, abs=0.01)
-        assert shape2["eps_ac"] == pytest.approx(0.4, abs=0.01)
         
-        
-        data = target_model.project_2d(x_range=(-2,2),y_range=(-2,2),resolution=50,z_range=(-4,4))
-        import matplotlib.pyplot as plt
+        data = self.model.project_2d(x_range=(-2,2),y_range=(-2,2),resolution=50,z_range=(-4,4))
+
         fig, ax = plt.subplots(figsize=(4, 4))
         im = show_image(data, axesObj=ax)
         out = out_dir / "test_combined_density.png"
         fig.savefig(out, dpi=150, bbox_inches="tight")
         assert out.exists()
+    
+    
+    def test_shape_profile_of_combined_density(self, out_dir):
+        # test shape profile
+        shape_profile = self.model.shape_at(r=np.linspace(0.1, 5, 50))
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.errorbar(shape_profile['a'], shape_profile['eps_ac'],
+             yerr=shape_profile['eps_ac_err'],
+             fmt='o', c='k', capsize=2, markersize=2,linewidth=1,alpha=0.8)
+        ax.errorbar(shape_profile['a'], shape_profile['eps_ab'],
+             yerr=shape_profile['eps_ab_err'],
+             fmt='o', c='r', capsize=2, markersize=2,linewidth=1,alpha=0.8)
+        ax.set_xlabel('a')
+        ax.set_ylabel('Ellipticity')
+        ax.set_ylim(0.01,0.99)
+        ax.legend(["$\epsilon_{ac}$", "$\epsilon_{ab}$"])
+        out = out_dir / "test_combined_density_shape_profile.png"
+        fig.savefig(out, dpi=150, bbox_inches="tight")
+        assert out.exists()
+        
+        # dominant component should be the second one, a:b:c = 1:0.4:0.3,
+        assert shape_profile["eps_ab"][0] == pytest.approx(0.6, abs=0.01)
+        assert shape_profile["eps_ac"][0] == pytest.approx(0.7, abs=0.01)
+        
+        # for 1.5, the dominant component should be the third one, a:b:c = 1:0.8:0.6,
+        assert shape_profile["eps_ab"][15] == pytest.approx(0.2, abs=0.01)
+        assert shape_profile["eps_ac"][15] == pytest.approx(0.4, abs=0.01)
+

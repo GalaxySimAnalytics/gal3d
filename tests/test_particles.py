@@ -6,12 +6,19 @@ import pytest
 import numpy as np
 
 from gal3d.point import Particles
+from gal3d.visualization.show import show_image
 
 
 @pytest.fixture
 def particles(tng_galaxy_data):
     """Load TNG50 galaxy data and create Particles instance for testing."""
     pos, mass = tng_galaxy_data
+    return Particles(pos=pos, mass=mass, recenter=False)
+
+@pytest.fixture
+def small_particles(small_random_galaxy_data):
+    """Create a smaller Particles instance from random galaxy data for faster tests."""
+    pos, mass = small_random_galaxy_data
     return Particles(pos=pos, mass=mass, recenter=False)
 
 def test_particles_init(particles, tng_galaxy_data):
@@ -86,4 +93,36 @@ def test_float64_input(tng_galaxy_data):
     assert par.parameter.dtype == np.float64
     assert par.moi.dtype == np.float64
     assert isinstance(par.as_dict(), dict)
+
+def test_particles_render_sph(small_particles, out_dir):
+    rendered = small_particles.project_2d([-40, 40], [-40, 40], 300)
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(4, 4))
+    show_image(rendered, axesObj=ax)
+
+    out = out_dir / "particles_render_sph.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    assert out.exists()
+
+def test_particles_render_los(small_particles, out_dir):
+    rendered = small_particles.project_2d([-40, 40], [-40, 40], 300, method="los")
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(4, 4))
+    show_image(rendered, axesObj=ax)
+
+    out = out_dir / "particles_render_los.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    assert out.exists()
+
+
+def test_particles_shape(small_particles):
+    """Test the shape method of the Particles class."""
+    # 1:0.5:0.25
+    shape = small_particles.shape_at(30)
+    
+    assert shape["eps_ab"] == pytest.approx(0.5, abs=0.05)
+    assert shape["eps_ac"] == pytest.approx(0.75, abs=0.05)
+    
 

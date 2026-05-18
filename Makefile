@@ -6,7 +6,10 @@ TOOLS_RUN = PYTHONPATH=.tools uv run python
 .PHONY: setup test lint format typecheck docs docs-clean \
         clean clean-all stubs build check
 
-# ── Development setup (run once after clone) ─────────────────────────────
+# ── Development setup / editable dev install (run once after clone) ───────
+# Creates .venv, syncs dev/test/optimizer dependencies, and installs gal3d
+# into the environment in editable mode. If you change .pyx/.c/.cpp files,
+# run `make rebuild-ext` to rebuild native extensions.
 setup:
 	@[ -n "$(UV)" ] || { \
 		echo "Error: uv not found."; \
@@ -16,6 +19,7 @@ setup:
 	uv sync --extra dev --extra tests --extra optimizer
 	uv run pre-commit install
 	@echo "✓ Dev environment ready. Run 'make test' to verify."
+	@echo "Note: If you change .pyx/.c/.cpp files, run 'make rebuild-ext' to rebuild native extensions."
 
 # ── Code quality ────────────────────────────────────────────────────────────
 lint:
@@ -46,6 +50,13 @@ docs-clean:
 # ── Build ────────────────────────────────────────────────────────────────────
 build:
 	uv build
+
+# ── Native extension rebuild ────────────────────────────────────────────────
+rebuild-pyx: clean      ## Rebuild after changing .pyx files
+	uv pip install --python .venv/bin/python -e . --no-deps --force-reinstall
+
+rebuild-ext: clean-all  ## Rebuild after changing .pyx/.c/.cpp files
+	uv pip install --python .venv/bin/python -e . --no-deps --force-reinstall
 
 # ── Dev tools (.tools/) ──────────────────────────────────────────────────────
 stubs:          ## Regenerate plugin type stubs

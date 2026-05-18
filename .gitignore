@@ -8,12 +8,16 @@ htmlcov/
 tests/test_data
 **/.coverage
 .pytest_cache
+out/
 
 # Byte-compiled 
 **/__pycache__
 
 # C extensions
 **/*.so
+
+# Cython generated C/C++ files
+src/gal3d/visualization/render_wrapper.cpp
 **/*cy.cpp
 **/*cy.c
 
@@ -23,7 +27,6 @@ dist/
 build/
 
 src/gal3d.egg-info
-src/gal3d/visualization/render_wrapper.cpp
 
 
 

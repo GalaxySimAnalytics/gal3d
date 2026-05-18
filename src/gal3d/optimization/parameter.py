@@ -56,10 +56,12 @@ def _fmt_num(v: float, nd: int = 3, latex: bool = False) -> str:
 
 
 def _escape_name(name: str) -> str:
+    """Escape underscores in parameter names for LaTeX display."""
     return re.sub(r"_", r"\_", name)
 
 
 def _fmt_bounds(lb: float, ub: float, nd: int = 3, latex: bool = False) -> str:
+    """Format bounds for display."""
     lbs = _fmt_num(lb, nd, latex=latex)
     ubs = _fmt_num(ub, nd, latex=latex)
     return rf"[{lbs}, {ubs}]"
@@ -336,6 +338,12 @@ class ParameterDict(dict):
             Whether to round the parameter bounds (lb/ub). Default is False.
         only_value : bool, optional
             If True, return a plain dict of rounded values; otherwise return ParameterDict.
+
+        Examples
+        --------
+        >>> params = ParameterDict(a=1.23456, b=2.34567)
+        >>> params.get_rounded(n=2)
+        ParameterDict(a=1.23, b=2.34)
 
         Returns
         -------
@@ -834,6 +842,7 @@ class ConstrainedParameterDict(ParameterDict):
             return function
 
     def get_constraint(self, name: str) -> float:
+        """Get the value of a constrained parameter by applying its constraint function."""
         if name in self._equal_constraints:
             return float(self._equal_constraints[name](self))
         raise KeyError(f"Constraint '{name}' not found.")
@@ -1012,7 +1021,21 @@ class RichParameterDict(ParameterDict):
         *args: float | Mapping | tuple[str, float],
         **kwargs: float,
     ) -> _RichParamDict:
-        """Create a new instance with derived parameters."""
+        """Create a new instance with derived parameters.
+
+        Parameters
+        ----------
+        derived_dict : dict
+            A dictionary where keys are derived parameter names and values are functions that compute them.
+        *args, **kwargs
+            Arguments for initializing the base ParameterDict.
+
+        Examples
+        --------
+        >>> param = RichParameterDict.with_derived({"eps_ab": lambda p: 1 - p["b"] / p["a"]}, a=2, b=1)
+        >>> param["eps_ab"]
+        0.5
+        """
         inst = cls(*args, **kwargs)
         inst._derived.update(derived_dict)
         return inst
@@ -1113,6 +1136,15 @@ class Parameters(RichParameterDict, ConstrainedParameterDict):
         *args, **kwargs
             Arguments for set_value.
 
+        Examples
+        --------
+        >>> params = Parameters(a=1.0, b=2.0)
+        >>> new_params = params.new(a=1.5)
+        >>> new_params["a"]
+        1.5
+        >>> new_params["b"]
+        2.0
+
         Returns
         -------
         Parameters
@@ -1143,6 +1175,12 @@ class Parameters(RichParameterDict, ConstrainedParameterDict):
         n : int, optional
             Number of decimal places. Default is 3.
 
+        Examples
+        --------
+        >>> params = Parameters(a=1.23456, b=2.34567)
+        >>> params.get_rounded_values_dict(n=2)
+        {'a': 1.23, 'b': 2.34}
+
         Returns
         -------
         dict
@@ -1165,6 +1203,7 @@ class Parameters(RichParameterDict, ConstrainedParameterDict):
         return list(self) + list(self._equal_constraints) + list(self._derived) + list(self._info)
 
     def __add__(self, other: Union[dict, "Parameters"]) -> "Parameters":
+        """Create a new instance with updated values."""
         h1 = self.deepcopy()
         h1.update(other)
         return h1

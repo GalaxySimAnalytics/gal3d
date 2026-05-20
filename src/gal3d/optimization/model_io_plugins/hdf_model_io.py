@@ -103,21 +103,42 @@ class HDF5ModelIO(ModelIOBase):
             Additional keyword arguments to pass to the save function.
         """
         # Create or open the file
-        file_mode = "a" if os.path.exists(filename) else "w"
         group_path = cls.standardize_group_path(group_path)
-        with h5py.File(filename, mode=file_mode) as f:
-            # Check if the group already exists
-            if group_path in f:
-                if overwrite:
-                    logger.warning("Overwriting group '%s' in file '%s'.", group_path, filename)
-                    del f[group_path]
-                else:
-                    raise FileExistsError(
-                        f"Group '{group_path}' already exists in file '{filename}'. Set overwrite=True to replace."
-                    )
+        is_root_group = group_path == "/"
+        file_exists = os.path.exists(filename)
 
-            # Create the group
-            group = f.create_group(group_path)
+        # Overwriting the root group means replacing the whole file contents.
+        file_mode = "a" if file_exists else "w"
+
+        with h5py.File(filename, mode=file_mode) as f:
+            if is_root_group:
+                group = f
+                existing_sections = [cls.meta_group, cls.parameter_group, cls.opt_group]
+                has_existing_data = any(name in group for name in existing_sections)
+
+                if has_existing_data:
+                    if overwrite:
+                        logger.warning("Overwriting root group in file '%s'.", filename)
+                        for name in existing_sections:
+                            if name in group:
+                                del group[name]
+                    else:
+                        raise FileExistsError(
+                            f"Root group '/' in file '{filename}' already contains model data. "
+                            "Set overwrite=True to replace."
+                        )
+            else:
+                # Check if the target subgroup already exists
+                if group_path in f:
+                    if overwrite:
+                        logger.warning("Overwriting group '%s' in file '%s'.", group_path, filename)
+                        del f[group_path]
+                    else:
+                        raise FileExistsError(
+                            f"Group '{group_path}' already exists in file '{filename}'. Set overwrite=True to replace."
+                        )
+
+                group = f.create_group(group_path)
 
             # Save metadata
             meta_group = group.create_group(cls.meta_group)

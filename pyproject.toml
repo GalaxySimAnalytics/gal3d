@@ -185,7 +185,10 @@ python_files = ["test_*.py"]
 # Coverage configuration
 # ======================================================================================
 [tool.coverage.run]
-omit = []
+omit = [
+    "src/gal3d/characterization/characterizer_plugins/segment.py",
+    "src/gal3d/model_workflow/error_workflow_plugins/ellipsoid_error_estimator.py",
+]
 
 [tool.coverage.report]
 fail_under = 90

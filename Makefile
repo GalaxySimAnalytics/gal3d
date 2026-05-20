@@ -16,7 +16,7 @@ setup:
 		echo "Install: curl -LsSf https://astral.sh/uv/install.sh | sh"; \
 		exit 1; \
 	}
-	uv sync --extra dev --extra tests --extra optimizer
+	uv sync --extra dev --extra tests --extra optimizer --extra doc
 	uv run pre-commit install
 	@echo "✓ Dev environment ready. Run 'make test' to verify."
 	@echo "Note: If you change .pyx/.c/.cpp files, run 'make rebuild-ext' to rebuild native extensions."
@@ -42,10 +42,12 @@ test-fast:
 
 # ── Documentation ───────────────────────────────────────────────────────────
 docs:
-	cd docs && make html
+	cd docs/source && bash gen_api.sh
+	$(MAKE) -C docs html
 
 docs-clean:
-	cd docs && make clean
+	rm -rf docs/source/reference/_autosummary
+	$(MAKE) -C docs clean
 
 # ── Build ────────────────────────────────────────────────────────────────────
 build:

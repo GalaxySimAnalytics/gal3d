@@ -80,6 +80,8 @@ doc = [
     "myst-nb",
     "numpydoc",
     "ipython",
+    "sphinx-intl",
+    "sphinx-autobuild",
 ]
 dev = [
     "pre-commit",

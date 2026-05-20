@@ -73,62 +73,27 @@ class GlobalCalculator(Auto3DShape):
 
     @cached_property
     def ssc_center(self) -> np.ndarray:
-        """
-        Computes the center using the shrink-sphere method.
-
-        Returns
-        -------
-        numpy.ndarray
-            A 1D array of shape (3,) representing the computed center.
-        """
+        """Center estimated with the shrink-sphere method."""
         return self.shrink_sphere_center(self.pos, self.mass)
 
     @cached_property
     def mass_center(self) -> np.ndarray:
-        """
-        Computes the mass-weighted center (center of mass).
-
-        Returns
-        -------
-        numpy.ndarray
-            A 1D array of shape (3,) representing the center of mass.
-        """
+        """Mass-weighted center of mass."""
         return center_of_mass(self.pos, self.mass)
 
     @cached_property
     def shape_center(self) -> np.ndarray:
-        """
-        Computes the geometric center (centroid) of the particles.
-
-        Returns
-        -------
-        numpy.ndarray
-            A 1D array of shape (3,) representing the centroid.
-        """
+        """Geometric center of the particle distribution."""
         return centroid(self.pos)
 
     @cached_property
     def moi(self) -> np.ndarray:
-        """
-        Computes the moment of inertia tensor of the particle distribution.
-
-        Returns
-        -------
-        numpy.ndarray
-            A 2D array of shape (3, 3) representing the moment of inertia tensor.
-        """
+        """Moment of inertia tensor of the particle distribution."""
         return moment_of_inertia(self.pos, self.mass)
 
     @cached_property
     def abc(self) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Computes the principal axes lengths (a, b, c) based on the inertia tensor.
-
-        Returns
-        -------
-        tuple of numpy.ndarray
-            A tuple ([a, b, c], rotation_matrix), where a >= b >= c are the principal axis lengths.
-        """
+        """Principal-axis lengths and rotation matrix from the inertia tensor."""
         return abc_vect(self.pos, self.mass)
 
     @staticmethod

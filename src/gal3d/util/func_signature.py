@@ -11,38 +11,15 @@ T = TypeVar("T", bound=Callable[..., Any])
 
 class MySignature(inspect.Signature):
     """
-    A custom signature class that extends `inspect.Signature` to provide additional functionality
-    for analyzing function parameters.
+    Helper around ``inspect.Signature`` for querying callable parameters.
 
-    This class provides methods to determine whether a function accepts keyword arguments,
-    positional arguments, and to filter parameters based on their kind and default values.
-
-    Attributes
-    ----------
-    params : dict
-        A dictionary mapping parameter names to their kind and default values.
-    kwargs : bool
-        True if the function accepts keyword arguments, False otherwise.
-    args : bool
-        True if the function accepts positional arguments, False otherwise.
-
-    Methods
-    -------
-    get_params(positional=0, keyword=0, empty=0)
-        Filters and returns parameters based on their kind and default values.
+    It provides cached views of parameter metadata and convenience filters
+    for positional, keyword, and default-valued parameters.
     """
 
     @cached_property
     def params(self) -> dict[str, tuple]:
-        """
-        Returns a dictionary mapping parameter names to their kind and default values.
-
-        Returns
-        -------
-        dict
-            A dictionary where keys are parameter names and values are tuples of
-            (parameter kind, default value).
-        """
+        """Mapping from parameter name to ``(kind, default)``."""
         try:
             return {i: (self.parameters[i].kind, self.parameters[i].default) for i in self.parameters}
         except Exception as e:
@@ -51,19 +28,7 @@ class MySignature(inspect.Signature):
 
     @cached_property
     def kwargs(self) -> bool:
-        """
-        Determines whether the function accepts keyword arguments.
-
-        Returns
-        -------
-        bool
-            True if the function accepts keyword arguments, False otherwise.
-
-        Notes
-        -----
-        This checks for VAR_KEYWORD parameter kind (kind=4),
-        which represents **kwargs style parameters.
-        """
+        """Whether the callable accepts ``**kwargs``."""
         try:
             for param_name in self.params:
                 if self.params[param_name][0] == inspect.Parameter.VAR_KEYWORD:  # 4
@@ -75,19 +40,7 @@ class MySignature(inspect.Signature):
 
     @cached_property
     def args(self) -> bool:
-        """
-        Determines whether the function accepts positional arguments.
-
-        Returns
-        -------
-        bool
-            True if the function accepts positional arguments, False otherwise.
-
-        Notes
-        -----
-        This checks for VAR_POSITIONAL parameter kind (kind=2),
-        which represents *args style parameters.
-        """
+        """Whether the callable accepts ``*args``."""
         try:
             for param_name in self.params:
                 if self.params[param_name][0] == inspect.Parameter.VAR_POSITIONAL:  # 2

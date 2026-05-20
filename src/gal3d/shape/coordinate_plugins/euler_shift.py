@@ -217,18 +217,17 @@ class EulerShift(CoordinateBase):
 
     def __init__(self, x: float, y: float, z: float, ang1: float, ang2: float, ang3: float, **kwargs: Any):
         """
-        Initialize the EulerShift object with translation and rotation parameters.
+        Initialize the EulerShift transformation.
 
         Parameters
         ----------
         x, y, z : float
-            The center position coordinates.
+            Translation coordinates.
         ang1, ang2, ang3 : float
-            The Euler angles for rotation, in units of pi.
-        **kwargs : dict
-            Additional keyword arguments, including:
-            - seq : str, optional
-                The sequence of Euler angles for rotation. Default is 'zyx'.
+            Euler rotation angles.
+        **kwargs : Any
+            Additional keyword arguments. Supported key: ``seq`` for the Euler
+            rotation sequence. The default is ``"zyx"``.
         """
         super().__init__(x=x, y=y, z=z, ang1=ang1, ang2=ang2, ang3=ang3)
 

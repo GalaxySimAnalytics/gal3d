@@ -49,11 +49,6 @@ class DensityEstimatorBase(PluginBase, Auto3DShape):
     def parameter(self) -> np.ndarray:
         """
         Estimate the parameter at the original particle positions.
-
-        Returns
-        -------
-        numpy.ndarray
-            Estimated parameter values.
         """
         return self.get_parameter(self.pos)
 
@@ -61,11 +56,6 @@ class DensityEstimatorBase(PluginBase, Auto3DShape):
     def gradient(self) -> np.ndarray:
         """
         Estimate the gradient of the parameter at the original particle positions.
-
-        Returns
-        -------
-        tuple
-            Gradient estimation result.
         """
         return self.get_gradient(self.pos)
 
@@ -73,11 +63,6 @@ class DensityEstimatorBase(PluginBase, Auto3DShape):
     def hsm(self) -> np.ndarray:
         """
         Estimate the half-smooth length at the original particle positions.
-
-        Returns
-        -------
-        numpy.ndarray
-            Estimated half-smooth length values.
         """
         return self.get_hsm(self.pos)
 

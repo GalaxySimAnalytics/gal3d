@@ -1,43 +1,8 @@
 """
-Project 3D models to 2D images (base + plugin manager)
+Base classes and plugin management for projecting 3D models to 2D images.
 
-Overview
---------
-This module defines:
-- ImageData: a small container for image arrays with coordinates and extents.
-- ModelProjectorBase: an abstract base for projectors, including:
-  - Auto-registration as a plugin
-  - A caching decorator for identical image requests
-  - Convenience projections (xz, yz) via predefined rotations
-- ModelProjector: the plugin manager for projector implementations
-
-Quick start
------------
-Implement your projector:
-
->>> from gal3d.visualization.model_projector import ModelProjectorBase, ImageData
->>> import numpy as np
->>>
->>> class SimpleDensityProjector(ModelProjectorBase):
-...     def _image(self, x_range, y_range, nbins=100, z_range=(-20, 20), rotation=None, **kwargs):
-...         # Example: draw a 2D Gaussian as a stand-in for a model projection
-...         xs = np.linspace(*x_range, nbins)
-...         ys = np.linspace(*y_range, nbins)
-...         X, Y = np.meshgrid(xs, ys, indexing="xy")
-...         img = np.exp(-(X**2 + Y**2))
-...         return ImageData(value=img, xs=xs, ys=ys, xrange=x_range, yrange=y_range)
-
-Use it:
-
->>> proj = SimpleDensityProjector()
->>> img = proj.image(x_range=(-5, 5), y_range=(-5, 5), nbins=200)
->>> img.value.shape
-(200, 200)
-
-Discover available projectors:
-
->>> from gal3d.visualization.model_projector import ModelProjector
->>> ModelProjector.available_plugins()
+This module provides the projector base class, caching utilities, and the
+plugin manager used by visualization backends.
 """
 
 import logging
@@ -61,15 +26,34 @@ logger = logging.getLogger("gal3d.visualization.model_projector")
 
 class ModelProjectorBase(PluginBase):
     """
-    Abstract base class for model projectors that generate 2D projections from 3D models.
+    Abstract base class for model projectors that generate 2D projections.
 
     Features
     --------
     - Automatic plugin registration of subclasses
-    - Image caching to avoid recomputation (based on ranges, nbins, z-range, rotation)
-    - Standard convenience rotations for XZ and YZ projections
+    - Image caching to avoid recomputation
+    - Convenience rotations for XZ and YZ projections
 
-    Subclasses must implement: `_image(...) -> ImageData`.
+    Subclasses must implement ``_image(...) -> ImageData``.
+
+    Examples
+    --------
+    >>> from gal3d.visualization.model_projector import ModelProjectorBase
+    >>> from gal3d.visualization.show import ImageData
+    >>> import numpy as np
+    >>>
+    >>> class SimpleDensityProjector(ModelProjectorBase):
+    ...     def _image(self, x_range, y_range, nbins=100, z_range=(-20, 20), rotation=None, **kwargs):
+    ...         xs = np.linspace(*x_range, nbins)
+    ...         ys = np.linspace(*y_range, nbins)
+    ...         X, Y = np.meshgrid(xs, ys, indexing="xy")
+    ...         img = np.exp(-(X**2 + Y**2))
+    ...         return ImageData(value=img, xs=xs, ys=ys, xrange=x_range, yrange=y_range)
+    >>>
+    >>> proj = SimpleDensityProjector()
+    >>> img = proj.image(x_range=(-5, 5), y_range=(-5, 5), nbins=200)
+    >>> img.value.shape
+    (200, 200)
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:

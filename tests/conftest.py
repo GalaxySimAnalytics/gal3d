@@ -51,7 +51,7 @@ def random_galaxy_data(num_particles=10000, axis_ratios=(1.0, 0.5, 0.25)):
     # fix random seed for reproducibility
     np.random.seed(42)
     positions = np.random.randn(num_particles, 3) * 15.0  # scale to typical galaxy size
-    masses = np.random.rand(num_particles).astype(np.float32) * 1e10  # random masses up to 10^10 Msun
+    masses = np.random.rand(num_particles).astype(np.float64) * 1e10  # random masses up to 10^10 Msun
     positions[:, 1] *= axis_ratios[1]  # flatten y-axis
     positions[:, 2] *= axis_ratios[2]  # flatten z-axis
     return positions, masses

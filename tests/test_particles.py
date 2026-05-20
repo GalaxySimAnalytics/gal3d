@@ -7,6 +7,7 @@ import numpy as np
 
 from gal3d.point import Particles
 from gal3d.visualization.show import show_image
+from gal3d.model_workflow.fit_workflow import FitWorkflow
 
 
 @pytest.fixture
@@ -125,4 +126,9 @@ def test_particles_shape(small_particles):
     assert shape["eps_ab"] == pytest.approx(0.5, abs=0.05)
     assert shape["eps_ac"] == pytest.approx(0.75, abs=0.05)
     
-
+    ite_particle = FitWorkflow.get_plugin("IterateEllipsoidParticles")
+    shape = small_particles.shape_at(30, workflow=ite_particle)
+    
+    assert shape["eps_ab"] == pytest.approx(0.5, abs=0.05)
+    assert shape["eps_ac"] == pytest.approx(0.75, abs=0.05)
+    

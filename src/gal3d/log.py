@@ -231,13 +231,10 @@ def set_logging_level(level: int = logging.INFO) -> None:
     Parameters
     ----------
     level : int, optional
-        Logging level to set for the 'gal3d' logger. Valid values are:
-            - logging.DEBUG
-            - logging.INFO
-            - logging.WARNING
-            - logging.ERROR
-            - logging.CRITICAL
-        Default is logging.INFO.
+        Logging level for the ``gal3d`` logger. Common values include
+        ``logging.DEBUG`` (10), ``logging.INFO`` (20), ``logging.WARNING`` (30),
+        ``logging.ERROR`` (40), and ``logging.CRITICAL`` (50). The default is
+        ``logging.INFO`` (20).
     """
     logger = logging.getLogger("gal3d")
     logger.setLevel(level)

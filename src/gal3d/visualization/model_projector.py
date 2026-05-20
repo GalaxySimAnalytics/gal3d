@@ -28,8 +28,8 @@ class ModelProjectorBase(PluginBase):
     """
     Abstract base class for model projectors that generate 2D projections.
 
-    Features
-    --------
+    Notes
+    -----
     - Automatic plugin registration of subclasses
     - Image caching to avoid recomputation
     - Convenience rotations for XZ and YZ projections

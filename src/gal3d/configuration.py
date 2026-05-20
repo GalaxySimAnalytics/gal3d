@@ -73,7 +73,7 @@ class IterationMethod(IntEnum):
     """
     Iteration methods for ray-ellipsoid intersection.
 
-    Parameters
+    Attributes
     ----------
     NEWTON : int
         Newton's method (1st order).

@@ -820,11 +820,10 @@ class Gal3DAnalyzer:
         radius : float or iterable of float, optional
             Specific radius or sequence of radii to fit. If provided,
             overrides ``num_step`` and ``step_mode``.
-        **kwargs
+        **kwargs : Any
             Additional keyword arguments passed to the fitting workflow.
-            Special keys:
-            - progress : bool, optional (default True)
-                If False, disable the progress bar over radii.
+            progress: bool, optional (default True). If False, disable
+            the progress bar over radii.
 
         Returns
         -------

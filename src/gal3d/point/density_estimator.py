@@ -28,13 +28,6 @@ class DensityEstimatorBase(PluginBase, Auto3DShape):
         Input particle positions.
     mass : array_like, shape (n,)
         Mass associated with each particle.
-
-    Attributes
-    ----------
-    parameter : ndarray, shape (n,)
-        Cached estimated parameter at the original positions.
-    gradient : tuple
-        Cached estimated gradient of the parameter.
     """
 
     def __init__(self, pos: ArrayLike, mass: np.ndarray):

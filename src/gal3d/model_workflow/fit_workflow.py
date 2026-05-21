@@ -26,14 +26,16 @@ class FitWorkflowBase(PluginBase):
     """
     Base class for all fitting workflows.
 
-    Subclasses must implement:
-    - _fit_single(self, obj, r: float, **kwargs) -> ModelResult:
-        Fit the model at a single radius ``r``.
-    - condition(analyzer: "Gal3DAnalyzer") -> bool:
-        Returns True if this workflow should be selected for the given analyzer.
+    Subclasses are expected to implement two hooks.
 
-    Registration:
-    Subclasses are automatically registered as plugins via __init_subclass__.
+    ``_fit_single(self, obj, r, **kwargs)``
+        Fit the model at a single radius ``r`` and return a
+        :class:`gal3d.optimization.result.ModelResult`.
+
+    ``condition(obj)``
+        Return True when the workflow is applicable to the supplied input object.
+
+    Subclasses are registered automatically through ``__init_subclass__``.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:

@@ -52,47 +52,36 @@ class MonotonRay:
         **kwargs: Any,
     ):
         """
+        Create a monotonic interpolator from sampled 1D data.
+
         Parameters
         ----------
-        r : 1-D array
-            A 1-D array of monotonically increasing real values.
-
-        f : 1-D array
-            A 1-D array of real values, must be of the same length as `r`.
-
+        r : ndarray
+            Strictly increasing sampling coordinates.
+        f : ndarray
+            Sampled function values at ``r``.
         is_decreasing : bool, optional
-            If True, the function f(r) is assumed to be monotonically decreasing. Default is True.
-
-        interpolator_method : {'LU'}, optional
-            Determines the method used to smooth f(r).
-            - 'LU': Uses the median of lower and upper values.
-            Default is 'LU'.
-
-        interpolator_kwargs : dict, optional
-            Additional keyword arguments to pass to the interpolator. Default is an empty dictionary.
-
-        smoothlog : bool, optional
-            If True, smooth f in log scale. Default is False.
-
-        mono_de : bool, optional
-            If True, the function f(r) is assumed to be monotonically decreasing. Default is True.
-
-        extrapolate : bool, optional
-            If True, extrapolate to out-of-bounds points based on the first and last intervals. Default is True.
-
-        throw_point : bool, optional
-            If True, when using 'SG' smoothing, some bad points will be thrown out. Default is True.
+            If True, interpret ``f(r)`` as globally decreasing. If False, interpret it
+            as globally increasing. Default is True.
+        interpolator_method : {"LU"}, optional
+            Name of the registered monotonic smoothing backend. Default is ``"LU"``.
+        interpolator_kwargs : dict or None, optional
+            Keyword arguments passed to the selected interpolator. Default is None.
+        **kwargs
+            Reserved for future extensions.
 
         Notes
         -----
-        - If using `smooth_mode='LU'`, the function first calculates (r_upper, f_upper) and (r_lower, f_lower),
-        then interpolates them. The median value `f_median = (f_upper + f_lower)/2` is used as the smoothed
-        function, and the error at each point `r` can be obtained from `f_lower` and `f_upper`.
+        For the default ``"LU"`` method, the interpolator first constructs monotonic
+        lower and upper envelopes of the sampled profile. It then combines the two
+        envelopes interval by interval using data-dependent weights and builds a PCHIP
+        interpolator for the resulting monotonic profile. The lower and upper envelopes
+        remain available through :meth:`lower` and :meth:`upper`.
 
         Raises
         ------
         ValueError
-            If `r` is not a strictly increasing sequence.
+            If ``r`` is not strictly increasing.
         """
 
         # r must be increasing

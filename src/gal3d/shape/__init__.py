@@ -111,8 +111,8 @@ class StructureCore:
         coord_obj = self._coordinate(**coord_pa)
         geom_obj = self._geometry(**geoty_pa)
 
-        header_coord = r"& \textbf{\text{Coordinate}} & \\"
-        header_geom = r"& \textbf{\text{Geometry}} & \\"
+        header_coord = r"& \mathbf{Coordinate} & \\"
+        header_geom = r"& \mathbf{Geometry} & \\"
 
         lines = [
             header_coord,
@@ -1022,9 +1022,9 @@ class StructureError:
 
         func_name = _esc(self._error_func_name)
         method_name = _esc(self._error_method_name)
-        title = r"& \textbf{\text{Error}} & \\"
-        line1 = rf"\text{{Err func}}   & : & \text{{{func_name}}} \\"
-        line2 = rf"\text{{Err method}} & : & \text{{{method_name}}} \\"
+        title = r"& \mathbf{Error} & \\"
+        line1 = rf"\mathrm{{Err func}}   & : & \mathrm{{{func_name}}} \\"
+        line2 = rf"\mathrm{{Err method}} & : & \mathrm{{{method_name}}} \\"
         return "\n".join([title, line1, line2])
 
     def _repr_latex_(self):

@@ -208,91 +208,72 @@ class Segment(CharacterizerBase):
         output_format: Literal["arrays", "records"] = "arrays",
     ) -> dict[str, Any]:
         """
-        Run the segmentation algorithm on the specified keys.
+        Run segmentation on the selected profile channels.
 
         Parameters
         ----------
-        keys : Iterable[str] | None
-            The keys to segment. If None, all channels are used.
-        selector : {"bic", "fixed"}, default "bic"
-            Segment count selection strategy:
-            - "bic": choose m in [1, max_segments] minimizing
-              SSE + lam_scale * (m * p) * log(n),
-              where p is number of channels;
-            - "fixed": use `fixed_segments`.
-        max_segments : int, default 10
-            The maximum number of segments to create.
-        min_size : int, default 15
-            Minimum number of data points per segment.
-        fixed_segments : int | None, optional
-            Number of segments to use when `selector="fixed"`. If None,
-            uses min(3, max_segments). Ignored for "bic".
-        lam_scale : float, default 1.0
-            The regularization strength. Only used if `selector="bic"`.
-        with_stats : bool, default True
-            Whether to compute statistics for each segment.
-        radial_log : bool, default False
-            If True, perform segmentation and optional linear fitting in log10(radius) space.
-            Segment indices are unchanged; R_in/R_ou in the output remain in original radius units.
-        point_weights : np.ndarray | {"uniform","linear","log"}, default "uniform"
-            Per-point weighting. If an array, it must have length n (number of samples).
-            If a string:
-              - "uniform": all points weight 1;
-              - "linear": weights proportional to spacing via gradient of the working radius
-                coordinate (r or log10(r) depending on radial_log);
-              - "log": weights proportional to gradient of log10(working radius + 1e-3).
-        channel_weights : np.ndarray or None, default None.
-            Custom per-channel weights.
-        normalize_weights : bool, optional, default True.
-            If True and weights are finite, rescale them so that mean(W) = 1 across all entries
-            (sum becomes n·P), stabilizing the penalty scale.
-        scale_mode : Literal["std","range","none"] | list[str], default "std".
-            The scaling mode to use for the data.
-            - "std": standardize each channel to zero mean, unit variance;
-            - "range": scale each channel to [0, 1] range;
-            - "none": no scaling.
-            - If list[str], provide one mode per channel in the same order as `keys`.
-        allowed_ranges : dict[str, tuple[float, float]] | None
-            The allowed ranges for each key, first key is the channel name, second is a tuple (min, max).
-            Will be used to scale the data if scale_mode is "range".
-            If not provided, uses the min/max of each channel.
-        fit : Literal["constant", "linear", "mix"] = "constant"
-            The fitting method to use for the segmentation.
-            - "constant": use a constant fit for the segments;
-            - "linear": use a linear fit for the segments.
-            - "mix": allow each segment to be either constant or linear,
-            Default "constant".
-        output_format: Literal["arrays","records"] = "arrays"
-            - "arrays": returns NumPy arrays (mean, std, p16, p84, slope, intercept).
-            - "records": returns per-segment dicts; percentiles are under "16th"/"84th".
+        keys : list[str] or None, optional
+            Channel names to segment. If None, all available channels are used.
+        selector : {"bic", "fixed"}, optional
+            Strategy used to choose the number of segments. ``"bic"`` minimizes a
+            BIC-like criterion over the allowed range, while ``"fixed"`` uses
+            ``fixed_segments``.
+        max_segments : int, optional
+            Maximum number of segments considered by the optimizer.
+        min_size : int, optional
+            Minimum number of samples allowed in each segment.
+        fixed_segments : int or None, optional
+            Number of segments to use when ``selector="fixed"``. If None, the code uses
+            ``min(3, max_segments)``.
+        lam_scale : float, optional
+            Penalty strength for the BIC-like criterion.
+        scale_mode : {"std", "range", "none"} or list[str], optional
+            Feature scaling mode. A list may be supplied to specify one mode per
+            channel.
+        with_stats : bool, optional
+            If True, compute summary statistics for each segment.
+        radial_log : bool, optional
+            If True, perform segmentation in log-radius space while still reporting
+            output radii in the original units.
+        point_weights : ndarray or {"uniform", "linear", "log"}, optional
+            Per-sample weighting scheme.
+        channel_weights : ndarray or None, optional
+            Optional per-channel weights.
+        normalize_weights : bool, optional
+            If True, rescale the combined weights so that their mean value is 1.
+        allowed_ranges : dict[str, tuple[float, float]] or None, optional
+            Optional allowed ranges used when ``scale_mode="range"``.
+        fit : {"constant", "linear", "mix"}, optional
+            Segment model to use. ``"mix"`` allows each segment to be either constant
+            or linear.
+        output_format : {"arrays", "records"}, optional
+            Output layout for the returned segment summaries.
+
         Returns
         -------
-        result : dict
-            A dictionary with the following entries:
-            - "bkps": list[int]
-                Segment end indices (exclusive) in the sorted/filtered arrays.
-            - "regions": list[dict]
-                One dict per segment with fields:
-                - "idx": (start, end) indices in [0, n)
-                - "R_in": inner radius (float, original units)
-                - "R_ou": outer radius (float, original units)
-                - "mean": dict[key -> float], weighted mean per channel
-                - If `with_stats`:
-                  - "median": dict[key -> float], weighted median
-                  - "std": dict[key -> float], weighted population std
-                  - "16th": dict[key -> float], weighted 16th percentile
-                  - "84th": dict[key -> float], weighted 84th percentile
-                - If `fit == "linear"`:
-                  - "slope" and "intercept" with respect to r or log10(r) if radial_log
-            - "r": np.ndarray
-                Sorted radii after filtering (length n, original units).
-            - "keys": list[str]
-                Channel names in column order of the feature matrix.
+        dict
+            Dictionary containing the segmentation result.
+
+            ``"bkps"``
+                Segment end indices, exclusive, in the sorted arrays.
+            ``"regions"``
+                List of per-segment summaries.
+            ``"r"``
+                Sorted radii after filtering, in the original units.
+            ``"keys"``
+                Channel names in the column order used internally.
+
+        Each region summary contains at least ``idx``, ``R_in``, ``R_ou``, and
+        ``mean``. When ``with_stats`` is True, the region also includes ``median``,
+        ``std``, ``16th``, and ``84th``. When ``fit`` is ``"linear"``, the region also
+        includes ``slope`` and ``intercept`` defined with respect to the working radius
+        coordinate.
 
         Notes
         -----
-        - The segmentation algorithm is sensitive to the choice of parameters.
-        - BIC-like model selection uses p = number of channels.
+        The segmentation is sensitive to the weighting, scaling, and penalty settings.
+        For ``selector="bic"``, the effective model-selection penalty scales with the
+        number of channels.
 
         Examples
         --------

@@ -645,28 +645,29 @@ def bound_pct(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
 @SphField.boundary_registry("value")
 def bound_value(self: SphField, value: float, **kwargs: Any) -> np.ndarray:
     """
-    Finds the boundary radius for each ray where the parameter value crosses the specified value.
-    For density-like parameters that decrease with radius, this function will:
-    - For inner boundary (mode="min"): Search inward until parameter value exceeds target
-    - For outer boundary (mode="max"): Search outward until parameter value falls below target
+    Find the boundary radius on each ray where the sampled parameter crosses a
+    target value.
+
+    For profiles that generally decrease with radius, ``mode="min"`` searches for
+    an inner boundary by moving inward until the sampled value exceeds the target,
+    whereas ``mode="max"`` searches for an outer boundary by moving outward until
+    the sampled value drops below the target.
 
     Parameters
     ----------
     self : SphField
-        The SphField instance containing ray and particle information.
+        Spherical field instance containing the ray geometry and density source.
     value : float
-        The target parameter value to find along each ray.
-    **kwargs : dict
-        Additional keyword arguments:
-        - mode : str, optional
-            "min" for inner boundary (search inward),
-            "max" for outer boundary (search outward).
-            Default is "max".
+        Target parameter value to locate along each ray.
+    **kwargs
+        Additional keyword arguments. Currently, the recognized key is ``mode``,
+        which may be set to ``"min"`` or ``"max"``. The default is ``"max"``.
 
     Returns
     -------
-    np.ndarray
-        Array of radii for each ray where the parameter value crosses the specified boundary.
+    ndarray
+        Radius values, one for each ray, at which the profile crosses the target
+        value.
     """
     rays_vect = self.rays_vect
     mode = kwargs.get("mode", "max")

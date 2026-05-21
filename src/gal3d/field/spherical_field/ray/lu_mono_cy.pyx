@@ -214,37 +214,31 @@ cdef class MyPchipInterpolator:
 
 cdef class LU_Mono:
     """
-    A class for smoothing and interpolating 1D profiles using lower and upper monotonic bounds.
+    Monotonic 1D profile smoother based on lower and upper envelopes.
 
-    This class constructs monotonic lower and upper envelopes for a given 1D profile,
-    and provides smooth interpolation between them. It also supports resampling and
-    inverse interpolation.
+    This class constructs monotonic lower and upper envelopes for a sampled 1D
+    profile, combines them into a smooth monotonic profile, and provides both
+    forward and inverse interpolation.
 
     Parameters
     ----------
     x : array-like
-        The independent variable values.
+        Independent-variable samples.
     y : array-like
-        The dependent variable values.
+        Dependent-variable samples.
     is_decreasing : bool, optional
-        If True, the y values are in decreasing order; otherwise, they are in increasing order. Default is True.
+        If True, treat the profile as globally decreasing. Otherwise, treat it as
+        globally increasing. Default is True.
     resample_order : int, optional
-        The order of resampling. If less than 1, no resampling is performed. Default is 0.
+        Number of evenly spaced samples inserted between adjacent input points
+        before building the final interpolator. If smaller than 1, no resampling is
+        applied. Default is 0.
 
-    Attributes
-    ----------
-    f_lower : MyPchipInterpolator
-        The lower bound interpolation function.
-    f_upper : MyPchipInterpolator
-        The upper bound interpolation function.
-    f_value : MyPchipInterpolator
-        The main interpolation function.
-    inv_f_value : MyPchipInterpolator
-        The inverse interpolation function for the main values.
-    inv_f_lower : MyPchipInterpolator
-        The inverse interpolation function for the lower bound.
-    inv_f_upper : MyPchipInterpolator
-        The inverse interpolation function for the upper bound.
+    Notes
+    -----
+    The lower and upper envelopes, the combined monotonic profile, and their
+    inverse interpolators are exposed through properties and are documented
+    individually.
     """
     cdef MyPchipInterpolator interp_lower
     cdef MyPchipInterpolator interp_upper

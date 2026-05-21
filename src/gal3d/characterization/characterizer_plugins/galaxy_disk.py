@@ -15,8 +15,6 @@ __all__ = ["Disk"]
 
 class Disk(CharacterizerBase):
     """
-    GalaxyDisk
-    ----------
     Characterizer that prepares a monotonic interpolator of a disk-fraction-like quantity
     (e.g. epsilon) as a function of radius (a).
     This class accepts input data (a dict of 1D numpy arrays or a ModelResult with dict-like access),
@@ -63,43 +61,42 @@ class Disk(CharacterizerBase):
         other_keys: list[str] | str | None = None,
     ) -> dict:
         """
-        Find candidate disk regions where eps >= eps_cond and summarize each region.
+        Find disk-like radial regions and summarize their properties.
 
         Parameters
         ----------
-        eps_cond : float
-            Ellipticity threshold for disk detection.
-        range_min : float
-            Minimum radial extent of a valid region.
-        min_n : int
-            Minimum number of data points in a valid region.
-        detail : bool
-            If True, include extra fields per region (n_points, eps_in, eps_ou).
-        other_keys : str | list[str] | None
-            Additional data keys to interpolate at R_in, R_ou, and R_max for each region.
+        eps_cond : float, optional
+            Ellipticity threshold used to identify disk-like regions.
+        range_min : float, optional
+            Minimum radial extent required for a region to be kept.
+        min_n : int, optional
+            Minimum number of sampled points required for a valid region.
+        detail : bool, optional
+            If True, include additional per-region fields such as ``n_points``,
+            ``eps_in``, and ``eps_ou``.
+        other_keys : str or list[str] or None, optional
+            Additional data keys to interpolate at ``R_in``, ``R_ou``, and ``R_max``
+            for each retained region.
 
         Returns
         -------
         dict
-            {
-              "flag": 1 if any region found else 0,
-              "n_regions": number of regions,
-              "eps_cond": threshold used,
-              "regions": [
-                 {
-                   "R_in": ...,
-                   "R_ou": ...,
-                   "length": ...,
-                   "eps_max": ...,
-                   "R_max": ...,
-                   [if detail] "n_points": ...,
-                   [if detail] "eps_in": ...,
-                   [if detail] "eps_ou": ...,
-                   [if other_keys] "R_in_<key>": ..., "R_ou_<key>": ..., "R_max_<key>": ...
-                 },
-                 ...
-              ]
-            }
+            Dictionary summarizing the detected disk-like regions.
+
+            ``"flag"``
+                Equals 1 if at least one valid region is found, otherwise 0.
+            ``"n_regions"``
+                Number of retained regions.
+            ``"eps_cond"``
+                Ellipticity threshold used for the selection.
+            ``"regions"``
+                List of per-region dictionaries.
+
+        Each region dictionary contains ``R_in``, ``R_ou``, ``length``, ``eps_max``,
+        and ``R_max``. If ``detail`` is True, the dictionary also contains
+        ``n_points``, ``eps_in``, and ``eps_ou``. If ``other_keys`` is provided, the
+        dictionary additionally contains interpolated values named
+        ``R_in_<key>``, ``R_ou_<key>``, and ``R_max_<key>`` for each requested key.
         """
 
         # 1) find contiguous regions with eps >= threshold

@@ -70,23 +70,34 @@ DEFAULT_PLUGIN_MODULES = {
 
 
 class IterationMethod(IntEnum):
-    """
-    Iteration methods for ray-ellipsoid intersection.
+    r"""
+    Root-finding iteration methods for ray-ellipsoid intersection.
 
-    Attributes
-    ----------
-    NEWTON : int
-        Newton's method (1st order).
-        Iteration formula:
-            :math:`x_{n+1} = x_n - f(x_n) / f'(x_n)`
-    HALLEY : int
-        Halley's method (2nd order).
-        Iteration formula:
-            :math:`x_{n+1} = x_n - [2 f(x_n) f'(x_n)] / [2 (f'(x_n))^2 - f(x_n) f''(x_n)]`
-    HOUSEHOLDER : int
-        Householder's method (3rd order).
-        Iteration formula:
-            :math:`x_{n+1} = x_n - [6 f(x_n) (f'(x_n))^2 - 3 f(x_n)^2 f''(x_n)] / [6 (f'(x_n))^3 - 6 f(x_n) f'(x_n) f''(x_n) + f(x_n)^2 f'''(x_n)]`
+    ``NEWTON``
+        Newton's method, with first-order convergence near the root.
+
+        .. math::
+
+           x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}
+
+    ``HALLEY``
+        Halley's method, with second-order derivative information.
+
+        .. math::
+
+           x_{n+1} =
+           x_n - \frac{2 f(x_n) f'(x_n)}
+                    {2 (f'(x_n))^2 - f(x_n) f''(x_n)}
+
+    ``HOUSEHOLDER``
+        Third-order Householder iteration.
+
+        .. math::
+
+           x_{n+1} =
+           x_n -
+           \frac{6 f(x_n) (f'(x_n))^2 - 3 f(x_n)^2 f''(x_n)}
+                {6 (f'(x_n))^3 - 6 f(x_n) f'(x_n) f''(x_n) + f(x_n)^2 f'''(x_n)}
     """
 
     NEWTON = 1

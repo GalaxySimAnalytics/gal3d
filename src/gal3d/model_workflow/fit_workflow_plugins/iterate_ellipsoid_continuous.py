@@ -88,10 +88,11 @@ For each equivalent radius :math:`r = (abc)^{1/3}`:
 5. **Repeat** from step 2 until
    :math:`\\tfrac{1}{2}|\\Delta(b/a)| + \\tfrac{1}{2}|\\Delta(c/a)| < \\epsilon`.
 
+For a detailed discussion of the iterative shape-tensor method, see Zemp et al. (2011) [1]_.
+
 References
 ----------
-.. [1] Franx, M., Illingworth, G., & de Zeeuw, T. (1991), ApJ, 383, 112.
-.. [2] Zemp, M. et al. (2011), ApJS, 197, 30.
+.. [1] Zemp, M. et al. (2011), ApJS, 197, 30.
        https://doi.org/10.1088/0067-0049/197/2/30
 
 Examples

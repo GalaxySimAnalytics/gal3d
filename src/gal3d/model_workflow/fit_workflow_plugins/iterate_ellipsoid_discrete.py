@@ -1,85 +1,69 @@
-"""
+r"""
 Iterative ellipsoidal shape estimation workflow plugin for Gal3D.
 
-This module implements an iterative mass–moment (inertia tensor) method to
-estimate the 3‑D ellipsoidal shape of a particle distribution. The basic idea
-is:
+This module implements an iterative mass-moment, or inertia-tensor, method for
+estimating the 3-D ellipsoidal shape of a particle distribution. The basic
+workflow is:
 
 1. Select particles within a radial shell or enclosed ellipsoid.
-2. Compute the (possibly weighted) inertia tensor of the selected particles.
+2. Compute the weighted inertia tensor of the selected particles.
 3. Diagonalize the tensor to obtain the principal axes and axis lengths.
-4. Update the trial ellipsoid and repeat from step 1 until convergence.
+4. Update the trial ellipsoid and repeat until convergence.
 
-Two families of methods are supported:
+Two method families are supported:
 
-* **Shell methods (S1–S3)** – particles are selected in an *ellipsoidal shell*.
-* **Enclosed methods (E1–E3)** – particles are selected inside an *enclosed
-  ellipsoid*.
+* Shell methods (S1-S3), which operate on ellipsoidal shells.
+* Enclosed methods (E1-E3), which operate on enclosed ellipsoids.
 
-Within each family, three weighting schemes :math:`w(r)` can be used for the
-mass when computing the inertia tensor:
+Within each family, three weighting schemes can be used when computing the
+tensor:
 
-* ``None`` / unweighted  (``w = 1``)
-* ``"r2"``     – spherical radius weighting :math:`w \\propto r^{-2}`
-* ``"rell2"``  – ellipsoidal radius weighting
-  :math:`w \\propto r_\\mathrm{ell}^{-2}`,
-  where
+* ``None`` for an unweighted tensor, with ``w = 1``.
+* ``"r2"`` for spherical-radius weighting, with :math:`w \propto r^{-2}`.
+* ``"rell2"`` for ellipsoidal-radius weighting, with
+  :math:`w \propto r_{\mathrm{ell}}^{-2}`.
 
-  .. math::
+For the ellipsoidal-radius weighting, the radius is
 
-      r_\\mathrm{ell}^2 = x^2 +
-                         \\frac{y^2}{(b/a)^2} +
-                         \\frac{z^2}{(c/a)^2}.
+.. math::
 
-Both families and all weightings are available through the
-:class:`IterateEllipsoidWorkflow`.
+   r_{\mathrm{ell}}^2 = x^2 + \frac{y^2}{(b/a)^2} + \frac{z^2}{(c/a)^2}.
 
 Notes
 -----
 This implementation is inspired by the iterative shape measurement in
-``pynbody.analysis.halo.shape``(https://github.com/pynbody/pynbody/blob/master/pynbody/analysis/halo.py#L483)
-and follows the ideas discussed in:
-
-    Zemp, M., Gnedin, O. Y., Gnedin, N. Y., & Kravtsov, A. V. (2011),
-    *On Determining the Shape of Matter Distributions*, ApJS, 197(2), 30,
-    https://doi.org/10.1088/0067-0049/197/2/30
-
+`pynbody.analysis.halo.shape <https://github.com/pynbody/pynbody/blob/master/pynbody/analysis/halo.py#L483>`_
+and follows the discussion in Zemp et al. (2011), *On Determining the Shape of
+Matter Distributions*, ApJS, 197(2), 30,
+https://doi.org/10.1088/0067-0049/197/2/30
 
 Examples
 --------
-A minimal usage example with a :class:`gal3d.point.Particles` instance
+A minimal usage example with a :class:`gal3d.point.Particles` instance named
 ``particles``::
 
     from gal3d.model_workflow.fit_workflow_plugins.iterate_ellipsoid_discrete import IterateEllipsoidParticles
 
     workflow = IterateEllipsoidParticles()
 
-    # S1: ellipsoidal shell, unweighted
     result_s1 = workflow(
         particles,
         r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
-        is_enclosed=False,  # shell
+        is_enclosed=False,
         shell_frac=0.1,
-        weight_method=None,  # w = 1
+        weight_method=None,
     )
 
-    # E3: enclosed ellipsoid, w ~ r_ell^{-2}
     result_e3 = workflow(
         particles,
         r=np.geomspace(rmin, rmax, nbins),
         max_iterations=20,
         tol=1e-3,
-        is_enclosed=True,  # enclosed ellipsoid
-        weight_method="rell2",  # w ~ r_ell^{-2}
+        is_enclosed=True,
+        weight_method="rell2",
     )
-
-The returned :class:`gal3d.optimization.result.ModelResult` contains the best‑fit
-axis length ``a`` and axis ratios ``eps_ab``, ``eps_bc``, the three Euler
-angles ``ang1``, ``ang2``, ``ang3``, and an estimate of their iteration
-errors.
-
 """
 
 import logging

@@ -83,28 +83,16 @@ def _latex_param_line(param: "Parameter", nd: int = 3, hide_zero_err: bool = Tru
 
 class Parameter(float):
     """
-    A class representing a parameter with lower and upper bounds.
+    Scalar optimization parameter with bounds and uncertainty.
 
-    This class extends the built-in `float` type to include lower (`lb`) and upper (`ub`) bounds.
-    It is used to define parameters that can be fitted within a specified range.
+    This class extends :class:`float` by attaching lower and upper bounds together
+    with an uncertainty estimate. It is used throughout the optimization layer to
+    represent fitted parameters while preserving lightweight numeric behavior.
 
-    Attributes
-    ----------
-    lb : float
-        The lower bound of the parameter.
-    ub : float
-        The upper bound of the parameter.
-    err : float
-        The uncertainty of the parameter.
-
-    Methods
-    -------
-    __new__(cls, value, **kwargs)
-        Creates a new instance of the Parameter class.
-    assign_value(value)
-        Assigns a new value to the parameter while preserving the bounds.
-    assign_bounds(lb, ub)
-        Assigns new bounds to the parameter.
+    Notes
+    -----
+    The bound values are stored in ``lb`` and ``ub``, and the uncertainty is stored
+    in ``err``. Methods for updating values and bounds are documented separately.
     """
 
     lb: float
@@ -615,18 +603,21 @@ class ParameterDict(dict):
 
     def _repr_latex_(self):
         """
-        Basic LaTeX for direct parameters only.
+        Return a KaTeX/MathJax-friendly block math representation.
         """
         lines = self.to_latex_lines()
         if not lines:
-            return r"$\text{" + self.__class__.__name__ + r"()}$"
+            return r"$$\mathrm{" + self.__class__.__name__ + r"()}$$"
+
         items = list(lines.items())
-        rows = [rf"\textbf{{\text{{{self.__class__.__name__}}}}} & & \\"]
+        rows = [rf"\mathbf{{{_escape_name(self.__class__.__name__)}}} & & \\"]
+
         for i, (k, v) in enumerate(items):
-            row = rf"\text{{{_escape_name(k)}}} & {{:}} & {v}"
+            row = rf"\mathrm{{{_escape_name(k)}}} & : & {v}"
             if i < len(items) - 1:
                 row += r" \\"
             rows.append(row)
+
         body = "\n".join(rows)
         return "$\n\\begin{array}{r c l}\n" + body + "\n\\end{array}\n$"
 
@@ -937,7 +928,7 @@ class ConstrainedParameterDict(ParameterDict):
         for k in self._parameter_names:
             if k in self._equal_constraints and include_constraints:
                 val = self.get_constraint(k)
-                lines[k] = rf"\lgroup {_fmt_num(val, nd)},\ \text{{constraint}} \rgroup"
+                lines[k] = rf"\lgroup {_fmt_num(val, nd)},\ \mathrm{{constraint}} \rgroup"
             elif k in self:
                 p: Parameter = self.get_parameter(k)
                 lines[k] = _latex_param_line(p, nd=nd, hide_zero_err=hide_zero_err)

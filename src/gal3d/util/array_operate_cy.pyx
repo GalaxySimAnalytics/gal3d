@@ -211,11 +211,18 @@ def trans_to_Spherical_coordinates(np.ndarray[DTYPE_t, ndim=2] pos_data):
 @cython.wraparound(False)
 def trans_to_Cartesian_coordinates(np.ndarray[DTYPE_t, ndim=2] sphere_coor):
     '''
-    Convert spherical coordinates to Cartesian coordinates
-    
-    Input: spherical_data shape: Nx3  [r,theta,phi]
-        theta: 0~pi, phi: 0-2*pi
-    Output: pos_data shape: Nx3  [x,y,z]
+    Convert spherical coordinates to Cartesian coordinates.
+
+    Parameters
+    ----------
+    sphere_coor : ndarray of shape (N, 3)
+        Input spherical coordinates arranged as ``[r, theta, phi]`` for each row.
+        ``theta`` is expected to lie in ``[0, pi]`` and ``phi`` in ``[0, 2*pi)``.
+
+    Returns
+    -------
+    pos_data : ndarray of shape (N, 3)
+        Cartesian coordinates arranged as ``[x, y, z]`` for each row.
     '''
     cdef:
         int i, nump = sphere_coor.shape[0]

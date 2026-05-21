@@ -13,18 +13,23 @@ logger = logging.getLogger("gal3d.particle.global_calculator")
 
 class GlobalCalculator(Auto3DShape):
     """
-    A class to compute and store global properties of a collection of particles,
-    such as their center of mass, moment of inertia tensor, and principal axes.
+    Abstract base class for density estimators.
 
-    Attributes
+    Subclasses accept particle positions and masses, and provide a unified
+    interface for estimating a scalar parameter, its gradient, and a smoothing
+    length at arbitrary target positions.
+
+    Parameters
     ----------
-    pos : numpy.ndarray
-        Sorted particle positions based on their radius from origin.
-    mass : numpy.ndarray
-        Sorted particle masses corresponding to `pos`.
-    r : numpy.ndarray
-        Radial distances of particles from origin, sorted.
+    pos : array_like of shape (n, 3)
+        Input particle positions.
+    mass : array_like of shape (n,)
+        Particle weights or masses.
 
+    Notes
+    -----
+    Cached properties such as ``parameter``, ``gradient``, and ``hsm`` are
+    documented on their corresponding property definitions.
     """
 
     def __init__(self, pos: ArrayLike, mass: ArrayLike, recenter: bool = True, sort_by_radius: bool = False):

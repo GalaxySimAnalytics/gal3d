@@ -19,25 +19,15 @@ __all__ = ["DensityEstimatorSPH"]
 
 
 class DensityEstimatorSPH(DensityEstimatorBase):
-    """Estimate the parameter value at any position by kd-tree.
+    """SPH-like density estimator based on KD-tree neighbor queries.
 
-    Attributes
-    ----------
-    pos: ndarray, shape(n,3)
-        The coordinates (x, y, z) of the n data points, sorted by their distance from the origin.
-    mass: array, shape(n,)
-        The property of the n points, sorted by their distance from the origin.
-    r: array, shape(n,)
-        The radial distance of each point from the origin.
-    tree: scipy.spatial.KDTree
-        A KDTree object constructed from the input positions.
+    This estimator uses a :class:`scipy.spatial.KDTree` to query nearby particles
+    and evaluates the target parameter and its gradient with SPH-style kernels.
 
-    Methods
-    -------
-    get_parameter(target_pos)
-        Estimate the parameter value at the target positions.
-    get_gradient(target_pos)
-        Estimate the gradient of the parameter at the target positions.
+    Notes
+    -----
+    The cached properties and query methods are documented individually. This class
+    mainly configures the KD-tree workflow and neighbor-selection options.
     """
 
     def __init__(

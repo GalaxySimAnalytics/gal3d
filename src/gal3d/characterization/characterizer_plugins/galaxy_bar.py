@@ -17,30 +17,24 @@ __all__ = ["Bar"]
 class Bar(CharacterizerBase):
     def __init__(self, data: dict[str, np.ndarray] | ModelResult, angle_clip: float | None = 3.0):
         """
-        Class for measuring galaxy bar parameters using ellipse/ellipsoid fitting results.
+        Measure galaxy bar properties from ellipse or ellipsoid fitting results.
 
         Parameters
         ----------
-        data: dict-like,
-            Object supporting dict-like access (e.g., dict, pandas.DataFrame, custom mapping).
-            Must provide keys:
-                - 'a' : array_like
-                    Semi-major axis values (1D array)
-                - 'eps' or 'eps_ab' : array_like
-                    Ellipticity values (0-1, 1D array)
-                - 'pa' or 'angle' : array_like
-                    Position angle values in radians (0-pi or 2pi, 1D array)
-        angle_clip : float, optional
-            Clip value for filtering outliers in the angle (default: 3.0)
+        data : dict-like or ModelResult
+            Input profile data with dict-like access. The data must contain ``"a"`` and
+            must also provide one of ``"eps"`` or ``"eps_ab"``, together with one of
+            ``"pa"`` or ``"angle"``.
+        angle_clip : float or None, optional
+            Sigma-clipping threshold used when filtering position-angle outliers.
+            Default is 3.0.
 
-        Attributes
-        ----------
-        a : ndarray
-            Stored semi-major axis array
-        eps : ndarray
-            Stored ellipticity array
-        pa : ndarray
-            Stored position angle array
+        Notes
+        -----
+        The input arrays are sorted by increasing ``a`` before any measurements are
+        performed. Position angles provided through ``"pa"`` are interpreted as radians
+        and converted to degrees. If ``"angle"`` is provided instead, the position
+        angle is derived from the Euler-angle representation.
         """
         super().__init__(data)
         dex = np.argsort(data["a"])

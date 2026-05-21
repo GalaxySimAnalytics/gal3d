@@ -907,6 +907,20 @@ class StructureCore:
         Z = pos_plot[:, 2].reshape(nu, nv)
         return X, Y, Z
 
+    def PNlatex(self) -> dict[str, str]:
+        """
+        Get LaTeX representations of parameter names for coordinate and geometry.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys 'coordinate' and 'geometry', each containing a
+            dictionary mapping parameter names to their LaTeX representations.
+        """
+        coord_pa_latex = self._coordinate.PNlatex()
+        geoty_pa_latex = self._geometry.PNlatex()
+        return dict(**coord_pa_latex, **geoty_pa_latex)
+
 
 class StructureError:
     """Base class for managing error functions and evaluation methods for structure fitting."""

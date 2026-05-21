@@ -83,7 +83,7 @@ class ColorFormatter(logging.Formatter):
     FORMATS = {
         logging.DEBUG: "".join(
             [
-                string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True),
+                # string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True),
                 "< ",
                 string_formatter("%(name)s", fg_color="bright_blue", underline=True),
                 " >",
@@ -94,7 +94,7 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.INFO: "".join(
             [
-                string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True, underline=False),
+                # string_formatter("[%(asctime)s.%(msecs)03d] ", italics=True, underline=False),
                 "< ",
                 string_formatter("%(name)s", fg_color="bright_blue", underline=True),
                 " >",
@@ -104,7 +104,7 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.WARNING: "".join(
             [
-                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color="yellow", italics=True, underline=False),
+                # string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color="yellow", italics=True, underline=False),
                 "from < ",
                 string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
                 " >",
@@ -117,7 +117,7 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.ERROR: "".join(
             [
-                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(205, 0, 0), italics=True, underline=False),
+                # string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(205, 0, 0), italics=True, underline=False),
                 "from < ",
                 string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
                 " >",
@@ -129,7 +129,7 @@ class ColorFormatter(logging.Formatter):
         ),
         logging.CRITICAL: "".join(
             [
-                string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(255, 20, 147), italics=True, underline=False),
+                # string_formatter("[%(asctime)s.%(msecs)03d] ", fg_color=(255, 20, 147), italics=True, underline=False),
                 "from < ",
                 string_formatter("%(filename)s", fg_color="bright_blue", underline=True),
                 " >",
@@ -164,12 +164,13 @@ class NoColorFormatter(logging.Formatter):
 
     import re
 
+    # [%(asctime)s.%(msecs)03d] was removed to concisely show the message content.
     FORMATS = {
-        logging.DEBUG: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
-        logging.INFO: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
-        logging.WARNING: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
-        logging.ERROR: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
-        logging.CRITICAL: "[%(asctime)s.%(msecs)03d] <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
+        logging.DEBUG: " <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
+        logging.INFO: " <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
+        logging.WARNING: " <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
+        logging.ERROR: " <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
+        logging.CRITICAL: " <%(filename)s>  line: %(lineno)d \n   >>>  | %(levelname)s | %(message)s",
     }
     ANSI_ESCAPE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 

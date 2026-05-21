@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 
@@ -6,17 +8,25 @@ from gal3d.util.array_operate import Rotate
 __all__ = ["EulerAngles"]
 
 
-class EulerAngles(Rotation):
+class EulerAngles:
     """
-    A class to handle 3D rotations using Euler angles.
-
-    This class extends the `Rotation` class to provide additional functionality
-    for 3D rotations, including the computation of Jacobians for Euler angles.
-
-    Attributes
-    ----------
-    None
+    Thin wrapper around scipy.spatial.transform.Rotation that adds
+    Euler-angle derivative helpers.
     """
+
+    def __init__(self, rotation: Rotation):
+        self._rotation = rotation
+
+    def __getattr__(self, name):
+        return getattr(self._rotation, name)
+
+    @classmethod
+    def from_euler(cls, seq: str, angles: Any, degrees: bool = False) -> "EulerAngles":
+        return cls(Rotation.from_euler(seq=seq, angles=angles, degrees=degrees))
+
+    @classmethod
+    def from_matrix(cls, matrix: np.ndarray) -> "EulerAngles":
+        return cls(Rotation.from_matrix(matrix))
 
     def jacobian_euler(self, pos: np.ndarray, seq: str = "zyx") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -68,11 +78,11 @@ class EulerAngles(Rotation):
         C3, S3 = np.cos(angle["x"]), np.sin(angle["x"])
 
         angle["R_z"] = np.array([[C1, -S1, 0], [S1, C1, 0], [0, 0, 1]])
-        angle["d_R_z"] = np.array([[-S1, -C1, 0], [C1, -S1, 0], [0, 0, 1]])
+        angle["d_R_z"] = np.array([[-S1, -C1, 0], [C1, -S1, 0], [0, 0, 0]])
         angle["R_y"] = np.array([[C2, 0, S2], [0, 1, 0], [-S2, 0, C2]])
-        angle["d_R_y"] = np.array([[-S2, 0, C2], [0, 1, 0], [-C2, 0, -S2]])
+        angle["d_R_y"] = np.array([[-S2, 0, C2], [0, 0, 0], [-C2, 0, -S2]])
         angle["R_x"] = np.array([[1, 0, 0], [0, C3, -S3], [0, S3, C3]])
-        angle["d_R_x"] = np.array([[1, 0, 0], [0, -S3, -C3], [0, C3, -S3]])
+        angle["d_R_x"] = np.array([[0, 0, 0], [0, -S3, -C3], [0, C3, -S3]])
 
         return (
             np.dot(np.dot(angle[f"d_R_{seq[0]}"], angle[f"R_{seq[1]}"]), angle[f"R_{seq[2]}"]),

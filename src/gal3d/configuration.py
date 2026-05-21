@@ -281,16 +281,16 @@ class LoggerConfig(BaseConfig):
 
 
 @dataclass
-class DensityKNNConfig(BaseConfig):
+class DensitySPHConfig(BaseConfig):
     """
-    DensityKNN configuration parameters.
+    DensitySPH configuration parameters.
 
     Parameters
     ----------
     k_neighbors : int
-        Number of neighbors to use for KNN.
+        Number of neighbors to use for SPH density estimation.
     leafsize : int, optional
-        Leaf size for KNN tree construction. If None, will be set to max(k_neighbors // 2, 10).
+        Leaf size for K-D tree construction. If None, will be set to max(k_neighbors // 2, 10).
     workers : int, optional
         Number of worker threads to use. If None, will be set to the number of CPU cores.
     """
@@ -486,8 +486,8 @@ class Config:
         General settings section.
     logger : LoggerConfig
         Logger settings section.
-    densityknn : DensityKNNConfig
-        Density KNN settings section.
+    densitysph : DensitySPHConfig
+        Density SPH settings section.
     los_integrator : LOSIntegratorConfig
         Line-of-sight integrator settings section.
     sph_render : SPHRenderConfig
@@ -501,7 +501,7 @@ class Config:
 
     general: GeneralConfig = field(default_factory=GeneralConfig)
     logger: LoggerConfig = field(default_factory=LoggerConfig)
-    densityknn: DensityKNNConfig = field(default_factory=DensityKNNConfig)
+    densitysph: DensitySPHConfig = field(default_factory=DensitySPHConfig)
     los_integrator: LOSIntegratorConfig = field(default_factory=LOSIntegratorConfig)
     sph_render: SPHRenderConfig = field(default_factory=SPHRenderConfig)
     ellipsoid_s: EllipsoidConfig = field(default_factory=EllipsoidConfig)
@@ -515,7 +515,7 @@ class Config:
         """Validate all configuration sections."""
         self.general.validate()
         self.logger.validate()
-        self.densityknn.validate()
+        self.densitysph.validate()
         self.los_integrator.validate()
         self.sph_render.validate()
         self.ellipsoid_s.validate()
@@ -525,7 +525,7 @@ class Config:
         sections = [
             f"[General]\n{self.general}",
             f"[Logger]\n{self.logger}",
-            f"[DensityKNN]\n{self.densityknn}",
+            f"[DensitySPH]\n{self.densitysph}",
             f"[LOSIntegrator]\n{self.los_integrator}",
             f"[SPHRender]\n{self.sph_render}",
             f"[Ellipsoid_S]\n{self.ellipsoid_s}",
@@ -538,7 +538,7 @@ class Config:
         config_dict = {
             "general": asdict(self.general),
             "logger": asdict(self.logger),
-            "densityknn": asdict(self.densityknn),
+            "densitysph": asdict(self.densitysph),
             "los_integrator": asdict(self.los_integrator),
             "sph_render": asdict(self.sph_render),
             "ellipsoid_s": {

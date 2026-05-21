@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include <cstddef>
 
 // Define M_PI if not defined (for Windows compatibility)
 #ifndef M_PI
@@ -348,7 +349,7 @@ void RenderImage<T>::add_particle(const std::vector<T>& x,
                                const std::vector<T>& y,
                                const std::vector<T>& mass,
                                const std::vector<T>& hsml) {
-    size_t n = x.size();
+    std::ptrdiff_t n = static_cast<std::ptrdiff_t>(x.size());
 
     int nthreads = numthreads;
     omp_set_num_threads(nthreads);
@@ -356,7 +357,7 @@ void RenderImage<T>::add_particle(const std::vector<T>& x,
     std::vector<std::vector<T>> thread_qty(nthreads, std::vector<T>(image_grid.nx * image_grid.ny, 0.0));
 
     #pragma omp parallel for schedule(dynamic, 64)
-    for (size_t idx = 0; idx < n; ++idx) {
+    for (std::ptrdiff_t idx = 0; idx < n; ++idx) {
         int tid = omp_get_thread_num();
         add_particle_to_qty(x[idx], y[idx], mass[idx], hsml[idx], thread_qty[tid]);
     }

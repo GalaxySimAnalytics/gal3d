@@ -34,7 +34,7 @@ if is_windows():
     openmp_args = ["/openmp"]
     optimization_flags = ["/O2", "/fp:fast"]
     extra_compile_args = ["/std:c++14"] + openmp_args + optimization_flags
-    extra_link_args = ["/openmp"]
+    extra_link_args = [] # MSVC handles OpenMP linking automatically
 else:
     # GCC/Clang compiler flags
     openmp_args = ["-fopenmp"]

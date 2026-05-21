@@ -30,29 +30,33 @@ _model_result_style = """<style>
     max-height: 420px;
 }
 .mr-table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 12.5px;
     min-width: max-content;
     width: 100%;
 }
-.mr-table th {
+.mr-table thead th {
     background: #2d3f50;
     color: #f0f5ff;
     font-weight: 600;
     padding: 4px 10px;
     border: 1px solid #4a5968;
+    border-top: 0;
     text-align: right;
     white-space: nowrap;
     position: sticky;
     top: 0;
     z-index: 3;
+    background-clip: padding-box;
 }
-.mr-table th:first-child {
+.mr-table thead th:first-child {
     text-align: center;
     background: #1e3040;
 }
 .mr-table td {
     border: 1px solid #d8dce2;
+    border-top: 0;
     padding: 3px 10px;
     text-align: right;
     white-space: nowrap;

@@ -91,7 +91,7 @@ class ResultErrorbar(_ResultPlotBase):
         xerr: ErrorLike = False,
         fmt: str = "o",
         label: str | None | bool = True,
-        color: Any | None = None,
+        c: Any | None = None,
         ecolor: Any | None = None,
         elinewidth: float | None = 0.9,
         capsize: float | None = 2.0,
@@ -102,7 +102,7 @@ class ResultErrorbar(_ResultPlotBase):
         xuplims: np.ndarray | bool = False,
         errorevery: int | tuple[int, int] = 1,
         capthick: float | None = 0.9,
-        markersize: float = 3.0,
+        markersize: float = 2.0,
         linewidth: float = 1.0,
         alpha: float = 0.78,
         data: Any = None,
@@ -131,7 +131,7 @@ class ResultErrorbar(_ResultPlotBase):
         label : str | None | bool, optional
             The label for the data series. If True, uses the column name as the label.
             If False, no label is used. If a string is provided, it is used as the label. Default is True.
-        color : Any | None, optional
+        c : Any | None, optional
             The color of the data points and error bars. Can be any matplotlib color specification.
             Default is None (uses default color cycle).
         ecolor : Any | None, optional
@@ -162,7 +162,7 @@ class ResultErrorbar(_ResultPlotBase):
         capthick : float | None, optional
             The thickness of the error bar caps. If None, uses the same thickness as elinewidth. Default is 0.9.
         markersize : float, optional
-            The size of the data point markers. Default is 3.0.
+            The size of the data point markers. Default is 2.0.
         linewidth : float, optional
             The line width of the data points. Default is 1.0.
         alpha : float, optional
@@ -185,7 +185,7 @@ class ResultErrorbar(_ResultPlotBase):
             xerr=self._normalize_error(xerr, x),
             fmt=fmt,
             label=self._default_label(y, label),
-            color=color,
+            c=c,
             ecolor=ecolor,
             elinewidth=elinewidth,
             capsize=capsize,

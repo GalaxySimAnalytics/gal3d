@@ -87,6 +87,9 @@ class Particles(GlobalCalculator, DensitySource):
         """Used internally by DensitySource to evaluate density at given positions."""
         return self.estimator.get_parameter(pos)
 
+    def __repr__(self):
+        return f"Particles(num_particles={len(self.pos)}, density_estimator={self.estimator.__class__.__name__})"
+
     def __del__(self):
         """
         Clean up estimator and call parent class cleanup.

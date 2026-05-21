@@ -53,6 +53,11 @@ extensions = [
     # Add other extensions here, e.g., 'myst_parser' for Markdown support
 ]
 
+# numpydoc settings
+numpydoc_class_members_toctree = False  # Don't add class members to the toctree
+numpydoc_show_class_members = False # Don't show class members in the class documentation
+numpydoc_show_inherited_class_members = False # Don't show inherited class members in the class documentation
+
 # nbsphinx settings
 # nbsphinx_input_prompt = 'In [%s]:'
 # nbsphinx_output_prompt = 'Out[%s]:'
@@ -165,6 +170,10 @@ if language == 'zh_CN':
         "path_to_docs": "docs/source",
         "show_toc_level": 2,
         "announcement": "本文档正在建设中！",
+        "logo": {
+         "image_light": "logo-light.png",  # Logo image for light mode
+         "image_dark": "logo-dark.png",    # Logo image for dark mode
+        },
     }
 else:
     html_theme_options = {
@@ -174,6 +183,10 @@ else:
         "path_to_docs": "docs/source",
         "show_toc_level": 2,
         "announcement": "This documentation is under active development!",
+        "logo": {
+         "image_light": "logo-light.png",  # Logo image for light mode
+         "image_dark": "logo-dark.png",    # Logo image for dark mode
+        },
     }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -183,14 +196,17 @@ html_static_path = ['_static']
 # These paths are either relative to html_static_path
 # or fully qualified paths (e.g. https://...)
 html_css_files = ['gal3d.css']
-html_logo = "_static/logo.png"
+
+#html_logo = "_static/logo.png" # set by dark/light logo in html_theme_options
 
 # -- Options for autodoc extension -------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#configuration
 autosummary_generate = True
-#autodoc_typehints = "description"  # Show typehints in the description, not the signature
-#autoclass_content = "both"         # Include both the class's and the __init__ docstring
-#autodoc_member_order = 'bysource'  # Order members by source order
+autodoc_typehints = "description"  # Show typehints in the description, not the signature
+autoclass_content = "both"         # Include both the class's and the __init__ docstring
+autodoc_member_order = 'bysource'  # Order members by source order
+
+add_module_names = False # Don't prepend module names to class/method signatures
 
 
 # -- Options for intersphinx extension ---------------------------------------

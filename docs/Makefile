@@ -3,10 +3,13 @@
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
-SPHINXOPTS    ?=
-SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = source
-BUILDDIR      = build
+SPHINXJOBS      ?= auto
+SPHINXOPTS      ?= -j $(SPHINXJOBS)
+SPHINXBUILD     ?= uv run sphinx-build
+SPHINXINTL      ?= uv run sphinx-intl
+SPHINXAUTOBUILD ?= uv run sphinx-autobuild
+SOURCEDIR       = source
+BUILDDIR        = build
 
 # Put it first so that "make" without argument is like "make help".
 help:
@@ -42,30 +45,30 @@ html-zh:
 # Extract English translation strings and update English po files
 i18n-en:
 	$(SPHINXBUILD) -b gettext $(SOURCEDIR) $(BUILDDIR)/gettext
-	sphinx-intl update -p $(BUILDDIR)/gettext -l en
-	sphinx-intl build
+	$(SPHINXINTL) update -p $(BUILDDIR)/gettext -l en
+	$(SPHINXINTL) build
 
 # Extract Chinese translation strings and update Chinese po files
 i18n-zh:
 	$(SPHINXBUILD) -b gettext $(SOURCEDIR) $(BUILDDIR)/gettext
-	sphinx-intl update -p $(BUILDDIR)/gettext -l zh_CN
-	sphinx-intl build
+	$(SPHINXINTL) update -p $(BUILDDIR)/gettext -l zh_CN
+	$(SPHINXINTL) build
 
 # Extract and update both English and Chinese po files
 i18n-all:
 	$(SPHINXBUILD) -b gettext $(SOURCEDIR) $(BUILDDIR)/gettext
-	sphinx-intl update -p $(BUILDDIR)/gettext -l en -l zh_CN
-	sphinx-intl build
+	$(SPHINXINTL) update -p $(BUILDDIR)/gettext -l en -l zh_CN
+	$(SPHINXINTL) build
 
 
 .PHONY: i18n-en i18n-zh i18n-all
 
 # Live preview of English documentation with auto-reload
 autobuild-en:
-	SPHINX_LANGUAGE=en sphinx-autobuild -b html -D language=en $(SOURCEDIR) $(BUILDDIR)/en
+	SPHINX_LANGUAGE=en $(SPHINXAUTOBUILD) -b html -D language=en $(SOURCEDIR) $(BUILDDIR)/en
 
 # Live preview of Chinese documentation with auto-reload
 autobuild-zh:
-	SPHINX_LANGUAGE=zh_CN sphinx-autobuild -b html -D language=zh_CN $(SOURCEDIR) $(BUILDDIR)/zh_CN
+	SPHINX_LANGUAGE=zh_CN $(SPHINXAUTOBUILD) -b html -D language=zh_CN $(SOURCEDIR) $(BUILDDIR)/zh_CN
 
 .PHONY: autobuild-en autobuild-zh

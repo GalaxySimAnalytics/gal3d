@@ -7,7 +7,7 @@ import pytest
 
 from gal3d.configuration import (
     Config,
-    DensityKNNConfig,
+    DensitySPHConfig,
     EllipsoidConfig,
     GeneralConfig,
     IterationMethod,
@@ -57,9 +57,9 @@ class TestGeneralConfig:
 
 class TestIndividualConfigs:
     def test_density_sph_and_los_validation(self):
-        """Test that invalid values in DensityKNNConfig and LOSIntegratorConfig are corrected and raise warnings/errors."""
+        """Test that invalid values in DensitySPHConfig and LOSIntegratorConfig are corrected and raise warnings/errors."""
         with pytest.warns(UserWarning):
-            density = DensityKNNConfig(k_neighbors=0, leafsize=0, workers=0)
+            density = DensitySPHConfig(k_neighbors=0, leafsize=0, workers=0)
         assert density.k_neighbors == 32
         assert density.leafsize == 16
         assert density.workers >= 1
@@ -113,7 +113,7 @@ class TestConfig:
         """Test the to_dict, update, reset, and repr methods of Config."""
         cfg = Config()
         data = cfg.to_dict()
-        assert set(data) >= {"general", "logger", "densityknn", "ellipsoid_s", "plugin_modules"}
+        assert set(data) >= {"general", "logger", "densitysph", "ellipsoid_s", "plugin_modules"}
         assert "[General]" in repr(cfg)
 
         with warnings.catch_warnings(record=True) as caught:

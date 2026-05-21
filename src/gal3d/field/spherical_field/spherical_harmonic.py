@@ -1,8 +1,27 @@
 import numpy as np
-from scipy.special import sph_harm
+
+try:
+    from scipy.special import sph_harm_y as _sph_harm
+
+    _USE_NEW_SPH_HARM = True
+except ImportError:
+    from scipy.special import sph_harm as _sph_harm  # this is removed in scipy 1.17
+
+    _USE_NEW_SPH_HARM = False
 
 
-def spherical_harmonics_in_real(phi: np.ndarray | float, theta: np.ndarray | float, m: int, l: int) -> float:
+def _complex_spherical_harmonic(
+    phi: np.ndarray | float, theta: np.ndarray | float, m: int, l: int
+) -> np.ndarray | complex:
+    """Calculate the complex spherical harmonic for given angles and indices."""
+    if _USE_NEW_SPH_HARM:
+        return _sph_harm(l, m, theta, phi)
+    return _sph_harm(m, l, phi, theta)
+
+
+def spherical_harmonics_in_real(
+    phi: np.ndarray | float, theta: np.ndarray | float, m: int, l: int
+) -> float | np.ndarray:
     """
     Calculate the real part of spherical harmonics for given angles and indices.
 
@@ -31,12 +50,13 @@ def spherical_harmonics_in_real(phi: np.ndarray | float, theta: np.ndarray | flo
     - For :math:`m = 0`: :math:`Y_l^0 = \\mathrm{Re}(Y_l^0)`
     """
 
+    y_lm = _complex_spherical_harmonic(phi, theta, m, l)
+
     if m < 0:
-        return (-1) ** m * np.sqrt(2) * np.imag(sph_harm(m, l, phi, theta))
-    elif m > 0:
-        return (-1) ** m * np.sqrt(2) * np.real(sph_harm(m, l, phi, theta))
-    else:
-        return np.real(sph_harm(m, l, phi, theta))
+        return (-1) ** m * np.sqrt(2.0) * np.imag(y_lm)
+    if m > 0:
+        return (-1) ** m * np.sqrt(2.0) * np.real(y_lm)
+    return np.real(y_lm)
 
 
 def spherical_harmonics_dec(
@@ -72,7 +92,7 @@ def spherical_harmonics_dec(
     coef: dict[int, np.ndarray] = {}
     for l in range(lmax + 1):
         temp = []
-        for m in np.linspace(l, -l, 2 * l + 1):
+        for m in range(l, -l - 1, -1):
             temp.append(np.sum(density * spherical_harmonics_in_real(phi, theta, m, l) * np.sin(theta)))
         coef[l] = np.array(temp)
     return coef

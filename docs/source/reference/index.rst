@@ -1,12 +1,12 @@
 .. Gal3D reference main index
 
+.. _reference:
 
-.. _reference :
+Gal3D Reference
+===============
 
-Gal3D 参考文档
-===============================
-
-Gal3D 的参考文档主要是从源代码自动生成的。它按子包分为以下几个部分。
+The Gal3D reference documentation is generated automatically from the source code.
+It is organized by subpackage as follows.
 
 .. autosummary::
    :toctree: _autosummary

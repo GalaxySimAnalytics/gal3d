@@ -1,20 +1,20 @@
 .. _details:
 
-实现细节
-=======
+Implementation Details
+======================
 
-介绍 ``Gal3D`` 的核心步骤的算法与实现原理。
+This section introduces the algorithms and implementation principles behind the core steps of ``Gal3D``.
 
-- :doc:`密度估计 <density_estimation>` 密度估计方法。
-- :doc:`球面均匀采样 <spherical_sampling>` 说明球面均匀采样的实现方式。
-- :doc:`单调平滑插值 <monotonic_ray>` 实现整体单调的插值方式。
-- :doc:`广义椭球函数 <generalized_ellipsoid>` 展示广义椭球模型的数学描述与应用。
+- :doc:`Density Estimation <density_estimation>` describes the density estimation methods.
+- :doc:`Uniform Sampling on the Sphere <spherical_sampling>` explains how uniform spherical sampling is implemented.
+- :doc:`Monotonic Smooth Interpolation <monotonic_ray>` presents the implementation of globally monotonic interpolation.
+- :doc:`Superellipsoid Functions <generalized_ellipsoid>` shows the mathematical description and applications of the superellipsoid model.
 
 
 .. toctree::
    :maxdepth: 1
 
-   密度估计 <density_estimation>
-   球面均匀采样 <spherical_sampling>
-   单调平滑插值 <monotonic_ray>
-   广义椭球函数 <generalized_ellipsoid>
+   Density Estimation <density_estimation>
+   Uniform Sampling on the Sphere <spherical_sampling>
+   Monotonic Smooth Interpolation <monotonic_ray>
+   Superellipsoid Functions <generalized_ellipsoid>

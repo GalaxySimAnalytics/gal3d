@@ -19,7 +19,7 @@ sys.path.append(os.path.abspath('sphinxext'))
 project = 'Gal3D'
 copyright = str(datetime.now().year)
 
-language = os.environ.get('SPHINX_LANGUAGE') or 'zh_CN'
+language = os.environ.get('SPHINX_LANGUAGE') or 'en'
 # Set author based on language
 if language == 'zh_CN':
     author = '卢帅'

@@ -1,18 +1,20 @@
 .. _tutorials:
 
-Gal3D 教程
-===========
+Gal3D Tutorials
+===============
 
-这里是 Gal3D 的使用教程，帮助用户快速上手并掌握库的基本功能和用法。
+This section provides practical tutorials to help you get started with Gal3D and become familiar with its main features and workflows.
 
-:doc:`快速入门 <quick_start>` 介绍最基本的使用方法和示例。
-:doc:`分步流程 <step_by_step>` 详细展示完整的模型拟合流程。
-:doc:`深入探索 <deeper_dives>` 针对特定主题进行了更详细的展示和示例。
 
+:doc:`Quick Start <quick_start>` introduces the most basic usage patterns and examples.
+
+:doc:`Step-by-Step Workflow <step_by_step>` walks through a complete model-fitting workflow in detail.
+
+:doc:`Deeper Dives <deeper_dives>` collects more focused examples and discussions on specific topics.
 
 .. toctree::
    :maxdepth: 1
 
-   快速入门 <quick_start>
-   分步流程 <step_by_step>
-   深入探索 <deeper_dives>
+   Quick Start <quick_start>
+   Step-by-Step Workflow <step_by_step>
+   Deeper Dives <deeper_dives>

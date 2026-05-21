@@ -1,11 +1,12 @@
-深入探索
-========
+Deeper Dives
+============
 
-这里收录对特定主题的更深入使用和探索。
+This section collects more in-depth examples and discussions on selected topics.
 
 .. toctree::
    :maxdepth: 1
 
-   不同形状参数的椭球体 <shapes_ellipsoid_s>
-   参数类的使用 <parameters>
-   粒子类的使用 <particles>
+   Superellipsoids with Different Shape Parameters <shapes_ellipsoid_s>
+   Working with Parameter Classes <parameters>
+   Working with Particle Classes <particles>
+   

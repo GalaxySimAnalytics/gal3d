@@ -10,6 +10,7 @@
 - :doc:`单调平滑插值 <monotonic_ray>` 实现整体单调的插值方式。
 - :doc:`广义椭球函数 <generalized_ellipsoid>` 展示广义椭球模型的数学描述与应用。
 
+
 .. toctree::
    :maxdepth: 1
 

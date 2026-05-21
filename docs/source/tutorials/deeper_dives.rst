@@ -8,3 +8,4 @@
 
    不同形状参数的椭球体 <shapes_ellipsoid_s>
    参数类的使用 <parameters>
+   粒子类的使用 <particles>

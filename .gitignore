@@ -32,6 +32,9 @@ src/gal3d.egg-info
 
 # Jupyter Notebook
 **/*.ipynb
+!docs/source/**/*.ipynb
+
+docs/locales/**/*.mo
 
 # runtime logs
 **/gal3d.log

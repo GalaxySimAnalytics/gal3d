@@ -1,7 +1,13 @@
-## Introduction
-Gal3D is a Python library for constructing and analyzing three-dimensional galaxy or halo morphology models. It is designed for building 3D models from simulated particle data, similar to ellipse fitting techniques used in observations.
+### Introduction
 
-## Installation
+Gal3D is a Python library for constructing and analyzing three-dimensional galaxy morphology models. It is designed for building 3D models from simulated particle data and for studying the intrinsic structure of galaxies in simulations.
+
+### Documentation
+
+The documentation is at [readthedocs](https://gal3d.readthedocs.io)
+
+
+### Installation
 
 Clone the repository and install in editable (-e) mode:
 
@@ -26,7 +32,7 @@ Optional (for advanced optimization):
 - **nlopt**
 - **optimagic**
 
-## Usage
+### Usage
 
 ```python
 from gal3d.analyzer import Gal3DAnalyzer
@@ -35,10 +41,9 @@ analyzer = Gal3DAnalyzer.analyze(pos,mass)
 model = analyzer.fit()
 ```
 
-See [gal3d_example](https://github.com/GalaxySimAnalytics/gal3d_example) for more usage examples, or refer to the documentation for details.
 
 
-## Development Setup
+### Development Setup
 
 Prerequisites: [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 
@@ -58,6 +63,6 @@ uv sync --extra dev --extra tests --extra optimizer
 uv run pre-commit install
 ```
 
-## License
+### License
 
 [MIT License](./LICENSE)

@@ -25,7 +25,6 @@ _model_result_style = """<style>
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* ── scrollable body - sticky th now uses top:0 within THIS container ── */
 .mr-body {
     overflow: auto;
     max-height: 420px;
@@ -57,20 +56,46 @@ _model_result_style = """<style>
     padding: 3px 10px;
     text-align: right;
     white-space: nowrap;
-    color: #1a1a2e;
-    background: #ffffff;       /* ← explicit white: blocks Jupyter dark-mode override */
+    color: #1a1a2e !important;
+    background: #ffffff !important;
+    font-variant-numeric: tabular-nums;
 }
 .mr-table td:first-child {
     text-align: center;
-    background: #eef2f8;
-    color: #2a3a4a;
+    background: #eef2f8 !important;
+    color: #2a3a4a !important;
     font-weight: 600;
     border-right: 2px solid #b0bac8;
 }
-.mr-table tbody tr:nth-child(even) td             { background: #f0f4fa; }
-.mr-table tbody tr:nth-child(even) td:first-child { background: #e4ecf5; }
-.mr-table tbody tr:hover td                       { background: #fff3cd; }
-.mr-table tbody tr:hover td:first-child           { background: #ffe8a0; }
+.mr-table tbody tr:nth-child(even) td {
+    background: #f0f4fa !important;
+    color: #1a1a2e !important;
+}
+.mr-table tbody tr:nth-child(even) td:first-child {
+    background: #e4ecf5 !important;
+    color: #2a3a4a !important;
+}
+.mr-table tbody tr:hover td {
+    background: #fff3cd !important;
+    color: #1a1a2e !important;
+}
+.mr-table tbody tr:hover td:first-child {
+    background: #ffe8a0 !important;
+    color: #2a3a4a !important;
+}
+.mr-table td.mr-col-cost {
+    background: #eef3f8 !important;
+    color: #0f172a !important;
+    font-weight: 600;
+}
+.mr-table tbody tr:nth-child(even) td.mr-col-cost {
+    background: #e6edf5 !important;
+    color: #0f172a !important;
+}
+.mr-table tbody tr:hover td.mr-col-cost {
+    background: #ffe8a0 !important;
+    color: #0f172a !important;
+}
 .mr-ellipsis td {
     text-align: center !important;
     color: #888 !important;
@@ -82,7 +107,7 @@ _model_result_style = """<style>
 }
 .mr-note {
     font-size: 11px;
-    color: #666;
+    color: #475569;
     padding: 4px 10px 5px;
     border-top: 1px solid #e0e4ea;
     background: #fafbfc;

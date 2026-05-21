@@ -16,6 +16,7 @@ from .optimizer import OptimizeResult
 
 if TYPE_CHECKING:
     from .parameter import Parameter, Parameters
+    from .resultplot import ResultErrorbar, ResultPlot, ResultScatter
 
 logger = logging.getLogger("gal3d.optimization.result")
 
@@ -102,6 +103,27 @@ class ModelResult:
         if isinstance(param_name, str):
             param_name = [param_name]
         return ErrorWorkflow.estimate_error(self, param_name=param_name)
+
+    @property
+    def errorbar(self) -> "ResultErrorbar":
+        """plotting error bars."""
+        from .resultplot import ResultErrorbar
+
+        return ResultErrorbar(self)
+
+    @property
+    def scatter(self) -> "ResultScatter":
+        """plotting scatter plots."""
+        from .resultplot import ResultScatter
+
+        return ResultScatter(self)
+
+    @property
+    def plot(self) -> "ResultPlot":
+        """plotting line plots."""
+        from .resultplot import ResultPlot
+
+        return ResultPlot(self)
 
     def __call__(self, pos: np.ndarray | list | tuple, *, item: int = 0, **kwargs: Any) -> np.ndarray:
         """
@@ -644,14 +666,20 @@ class ModelResult:
         else:
             display_rows = list(records)
 
-        thead = "<tr>" + "".join(f"<th>{_html_escape(c)}</th>" for c in cols) + "</tr>"
+        def _col_class(col: str) -> str:
+            if col == "#":
+                return "mr-col-rowid"
+            safe = "".join(ch if ch.isalnum() else "-" for ch in col).strip("-")
+            return f"mr-col-{safe or 'value'}"
+
+        thead = "<tr>" + "".join(f"<th class='{_col_class(c)}'>{_html_escape(c)}</th>" for c in cols) + "</tr>"
 
         body_parts: list[str] = []
         for row in display_rows:
             if row is None:
                 body_parts.append(f"<tr class='mr-ellipsis'><td colspan='{len(cols)}'>&#8942;</td></tr>")
             else:
-                tds = "".join(f"<td>{_html_escape(row.get(c, ''))}</td>" for c in cols)
+                tds = "".join(f"<td class='{_col_class(c)}'>{_html_escape(row.get(c, ''))}</td>" for c in cols)
                 body_parts.append(f"<tr>{tds}</tr>")
         tbody = "\n".join(body_parts)
 

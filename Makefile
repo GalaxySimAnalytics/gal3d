@@ -16,7 +16,7 @@ setup:
 		echo "Install: curl -LsSf https://astral.sh/uv/install.sh | sh"; \
 		exit 1; \
 	}
-	uv sync --extra dev --extra tests --extra optimizer --extra doc
+	uv sync --extra dev --extra tests --extra optimizer
 	uv run pre-commit install
 	@echo "✓ Dev environment ready. Run 'make test' to verify."
 	@echo "Note: If you change .pyx/.c/.cpp files, run 'make rebuild-ext' to rebuild native extensions."

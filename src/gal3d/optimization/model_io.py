@@ -422,15 +422,23 @@ class ModelIOBase(PluginBase):
         dict[str, Any]
             The extracted optimization results.
         """
-        result_data = {}
-        for i, opt_result in enumerate(model._opt_results):
-            this_res = {}
-            for key in result_keys:
+        result_data: dict[str, Any] = {"result_count": len(model._opt_results)}
+        result_names: list[str] = []
+
+        for key in result_keys:
+            column = []
+            for i, opt_result in enumerate(model._opt_results):
                 if key not in opt_result:
                     logger.debug("Result key '%s' not found in optimization result %d.", key, i)
-                    continue
-                this_res[key] = opt_result[key]
-            result_data[f"result_{i}"] = this_res
+                    column.append(None)
+                else:
+                    column.append(opt_result[key])
+
+            if any(value is not None for value in column):
+                result_data[key] = column
+                result_names.append(key)
+
+        result_data["result_names"] = result_names
         return result_data
 
     @classmethod

@@ -3,6 +3,8 @@ HDF5-based Model I/O plugin for saving and loading model optimization results.
 
 """
 
+import ast
+import json
 import logging
 import os
 import time
@@ -62,6 +64,191 @@ def _load_hdf_value(group: h5py.Group, key: str) -> Any:
     except Exception as e:
         logger.warning("Failed to load key '%s' from HDF5 group '%s': %s", key, group.name, e)
         return None
+
+
+def _is_jsonable(value: Any) -> bool:
+    try:
+        json.dumps(value)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def _encode_bool_column(values: list[Any]) -> dict[str, Any]:
+    arr = np.full(len(values), np.nan, dtype=float)
+    for i, value in enumerate(values):
+        if value is not None:
+            arr[i] = float(bool(value))
+    return {"kind": "scalar_bool", "values": arr}
+
+
+def _encode_numeric_column(values: list[Any]) -> dict[str, Any]:
+    arr = np.full(len(values), np.nan, dtype=float)
+    for i, value in enumerate(values):
+        if value is not None:
+            arr[i] = float(value)
+    return {"kind": "scalar_float", "values": arr}
+
+
+def _encode_string_column(values: list[Any]) -> dict[str, Any]:
+    text = np.asarray(["" if value is None else value for value in values], dtype=h5py.string_dtype("utf-8"))
+    mask = np.asarray([value is None for value in values], dtype=bool)
+    return {"kind": "string", "values": text, "isnull": mask}
+
+
+def _encode_array_column(values: list[Any]) -> dict[str, Any]:
+    arrays = [np.asarray(value, dtype=float) for value in values if value is not None]
+    shapes = [arr.shape for arr in arrays]
+
+    if len(set(shapes)) == 1:
+        stacked = np.full((len(values),) + shapes[0], np.nan, dtype=float)
+        mask = np.asarray([value is None for value in values], dtype=bool)
+        for i, value in enumerate(values):
+            if value is not None:
+                stacked[i] = np.asarray(value, dtype=float)
+        return {"kind": "ndarray_stack", "values": stacked, "isnull": mask}
+
+    flat_parts: list[np.ndarray] = []
+    offsets = np.zeros(len(values), dtype=np.int64)
+    lengths = np.zeros(len(values), dtype=np.int64)
+    shape_rows: list[str] = []
+    mask = np.asarray([value is None for value in values], dtype=bool)
+
+    cursor = 0
+    for i, value in enumerate(values):
+        offsets[i] = cursor
+        if value is None:
+            lengths[i] = 0
+            shape_rows.append(repr(()))
+            continue
+
+        arr = np.asarray(value, dtype=float)
+        flat = arr.ravel()
+        flat_parts.append(flat)
+        lengths[i] = flat.size
+        shape_rows.append(repr(arr.shape))
+        cursor += flat.size
+
+    flat_values = np.concatenate(flat_parts) if flat_parts else np.asarray([], dtype=float)
+    return {
+        "kind": "ndarray_ragged",
+        "values": flat_values,
+        "offsets": offsets,
+        "lengths": lengths,
+        "shapes": np.asarray(shape_rows, dtype=h5py.string_dtype("utf-8")),
+        "isnull": mask,
+    }
+
+
+def _encode_json_column(values: list[Any]) -> dict[str, Any]:
+    payload = np.asarray(
+        ["" if value is None else json.dumps(value) for value in values], dtype=h5py.string_dtype("utf-8")
+    )
+    mask = np.asarray([value is None for value in values], dtype=bool)
+    return {"kind": "json", "values": payload, "isnull": mask}
+
+
+def _encode_repr_column(values: list[Any]) -> dict[str, Any]:
+    payload = np.asarray(["" if value is None else repr(value) for value in values], dtype=h5py.string_dtype("utf-8"))
+    mask = np.asarray([value is None for value in values], dtype=bool)
+    return {"kind": "repr", "values": payload, "isnull": mask}
+
+
+def _encode_opt_column(values: list[Any]) -> dict[str, Any]:
+    non_null = [value for value in values if value is not None]
+    encoded: dict[str, Any]
+
+    if not non_null:
+        encoded = _encode_numeric_column(values)
+    elif all(isinstance(value, (bool, np.bool_)) for value in non_null):
+        encoded = _encode_bool_column(values)
+    elif all(
+        isinstance(value, (int, float, np.number)) and not isinstance(value, (bool, np.bool_)) for value in non_null
+    ):
+        encoded = _encode_numeric_column(values)
+    elif all(isinstance(value, str) for value in non_null):
+        encoded = _encode_string_column(values)
+    elif all(isinstance(value, (np.ndarray, list, tuple)) for value in non_null):
+        encoded = _encode_array_column(values)
+    elif all(_is_jsonable(value) for value in non_null):
+        encoded = _encode_json_column(values)
+    else:
+        encoded = _encode_repr_column(values)
+
+    return encoded
+
+
+def _decode_scalar_float(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"][()]
+    return [np.nan if np.isnan(value) else float(value) for value in values]
+
+
+def _decode_scalar_bool(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"][()]
+    return [None if np.isnan(value) else bool(int(value)) for value in values]
+
+
+def _decode_string(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"].asstr()[()]
+    mask = field_group["isnull"][()]
+    return [None if mask[i] else values[i] for i in range(len(values))]
+
+
+def _decode_ndarray_stack(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"][()]
+    mask = field_group["isnull"][()]
+    return [None if mask[i] else values[i] for i in range(len(values))]
+
+
+def _decode_ndarray_ragged(field_group: h5py.Group) -> list[Any]:
+    flat = field_group["values"][()]
+    offsets = field_group["offsets"][()]
+    lengths = field_group["lengths"][()]
+    shapes = field_group["shapes"].asstr()[()]
+    mask = field_group["isnull"][()]
+    out: list[Any] = []
+
+    for i in range(len(offsets)):
+        if mask[i]:
+            out.append(None)
+            continue
+        start = int(offsets[i])
+        stop = start + int(lengths[i])
+        shape = ast.literal_eval(shapes[i])
+        out.append(flat[start:stop].reshape(shape))
+
+    return out
+
+
+def _decode_json(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"].asstr()[()]
+    mask = field_group["isnull"][()]
+    return [None if mask[i] else json.loads(values[i]) for i in range(len(values))]
+
+
+def _decode_repr(field_group: h5py.Group) -> list[Any]:
+    values = field_group["values"].asstr()[()]
+    mask = field_group["isnull"][()]
+    return [None if mask[i] else values[i] for i in range(len(values))]
+
+
+_OPT_COLUMN_DECODERS: dict[str, Any] = {
+    "scalar_float": _decode_scalar_float,
+    "scalar_bool": _decode_scalar_bool,
+    "string": _decode_string,
+    "ndarray_stack": _decode_ndarray_stack,
+    "ndarray_ragged": _decode_ndarray_ragged,
+    "json": _decode_json,
+    "repr": _decode_repr,
+}
+
+
+def _decode_opt_column(field_group: h5py.Group) -> list[Any]:
+    kind = field_group.attrs["kind"]
+    decoder = _OPT_COLUMN_DECODERS.get(kind)
+    if decoder is None:
+        raise ValueError(f"Unsupported opt_info kind: {kind}")
+    return decoder(field_group)
 
 
 class HDF5ModelIO(ModelIOBase):
@@ -180,10 +367,22 @@ class HDF5ModelIO(ModelIOBase):
     @classmethod
     def _save_opt_results(cls, opt_group: h5py.Group, opt_data: dict[str, Any], compression: str | None) -> None:
         """Save optimization results to the HDF5 group."""
-        for result_name, result_data in opt_data.items():
-            opt_set = opt_group.create_group(result_name)
-            for key, value in result_data.items():
-                _set_hdf_value(opt_set, key, value, compression=compression)
+        result_names = [
+            name
+            for name in opt_data.get("result_names", [])
+            if name in opt_data and any(value is not None for value in opt_data[name])
+        ]
+        opt_group.attrs["result_names"] = result_names
+        opt_group.attrs["result_count"] = int(opt_data.get("result_count", 0))
+
+        for key in result_names:
+            field_group = opt_group.create_group(key)
+            encoded = _encode_opt_column(opt_data[key])
+            field_group.attrs["kind"] = encoded["kind"]
+            for name, value in encoded.items():
+                if name == "kind":
+                    continue
+                field_group.create_dataset(name, data=value, compression=compression)
 
     @classmethod
     def _load_metadata_from_file(
@@ -270,6 +469,22 @@ class HDF5ModelIO(ModelIOBase):
     @classmethod
     def _load_opt_from_group(cls, opt_group: h5py.Group) -> list[OptimizeResult]:
         """Build an OptimizeResult list from an already-open HDF5 group."""
+        if "result_names" in opt_group.attrs:
+            result_names = list(opt_group.attrs["result_names"])
+            columns = {key: _decode_opt_column(opt_group[key]) for key in result_names if key in opt_group}
+            n_results = int(
+                opt_group.attrs.get("result_count", max((len(values) for values in columns.values()), default=0))
+            )
+
+            results: list[OptimizeResult] = []
+            for i in range(n_results):
+                row: dict[str, Any] = {}
+                for key, values in columns.items():
+                    if i < len(values):
+                        row[key] = values[i]
+                results.append(OptimizeResult(**row))
+            return results
+
         opt_results: list[OptimizeResult] = []
         for opt_result_name in sorted(opt_group.keys()):
             opt_data = opt_group[opt_result_name]
